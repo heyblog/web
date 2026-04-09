@@ -132,7 +132,7 @@
 </script>
 
 <section
-  class="pointer-events-none fixed inset-x-0 top-4 z-70 flex justify-center px-3 sm:top-5 sm:px-6"
+  class="pointer-events-none fixed inset-x-0 top-4 z-90 flex justify-center px-3 sm:top-5 sm:px-6"
 >
   <div class="flex w-full max-w-100 flex-col gap-3">
     {#each items as item (item.id)}
@@ -140,7 +140,7 @@
         animate:flip={listMotion}
         in:fly={enterMotion}
         out:fly={exitMotion}
-        class="pointer-events-auto relative overflow-hidden rounded-[5px] border bg-(--color-bg-raised) p-4 shadow-[0_18px_40px_rgba(28,25,23,0.14)] transition dark:shadow-[0_18px_40px_rgba(0,0,0,0.34)]"
+        class="pointer-events-auto relative overflow-hidden rounded-md border bg-(--color-bg-raised) p-4 shadow-[0_18px_40px_rgba(28,25,23,0.14)] transition dark:shadow-[0_18px_40px_rgba(0,0,0,0.34)]"
         style:border-color={borderColorMap[item.tone]}
         role="status"
       >

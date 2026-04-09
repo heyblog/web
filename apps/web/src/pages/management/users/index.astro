@@ -1,0 +1,33 @@
+---
+export const prerender = false;
+
+import type { SessionUser } from '@/application/auth/auth.guard';
+import { fetchProtectedJson } from '@/application/auth/auth.server';
+import UserAuthorizationPanel from '@/components/management/users/UserAuthorizationPanel.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+interface ManagedUserSnapshot extends SessionUser {
+  createdTime: string | null;
+  lastLoginTime: string | null;
+}
+
+const currentUser = Astro.locals.authUser as SessionUser | null | undefined;
+const payload = await fetchProtectedJson<{
+  ok: boolean;
+  data: ManagedUserSnapshot[];
+}>(Astro.request, '/api/management/users');
+
+const users = payload.data;
+---
+
+<ManagementLayout
+  title="用户与授权"
+  currentPath="/management/users"
+  eyebrow="management / users"
+  heading="用户与授权"
+  description="先把普通用户提权为 ADMIN，再给对应管理员下发具体模块权限。SYS_ADMIN 拥有全部模块能力。"
+>
+  <div class="page-section">
+    <UserAuthorizationPanel client:load {users} currentUser={currentUser ?? null} />
+  </div>
+</ManagementLayout>

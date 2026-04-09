@@ -108,7 +108,7 @@
 </script>
 
 <section
-  class="pointer-events-none fixed inset-x-0 bottom-4 z-65 flex justify-center px-3 sm:bottom-5 sm:px-6"
+  class="pointer-events-none fixed inset-x-0 bottom-4 z-90 flex justify-center px-3 sm:bottom-5 sm:px-6"
 >
   <div class="flex w-full max-w-lg flex-col gap-3">
     {#each items as item (item.id)}
