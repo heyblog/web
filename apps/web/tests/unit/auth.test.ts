@@ -13,6 +13,7 @@ import {
   readSessionUser,
 } from '@/application/auth/auth.server';
 import { buildRedirectUrl, resolvePostLoginRedirect } from '@/application/auth/auth-route.server';
+import { getWebBaseUrl } from '@tests/setup/env';
 
 import { apiStubs } from '../setup/api-stubs';
 import { adminUserFixture } from '../setup/fixtures';
@@ -74,14 +75,14 @@ describe('server auth helpers', () => {
   });
 
   it('builds absolute redirect urls for response redirects', () => {
-    const request = new Request('http://127.0.0.1:9902/forgot-password');
+    const request = new Request(`${getWebBaseUrl()}/forgot-password`);
 
     expect(
       buildRedirectUrl(request, '/login', {
         status: 'reset-sent',
         next: '/management',
       }),
-    ).toBe('http://127.0.0.1:9902/login?status=reset-sent&next=%2Fmanagement');
+    ).toBe(`${getWebBaseUrl()}/login?status=reset-sent&next=%2Fmanagement`);
   });
 
   it('redirects users away from management paths after login', () => {
@@ -117,7 +118,7 @@ describe('server auth helpers', () => {
     );
 
     const result = await readSessionUser(
-      new Request('http://127.0.0.1:9902/dashboard', {
+      new Request('http://127.0.0.1:9101/dashboard', {
         headers: {
           cookie: 'zhblogs_access_token=test',
         },
@@ -134,7 +135,7 @@ describe('server auth helpers', () => {
     );
 
     const result = await readSessionUser(
-      new Request('http://127.0.0.1:9902/dashboard', {
+      new Request(`${getWebBaseUrl()}/dashboard`, {
         headers: {
           cookie: 'zhblogs_access_token=test',
         },

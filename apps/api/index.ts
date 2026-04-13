@@ -6,7 +6,7 @@ const start = async () => {
   try {
     await app.ready();
 
-    const port = app.config.API_PORT ?? 9901;
+    const port = app.config.API_PORT ?? 9201;
 
     app.log.info({ port, env: app.config.NODE_ENV }, 'api server starting');
 

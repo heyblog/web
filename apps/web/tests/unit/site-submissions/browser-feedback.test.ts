@@ -5,6 +5,7 @@ import {
   clearSubmissionIdentifierSearchParams,
   copySubmissionAuditId,
 } from '@/application/site-submission/site-submission.browser-feedback';
+import { getWebBaseUrl } from '@tests/setup/env';
 
 describe('site submission browser feedback helpers', () => {
   beforeEach(() => {
@@ -45,7 +46,7 @@ describe('site submission browser feedback helpers', () => {
 
     vi.stubGlobal('window', {
       location: {
-        href: 'http://127.0.0.1:9902/site/submit/delete?site_id=site-1&foo=bar#done',
+        href: `${getWebBaseUrl()}/site/submit/delete?site_id=site-1&foo=bar#done`,
       },
       history: {
         state: { from: 'test' },

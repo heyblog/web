@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { POST as reviewPost } from '@/pages/management/site-submissions/[auditId]/review';
 import { POST as siteUpdatePost } from '@/pages/management/sites/[siteId]/update';
+import { getWebBaseUrl } from '@tests/setup/env';
 
 const siteId = '11111111-1111-4111-8111-111111111111';
 const auditId = '22222222-2222-4222-8222-222222222222';
@@ -50,7 +51,7 @@ describe('management site routes', () => {
 
     const response = await siteUpdatePost(
       createSiteUpdateContext(
-        new Request(`http://127.0.0.1:9902/management/sites/${siteId}/update`, {
+        new Request(`${getWebBaseUrl()}/management/sites/${siteId}/update`, {
           method: 'POST',
           headers: {
             accept: 'application/json',
@@ -69,7 +70,7 @@ describe('management site routes', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `http://127.0.0.1:9901/api/management/sites/${siteId}`,
+      `${getWebBaseUrl()}/api/management/sites/${siteId}`,
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({
@@ -113,7 +114,7 @@ describe('management site routes', () => {
 
     const response = await siteUpdatePost(
       createSiteUpdateContext(
-        new Request(`http://127.0.0.1:9902/management/sites/${siteId}/update`, {
+        new Request(`${getWebBaseUrl()}/management/sites/${siteId}/update`, {
           method: 'POST',
           headers: {
             accept: 'application/json',
@@ -158,7 +159,7 @@ describe('management site routes', () => {
 
     const response = await siteUpdatePost(
       createSiteUpdateContext(
-        new Request(`http://127.0.0.1:9902/management/sites/${siteId}/update`, {
+        new Request(`${getWebBaseUrl()}/management/sites/${siteId}/update`, {
           method: 'POST',
           headers: {
             accept: 'application/json',
@@ -205,7 +206,7 @@ describe('management site routes', () => {
 
     const response = await reviewPost(
       createReviewContext(
-        new Request(`http://127.0.0.1:9902/management/site-submissions/${auditId}/review`, {
+        new Request(`${getWebBaseUrl()}/management/site-submissions/${auditId}/review`, {
           method: 'POST',
           headers: {
             accept: 'application/json',
@@ -225,7 +226,7 @@ describe('management site routes', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `http://127.0.0.1:9901/api/management/site-audits/${auditId}/review`,
+      `${getWebBaseUrl()}/api/management/site-audits/${auditId}/review`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -273,7 +274,7 @@ describe('management site routes', () => {
 
     const response = await reviewPost(
       createReviewContext(
-        new Request(`http://127.0.0.1:9902/management/site-submissions/${auditId}/review`, {
+        new Request(`${getWebBaseUrl()}/management/site-submissions/${auditId}/review`, {
           method: 'POST',
           headers: {
             accept: 'application/json',
@@ -308,7 +309,7 @@ describe('management site routes', () => {
 
     const response = await reviewPost(
       createReviewContext(
-        new Request(`http://127.0.0.1:9902/management/site-submissions/${auditId}/review`, {
+        new Request(`${getWebBaseUrl()}/management/site-submissions/${auditId}/review`, {
           method: 'POST',
           headers: {
             accept: 'application/json',

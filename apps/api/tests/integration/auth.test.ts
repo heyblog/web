@@ -216,7 +216,7 @@ describe('auth routes', () => {
     await app.ready();
 
     app.auth.completeGithubLogin = vi.fn(async (_request, reply) => {
-      reply.redirect('http://127.0.0.1:9902/dashboard');
+      reply.redirect('http://127.0.0.1:9101/dashboard');
     });
     app.auth.loginWithPassword = vi.fn(async (_identifier, _password, reply) => {
       reply.header('set-cookie', `${TEST_AUTH_COOKIES.access}=login-token`);
@@ -316,7 +316,7 @@ describe('auth routes', () => {
       user: userFixture,
     });
     expect(githubExchangeResponse.statusCode).toBe(302);
-    expect(githubExchangeResponse.headers.location).toBe('http://127.0.0.1:9902/dashboard');
+    expect(githubExchangeResponse.headers.location).toBe('http://127.0.0.1:9101/dashboard');
     expect(registerResponse.statusCode).toBe(200);
     expect(registerResponse.json()).toEqual({ ok: true });
     expect(verifyResponse.statusCode).toBe(200);

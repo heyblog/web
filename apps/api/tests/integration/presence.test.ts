@@ -21,12 +21,12 @@ describe('presence routes', () => {
       method: 'GET',
       url: '/api/presence/online',
       headers: {
-        origin: 'http://127.0.0.1:9902',
+        origin: 'http://127.0.0.1:9101',
       },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers['access-control-allow-origin']).toBe('http://127.0.0.1:9902');
+    expect(response.headers['access-control-allow-origin']).toBe('http://127.0.0.1:9101');
     expect(response.json()).toEqual({
       ok: true,
       data: {

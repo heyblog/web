@@ -1,6 +1,6 @@
 import type { SessionUser } from './auth.guard';
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:9901';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:9201';
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 const buildWebAuthPath = (pathname: string, params: Record<string, string> = {}): string => {

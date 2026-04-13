@@ -10,6 +10,7 @@ import {
   handleSubmissionQueryRequest,
   handleUpdateSubmissionRequest,
 } from '@/application/site-submission/site-submission.server-handler';
+import { getWebBaseUrl } from '@tests/setup/env';
 import { siteSubmissionApiStubs } from '@tests/setup/site-submission/api-stubs';
 
 describe('site submission proxy handlers', () => {
@@ -19,7 +20,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleCreateSubmissionRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/create', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/create`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -41,7 +42,7 @@ describe('site submission proxy handlers', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites',
+      `${getWebBaseUrl()}/api/sites`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -64,7 +65,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleCreateSubmissionRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/create', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/create`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -86,7 +87,7 @@ describe('site submission proxy handlers', () => {
 
     expect(response.status).toBe(201);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites',
+      `${getWebBaseUrl()}/api/sites`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -114,7 +115,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleUpdateSubmissionRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/update', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/update`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -135,14 +136,14 @@ describe('site submission proxy handlers', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'http://127.0.0.1:9901/api/sites/resolve',
+      `${getWebBaseUrl()}/api/sites/resolve`,
       expect.objectContaining({
         method: 'POST',
       }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:9901/api/sites/11111111-1111-4111-8111-111111111111/updates',
+      'http://127.0.0.1:9201/api/sites/11111111-1111-4111-8111-111111111111/updates',
       expect.objectContaining({
         method: 'POST',
       }),
@@ -159,7 +160,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleDeleteSubmissionRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/delete', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/delete`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -177,14 +178,14 @@ describe('site submission proxy handlers', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'http://127.0.0.1:9901/api/sites/resolve',
+      `${getWebBaseUrl()}/api/sites/resolve`,
       expect.objectContaining({
         method: 'POST',
       }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:9901/api/sites/11111111-1111-4111-8111-111111111111/deletions',
+      `${getWebBaseUrl()}/api/sites/11111111-1111-4111-8111-111111111111/deletions`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -198,11 +199,11 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleSiteOptionsRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/options'),
+      new Request(`${getWebBaseUrl()}/api/site-submissions/options`),
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites/submission-options',
+      `${getWebBaseUrl()}/api/sites/submission-options`,
       expect.objectContaining({
         method: 'GET',
       }),
@@ -216,7 +217,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleSubmissionQueryRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/query', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/query`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -228,7 +229,7 @@ describe('site submission proxy handlers', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites/submissions/query',
+      `${getWebBaseUrl()}/api/sites/submissions/query`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -242,7 +243,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleSiteSearchRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/search', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/search`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -254,7 +255,7 @@ describe('site submission proxy handlers', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites/search',
+      `${getWebBaseUrl()}/api/sites/search`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -268,7 +269,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleSiteAutoFillRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/auto-fill', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/auto-fill`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -280,7 +281,7 @@ describe('site submission proxy handlers', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites/auto-fill',
+      `${getWebBaseUrl()}/api/sites/auto-fill`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -294,7 +295,7 @@ describe('site submission proxy handlers', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleResolveSiteRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/resolve', {
+      new Request(`${getWebBaseUrl()}/api/site-submissions/resolve`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -306,7 +307,7 @@ describe('site submission proxy handlers', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/sites/resolve',
+      `${getWebBaseUrl()}/api/sites/resolve`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -316,7 +317,7 @@ describe('site submission proxy handlers', () => {
 
   it('returns 400 for malformed query request bodies', async () => {
     const response = await handleSubmissionQueryRequest(
-      new Request('http://127.0.0.1:9902/api/site-submissions/query', {
+      new Request('http://127.0.0.1:9101/api/site-submissions/query', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

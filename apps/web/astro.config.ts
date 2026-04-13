@@ -15,7 +15,7 @@ export default defineConfig({
   }),
   site: 'https://www.zhblogs.net',
   server: {
-    port: 9902,
+    port: 9101,
   },
   build: {
     serverEntry: 'index.mjs',

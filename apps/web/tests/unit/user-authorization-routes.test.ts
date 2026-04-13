@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { POST as permissionsPost } from '@/pages/management/users/[userId]/permissions';
 import { POST as rolePost } from '@/pages/management/users/[userId]/role';
+import { getWebBaseUrl } from '@tests/setup/env';
 
 const managedUserFixture = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -45,7 +46,7 @@ const createRoleRequest = (
   const body = new FormData();
   body.set('intent', intent);
 
-  return new Request(`http://127.0.0.1:9902/management/users/${managedUserFixture.id}/role`, {
+  return new Request(`${getWebBaseUrl()}/management/users/${managedUserFixture.id}/role`, {
     method: 'POST',
     headers: {
       accept,
@@ -66,17 +67,14 @@ const createPermissionsRequest = (
     body.append('permissions', permission);
   }
 
-  return new Request(
-    `http://127.0.0.1:9902/management/users/${managedUserFixture.id}/permissions`,
-    {
-      method: 'POST',
-      headers: {
-        accept,
-        ...extraHeaders,
-      },
-      body,
+  return new Request(`${getWebBaseUrl()}/management/users/${managedUserFixture.id}/permissions`, {
+    method: 'POST',
+    headers: {
+      accept,
+      ...extraHeaders,
     },
-  );
+    body,
+  });
 };
 
 describe('management user authorization routes', () => {
@@ -99,7 +97,7 @@ describe('management user authorization routes', () => {
     const response = await rolePost(createRoleContext(createRoleRequest('grant-admin')));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/management/users/11111111-1111-4111-8111-111111111111/grant-admin',
+      `${getWebBaseUrl()}/api/management/users/11111111-1111-4111-8111-111111111111/grant-admin`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -225,7 +223,7 @@ describe('management user authorization routes', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9901/api/management/users/11111111-1111-4111-8111-111111111111/permissions',
+      `${getWebBaseUrl()}/api/management/users/11111111-1111-4111-8111-111111111111/permissions`,
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({

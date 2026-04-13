@@ -1,5 +1,5 @@
 const DEFAULT_WEB_HOST = '127.0.0.1';
-const DEFAULT_WEB_PORT = 9902;
+const DEFAULT_WEB_PORT = 9101;
 
 export const getWebPort = (): number => {
   const raw = process.env.PLAYWRIGHT_WEB_PORT ?? process.env.PORT ?? String(DEFAULT_WEB_PORT);

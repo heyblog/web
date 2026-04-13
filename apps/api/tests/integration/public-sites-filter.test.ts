@@ -38,7 +38,12 @@ describe('public site directory filters', () => {
             name: 'Alpha Overseas',
             url: 'https://alpha.example',
             sign: '海外可访问的技术站点。',
-            defaultFeedUrl: 'https://alpha.example/feed.xml',
+            feeds: [
+              {
+                url: 'https://alpha.example/feed.xml',
+                isDefault: true,
+              },
+            ],
             sitemap: 'https://alpha.example/sitemap.xml',
             linkPage: null,
             featured: true,
@@ -54,7 +59,7 @@ describe('public site directory filters', () => {
             name: 'Beta Mainland',
             url: 'https://beta.example',
             sign: '中国大陆可访问的社区站点。',
-            defaultFeedUrl: null,
+            feeds: [],
             sitemap: null,
             linkPage: null,
             featured: false,
