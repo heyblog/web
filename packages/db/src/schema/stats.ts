@@ -65,13 +65,13 @@ export const SiteCheckStats = pgView('site_check_stats', {
   avg_response_time_ms: integer('avg_response_time_ms'),
 }).as(sql`
   select
-    sc.site_id as site_id,
+    scr.site_id as site_id,
     count(*)::int as total_checks,
-    count(*) filter (where sc.result = 'SUCCESS')::int as success_checks,
-    count(*) filter (where sc.result <> 'SUCCESS')::int as failed_checks,
-    avg(sc.response_time_ms)::int as avg_response_time_ms
-  from site_checks sc
-  group by sc.site_id
+    count(*) filter (where scr.derived_status = 'OK')::int as success_checks,
+    count(*) filter (where scr.derived_status <> 'OK')::int as failed_checks,
+    avg(scr.response_time_ms)::int as avg_response_time_ms
+  from site_check_runs scr
+  group by scr.site_id
 `);
 
 /** 站点最新一次检测结果视图 */
@@ -97,19 +97,19 @@ export const LatestSiteChecks = pgView('latest_site_checks', {
   /** 最近一次检测时间 */
   check_time: timestamp('check_time', { withTimezone: true, precision: 6 }),
 }).as(sql`
-  select distinct on (sc.site_id)
-    sc.site_id as site_id,
-    sc.id as check_id,
-    sc.region as region,
-    sc.result as result,
-    sc.status_code as status_code,
-    sc.response_time_ms as response_time_ms,
-    sc.duration_ms as duration_ms,
-    sc.final_url as final_url,
-    sc.content_verified as content_verified,
-    sc.check_time as check_time
-  from site_checks sc
-  order by sc.site_id, sc.check_time desc, sc.id desc
+  select distinct on (scr.site_id)
+    scr.site_id as site_id,
+    scr.id as check_id,
+    'UNKNOWN'::varchar as region,
+    scr.derived_status as result,
+    null::integer as status_code,
+    scr.response_time_ms as response_time_ms,
+    scr.duration_ms as duration_ms,
+    scr.final_url as final_url,
+    (scr.verify_result = 'PASSED') as content_verified,
+    scr.started_time as check_time
+  from site_check_runs scr
+  order by scr.site_id, scr.started_time desc, scr.id desc
 `);
 
 /** 站点文章聚合统计视图 */

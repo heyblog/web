@@ -126,11 +126,11 @@ export const SITE_ACCESS_SCOPES = {
     label: '仅国内可访问',
     description: '站点主要面向国内网络环境访问，海外访问可能受限',
   },
-  GLOBAL_ONLY: {
+  NON_CN_ONLY: {
     label: '仅海外可访问',
-    description: '站点主要面向海外网络环境访问，国内访问可能受限',
+    description: '站点仅在非中国大陆网络环境下可访问',
   },
-  BOTH: {
+  ALL: {
     label: '国内外均可访问',
     description: '站点在国内与海外网络环境下都可正常访问',
   },

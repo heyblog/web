@@ -61,13 +61,13 @@ export const SITE_STATUS_TYPES = {
     label: '状态正常',
     description: '网站整体可访问，前台展示为正常状态',
   },
+  WARNING: {
+    label: '状态警告',
+    description: '网站部分场景受限、降级或存在风险，需要关注',
+  },
   ERROR: {
     label: '状态异常',
     description: '网站不可访问、返回错误或整体状态异常',
-  },
-  SSLERROR: {
-    label: 'SSL证书错误',
-    description: '网站证书异常或 TLS 握手失败导致不可正常访问',
   },
 } as const;
 

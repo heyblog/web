@@ -25,10 +25,19 @@ import {
   SITE_CLASSIFICATION_STATUS_KEYS,
 } from '../constants/site';
 import {
-  EXECUTION_STATUS_KEYS,
+  CONTENT_VALIDATION_STATUS_KEYS,
   JOB_STATUS_KEYS,
   JOB_TRIGGER_SOURCE_KEYS,
+  REQUEST_RETRY_STRATEGY_KEYS,
+  REQUEST_TARGET_KIND_KEYS,
+  RSS_FEED_FORMAT_KEYS,
+  RSS_FEED_MODE_KEYS,
+  RSS_FETCH_NETWORK_PATH_KEYS,
+  RSS_FETCH_SOURCE_KIND_KEYS,
+  RUN_RECORD_STATUS_KEYS,
   SCHEDULE_MODE_KEYS,
+  SITE_CHECK_MODE_KEYS,
+  SITE_VERIFY_RESULT_KEYS,
   TASK_TYPE_KEYS,
 } from '../constants/task';
 import {
@@ -103,9 +112,45 @@ export const jobTriggerSourceEnum = pgEnum(
   JOB_TRIGGER_SOURCE_KEYS as [string, ...string[]],
 );
 export const jobStatusEnum = pgEnum('job_status_enum', JOB_STATUS_KEYS as [string, ...string[]]);
-export const executionStatusEnum = pgEnum(
-  'execution_status_enum',
-  EXECUTION_STATUS_KEYS as [string, ...string[]],
+export const requestTargetKindEnum = pgEnum(
+  'request_target_kind_enum',
+  REQUEST_TARGET_KIND_KEYS as [string, ...string[]],
+);
+export const requestRetryStrategyEnum = pgEnum(
+  'request_retry_strategy_enum',
+  REQUEST_RETRY_STRATEGY_KEYS as [string, ...string[]],
+);
+export const runRecordStatusEnum = pgEnum(
+  'run_record_status_enum',
+  RUN_RECORD_STATUS_KEYS as [string, ...string[]],
+);
+export const siteVerifyResultEnum = pgEnum(
+  'site_verify_result_enum',
+  SITE_VERIFY_RESULT_KEYS as [string, ...string[]],
+);
+export const siteCheckModeEnum = pgEnum(
+  'site_check_mode_enum',
+  SITE_CHECK_MODE_KEYS as [string, ...string[]],
+);
+export const contentValidationStatusEnum = pgEnum(
+  'content_validation_status_enum',
+  CONTENT_VALIDATION_STATUS_KEYS as [string, ...string[]],
+);
+export const rssFeedModeEnum = pgEnum(
+  'rss_feed_mode_enum',
+  RSS_FEED_MODE_KEYS as [string, ...string[]],
+);
+export const rssFeedFormatEnum = pgEnum(
+  'rss_feed_format_enum',
+  RSS_FEED_FORMAT_KEYS as [string, ...string[]],
+);
+export const rssFetchSourceKindEnum = pgEnum(
+  'rss_fetch_source_kind_enum',
+  RSS_FETCH_SOURCE_KIND_KEYS as [string, ...string[]],
+);
+export const rssFetchNetworkPathEnum = pgEnum(
+  'rss_fetch_network_path_enum',
+  RSS_FETCH_NETWORK_PATH_KEYS as [string, ...string[]],
 );
 export const tagTypeEnum = pgEnum('tag_type_enum', TAG_TYPE_KEYS as [string, ...string[]]);
 export const technologyTypeEnum = pgEnum(

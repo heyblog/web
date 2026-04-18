@@ -69,7 +69,7 @@ export const Sites = pgTable(
       .notNull()
       .$default(() => new Date()),
     /** 站点访问属性：仅国内、仅海外、国内外都可访问 */
-    access_scope: siteAccessScopeEnum().notNull().default('BOTH'),
+    access_scope: siteAccessScopeEnum().notNull().default('ALL'),
     /** 站点当前简易显示状态，取最近一次检测归并结果 */
     status: siteStatusTypeEnum().notNull().default('OK'),
     /** 是否在前台显示 */
