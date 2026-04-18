@@ -4,6 +4,13 @@ export function createSiteSlug(site: Pick<PublicSiteBaseRow, 'bid' | 'name' | 'i
   return site.id;
 }
 
+export function matchesSiteSlug(
+  site: Pick<PublicSiteBaseRow, 'id'> & { slug?: string },
+  slug: string,
+) {
+  return site.slug === slug || site.id === slug;
+}
+
 export function compareNames(left: string, right: string): number {
   return left.localeCompare(right, 'zh-CN');
 }

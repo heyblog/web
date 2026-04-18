@@ -91,26 +91,15 @@ function includesAllText(source: string, target: string[]): boolean {
 }
 
 function getAccessScopeSearchTerms(accessScope: string): string[] {
-  if (accessScope === 'CN_ONLY' || accessScope === 'MAINLAND_ONLY') {
-    return [
-      'cn_only',
-      'mainland_only',
-      'cn',
-      'mainland',
-      'china',
-      '中国',
-      '中国大陆',
-      '大陆',
-      '国内',
-      '仅中国大陆可访问',
-    ];
+  if (accessScope === 'CN_ONLY') {
+    return ['cn_only', 'cn', 'china', '中国', '中国大陆', '大陆', '国内', '仅中国大陆可访问'];
   }
 
-  if (accessScope === 'GLOBAL_ONLY' || accessScope === 'OVERSEAS_ONLY') {
-    return ['global_only', 'overseas_only', 'overseas', 'abroad', '海外', '国际', '仅海外可访问'];
+  if (accessScope === 'NON_CN_ONLY') {
+    return ['non_cn_only', 'non_cn', 'global', '海外', '国际', '仅海外可访问'];
   }
 
-  return ['both', 'global', 'worldwide', '全球', '全球可访问'];
+  return ['all', 'both', 'global', 'worldwide', '全球', '全球可访问'];
 }
 
 function matchesAccessScope(accessScope: string, target: string[]): boolean {
@@ -200,17 +189,31 @@ export function matchesDirectoryFilters(
   return query.featured === null || site.featured === query.featured;
 }
 
+function readTimeValue(value: string | null | undefined): number {
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
 function compareBySort(
   left: PublicSiteDirectoryItem,
   right: PublicSiteDirectoryItem,
   query: DirectoryState,
 ): number {
   if (query.sort === 'updated') {
-    return new Date(left.updateTime).getTime() - new Date(right.updateTime).getTime();
+    const latestDiff =
+      readTimeValue(left.latestPublishedTime) - readTimeValue(right.latestPublishedTime);
+
+    return latestDiff !== 0
+      ? latestDiff
+      : readTimeValue(left.updateTime) - readTimeValue(right.updateTime);
   }
 
   if (query.sort === 'joined') {
-    return new Date(left.joinTime).getTime() - new Date(right.joinTime).getTime();
+    return readTimeValue(left.joinTime) - readTimeValue(right.joinTime);
   }
 
   if (query.sort === 'visits') {
@@ -256,6 +259,5 @@ export function sortDirectoryItems(
     return draft;
   }
 
-  draft.sort((left, right) => compareNames(left.name, right.name));
   return draft;
 }

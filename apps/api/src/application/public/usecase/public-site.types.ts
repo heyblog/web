@@ -128,6 +128,7 @@ export type PublicSiteDetail = PublicSiteDirectoryItem & {
       repoUrl: string | null;
     } | null;
   };
+  heartbeatChecks: PublicSiteCheckItem[];
 };
 
 export type PublicSiteArticleItem = {
@@ -159,6 +160,33 @@ export type PublicSiteCheckItem = {
 
 export type PublicSiteDetailTabPage<TItem> = {
   items: TItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+};
+
+export type PublicSiteSubscriptionSummary = {
+  todayArticles: number;
+  weekArticles: number;
+  totalArticles: number;
+  siteCount: number;
+};
+
+export type PublicSiteSubscriptionItem = PublicSiteArticleItem & {
+  site: {
+    id: string;
+    slug: string;
+    name: string;
+    url: string;
+  };
+};
+
+export type PublicSiteSubscriptionResult = {
+  summary: PublicSiteSubscriptionSummary;
+  items: PublicSiteSubscriptionItem[];
   pagination: {
     page: number;
     pageSize: number;
@@ -208,7 +236,10 @@ export type PublicSiteBaseRow = {
   name: string;
   url: string;
   sign: string | null;
-  defaultFeedUrl: string | null;
+  feeds: Array<{
+    url?: string | null;
+    isDefault?: boolean | null;
+  }>;
   sitemap: string | null;
   linkPage: string | null;
   featured: boolean;

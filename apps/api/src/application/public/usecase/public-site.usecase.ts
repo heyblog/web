@@ -14,6 +14,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   compareNames,
   createSiteSlug,
+  matchesSiteSlug,
 } from '@/application/public/usecase/public-site.directory.core';
 import {
   collectSiteTags,
@@ -48,7 +49,7 @@ async function loadPublicSiteBaseRows(app: FastifyInstance): Promise<PublicSiteB
       name: Sites.name,
       url: Sites.url,
       sign: Sites.sign,
-      defaultFeedUrl: Sites.default_feed_url,
+      feeds: Sites.feed,
       sitemap: Sites.sitemap,
       linkPage: Sites.link_page,
       featured: Sites.recommend,
@@ -183,7 +184,9 @@ function createDirectoryItem(
     name: site.name,
     url: site.url,
     sign: site.sign ?? '',
-    feedUrl: site.defaultFeedUrl ?? null,
+    feedUrl:
+      site.feeds.find((item) => item?.isDefault === true && typeof item.url === 'string')?.url ??
+      null,
     sitemap: site.sitemap ?? null,
     linkPage: site.linkPage ?? null,
     featured: site.featured,
@@ -370,5 +373,5 @@ export async function resolvePublicSiteBySlug(
   slug: string,
 ): Promise<PublicSiteDirectoryItem | null> {
   const items = await loadDirectoryItems(app);
-  return items.find((item) => item.id === slug) ?? null;
+  return items.find((item) => matchesSiteSlug(item, slug)) ?? null;
 }

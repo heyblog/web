@@ -10,6 +10,7 @@ import {
   publicSitesResponseSchema,
   siteDirectoryPreferenceResponseSchema,
 } from '@/presentation/public/dto/public-site-response.dto';
+import { publicSiteSubscriptionResponseSchema as subscriptionResponseSchema } from '@/presentation/public/dto/public-site-subscription-response.dto';
 
 const homeSummarySchema = {
   type: 'object',
@@ -116,5 +117,6 @@ export {
   publicSiteFeedbackResponseSchema,
   publicSiteRandomResponseSchema,
   publicSitesResponseSchema,
+  subscriptionResponseSchema as publicSiteSubscriptionResponseSchema,
   siteDirectoryPreferenceResponseSchema,
 };

@@ -1,15 +1,15 @@
-import { FeedArticles, Programs, SiteArchitectures, SiteChecks, Sites } from '@zhblogs/db';
+import { FeedArticles, Programs, SiteArchitectures, Sites } from '@zhblogs/db';
 
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
 import {
   type PublicSiteArticleItem,
-  type PublicSiteCheckItem,
   type PublicSiteDetail,
   type PublicSiteDetailTabPage,
 } from '@/application/public/usecase/public-site.types';
 import { resolvePublicSiteBySlug } from '@/application/public/usecase/public-site.usecase';
+import { loadRecentPublicSiteChecks } from '@/application/public/usecase/public-site-checks.usecase';
 import { listSiteWarningTags } from '@/application/sites/usecase/site-warning-tag.usecase';
 
 export async function loadPublicSiteDetail(
@@ -22,38 +22,59 @@ export async function loadPublicSiteDetail(
     return null;
   }
 
-  const [architectureRow, warningTags, siteRow] = await Promise.all([
-    app.db.read
-      .select({
-        siteId: SiteArchitectures.site_id,
-        programId: Programs.id,
-        programName: Programs.name,
-        programIsOpenSource: Programs.is_open_source,
-        websiteUrl: Programs.website_url,
-        repoUrl: Programs.repo_url,
-      })
-      .from(SiteArchitectures)
-      .innerJoin(Programs, eq(SiteArchitectures.program_id, Programs.id))
-      .where(eq(SiteArchitectures.site_id, site.id))
-      .limit(1)
-      .then((rows) => rows[0] ?? null),
-    listSiteWarningTags(app, site.id),
-    loadSiteDetailRow(app, site.id),
-  ]);
+  const detailData = await loadPublicSiteDetailData(app, site.id);
 
   return {
     ...site,
-    warningTags: warningTags.map((tag) => ({
+    warningTags: detailData.warningTags.map((tag) => ({
       machineKey: tag.machineKey,
       name: tag.name,
       description: tag.description,
     })),
-    reason: siteRow?.reason ?? null,
-    feeds: mapSiteFeeds(siteRow?.feeds ?? [], siteRow?.defaultFeedUrl ?? null),
+    reason: detailData.siteRow?.reason ?? null,
+    feeds: mapSiteFeeds(detailData.siteRow?.feeds ?? []),
     architecture: {
-      program: mapProgramDetail(architectureRow),
+      program: mapProgramDetail(detailData.architectureRow),
     },
+    heartbeatChecks: detailData.heartbeatChecks,
   };
+}
+
+async function loadPublicSiteDetailData(app: FastifyInstance, siteId: string) {
+  const [architectureRow, heartbeatChecks, warningTags, siteRow] = await Promise.allSettled([
+    loadProgramDetail(app, siteId),
+    loadRecentPublicSiteChecks(app, siteId),
+    listSiteWarningTags(app, siteId),
+    loadSiteDetailRow(app, siteId),
+  ]);
+
+  return {
+    architectureRow: readSettledValue(architectureRow, null),
+    heartbeatChecks: readSettledValue(heartbeatChecks, []),
+    warningTags: readSettledValue(warningTags, []),
+    siteRow: readSettledValue(siteRow, null),
+  };
+}
+
+function readSettledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  return result.status === 'fulfilled' ? result.value : fallback;
+}
+
+async function loadProgramDetail(app: FastifyInstance, siteId: string) {
+  return app.db.read
+    .select({
+      siteId: SiteArchitectures.site_id,
+      programId: Programs.id,
+      programName: Programs.name,
+      programIsOpenSource: Programs.is_open_source,
+      websiteUrl: Programs.website_url,
+      repoUrl: Programs.repo_url,
+    })
+    .from(SiteArchitectures)
+    .innerJoin(Programs, eq(SiteArchitectures.program_id, Programs.id))
+    .where(eq(SiteArchitectures.site_id, siteId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
 }
 
 async function loadSiteDetailRow(app: FastifyInstance, siteId: string) {
@@ -61,7 +82,6 @@ async function loadSiteDetailRow(app: FastifyInstance, siteId: string) {
     .select({
       reason: Sites.reason,
       feeds: Sites.feed,
-      defaultFeedUrl: Sites.default_feed_url,
     })
     .from(Sites)
     .where(eq(Sites.id, siteId))
@@ -70,8 +90,12 @@ async function loadSiteDetailRow(app: FastifyInstance, siteId: string) {
 }
 
 function mapSiteFeeds(
-  feeds: Array<{ name?: string | null; url?: string | null; type?: string | null }>,
-  defaultFeedUrl: string | null,
+  feeds: Array<{
+    name?: string | null;
+    url?: string | null;
+    type?: string | null;
+    isDefault?: boolean | null;
+  }>,
 ) {
   return feeds.flatMap((feed) =>
     feed?.url
@@ -80,7 +104,7 @@ function mapSiteFeeds(
             name: feed.name?.trim() || null,
             url: feed.url,
             type: feed.type ?? null,
-            isDefault: feed.url === defaultFeedUrl,
+            isDefault: feed.isDefault === true,
           },
         ]
       : [],
@@ -210,87 +234,5 @@ function mapPublicSiteArticle(row: {
       feedUrl: row.source?.feed_url ?? null,
       feedType: row.source?.feed_type ?? null,
     },
-  };
-}
-
-export async function loadPublicSiteChecks(
-  app: FastifyInstance,
-  slug: string,
-  page = 1,
-  pageSize = 20,
-): Promise<PublicSiteDetailTabPage<PublicSiteCheckItem> | null> {
-  const site = await resolvePublicSiteBySlug(app, slug);
-
-  if (!site) {
-    return null;
-  }
-
-  const { normalizedPage, normalizedPageSize } = normalizePaging(page, pageSize);
-  const totalItems = await countSiteChecks(app, site.id);
-  const totalPages = Math.max(1, Math.ceil(totalItems / normalizedPageSize));
-  const currentPage = Math.min(normalizedPage, totalPages);
-  const offset = (currentPage - 1) * normalizedPageSize;
-
-  const rows = await app.db.read
-    .select({
-      id: SiteChecks.id,
-      region: SiteChecks.region,
-      result: SiteChecks.result,
-      statusCode: SiteChecks.status_code,
-      responseTimeMs: SiteChecks.response_time_ms,
-      durationMs: SiteChecks.duration_ms,
-      message: SiteChecks.message,
-      finalUrl: SiteChecks.final_url,
-      contentVerified: SiteChecks.content_verified,
-      checkTime: SiteChecks.check_time,
-    })
-    .from(SiteChecks)
-    .where(eq(SiteChecks.site_id, site.id))
-    .orderBy(desc(SiteChecks.check_time))
-    .limit(normalizedPageSize)
-    .offset(offset);
-
-  return createPagedResult(
-    rows.map(mapPublicSiteCheck),
-    currentPage,
-    normalizedPageSize,
-    totalItems,
-  );
-}
-
-async function countSiteChecks(app: FastifyInstance, siteId: string): Promise<number> {
-  return (
-    (
-      await app.db.read
-        .select({ totalItems: sql<number>`count(*)::int` })
-        .from(SiteChecks)
-        .where(eq(SiteChecks.site_id, siteId))
-    )[0]?.totalItems ?? 0
-  );
-}
-
-function mapPublicSiteCheck(row: {
-  id: string;
-  region: string;
-  result: string;
-  statusCode: number | null;
-  responseTimeMs: number | null;
-  durationMs: number | null;
-  message: string | null;
-  finalUrl: string | null;
-  contentVerified: boolean;
-  checkTime: Date;
-}): PublicSiteCheckItem {
-  return {
-    id: row.id,
-    region: row.region,
-    result: row.result,
-    statusCode: row.statusCode ?? null,
-    responseTimeMs: row.responseTimeMs ?? null,
-    durationMs: row.durationMs ?? null,
-    message: row.message ?? null,
-    finalUrl: row.finalUrl ?? null,
-    contentVerified: row.contentVerified,
-    checkTime: row.checkTime.toISOString(),
   };
 }

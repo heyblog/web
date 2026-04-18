@@ -2,10 +2,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import {
   loadPublicSiteArticles,
-  loadPublicSiteChecks,
   loadPublicSiteDetail,
 } from '@/application/public/usecase/public-site.detail.usecase';
 import { submitPublicSiteFeedback } from '@/application/public/usecase/public-site.preference.usecase';
+import { loadPublicSiteChecks } from '@/application/public/usecase/public-site-checks.usecase';
 import {
   publicSiteArticleResponseSchema,
   publicSiteCheckResponseSchema,
