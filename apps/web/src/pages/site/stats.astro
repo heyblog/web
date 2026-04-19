@@ -1,0 +1,149 @@
+---
+import { IconChartBar, IconRss, IconSitemap } from '@tabler/icons-svelte-runes';
+
+import { readHomeSummary } from '@/application/home/home.server';
+import PublicHeader from '@/components/public-header/PublicHeader.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { featuredBlogs } from '@/shared/data/blogs';
+
+export const prerender = false;
+
+const fallbackSummary = {
+  totalSites: featuredBlogs.length,
+  featuredSites: featuredBlogs.filter((entry) => entry.featured).length,
+  todayUpdates: featuredBlogs.filter(
+    (entry) => entry.updatedLabel?.includes('今天') || entry.updatedLabel?.includes('1 天前'),
+  ).length,
+};
+
+const summary = await readHomeSummary(fallbackSummary);
+const rssCount = featuredBlogs.filter((entry) => entry.rssUrl).length;
+const sitemapCount = featuredBlogs.filter((entry) => entry.sitemapUrl).length;
+const ChartBarIcon = IconChartBar;
+const RssIcon = IconRss;
+const SitemapIcon = IconSitemap;
+const articleCount = featuredBlogs
+  .filter((entry) => entry.articleCount)
+  .reduce((total, entry) => total + Number(entry.articleCount?.replace(/[^\d]/g, '') || 0), 0);
+const primaryTagCounts = Array.from(
+  featuredBlogs.reduce((bucket, entry) => {
+    bucket.set(entry.primaryTag, (bucket.get(entry.primaryTag) ?? 0) + 1);
+    return bucket;
+  }, new Map<string, number>()),
+)
+  .sort((left, right) => right[1] - left[1])
+  .slice(0, 4);
+
+const siteStatsDescription =
+  '查看集博栈公开目录的博客总量、精选站点、当日更新、订阅接入情况与主标签分布概览。';
+---
+
+<BaseLayout title="统计信息 | 集博栈 - zhblogs" description={siteStatsDescription}>
+  <PublicHeader currentPath={Astro.url.pathname} activePrimaryKey="stats" />
+
+  <main class="flex-1">
+    <div
+      class="mx-auto flex w-full max-w-[92rem] flex-col gap-8 px-[14px] py-6 xs:px-4 sm:px-6 lg:px-8 lg:py-8"
+    >
+      <section
+        class="grid gap-6 border-b border-[color:var(--color-line)] pb-8 lg:grid-cols-[minmax(0,1fr)_24rem]"
+      >
+        <div class="space-y-4">
+          <p
+            class="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-red-700 dark:text-red-400"
+          >
+            <ChartBarIcon size={14} stroke={1.9} class="block" />
+            统计信息
+          </p>
+          <h1 class="text-[clamp(2.4rem,6vw,4rem)] leading-none tracking-[-0.04em]">公开概览</h1>
+          <p class="max-w-[40rem] text-[17px] leading-8 text-[color:var(--color-fg-2)]">
+            首页概览、订阅接入和目录分布汇总在同一页查看。
+          </p>
+        </div>
+
+        <div class="grid gap-2">
+          <div class="rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+            <p
+              class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]"
+            >
+              已收录博客
+            </p>
+            <p class="mt-3 text-3xl font-medium tracking-[-0.04em]">{summary.totalSites}</p>
+          </div>
+          <div class="rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+            <p
+              class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]"
+            >
+              精选博客
+            </p>
+            <p class="mt-3 text-3xl font-medium tracking-[-0.04em]">{summary.featuredSites}</p>
+          </div>
+          <div class="rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+            <p
+              class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]"
+            >
+              当日更新
+            </p>
+            <p class="mt-3 text-3xl font-medium tracking-[-0.04em]">{summary.todayUpdates}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" id="subscription">
+        <article class="rounded-[5px] border border-[color:var(--color-line-med)] p-5">
+          <p
+            class="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-red-700 dark:text-red-400"
+          >
+            <RssIcon size={14} stroke={1.9} class="block" />
+            订阅一览
+          </p>
+          <div class="mt-5 grid gap-2 sm:grid-cols-3">
+            <div class="rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+              <p
+                class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]"
+              >
+                已接入 RSS
+              </p>
+              <p class="mt-3 text-3xl font-medium tracking-[-0.04em]">{rssCount}</p>
+            </div>
+            <div class="rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+              <p
+                class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]"
+              >
+                已接入站点地图
+              </p>
+              <p class="mt-3 text-3xl font-medium tracking-[-0.04em]">{sitemapCount}</p>
+            </div>
+            <div class="rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+              <p
+                class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]"
+              >
+                样例文章量
+              </p>
+              <p class="mt-3 text-3xl font-medium tracking-[-0.04em]">{articleCount}</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="rounded-[5px] border border-[color:var(--color-line-med)] p-5">
+          <p
+            class="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-red-700 dark:text-red-400"
+          >
+            <SitemapIcon size={14} stroke={1.9} class="block" />
+            目录分布
+          </p>
+          <div class="mt-5 grid gap-2">
+            {
+              primaryTagCounts.map(([primaryTag, total]) => (
+                <div class="flex items-center justify-between rounded-[5px] border border-[color:var(--color-line)] px-4 py-3">
+                  <span class="text-sm text-[color:var(--color-fg-2)]">{primaryTag}</span>
+                  <span class="font-mono text-[13px] text-[color:var(--color-fg)]">{total}</span>
+                </div>
+              ))
+            }
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+</BaseLayout>

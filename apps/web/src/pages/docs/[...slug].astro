@@ -1,0 +1,83 @@
+---
+import { getCollection, render } from 'astro:content';
+
+import {
+  buildReferenceLabelMap,
+  mapReferenceLabels,
+} from '@/application/content/content.references';
+import ContentBody from '@/components/content-page/ContentBody.astro';
+import ContentToc from '@/components/content-page/ContentToc.astro';
+import DocsMetadata from '@/components/content-page/DocsMetadata.astro';
+import PublicHeader from '@/components/public-header/PublicHeader.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const members = await getCollection('members');
+const groups = await getCollection('group');
+
+const memberLabelMap = buildReferenceLabelMap(
+  members,
+  (member) => member.id,
+  (member) => member.data.nickname || member.id,
+);
+const groupLabelMap = buildReferenceLabelMap(
+  groups,
+  (group) => group.id,
+  (group) => group.data.name,
+);
+
+const editorLabels = mapReferenceLabels(entry.data.editors, memberLabelMap);
+const groupLabels = mapReferenceLabels(entry.data.groups, groupLabelMap);
+---
+
+<BaseLayout
+  title={`${entry.data.title} | 集博栈 - zhblogs`}
+  description={entry.data.description}
+  canonicalPath={`/docs/${entry.id}`}
+  ogType="article"
+  publishedTime={entry.data.create_time}
+>
+  <PublicHeader currentPath="/docs" activeProjectKey="docs" />
+
+  <main class="flex-1">
+    <div
+      class="mx-auto flex w-full max-w-368 flex-col gap-8 px-3.5 py-6 xs:px-4 sm:px-6 lg:px-8 lg:py-8"
+    >
+      <a
+        class="inline-flex items-center gap-2 text-sm text-(--color-fg-2) transition hover:text-red-700 dark:hover:text-red-400"
+        href="/docs"
+      >
+        <span aria-hidden="true" class="block text-base leading-none">←</span>
+        <span>返回项目文档</span>
+      </a>
+
+      <section class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_16rem]" data-content-shell>
+        <article class="space-y-8" data-content-article>
+          <DocsMetadata
+            title={entry.data.title}
+            description={entry.data.description}
+            createTime={entry.data.create_time}
+            editors={editorLabels}
+            groups={groupLabels}
+          />
+
+          <ContentBody>
+            <Content />
+          </ContentBody>
+        </article>
+
+        <ContentToc headings={headings} />
+      </section>
+    </div>
+  </main>
+</BaseLayout>

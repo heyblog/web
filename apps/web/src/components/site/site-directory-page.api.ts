@@ -20,14 +20,14 @@ export function resolveSiteDirectorySortSummary(
     articles: '文章数',
   };
 
-  return labels[sort ?? 'updated'] ?? '默认排序';
+  return sort ? (labels[sort] ?? '默认排序') : '默认排序';
 }
 
 export function resolveSiteDirectoryAccessSummary(access: string | undefined): string {
   const labels = {
-    BOTH: '站内站外',
-    INTERNAL_ONLY: '仅站内',
-    EXTERNAL_ONLY: '仅站外',
+    全球: '全球可访问',
+    大陆: '仅中国大陆可访问',
+    海外: '仅海外可访问',
   };
 
   return access ? (labels[access as keyof typeof labels] ?? '') : '';

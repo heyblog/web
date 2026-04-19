@@ -1,0 +1,38 @@
+---
+import EntryHeader from './EntryHeader.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  createTime: Date | string;
+  editors: string[];
+  groups: string[];
+}
+
+const { title, description, createTime, editors, groups } = Astro.props;
+---
+
+<EntryHeader title={title} description={description} dateLabel="发布时间" dateValue={createTime}>
+  <div class="mt-6 grid gap-3 text-sm text-(--color-fg-2)">
+    <p class="flex flex-wrap items-center gap-2">
+      <span class="font-mono text-[11px] uppercase tracking-[0.16em] text-(--color-fg-3)"
+        >维护者</span
+      >
+      {
+        editors.map((editor) => (
+          <span class="rounded-md border border-(--color-line) px-2 py-1">{editor}</span>
+        ))
+      }
+    </p>
+
+    <p class="flex flex-wrap items-center gap-2">
+      <span class="font-mono text-[11px] uppercase tracking-[0.16em] text-(--color-fg-3)">分组</span
+      >
+      {
+        groups.map((group) => (
+          <span class="rounded-md border border-(--color-line) px-2 py-1">{group}</span>
+        ))
+      }
+    </p>
+  </div>
+</EntryHeader>

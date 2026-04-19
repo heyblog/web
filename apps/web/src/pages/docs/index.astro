@@ -1,0 +1,129 @@
+---
+import {
+  IconArrowRight,
+  IconBinaryTree,
+  IconBook2,
+  IconCirclePlus,
+} from '@tabler/icons-svelte-runes';
+import { getCollection } from 'astro:content';
+
+import PublicHeader from '@/components/public-header/PublicHeader.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { groupDocsByCategory } from '@/shared/data/doc-categories';
+
+const ArrowIcon = IconArrowRight;
+const BookIcon = IconBook2;
+
+const formatDate = (value: Date): string =>
+  value.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+const categoryIcons = {
+  development: IconBinaryTree,
+  contribution: IconCirclePlus,
+  standards: IconBook2,
+} as const;
+
+const entries = (await getCollection('docs')).sort(
+  (left, right) => right.data.create_time.getTime() - left.data.create_time.getTime(),
+);
+const groups = groupDocsByCategory(entries);
+const docsIndexDescription = '按类别浏览集博栈项目文档，查看协作说明、开发约定与目录维护相关规范。';
+---
+
+<BaseLayout title="项目文档 | 集博栈 - zhblogs" description={docsIndexDescription}>
+  <PublicHeader currentPath={Astro.url.pathname} activeProjectKey="docs" />
+
+  <main class="flex-1">
+    <div
+      class="mx-auto flex w-full max-w-[92rem] flex-col gap-8 px-[14px] py-6 xs:px-4 sm:px-6 lg:px-8 lg:py-8"
+    >
+      <section class="border-b border-[color:var(--color-line)] pb-8">
+        <p
+          class="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-red-700 dark:text-red-400"
+        >
+          <BookIcon size={14} stroke={1.9} class="block" />
+          项目文档
+        </p>
+        <h1 class="mt-4 text-[clamp(2.4rem,6vw,4rem)] leading-none tracking-[-0.04em]">
+          按类别进入
+        </h1>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-3">
+        {
+          groups.map((group) => {
+            const Icon = categoryIcons[group.id];
+
+            return (
+              <a
+                class="group rounded-[5px] border border-[color:var(--color-line-med)] p-5 transition hover:border-red-700/25 hover:bg-[color:var(--color-bg-raised)] dark:hover:border-red-400/25"
+                href={`#${group.id}`}
+              >
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-[5px] border border-[color:var(--color-line-med)] text-red-700 dark:text-red-400">
+                  <Icon size={17} stroke={1.9} class="block" />
+                </span>
+                <h2 class="mt-4 text-xl leading-tight text-[color:var(--color-fg)] transition group-hover:text-red-700 dark:group-hover:text-red-400">
+                  {group.title}
+                </h2>
+                <p class="mt-3 text-sm leading-7 text-[color:var(--color-fg-2)]">{group.summary}</p>
+                <p class="mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--color-fg-3)]">
+                  {group.entries.length} 篇内容
+                </p>
+              </a>
+            );
+          })
+        }
+      </section>
+
+      {
+        groups.map((group) => {
+          const Icon = categoryIcons[group.id];
+
+          return (
+            <section class="border-t border-[color:var(--color-line)] pt-8" id={group.id}>
+              <div class="flex items-center gap-3">
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-[5px] border border-[color:var(--color-line-med)] text-red-700 dark:text-red-400">
+                  <Icon size={17} stroke={1.9} class="block" />
+                </span>
+                <div>
+                  <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]">
+                    文档分类
+                  </p>
+                  <h2 class="mt-1 text-2xl leading-tight tracking-[-0.03em]">{group.title}</h2>
+                </div>
+              </div>
+
+              <div class="mt-5 grid gap-3 lg:grid-cols-2">
+                {group.entries.map((entry) => (
+                  <a
+                    class="group rounded-[5px] border border-[color:var(--color-line)] p-5 transition hover:border-red-700/25 hover:bg-[color:var(--color-bg-raised)] dark:hover:border-red-400/25"
+                    href={`/docs/${entry.id}`}
+                  >
+                    <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-fg-3)]">
+                      {formatDate(entry.data.create_time)}
+                    </p>
+                    <div class="mt-3 flex items-start justify-between gap-4">
+                      <div>
+                        <h3 class="text-xl leading-tight text-[color:var(--color-fg)] transition group-hover:text-red-700 dark:group-hover:text-red-400">
+                          {entry.data.title}
+                        </h3>
+                        <p class="mt-3 text-sm leading-7 text-[color:var(--color-fg-2)]">
+                          {entry.data.description}
+                        </p>
+                      </div>
+                      <ArrowIcon size={15} stroke={1.9} class="mt-1 shrink-0" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          );
+        })
+      }
+    </div>
+  </main>
+</BaseLayout>
