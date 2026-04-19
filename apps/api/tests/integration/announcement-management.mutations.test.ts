@@ -185,8 +185,8 @@ describe('announcement management mutation routes', () => {
     mockOverlapSelect([
       {
         id: 'announcement-existing',
-        publishTime: new Date('2026-04-01T10:00:00.000Z'),
-        expireTime: new Date('2026-04-03T10:00:00.000Z'),
+        publishTime: new Date('2026-05-01T10:00:00.000Z'),
+        expireTime: new Date('2026-05-03T10:00:00.000Z'),
       },
     ]);
 
@@ -200,8 +200,8 @@ describe('announcement management mutation routes', () => {
         title: 'New announcement',
         content: 'Content',
         status: 'SCHEDULED',
-        publish_time: '2026-04-02T09:00:00.000Z',
-        expire_time: '2026-04-05T09:00:00.000Z',
+        publish_time: '2026-05-02T09:00:00.000Z',
+        expire_time: '2026-05-05T09:00:00.000Z',
       },
     });
 
