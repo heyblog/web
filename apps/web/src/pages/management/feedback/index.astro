@@ -1,0 +1,215 @@
+---
+export const prerender = false;
+
+import { fetchProtectedJson } from '@/application/auth/auth.server';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+const status = Astro.url.searchParams.get('status') ?? 'PENDING';
+const query = new URLSearchParams();
+
+if (status) {
+  query.set('status', status);
+}
+
+const [sitePayload, articlePayload] = await Promise.all([
+  fetchProtectedJson<{
+    ok: boolean;
+    data: Array<{
+      id: string;
+      siteId: string;
+      siteName: string;
+      reasonType: string;
+      status: string;
+      feedbackContent: string;
+      reporterName: string | null;
+      reporterEmail: string | null;
+      notifyByEmail: boolean;
+      reviewerComment: string | null;
+      createdTime: string;
+      reviewedTime: string | null;
+    }>;
+  }>(Astro.request, `/api/management/feedback/site?${query.toString()}`),
+  fetchProtectedJson<{
+    ok: boolean;
+    data: Array<{
+      id: string;
+      siteId: string;
+      siteName: string;
+      articleId: string;
+      articleTitle: string;
+      articleUrl: string;
+      action: string;
+      reasonType: string;
+      status: string;
+      feedbackContent: string;
+      reporterName: string | null;
+      reporterEmail: string | null;
+      reviewerComment: string | null;
+      createdTime: string;
+      reviewedTime: string | null;
+    }>;
+  }>(Astro.request, `/api/management/feedback/article?${query.toString()}`),
+]);
+---
+
+<ManagementLayout
+  title="反馈处理"
+  currentPath="/management/feedback"
+  eyebrow="management / feedback"
+  heading="反馈处理"
+>
+  <div class="page-section">
+    <form class="flex flex-wrap gap-3" method="get">
+      <select class="rounded-smvar(--color-line-med)] px-3 py-2 text-sm" name="status">
+        <option value="PENDING" selected={status === 'PENDING'}>待处理</option>
+        <option value="APPROVED" selected={status === 'APPROVED'}>已通过</option>
+        <option value="REJECTED" selected={status === 'REJECTED'}>已驳回</option>
+      </select>
+      <button
+        class="inline-flex items-center rounded-sm border border-(--color-line-med) px-4 py-2 text-sm font-medium"
+        type="submit"
+      >
+        应用筛选
+      </button>
+    </form>
+  </div>
+
+  <div class="page-section">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">
+          <span class="status-dot" style="--status-dot: var(--color-info-dot)"></span>
+          feedback / site
+        </p>
+        <h2 class="section-title">站点反馈</h2>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      {
+        sitePayload.data.map((entry) => (
+          <article class="rounded-sm border border-(--color-line) p-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div class="text-sm font-medium">{entry.siteName}</div>
+                <p class="mt-1 text-xs text-(--color-fg-3)">
+                  {entry.reasonType} / {entry.status} / {entry.createdTime}
+                </p>
+              </div>
+              <div class="text-xs text-(--color-fg-3)">
+                {entry.reporterName ?? '匿名'} / {entry.reporterEmail ?? '无邮箱'}
+              </div>
+            </div>
+            <p class="mt-3 text-sm leading-7">{entry.feedbackContent}</p>
+            <form action="/management/feedback/review" class="mt-4 space-y-3" method="post">
+              <input type="hidden" name="kind" value="site" />
+              <input type="hidden" name="id" value={entry.id} />
+              <div class="flex flex-wrap gap-3">
+                <select
+                  class="rounded-sm border border-(--color-line-med) px-3 py-2 text-sm"
+                  name="decision"
+                >
+                  <option value="APPROVED">通过</option>
+                  <option value="REJECTED">驳回</option>
+                </select>
+                <button
+                  class="inline-flex items-center rounded-sm border border-(--color-line-med) px-4 py-2 text-sm font-medium"
+                  disabled={entry.status !== 'PENDING'}
+                  type="submit"
+                >
+                  {entry.status === 'PENDING' ? '提交处理结果' : '已处理'}
+                </button>
+              </div>
+              <textarea
+                class="min-h-24 w-full rounded-sm border border-(--color-line-med) px-3 py-2 text-sm"
+                name="reviewer_comment"
+                placeholder="审核备注"
+              >
+                {entry.reviewerComment ?? ''}
+              </textarea>
+            </form>
+          </article>
+        ))
+      }
+      {
+        sitePayload.data.length === 0 && (
+          <div class="rounded-sm border border-dashed border-(--color-line-med) p-4 text-sm text-(--color-fg-3)">
+            当前筛选条件下没有站点反馈。
+          </div>
+        )
+      }
+    </div>
+  </div>
+
+  <div class="page-section">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">
+          <span class="status-dot" style="--status-dot: var(--color-warn-dot)"></span>
+          feedback / article
+        </p>
+        <h2 class="section-title">文章反馈</h2>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      {
+        articlePayload.data.map((entry) => (
+          <article class="rounded-sm border border-(--color-line) p-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div class="text-sm font-medium">{entry.articleTitle}</div>
+                <p class="mt-1 text-xs text-(--color-fg-3)">
+                  {entry.siteName} / {entry.action} / {entry.reasonType} / {entry.status}
+                </p>
+              </div>
+              <a
+                class="text-xs text-(--color-fg-3) underline"
+                href={entry.articleUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                原文链接
+              </a>
+            </div>
+            <p class="mt-3 text-sm leading-7">{entry.feedbackContent}</p>
+            <form action="/management/feedback/review" class="mt-4 space-y-3" method="post">
+              <input type="hidden" name="kind" value="article" />
+              <input type="hidden" name="id" value={entry.id} />
+              <div class="flex flex-wrap gap-3">
+                <select
+                  class="rounded-sm border border-(--color-line-med) px-3 py-2 text-sm"
+                  name="decision"
+                >
+                  <option value="APPROVED">通过</option>
+                  <option value="REJECTED">驳回</option>
+                </select>
+                <button
+                  class="inline-flex items-center rounded-sm border border-(--color-line-med) px-4 py-2 text-sm font-medium"
+                  disabled={entry.status !== 'PENDING'}
+                  type="submit"
+                >
+                  {entry.status === 'PENDING' ? '提交处理结果' : '已处理'}
+                </button>
+              </div>
+              <textarea
+                class="min-h-24 w-full rounded-sm border border-(--color-line-med) px-3 py-2 text-sm"
+                name="reviewer_comment"
+                placeholder="审核备注"
+              >
+                {entry.reviewerComment ?? ''}
+              </textarea>
+            </form>
+          </article>
+        ))
+      }
+      {
+        articlePayload.data.length === 0 && (
+          <div class="rounded-sm border border-dashed border-(--color-line-med) p-4 text-sm text-(--color-fg-3)">
+            当前筛选条件下没有文章反馈。
+          </div>
+        )
+      }
+    </div>
+  </div>
+</ManagementLayout>
