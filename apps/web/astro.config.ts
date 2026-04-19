@@ -15,6 +15,7 @@ export default defineConfig({
   }),
   site: 'https://www.zhblogs.net',
   server: {
+    host: true,
     port: 9101,
   },
   build: {

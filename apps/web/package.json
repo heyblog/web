@@ -12,7 +12,6 @@
     "lint:eslint": "eslint --config ./eslint.config.ts \"src/**/*.{ts,js,astro,svelte}\" \"tests/**/*.{ts,js}\" \"*.ts\"",
     "lint:eslint:fix": "eslint --config ./eslint.config.ts \"src/**/*.{ts,js,astro,svelte}\" \"tests/**/*.{ts,js}\" \"*.ts\" --fix",
     "lint:fix": "pnpm run lint:eslint:fix && pnpm run stylelint:fix",
-    "preview": "astro preview",
     "start": "node dist/server/index.mjs",
     "stylelint": "stylelint --config ./stylelint.config.ts \"src/**/*.{css,astro,svelte}\"",
     "stylelint:fix": "stylelint --config ./stylelint.config.ts --fix \"src/**/*.{css,astro,svelte}\"",
