@@ -106,6 +106,7 @@ export interface SiteDetail extends SiteDirectoryItem {
       repoUrl: string | null;
     } | null;
   };
+  heartbeatChecks: SiteCheckItem[];
 }
 
 export interface SiteArticleItem {

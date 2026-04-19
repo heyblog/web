@@ -39,6 +39,10 @@ function resolvePrimaryKey(pathname: string): PublicPrimaryNavKey | null {
     return 'random';
   }
 
+  if (pathname === '/site/subscription') {
+    return 'subscription';
+  }
+
   if (pathname === '/site/stats') {
     return 'stats';
   }

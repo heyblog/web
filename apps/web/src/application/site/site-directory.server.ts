@@ -46,6 +46,30 @@ async function fetchEnvelope<T>(
   }
 }
 
+async function fetchRequiredEnvelope<T>(
+  request: Request | undefined,
+  path: string,
+): Promise<Envelope<T> | null> {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    headers: {
+      accept: 'application/json',
+      ...(request?.headers.get('cookie')
+        ? { cookie: request.headers.get('cookie') as string }
+        : {}),
+    },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`request failed with status ${response.status}: ${path}`);
+  }
+
+  return (await response.json()) as Envelope<T>;
+}
+
 export async function fetchSiteDirectoryMeta(): Promise<SiteDirectoryMeta | null> {
   const payload = await fetchEnvelope<SiteDirectoryMeta>(undefined, '/api/public/sites/meta');
   return payload?.data ?? null;
@@ -130,7 +154,7 @@ export async function resolveInitialSiteDirectoryData(
 }
 
 export async function fetchSiteDetail(slug: string): Promise<SiteDetail | null> {
-  const payload = await fetchEnvelope<SiteDetail>(undefined, `/api/public/sites/${slug}`);
+  const payload = await fetchRequiredEnvelope<SiteDetail>(undefined, `/api/public/sites/${slug}`);
   return payload?.data ?? null;
 }
 

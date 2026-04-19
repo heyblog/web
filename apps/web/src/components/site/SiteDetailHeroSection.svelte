@@ -5,8 +5,11 @@
   import type { BlogCardTone } from '@/application/site/site-card.shared';
   import type { SiteCheckItem, SiteDetail } from '@/application/site/site-directory.models';
   import {
-    formatSiteDetailDateTime,
+    buildSiteCheckFacts,
+    formatSiteCheckRegionLabel,
+    formatSiteCheckResultLabel,
     formatSiteDetailStatusLabel,
+    resolveSiteCheckTextClass,
     resolveSiteCheckTone,
     resolveSiteDetailDescription,
   } from '@/components/site/site-detail.shared';
@@ -96,13 +99,14 @@
                 class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-[16rem] -translate-x-1/2 rounded-md border border-(--color-line-med) bg-(--color-bg-raised) px-3 py-2 text-xs leading-5 text-(--color-fg-2) shadow-[0_10px_30px_rgba(0,0,0,0.18)] group-hover:block"
               >
                 {#if entry.item}
-                  <p class="font-medium text-(--color-fg)">
-                    {entry.item.region} · {entry.item.result}
+                  <p class={`font-medium ${resolveSiteCheckTextClass(entry.item.result)}`}>
+                    {formatSiteCheckRegionLabel(entry.item.region)} · {formatSiteCheckResultLabel(
+                      entry.item.result,
+                    )}
                   </p>
-                  <p>{formatSiteDetailDateTime(entry.item.checkTime)}</p>
-                  <p>状态码：{entry.item.statusCode ?? '无'}</p>
-                  <p>响应耗时：{entry.item.responseTimeMs ?? '无'} ms</p>
-                  <p>检测耗时：{entry.item.durationMs ?? '无'} ms</p>
+                  {#each buildSiteCheckFacts(entry.item) as fact (`${fact.label}:${fact.value}`)}
+                    <p>{fact.label}：{fact.value}</p>
+                  {/each}
                   {#if entry.item.message}
                     <p class="max-w-56 text-(--color-fg-3)">
                       {entry.item.message}

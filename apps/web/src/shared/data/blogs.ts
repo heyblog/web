@@ -1,5 +1,5 @@
 export type BlogCardTone = 'amber' | 'blue' | 'emerald' | 'red' | 'stone';
-export type BlogCardStatus = 'fresh' | 'quiet' | 'steady';
+export type BlogCardUpdatedTone = 'amber' | 'blue' | 'emerald' | 'stone';
 
 export interface BlogCardEntry {
   slug: string;
@@ -19,11 +19,11 @@ export interface BlogCardEntry {
   }>;
   joinedAt: string;
   joinedLabel: string;
-  updatedLabel?: string;
+  updatedLabel: string | null;
+  updatedTone: BlogCardUpdatedTone | null;
   articleCount?: string;
   visitCount: string;
   tone: BlogCardTone;
-  status: BlogCardStatus;
   rssUrl?: string;
   sitemapUrl?: string;
   featured?: boolean;
@@ -72,10 +72,10 @@ export const featuredBlogs: BlogCardEntry[] = [
     joinedAt: '2021-04-09',
     joinedLabel: '2021.04',
     updatedLabel: '2 天前更新',
+    updatedTone: 'emerald',
     articleCount: '234',
     visitCount: '1.2k',
     tone: 'blue',
-    status: 'fresh',
     rssUrl: 'https://sspai.com/feed',
     sitemapUrl: 'https://sspai.com/sitemap.xml',
     featured: true,
@@ -95,10 +95,10 @@ export const featuredBlogs: BlogCardEntry[] = [
     joinedAt: '2020-11-18',
     joinedLabel: '2020.11',
     updatedLabel: '5 天前更新',
+    updatedTone: 'emerald',
     articleCount: '891',
     visitCount: '3.8k',
     tone: 'blue',
-    status: 'fresh',
     rssUrl: 'https://blog.codingnow.com/atom.xml',
   }),
   createBlogEntry({
@@ -115,9 +115,10 @@ export const featuredBlogs: BlogCardEntry[] = [
     subTags: [],
     joinedAt: '2022-07-03',
     joinedLabel: '2022.07',
+    updatedLabel: '暂无更新记录',
+    updatedTone: 'stone',
     visitCount: '456',
     tone: 'emerald',
-    status: 'steady',
     sitemapUrl: 'https://idealand.xyz/sitemap.xml',
   }),
   createBlogEntry({
@@ -135,10 +136,10 @@ export const featuredBlogs: BlogCardEntry[] = [
     joinedAt: '2023-02-14',
     joinedLabel: '2023.02',
     updatedLabel: '1 天前更新',
+    updatedTone: 'emerald',
     articleCount: '52',
     visitCount: '890',
     tone: 'amber',
-    status: 'fresh',
     rssUrl: 'https://designnotes.me/feed.xml',
     sitemapUrl: 'https://designnotes.me/sitemap.xml',
   }),
@@ -157,10 +158,10 @@ export const featuredBlogs: BlogCardEntry[] = [
     joinedAt: '2021-09-27',
     joinedLabel: '2021.09',
     updatedLabel: '28 天前更新',
+    updatedTone: 'amber',
     articleCount: '143',
     visitCount: '2.1k',
     tone: 'stone',
-    status: 'quiet',
     rssUrl: 'https://reader.wanderings.cc/feed.xml',
   }),
   createBlogEntry({
@@ -177,8 +178,9 @@ export const featuredBlogs: BlogCardEntry[] = [
     subTags: ['产品', '增长', '营销', '收入', '复盘', 'SaaS', '出海'],
     joinedAt: '2024-01-08',
     joinedLabel: '2024.01',
+    updatedLabel: '暂无更新记录',
+    updatedTone: 'stone',
     visitCount: '4.7k',
     tone: 'red',
-    status: 'fresh',
   }),
 ];

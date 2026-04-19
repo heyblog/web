@@ -51,7 +51,9 @@
   const tagTone = $derived(resolveTone(detail.primaryTag ?? '未分类', detail.featured));
   const statusToneClass = $derived(resolveSiteStatusToneClass(detail.status));
   const heartbeatSlotCount = $derived(resolveHeartbeatSlotCount(viewportWidth));
-  const heartbeatChecks = $derived(buildHeartbeatChecks(checks.items, heartbeatSlotCount));
+  const heartbeatChecks = $derived(
+    buildHeartbeatChecks(detail.heartbeatChecks, heartbeatSlotCount),
+  );
   const resourceLinks = $derived(buildSiteResourceLinks(detail));
 
   onMount(() => {

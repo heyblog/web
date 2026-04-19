@@ -1,0 +1,36 @@
+---
+export const prerender = false;
+
+import { readSiteSubscriptionArchive } from '@/application/site/site-subscription.server';
+import PublicHeader from '@/components/public-header/PublicHeader.astro';
+import SiteSubscriptionPage from '@/components/site/SiteSubscriptionPage.svelte';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+const requestedPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1));
+const requestedPageSize = Math.max(1, Number(Astro.url.searchParams.get('pageSize') || 20));
+const archive = await readSiteSubscriptionArchive(requestedPage, requestedPageSize);
+const fallbackArchive = archive ?? {
+  summary: {
+    todayArticles: 0,
+    weekArticles: 0,
+    totalArticles: 0,
+    siteCount: 0,
+  },
+  items: [],
+  pagination: {
+    page: 1,
+    pageSize: requestedPageSize,
+    totalItems: 0,
+    totalPages: 1,
+  },
+};
+const pageDescription = '查看集博栈当前已抓取的全部公开 RSS 文章。';
+---
+
+<BaseLayout title="订阅一览 | 集博栈 - zhblogs" description={pageDescription}>
+  <PublicHeader currentPath={Astro.url.pathname} activePrimaryKey="subscription" />
+
+  <main class="flex-1">
+    <SiteSubscriptionPage client:load initialResult={fallbackArchive} />
+  </main>
+</BaseLayout>

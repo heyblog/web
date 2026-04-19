@@ -13,6 +13,44 @@ export function resolveSiteDetailDescription(sign: string | null | undefined): s
   return value || DEFAULT_SITE_DETAIL_DESCRIPTION;
 }
 
+const SITE_CHECK_RESULT_META: Record<string, { label: string; dot: string; textClass: string }> = {
+  SUCCESS: {
+    label: '访问正常',
+    dot: 'var(--color-ok-dot)',
+    textClass: 'text-[color:var(--color-ok)]',
+  },
+  FAILURE: {
+    label: '访问失败',
+    dot: 'var(--color-fail-dot)',
+    textClass: 'text-[color:var(--color-fail)]',
+  },
+  TIMEOUT: {
+    label: '请求超时',
+    dot: 'var(--color-fail-dot)',
+    textClass: 'text-[color:var(--color-fail)]',
+  },
+  DNS_ERROR: {
+    label: 'DNS 异常',
+    dot: 'var(--color-fail-dot)',
+    textClass: 'text-[color:var(--color-fail)]',
+  },
+  SSL_ERROR: {
+    label: '证书异常',
+    dot: 'var(--color-warn-dot)',
+    textClass: 'text-[color:var(--color-warn)]',
+  },
+  HTTP_ERROR: {
+    label: 'HTTP 异常',
+    dot: 'var(--color-warn-dot)',
+    textClass: 'text-[color:var(--color-warn)]',
+  },
+  BLOCKED: {
+    label: '访问受限',
+    dot: 'var(--color-warn-dot)',
+    textClass: 'text-[color:var(--color-warn)]',
+  },
+};
+
 export function cloneSiteDetailPagedResult<TItem extends object>(
   source: PagedResult<TItem>,
 ): PagedResult<TItem> {
@@ -37,35 +75,43 @@ export function formatSiteDetailDateTime(value: string | null): string {
 }
 
 export function formatSiteDetailStatusLabel(value: string): string {
-  if (value === 'DOWN' || value === 'ERROR') {
+  if (value === 'ERROR') {
     return '访问异常';
   }
 
-  if (value === 'DEGRADED') {
+  if (value === 'WARNING') {
     return '部分异常';
-  }
-
-  if (value === 'SSLERROR') {
-    return '证书异常';
   }
 
   return '状态正常';
 }
 
+export function normalizeSiteCheckResult(result: string): string {
+  if (result === 'OK') return 'SUCCESS';
+  if (result === 'ERROR') return 'FAILURE';
+  if (result === 'WARNING') return 'BLOCKED';
+  return result || 'FAILURE';
+}
+
+export function formatSiteCheckResultLabel(result: string): string {
+  const normalized = normalizeSiteCheckResult(result);
+  return SITE_CHECK_RESULT_META[normalized]?.label ?? normalized;
+}
+
+export function formatSiteCheckRegionLabel(region: string): string {
+  if (region === 'CN') return '国内';
+  if (region === 'GLOBAL') return '国外';
+  return region || '未知区域';
+}
+
 export function resolveSiteCheckTone(result: string): string {
-  if (result === 'OK') {
-    return 'var(--color-ok-dot)';
-  }
+  const normalized = normalizeSiteCheckResult(result);
+  return SITE_CHECK_RESULT_META[normalized]?.dot ?? 'var(--color-warn-dot)';
+}
 
-  if (result === 'ERROR' || result === 'DOWN' || result === 'FAIL' || result === 'SSLERROR') {
-    return 'var(--color-fail-dot)';
-  }
-
-  if (result === 'WARN' || result === 'DEGRADED') {
-    return 'var(--color-warn-dot)';
-  }
-
-  return 'var(--color-warn-dot)';
+export function resolveSiteCheckTextClass(result: string): string {
+  const normalized = normalizeSiteCheckResult(result);
+  return SITE_CHECK_RESULT_META[normalized]?.textClass ?? 'text-(--color-fg-2)';
 }
 
 export function resolveSiteStatusToneClass(value: string): string {
@@ -73,7 +119,7 @@ export function resolveSiteStatusToneClass(value: string): string {
     return 'text-[color:var(--color-ok)]';
   }
 
-  if (value === 'DOWN' || value === 'ERROR' || value === 'FAIL' || value === 'SSLERROR') {
+  if (value === 'ERROR') {
     return 'text-[color:var(--color-fail)]';
   }
 
@@ -120,6 +166,17 @@ export function buildHeartbeatChecks(checks: SiteCheckItem[], slotCount: number)
       id: item.id,
       item,
     })),
+  ];
+}
+
+export function buildSiteCheckFacts(item: SiteCheckItem) {
+  return [
+    { label: '检测时间', value: formatSiteDetailDateTime(item.checkTime) },
+    { label: '状态码', value: item.statusCode !== null ? String(item.statusCode) : '无' },
+    { label: '响应耗时', value: item.responseTimeMs !== null ? `${item.responseTimeMs} ms` : '无' },
+    { label: '检测耗时', value: item.durationMs !== null ? `${item.durationMs} ms` : '无' },
+    { label: '最终地址', value: item.finalUrl ?? '无' },
+    { label: '内容校验', value: item.contentVerified ? '通过' : '未通过' },
   ];
 }
 

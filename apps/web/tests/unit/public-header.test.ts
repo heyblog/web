@@ -10,6 +10,9 @@ describe('public header active state', () => {
     expect(resolvePublicHeaderActiveState({ currentPath: '/site/go' }).activePrimaryKey).toBe(
       'random',
     );
+    expect(
+      resolvePublicHeaderActiveState({ currentPath: '/site/subscription' }).activePrimaryKey,
+    ).toBe('subscription');
     expect(resolvePublicHeaderActiveState({ currentPath: '/site/stats' }).activePrimaryKey).toBe(
       'stats',
     );

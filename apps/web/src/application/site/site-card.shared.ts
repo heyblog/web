@@ -4,7 +4,11 @@ import type {
 } from '@/application/site/site-directory.models';
 
 export type BlogCardTone = 'amber' | 'blue' | 'emerald' | 'red' | 'stone';
-export type BlogCardStatus = 'fresh' | 'quiet' | 'steady';
+export type BlogCardUpdatedTone = 'amber' | 'blue' | 'emerald' | 'stone';
+type BlogCardUpdatedMeta = {
+  label: string;
+  tone: BlogCardUpdatedTone;
+};
 
 export interface SiteCardEntry {
   id: string;
@@ -19,11 +23,11 @@ export interface SiteCardEntry {
   warningTags: SiteWarningTagView[];
   joinedAt: string;
   joinedLabel: string;
-  updatedLabel?: string;
+  updatedLabel: string | null;
+  updatedTone: BlogCardUpdatedTone | null;
   articleCount?: string;
   visitCount: string;
   tone: BlogCardTone;
-  status: BlogCardStatus;
   rssUrl?: string;
   sitemapUrl?: string;
   featured?: boolean;
@@ -73,36 +77,8 @@ export function formatCompactCount(value: number): string {
   return String(value);
 }
 
-export function resolveUpdatedLabel(value: string | null): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const target = new Date(value);
-
-  if (Number.isNaN(target.getTime())) {
-    return undefined;
-  }
-
-  const diffDays = Math.max(0, Math.floor((Date.now() - target.getTime()) / 86_400_000));
-
-  if (diffDays === 0) {
-    return '今天更新';
-  }
-
-  if (diffDays < 7) {
-    return `${diffDays} 天前更新`;
-  }
-
-  if (diffDays < 30) {
-    return `${Math.floor(diffDays / 7)} 周前更新`;
-  }
-
-  if (diffDays < 365) {
-    return `${Math.floor(diffDays / 30)} 个月前更新`;
-  }
-
-  return undefined;
+export function resolveUpdatedLabel(value: string | null): string | null {
+  return resolveUpdatedMeta(value)?.label ?? null;
 }
 
 export function resolveTone(primaryTag: string, featured: boolean): BlogCardTone {
@@ -125,36 +101,13 @@ export function resolveTone(primaryTag: string, featured: boolean): BlogCardTone
   return 'stone';
 }
 
-export function resolveCardStatus(
-  siteStatus: string,
-  latestPublishedTime: string | null,
-): BlogCardStatus {
-  if (siteStatus !== 'OK') {
-    return 'quiet';
-  }
-
-  if (!latestPublishedTime) {
-    return 'steady';
-  }
-
-  const diffDays = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(latestPublishedTime).getTime()) / 86_400_000),
-  );
-
-  if (diffDays <= 3) {
-    return 'fresh';
-  }
-
-  if (diffDays <= 14) {
-    return 'steady';
-  }
-
-  return 'quiet';
+export function resolveUpdatedTone(latestPublishedTime: string | null): BlogCardUpdatedTone | null {
+  return resolveUpdatedMeta(latestPublishedTime)?.tone ?? null;
 }
 
 export function mapDirectoryItemToSiteCardEntry(item: SiteDirectoryItem): SiteCardEntry {
   const primaryTag = item.primaryTag ?? '未分类';
+  const updatedMeta = item.feedUrl ? resolveUpdatedMeta(item.latestPublishedTime) : null;
 
   return {
     id: item.id,
@@ -169,13 +122,79 @@ export function mapDirectoryItemToSiteCardEntry(item: SiteDirectoryItem): SiteCa
     warningTags: item.warningTags,
     joinedAt: item.joinTime,
     joinedLabel: formatYearMonth(item.joinTime),
-    updatedLabel: resolveUpdatedLabel(item.latestPublishedTime),
+    updatedLabel: updatedMeta?.label ?? null,
+    updatedTone: updatedMeta?.tone ?? null,
     articleCount: item.articleCount > 0 ? String(item.articleCount) : undefined,
     visitCount: formatCompactCount(item.visitCount),
     tone: resolveTone(primaryTag, item.featured),
-    status: resolveCardStatus(item.status, item.latestPublishedTime),
     rssUrl: item.feedUrl ?? undefined,
     sitemapUrl: item.sitemap ?? undefined,
     featured: item.featured,
   };
+}
+
+function resolveUpdatedMeta(value: string | null): BlogCardUpdatedMeta | null {
+  const diffDays = resolveUpdatedDiffDays(value);
+  if (diffDays === null) {
+    return null;
+  }
+
+  return {
+    label: formatUpdatedLabel(diffDays),
+    tone: resolveUpdatedToneByDiffDays(diffDays),
+  };
+}
+
+function resolveUpdatedDiffDays(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const publishedTime = new Date(value).getTime();
+  if (Number.isNaN(publishedTime)) {
+    return null;
+  }
+
+  const diffMs = Date.now() - publishedTime;
+  if (diffMs < -36 * 60 * 60 * 1000) {
+    return null;
+  }
+
+  return Math.floor(Math.max(diffMs, 0) / 86_400_000);
+}
+
+function formatUpdatedLabel(diffDays: number): string {
+  if (diffDays === 0) {
+    return '今天更新';
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays} 天前更新`;
+  }
+
+  if (diffDays < 30) {
+    return `${Math.floor(diffDays / 7)} 周前更新`;
+  }
+
+  if (diffDays < 365) {
+    return `${Math.floor(diffDays / 30)} 个月前更新`;
+  }
+
+  return `${Math.floor(diffDays / 365)} 年前更新`;
+}
+
+function resolveUpdatedToneByDiffDays(diffDays: number): BlogCardUpdatedTone {
+  if (diffDays < 7) {
+    return 'emerald';
+  }
+
+  if (diffDays < 31) {
+    return 'amber';
+  }
+
+  if (diffDays < 183) {
+    return 'blue';
+  }
+
+  return 'stone';
 }

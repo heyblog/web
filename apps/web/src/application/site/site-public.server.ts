@@ -5,9 +5,9 @@ import {
   extractDomain,
   formatCompactCount,
   formatYearMonth,
-  resolveCardStatus,
   resolveTone,
   resolveUpdatedLabel,
+  resolveUpdatedTone,
   type SiteCardEntry,
 } from './site-card.shared';
 
@@ -62,12 +62,16 @@ function createSiteSlug(item: Pick<ApiPublicSiteItem, 'bid' | 'name' | 'id'>): s
   return item.id;
 }
 
+export function matchesSiteSlug(item: Pick<PublicSiteEntry, 'id' | 'slug'>, slug: string): boolean {
+  return item.slug === slug || item.id === slug;
+}
+
 export function formatAccessScopeLabel(value: string): string {
-  if (value === 'CN_ONLY' || value === 'MAINLAND_ONLY') {
+  if (value === 'CN_ONLY') {
     return '仅中国大陆可访问';
   }
 
-  if (value === 'GLOBAL_ONLY' || value === 'OVERSEAS_ONLY') {
+  if (value === 'NON_CN_ONLY') {
     return '仅海外可访问';
   }
 
@@ -75,16 +79,12 @@ export function formatAccessScopeLabel(value: string): string {
 }
 
 export function formatSiteStatusLabel(value: string): string {
-  if (value === 'DOWN' || value === 'ERROR') {
+  if (value === 'ERROR') {
     return '访问异常';
   }
 
-  if (value === 'DEGRADED') {
+  if (value === 'WARNING') {
     return '部分异常';
-  }
-
-  if (value === 'SSLERROR') {
-    return 'SSL 证书异常';
   }
 
   return '状态正常';
@@ -93,7 +93,7 @@ export function formatSiteStatusLabel(value: string): string {
 function createHighlights(
   item: ApiPublicSiteItem,
   primaryTag: string,
-  updatedLabel?: string,
+  updatedLabel?: string | null,
 ): string[] {
   const highlights: string[] = [];
 
@@ -135,7 +135,7 @@ function createHighlights(
 
 function mapPublicSite(item: ApiPublicSiteItem): PublicSiteEntry {
   const primaryTag = item.primaryTag ?? '未分类';
-  const updatedLabel = resolveUpdatedLabel(item.latestPublishedTime);
+  const updatedLabel = item.feedUrl ? resolveUpdatedLabel(item.latestPublishedTime) : null;
 
   return {
     id: item.id,
@@ -156,12 +156,12 @@ function mapPublicSite(item: ApiPublicSiteItem): PublicSiteEntry {
     joinedAt: item.joinTime,
     joinedLabel: formatYearMonth(item.joinTime),
     updatedLabel,
+    updatedTone: item.feedUrl ? resolveUpdatedTone(item.latestPublishedTime) : null,
     articleCount: item.articleCount > 0 ? String(item.articleCount) : undefined,
     articleCountValue: item.articleCount,
     visitCount: formatCompactCount(item.visitCount),
     visitCountValue: item.visitCount,
     tone: resolveTone(primaryTag, item.featured),
-    status: resolveCardStatus(item.status, item.latestPublishedTime),
     rssUrl: item.feedUrl ?? undefined,
     sitemapUrl: item.sitemap ?? undefined,
     linkPage: item.linkPage ?? undefined,
@@ -196,5 +196,5 @@ export async function readPublicSites(): Promise<PublicSiteEntry[]> {
 export async function readPublicSiteBySlug(slug: string): Promise<PublicSiteEntry | null> {
   const items = await readPublicSites();
 
-  return items.find((item) => item.id === slug) ?? null;
+  return items.find((item) => matchesSiteSlug(item, slug)) ?? null;
 }

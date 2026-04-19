@@ -9,7 +9,7 @@
   } from '@tabler/icons-svelte-runes';
 
   import { trackSiteAccess } from '@/application/site/site-access.client';
-  import type { SiteCardEntry } from '@/application/site/site-card.shared';
+  import type { BlogCardUpdatedTone, SiteCardEntry } from '@/application/site/site-card.shared';
   import SiteTagRow from '@/components/site/SiteTagRow.svelte';
 
   let {
@@ -37,11 +37,12 @@
     stone: '[--card-accent:var(--color-fg-2)] [--card-accent-dot:var(--color-fg-3)]',
   } satisfies Record<SiteCardEntry['tone'], string>;
 
-  const statusClass = {
-    fresh: '[--card-status-fg:var(--color-ok)] [--card-status-dot:var(--color-ok-dot)]',
-    quiet: '[--card-status-fg:var(--color-fg-3)] [--card-status-dot:var(--color-fg-3)]',
-    steady: '[--card-status-fg:var(--color-warn)] [--card-status-dot:var(--color-warn-dot)]',
-  } satisfies Record<SiteCardEntry['status'], string>;
+  const updatedToneClass = {
+    amber: '[--card-updated-fg:var(--color-warn)] [--card-updated-dot:var(--color-warn-dot)]',
+    blue: '[--card-updated-fg:var(--color-info)] [--card-updated-dot:var(--color-info-dot)]',
+    emerald: '[--card-updated-fg:var(--color-ok)] [--card-updated-dot:var(--color-ok-dot)]',
+    stone: '[--card-updated-fg:var(--color-fg-3)] [--card-updated-dot:var(--color-fg-3)]',
+  } satisfies Record<BlogCardUpdatedTone, string>;
 
   const resourceLinks = $derived.by<ResourceLink[]>(() => {
     const links: ResourceLink[] = [];
@@ -91,9 +92,9 @@
   class={[
     'flex h-64 flex-col overflow-hidden rounded-md border border-(--color-line-med) bg-transparent p-2 transition-[background-color,border-color,transform] duration-150 ease-out-smooth hover:-translate-y-px hover:bg-(--color-bg-raised) hover:border-[color-mix(in_srgb,var(--card-accent)_18%,var(--color-line-med))] xs:h-63 xs:p-5',
     '[--card-accent:var(--color-info)] [--card-accent-dot:var(--color-info-dot)]',
-    '[--card-status-fg:var(--color-ok)] [--card-status-dot:var(--color-ok-dot)]',
+    '[--card-updated-fg:var(--color-ok)] [--card-updated-dot:var(--color-ok-dot)]',
     toneClass[entry.tone],
-    statusClass[entry.status],
+    entry.updatedTone ? updatedToneClass[entry.updatedTone] : '',
   ].join(' ')}
 >
   <div class="flex min-h-0 flex-1 flex-col">
@@ -181,10 +182,10 @@
 
               {#if entry.updatedLabel}
                 <p
-                  class="inline-flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] leading-[1.35] text-(--card-status-fg)"
+                  class="inline-flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] leading-[1.35] text-(--card-updated-fg)"
                 >
                   <span
-                    class="size-1.5 shrink-0 rounded-full bg-(--card-status-dot)"
+                    class="size-1.5 shrink-0 rounded-full bg-(--card-updated-dot)"
                     aria-hidden="true"
                   ></span>
                   <span class="truncate">{entry.updatedLabel}</span>

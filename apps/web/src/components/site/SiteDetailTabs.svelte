@@ -5,7 +5,13 @@
     SiteArticleItem,
     SiteCheckItem,
   } from '@/application/site/site-directory.models';
-  import { formatSiteDetailDateTime } from '@/components/site/site-detail.shared';
+  import {
+    buildSiteCheckFacts,
+    formatSiteCheckRegionLabel,
+    formatSiteCheckResultLabel,
+    formatSiteDetailDateTime,
+    resolveSiteCheckTextClass,
+  } from '@/components/site/site-detail.shared';
 
   let {
     siteId,
@@ -117,24 +123,21 @@
             <article class={`px-4 py-4 ${index > 0 ? 'border-t border-(--color-line)' : ''}`}>
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p class="text-[15px] font-medium text-(--color-fg)">{item.region}</p>
+                  <p class="text-[15px] font-medium text-(--color-fg)">
+                    {formatSiteCheckRegionLabel(item.region)}
+                  </p>
                   <p class="mt-1 text-sm text-(--color-fg-3)">
                     {formatSiteDetailDateTime(item.checkTime)}
                   </p>
                 </div>
-                <p
-                  class={`text-sm font-medium ${
-                    item.result === 'OK' ? 'text-(--color-ok)' : 'text-(--color-fail)'
-                  }`}
-                >
-                  {item.result}
+                <p class={`text-sm font-medium ${resolveSiteCheckTextClass(item.result)}`}>
+                  {formatSiteCheckResultLabel(item.result)}
                 </p>
               </div>
               <div class="mt-3 grid gap-2 text-sm text-(--color-fg-2) sm:grid-cols-2">
-                <p>状态码：{item.statusCode ?? '无'}</p>
-                <p>响应耗时：{item.responseTimeMs ?? '无'} ms</p>
-                <p>检测耗时：{item.durationMs ?? '无'} ms</p>
-                <p>内容校验：{item.contentVerified ? '通过' : '未通过'}</p>
+                {#each buildSiteCheckFacts(item) as fact (`${fact.label}:${fact.value}`)}
+                  <p>{fact.label}：{fact.value}</p>
+                {/each}
               </div>
               {#if item.message}
                 <p class="mt-3 text-sm leading-7 text-(--color-fg-2)">{item.message}</p>
