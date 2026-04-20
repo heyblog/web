@@ -1,5 +1,16 @@
 import { sql } from 'drizzle-orm';
-import { boolean, integer, pgView, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgView,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
+
+import type { MultiFeed } from './sites';
 
 /** 标签使用统计视图 */
 export const TagStats = pgView('tag_stats', {
@@ -230,4 +241,277 @@ export const SiteWarningTagStats = pgView('site_warning_tag_stats', {
   from site_warning_tags swt
   inner join tag_definitions td on td.id = swt.tag_id
   group by td.id, td.machine_key, td.name
+`);
+
+/** 站点标签聚合视图 */
+export const SiteTagSummaryView = pgView('site_tag_summary_view', {
+  /** 站点 ID */
+  site_id: uuid('site_id'),
+  /** 主标签名称 */
+  primary_tag: text('primary_tag'),
+  /** 副标签名称列表 */
+  sub_tags: text('sub_tags').array(),
+}).as(sql`
+  select
+    st.site_id as site_id,
+    min(td.name) filter (where td.tag_type = 'MAIN') as primary_tag,
+    coalesce(
+      array_agg(distinct td.name order by td.name) filter (where td.tag_type = 'SUB'),
+      '{}'::text[]
+    ) as sub_tags
+  from site_tags st
+  inner join tag_definitions td on td.id = st.tag_id
+  where td.is_enabled = true
+  group by st.site_id
+`);
+
+/** 站点警示标签聚合视图 */
+export const SiteWarningTagSummaryView = pgView('site_warning_tag_summary_view', {
+  /** 站点 ID */
+  site_id: uuid('site_id'),
+  /** 警示标签数组 */
+  warning_tags: jsonb('warning_tags').$type<
+    Array<{
+      machineKey: string;
+      name: string;
+      description: string | null;
+    }>
+  >(),
+  /** 警示标签名称列表 */
+  warning_names: text('warning_names').array(),
+}).as(sql`
+  with warning_rows as (
+    select distinct
+      swt.site_id as site_id,
+      td.machine_key as machine_key,
+      td.name as name,
+      td.description as description
+    from site_warning_tags swt
+    inner join tag_definitions td on td.id = swt.tag_id
+    where td.tag_type = 'WARNING'
+      and td.is_enabled = true
+  )
+  select
+    warning_rows.site_id as site_id,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'machineKey',
+          warning_rows.machine_key,
+          'name',
+          warning_rows.name,
+          'description',
+          warning_rows.description
+        )
+        order by warning_rows.name
+      ),
+      '[]'::jsonb
+    ) as warning_tags,
+    coalesce(array_agg(warning_rows.name order by warning_rows.name), '{}'::text[]) as warning_names
+  from warning_rows
+  group by warning_rows.site_id
+`);
+
+/** 站点程序聚合视图 */
+export const SiteProgramSummaryView = pgView('site_program_summary_view', {
+  /** 站点 ID */
+  site_id: uuid('site_id'),
+  /** 程序 ID */
+  program_id: uuid('program_id'),
+  /** 程序名称 */
+  program_name: varchar('program_name', { length: 128 }),
+  /** 是否开源 */
+  program_is_open_source: boolean('program_is_open_source'),
+  /** 程序官网 */
+  website_url: varchar('website_url', { length: 512 }),
+  /** 程序仓库 */
+  repo_url: varchar('repo_url', { length: 512 }),
+}).as(sql`
+  select
+    sa.site_id as site_id,
+    p.id as program_id,
+    p.name as program_name,
+    p.is_open_source as program_is_open_source,
+    p.website_url as website_url,
+    p.repo_url as repo_url
+  from site_architectures sa
+  inner join programs p on p.id = sa.program_id
+  where p.is_enabled = true
+`);
+
+/** 公共站点目录读模型视图 */
+export const PublicSiteDirectoryReadView = pgView('public_site_directory_read_view', {
+  /** 站点 ID */
+  site_id: uuid('site_id'),
+  /** 外部业务 ID */
+  bid: varchar('bid', { length: 64 }),
+  /** 站点名称 */
+  name: varchar('name', { length: 64 }),
+  /** 站点 URL */
+  url: varchar('url', { length: 256 }),
+  /** 站点签名 */
+  sign: text('sign'),
+  /** 原始订阅源列表 */
+  feeds: jsonb('feeds').$type<MultiFeed[]>(),
+  /** 默认订阅源 URL */
+  feed_url: varchar('feed_url', { length: 512 }),
+  /** 地图地址 */
+  sitemap: varchar('sitemap', { length: 256 }),
+  /** 友链页地址 */
+  link_page: varchar('link_page', { length: 256 }),
+  /** 是否推荐 */
+  featured: boolean('featured'),
+  /** 站点状态 */
+  status: varchar('status', { length: 32 }),
+  /** 访问范围 */
+  access_scope: varchar('access_scope', { length: 32 }),
+  /** 加入时间 */
+  join_time: timestamp('join_time', { withTimezone: true, precision: 6 }),
+  /** 更新时间 */
+  update_time: timestamp('update_time', { withTimezone: true, precision: 6 }),
+  /** 备注原因 */
+  reason: text('reason'),
+  /** 文章数量 */
+  article_count: integer('article_count'),
+  /** 最近内容发布时间 */
+  latest_published_time: timestamp('latest_published_time', {
+    withTimezone: true,
+    precision: 6,
+  }),
+  /** 访问次数 */
+  visit_count: integer('visit_count'),
+  /** 主标签 */
+  primary_tag: text('primary_tag'),
+  /** 副标签 */
+  sub_tags: text('sub_tags').array(),
+  /** 警示标签 */
+  warning_tags: jsonb('warning_tags').$type<
+    Array<{
+      machineKey: string;
+      name: string;
+      description: string | null;
+    }>
+  >(),
+  /** 警示标签名称 */
+  warning_names: text('warning_names').array(),
+  /** 程序 ID */
+  program_id: uuid('program_id'),
+  /** 程序名称 */
+  program_name: varchar('program_name', { length: 128 }),
+  /** 是否开源 */
+  program_is_open_source: boolean('program_is_open_source'),
+  /** 程序官网 */
+  website_url: varchar('website_url', { length: 512 }),
+  /** 程序仓库 */
+  repo_url: varchar('repo_url', { length: 512 }),
+}).as(sql`
+  select
+    s.id as site_id,
+    s.bid as bid,
+    s.name as name,
+    s.url as url,
+    coalesce(s.sign, '') as sign,
+    s.feed as feeds,
+    (
+      select feed_item->>'url'
+      from jsonb_array_elements(s.feed) as feed_item
+      where coalesce(feed_item->>'url', '') <> ''
+        and coalesce((feed_item->>'isDefault')::boolean, false)
+      limit 1
+    ) as feed_url,
+    s.sitemap as sitemap,
+    s.link_page as link_page,
+    s.recommend as featured,
+    s.status as status,
+    s.access_scope as access_scope,
+    s.join_time as join_time,
+    s.update_time as update_time,
+    s.reason as reason,
+    coalesce(article_stats.visible_articles, article_stats.total_articles, 0)::int as article_count,
+    article_stats.latest_published_time as latest_published_time,
+    coalesce(access_counters.total, 0)::int as visit_count,
+    tag_summary.primary_tag as primary_tag,
+    coalesce(tag_summary.sub_tags, '{}'::text[]) as sub_tags,
+    coalesce(warning_summary.warning_tags, '[]'::jsonb) as warning_tags,
+    coalesce(warning_summary.warning_names, '{}'::text[]) as warning_names,
+    program_summary.program_id as program_id,
+    program_summary.program_name as program_name,
+    program_summary.program_is_open_source as program_is_open_source,
+    program_summary.website_url as website_url,
+    program_summary.repo_url as repo_url
+  from sites s
+  left join (
+    select
+      fa.site_id as site_id,
+      count(*)::int as total_articles,
+      count(*) filter (where fa.visibility = 'VISIBLE')::int as visible_articles,
+      max(fa.published_time) as latest_published_time
+    from feed_articles fa
+    group by fa.site_id
+  ) article_stats on article_stats.site_id = s.id
+  left join (
+    select
+      sae.site_id as site_id,
+      count(*)::int as total
+    from site_access_events sae
+    group by sae.site_id
+  ) access_counters on access_counters.site_id = s.id
+  left join (
+    select
+      st.site_id as site_id,
+      min(td.name) filter (where td.tag_type = 'MAIN') as primary_tag,
+      coalesce(
+        array_agg(distinct td.name order by td.name) filter (where td.tag_type = 'SUB'),
+        '{}'::text[]
+      ) as sub_tags
+    from site_tags st
+    inner join tag_definitions td on td.id = st.tag_id
+    where td.is_enabled = true
+    group by st.site_id
+  ) tag_summary on tag_summary.site_id = s.id
+  left join (
+    with warning_rows as (
+      select distinct
+        swt.site_id as site_id,
+        td.machine_key as machine_key,
+        td.name as name,
+        td.description as description
+      from site_warning_tags swt
+      inner join tag_definitions td on td.id = swt.tag_id
+      where td.tag_type = 'WARNING'
+        and td.is_enabled = true
+    )
+    select
+      warning_rows.site_id as site_id,
+      coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'machineKey',
+            warning_rows.machine_key,
+            'name',
+            warning_rows.name,
+            'description',
+            warning_rows.description
+          )
+          order by warning_rows.name
+        ),
+        '[]'::jsonb
+      ) as warning_tags,
+      coalesce(array_agg(warning_rows.name order by warning_rows.name), '{}'::text[]) as warning_names
+    from warning_rows
+    group by warning_rows.site_id
+  ) warning_summary on warning_summary.site_id = s.id
+  left join (
+    select
+      sa.site_id as site_id,
+      p.id as program_id,
+      p.name as program_name,
+      p.is_open_source as program_is_open_source,
+      p.website_url as website_url,
+      p.repo_url as repo_url
+    from site_architectures sa
+    inner join programs p on p.id = sa.program_id
+    where p.is_enabled = true
+  ) program_summary on program_summary.site_id = s.id
+  where s.is_show = true
 `);

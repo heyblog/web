@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { SiteHistoryItem } from './managed-site-history.shared';
 
-  export let history: SiteHistoryItem[] = [];
+  let {
+    history = [],
+  }: {
+    history?: SiteHistoryItem[];
+  } = $props();
 
   const actionLabelMap: Record<string, string> = {
     CREATE: '新增',

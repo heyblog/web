@@ -8,11 +8,19 @@
   import ManagementSiteBasicSection from './ManagementSiteBasicSection.svelte';
   import ManagementSiteFeedSection from './ManagementSiteFeedSection.svelte';
 
-  export let draft: SiteSnapshotDraft;
-  export let options: SiteSubmissionOptions;
-  export let disabled = false;
-  export let idPrefix = 'site-management-fields';
-  export let fieldAlerts: Partial<Record<string, { label: string; value: string }>> = {};
+  let {
+    draft = $bindable(),
+    options,
+    disabled = false,
+    idPrefix = 'site-management-fields',
+    fieldAlerts = {},
+  }: {
+    draft: SiteSnapshotDraft;
+    options: SiteSubmissionOptions;
+    disabled?: boolean;
+    idPrefix?: string;
+    fieldAlerts?: Partial<Record<string, { label: string; value: string }>>;
+  } = $props();
 </script>
 
 <div class="space-y-6">

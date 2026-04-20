@@ -173,28 +173,10 @@ function mapPublicSite(item: ApiPublicSiteItem): PublicSiteEntry {
   };
 }
 
-export const shuffleSites = <T>(items: T[]): T[] => {
-  const draft = [...items];
-
-  for (let index = draft.length - 1; index > 0; index -= 1) {
-    const nextIndex = Math.floor(Math.random() * (index + 1));
-    const current = draft[index];
-
-    draft[index] = draft[nextIndex];
-    draft[nextIndex] = current;
-  }
-
-  return draft;
-};
-
-export async function readPublicSites(): Promise<PublicSiteEntry[]> {
-  const payload = await fetchApiJson<PublicSitesPayload>('/api/public/sites');
+export async function readRandomPublicSites(limit = 6): Promise<PublicSiteEntry[]> {
+  const payload = await fetchApiJson<PublicSitesPayload>(
+    `/api/public/sites?page=1&pageSize=${limit}&random=on`,
+  );
 
   return payload?.data.items.map(mapPublicSite) ?? [];
-}
-
-export async function readPublicSiteBySlug(slug: string): Promise<PublicSiteEntry | null> {
-  const items = await readPublicSites();
-
-  return items.find((item) => matchesSiteSlug(item, slug)) ?? null;
 }

@@ -1,4 +1,4 @@
-import { Announcements, SiteFeedArticleStats, Sites } from '@zhblogs/db';
+import { Announcements } from '@zhblogs/db';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -102,40 +102,13 @@ describe('public routes summary', () => {
 
   const mockHomeSummarySelect = () => {
     const currentApp = getApp();
-    const selectQueue = [
+    currentApp.db.read.execute = vi.fn(async () => [
       {
-        table: Sites,
-        rows: [{ total: 12 }],
+        totalSites: 12,
+        featuredSites: 4,
+        todayUpdates: 2,
       },
-      {
-        table: Sites,
-        rows: [{ total: 4 }],
-      },
-      {
-        table: SiteFeedArticleStats,
-        rows: [{ total: 2 }],
-      },
-    ];
-
-    currentApp.db.read.select = vi.fn(() => ({
-      from(table: unknown) {
-        const next = selectQueue.shift();
-
-        expect(next?.table).toBe(table);
-
-        if (table === SiteFeedArticleStats) {
-          return {
-            innerJoin: vi.fn(() => ({
-              where: vi.fn(async () => next?.rows ?? []),
-            })),
-          };
-        }
-
-        return {
-          where: vi.fn(async () => next?.rows ?? []),
-        };
-      },
-    })) as unknown as typeof currentApp.db.read.select;
+    ]) as unknown as typeof currentApp.db.read.execute;
   };
 
   const mockCurrentAnnouncementSelect = () => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
 
   let {
     title = '',
@@ -107,9 +107,7 @@
       return;
     }
 
-    void tick().then(() => {
-      updatePanelPosition();
-    });
+    updatePanelPosition();
   });
 </script>
 
@@ -134,7 +132,7 @@
   {#if open}
     <div
       bind:this={panel}
-      class={`fixed z-[70] overflow-hidden rounded-md border border-(--color-line-med) bg-(--color-bg-raised) p-4 shadow-[0_18px_40px_rgba(28,25,23,0.14)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.34)] ${widthClass} ${maxHeightClass}`}
+      class={`fixed z-70 overflow-hidden rounded-md border border-(--color-line-med) bg-(--color-bg-raised) p-4 shadow-[0_18px_40px_rgba(28,25,23,0.14)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.34)] ${widthClass} ${maxHeightClass}`}
       style={panelStyle}
       role="dialog"
       aria-modal="false"

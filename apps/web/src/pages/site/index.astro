@@ -30,6 +30,17 @@ const fallbackMeta = meta ?? {
   },
 };
 
+const initialMeta = {
+  stats: fallbackMeta.stats,
+  filters: {
+    mainTags: [],
+    subTags: [],
+    warningTags: [],
+    programs: [],
+  },
+  defaults: fallbackMeta.defaults,
+};
+
 const { result, preference, canUsePreference } = await resolveInitialSiteDirectoryData(
   Astro.request,
   Astro.url,
@@ -66,8 +77,8 @@ const siteDirectoryDescription = '浏览集博栈已收录的中文博客目录�
 
   <main class="page-shell">
     <SiteDirectoryPage
-      client:load
-      initialMeta={fallbackMeta}
+      client:idle
+      initialMeta={initialMeta}
       initialResult={fallbackResult}
       initialPreference={preference}
       canUsePreference={canUsePreference}

@@ -3,6 +3,10 @@ import { SiteCheckRuns } from '@zhblogs/db';
 import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
+import {
+  loadVersionedPublicCache,
+  PUBLIC_CACHE_TTL,
+} from '@/application/public/usecase/public-cache.usecase';
 import type {
   PublicSiteCheckItem,
   PublicSiteDetailTabPage,
@@ -32,24 +36,36 @@ export async function loadPublicSiteChecks(
   page = 1,
   pageSize = 20,
 ): Promise<PublicSiteDetailTabPage<PublicSiteCheckItem> | null> {
-  const site = await resolvePublicSiteBySlug(app, slug);
-  if (!site) {
-    return null;
-  }
-
   const { normalizedPage, normalizedPageSize } = normalizePaging(page, pageSize);
-  const totalItems = await countSiteChecks(app, site.id);
-  const totalPages = Math.max(1, Math.ceil(totalItems / normalizedPageSize));
-  const currentPage = Math.min(normalizedPage, totalPages);
-  const offset = (currentPage - 1) * normalizedPageSize;
-  const rows = await querySiteChecks(app, site.id, normalizedPageSize, offset, totalItems);
 
-  return createPagedResult(
-    rows.map(mapPublicSiteCheck),
-    currentPage,
-    normalizedPageSize,
-    totalItems,
-  );
+  return loadVersionedPublicCache(app, {
+    namespace: 'site',
+    suffix: `checks:${slug}:${normalizedPage}:${normalizedPageSize}`,
+    ttlSeconds: PUBLIC_CACHE_TTL.checks,
+    loader: async () => {
+      const totalItems = await countSiteChecks(app, slug);
+
+      if (totalItems === 0) {
+        const site = await resolvePublicSiteBySlug(app, slug);
+
+        if (!site) {
+          return null;
+        }
+      }
+
+      const totalPages = Math.max(1, Math.ceil(totalItems / normalizedPageSize));
+      const currentPage = Math.min(normalizedPage, totalPages);
+      const offset = (currentPage - 1) * normalizedPageSize;
+      const rows = await querySiteChecks(app, slug, normalizedPageSize, offset, totalItems);
+
+      return createPagedResult(
+        rows.map(mapPublicSiteCheck),
+        currentPage,
+        normalizedPageSize,
+        totalItems,
+      );
+    },
+  });
 }
 
 export async function loadRecentPublicSiteChecks(

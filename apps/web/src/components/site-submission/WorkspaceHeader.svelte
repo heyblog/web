@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { SubmissionPage } from '@/application/site-submission/site-submission.service';
 
-  export let activePage: SubmissionPage = 'create';
+  let {
+    activePage = 'create',
+  }: {
+    activePage?: SubmissionPage;
+  } = $props();
 </script>
 
 <div class="flex flex-wrap items-start justify-between gap-4 border-b border-(--color-line) pb-5">

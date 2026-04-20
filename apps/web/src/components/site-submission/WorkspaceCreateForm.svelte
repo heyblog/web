@@ -10,47 +10,75 @@
 
   import SiteEditableFields from './SiteEditableFields.svelte';
 
-  export let autoFillPending = false;
-  export let autoFillTarget: 'create' | 'update' | null = null;
-  export let submitCreate: () => Promise<void>;
+  let {
+    autoFillPending = false,
+    autoFillTarget = null,
+    submitCreate,
+    createForm,
+    createErrors = {},
+    createPending = false,
+    inputClass = '',
+    textAreaClass = '',
+    selectClass = '',
+    selectChevronStyle = '',
+    withInputStateClass,
+    isAutoFillMissing,
+    clearAutoFillMissing,
+    fieldNeedsRefinement,
+    updateCreateUrl,
+    applyAddressInference,
+    runAutoFill,
+    addFeed,
+    removeFeed,
+    updateFeedName,
+    updateFeedType,
+    updateFeedUrl,
+    selectDefaultFeed,
+    optionsPending = false,
+    options,
+    createProgramSelectedId = '',
+    selectProgramForCreate,
+    applyProgramCustomDraftForCreate,
+    trimText,
+  }: {
+    autoFillPending?: boolean;
+    autoFillTarget?: 'create' | 'update' | null;
+    submitCreate: () => Promise<void>;
+    createForm: CreateSubmissionFormState;
+    createErrors?: FieldErrors;
+    createPending?: boolean;
+    inputClass?: string;
+    textAreaClass?: string;
+    selectClass?: string;
+    selectChevronStyle?: string;
+    withInputStateClass: (base: string, warned: boolean, missing: boolean) => string;
+    isAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => boolean;
+    clearAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => void;
+    fieldNeedsRefinement: (kind: 'create' | 'update', value: string) => boolean;
+    updateCreateUrl: (value: string) => void;
+    applyAddressInference: (kind: 'create' | 'update') => void;
+    runAutoFill: (kind: 'create' | 'update') => Promise<void>;
+    addFeed: (kind: 'create' | 'update') => void;
+    removeFeed: (kind: 'create' | 'update', id: string) => void;
+    updateFeedName: (kind: 'create' | 'update', id: string, value: string) => void;
+    updateFeedType: (kind: 'create' | 'update', id: string, value: 'RSS' | 'ATOM' | 'JSON') => void;
+    updateFeedUrl: (kind: 'create' | 'update', id: string, value: string) => void;
+    selectDefaultFeed: (kind: 'create' | 'update', id: string) => void;
+    optionsPending?: boolean;
+    options: SiteSubmissionOptionsResult;
+    createProgramSelectedId?: string;
+    selectProgramForCreate: (id: string) => void;
+    applyProgramCustomDraftForCreate: (draft: CustomProgramDraft) => void;
+    trimText: (value: string) => string;
+  } = $props();
 
-  export let createForm: CreateSubmissionFormState;
-  export let createErrors: FieldErrors = {};
-  export let createPending = false;
-
-  export let inputClass = '';
-  export let textAreaClass = '';
-  export let selectClass = '';
-  export let selectChevronStyle = '';
-
-  export let withInputStateClass: (base: string, warned: boolean, missing: boolean) => string;
-  export let isAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => boolean;
-  export let clearAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => void;
-  export let fieldNeedsRefinement: (kind: 'create' | 'update', value: string) => boolean;
-
-  export let updateCreateUrl: (value: string) => void;
-  export let applyAddressInference: (kind: 'create' | 'update') => void;
-  export let runAutoFill: (kind: 'create' | 'update') => Promise<void>;
-  export let addFeed: (kind: 'create' | 'update') => void;
-  export let removeFeed: (kind: 'create' | 'update', id: string) => void;
-  export let updateFeedName: (kind: 'create' | 'update', id: string, value: string) => void;
-  export let updateFeedType: (
-    kind: 'create' | 'update',
-    id: string,
-    value: 'RSS' | 'ATOM' | 'JSON',
-  ) => void;
-  export let updateFeedUrl: (kind: 'create' | 'update', id: string, value: string) => void;
-  export let selectDefaultFeed: (kind: 'create' | 'update', id: string) => void;
-
-  export let optionsPending = false;
-  export let options: SiteSubmissionOptionsResult;
-  export let createProgramSelectedId = '';
-  export let selectProgramForCreate: (id: string) => void;
-  export let applyProgramCustomDraftForCreate: (draft: CustomProgramDraft) => void;
-  export let trimText: (value: string) => string;
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
+    await submitCreate();
+  }
 </script>
 
-<form class="relative mt-6 space-y-6" on:submit|preventDefault={submitCreate}>
+<form class="relative mt-6 space-y-6" onsubmit={handleSubmit}>
   {#if autoFillPending && autoFillTarget === 'create'}
     <div
       class="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-(--color-bg)/65 backdrop-blur-[1.5px]"

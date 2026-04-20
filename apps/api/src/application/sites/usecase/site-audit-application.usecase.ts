@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
 import { enqueueJobs } from '@/application/jobs/usecase';
+import { invalidatePublicSiteCache } from '@/application/public/usecase/public-cache.usecase';
 import { normalizeManagementSiteSnapshot } from '@/domain/sites/service/site-management-snapshot.service';
 
 type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE';
@@ -130,6 +131,7 @@ export async function applyApprovedAudit(
 
     await deps.syncSiteTags(app, createdSite.id, snapshot);
     await deps.syncSiteArchitecture(app, createdSite.id, snapshot);
+    await invalidatePublicSiteCache(app);
 
     return createdSite.id;
   }
@@ -169,6 +171,7 @@ export async function applyApprovedAudit(
 
     await deps.syncSiteTags(app, audit.site_id, snapshot);
     await deps.syncSiteArchitecture(app, audit.site_id, snapshot);
+    await invalidatePublicSiteCache(app);
 
     return audit.site_id;
   }
@@ -182,6 +185,7 @@ export async function applyApprovedAudit(
         update_time: new Date(),
       })
       .where(eq(Sites.id, audit.site_id));
+    await invalidatePublicSiteCache(app);
 
     return audit.site_id;
   }
@@ -194,6 +198,7 @@ export async function applyApprovedAudit(
       update_time: new Date(),
     })
     .where(eq(Sites.id, audit.site_id));
+  await invalidatePublicSiteCache(app);
 
   return audit.site_id;
 }

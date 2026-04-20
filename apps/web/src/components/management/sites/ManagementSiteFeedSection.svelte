@@ -16,10 +16,17 @@
     WORKSPACE_SELECT_CLASS,
   } from '@/components/site-submission/site-submission-workspace.constants';
 
-  export let draft: SiteSnapshotDraft;
-  export let disabled = false;
-  export let idPrefix = 'site-management-fields';
-  export let fieldAlerts: Partial<Record<string, { label: string; value: string }>> = {};
+  let {
+    draft = $bindable(),
+    disabled = false,
+    idPrefix = 'site-management-fields',
+    fieldAlerts = {},
+  }: {
+    draft: SiteSnapshotDraft;
+    disabled?: boolean;
+    idPrefix?: string;
+    fieldAlerts?: Partial<Record<string, { label: string; value: string }>>;
+  } = $props();
 
   type DraftTextField = 'sitemap' | 'link_page';
   type FeedDraftPatch = Partial<SiteSnapshotDraft['feeds'][number]>;
@@ -89,11 +96,12 @@
     replaceFeeds(draft.feeds, feedId);
   };
 
-  $: canChooseDefaultFeed = draft.feeds.length > 1;
-  $: feedMetaCopy =
+  let canChooseDefaultFeed = $derived(draft.feeds.length > 1);
+  let feedMetaCopy = $derived(
     draft.feeds.length === 1
       ? '单个订阅时可留空名称，保存时会自动记为默认订阅。'
-      : '多个订阅时请明确填写每个订阅名称。';
+      : '多个订阅时请明确填写每个订阅名称。',
+  );
 </script>
 
 <div class="space-y-4">
@@ -124,7 +132,7 @@
               <button
                 class={`subscription-feed-default-toggle ${feed.isDefault ? 'active' : ''}`}
                 type="button"
-                on:click={() => handleSelectDefaultFeed(feed.id)}
+                onclick={() => handleSelectDefaultFeed(feed.id)}
                 {disabled}
                 aria-label={`设为默认订阅 ${index + 1}`}
               >
@@ -134,7 +142,7 @@
             <button
               class="subscription-feed-delete-button"
               type="button"
-              on:click={() => handleRemoveFeed(feed.id)}
+              onclick={() => handleRemoveFeed(feed.id)}
               {disabled}
               aria-label={`删除订阅 ${index + 1}`}
               title="删除"
@@ -151,7 +159,7 @@
                   class={WORKSPACE_INPUT_CLASS}
                   {disabled}
                   value={feed.name}
-                  on:input={(event) =>
+                  oninput={(event) =>
                     handleFeedNameInput(feed.id, (event.currentTarget as HTMLInputElement).value)}
                   placeholder={draft.feeds.length === 1 ? '如：主站更新' : `订阅名称 ${index + 1}`}
                 />
@@ -163,7 +171,7 @@
                   class={WORKSPACE_INPUT_CLASS}
                   {disabled}
                   value={feed.url}
-                  on:input={(event) =>
+                  oninput={(event) =>
                     handleFeedUrlInput(feed.id, (event.currentTarget as HTMLInputElement).value)}
                   placeholder="https://example.com/feed"
                 />
@@ -176,7 +184,7 @@
                   style={WORKSPACE_SELECT_CHEVRON_STYLE}
                   {disabled}
                   value={feed.type ?? 'RSS'}
-                  on:change={(event) =>
+                  onchange={(event) =>
                     handleFeedTypeInput(
                       feed.id,
                       (event.currentTarget as HTMLSelectElement).value as FeedTypeKey,
@@ -198,7 +206,7 @@
     </div>
   {/if}
 
-  <button class="subscription-feed-add-button" type="button" on:click={handleAddFeed} {disabled}>
+  <button class="subscription-feed-add-button" type="button" onclick={handleAddFeed} {disabled}>
     <span class="subscription-feed-add-icon">+</span>
     添加订阅地址
   </button>
@@ -225,7 +233,7 @@
         class={WORKSPACE_INPUT_CLASS}
         {disabled}
         value={draft.sitemap}
-        on:input={(event) =>
+        oninput={(event) =>
           updateDraftTextField('sitemap', (event.currentTarget as HTMLInputElement).value)}
         placeholder="https://example.com/sitemap.xml"
       />
@@ -248,7 +256,7 @@
         class={WORKSPACE_INPUT_CLASS}
         {disabled}
         value={draft.link_page}
-        on:input={(event) =>
+        oninput={(event) =>
           updateDraftTextField('link_page', (event.currentTarget as HTMLInputElement).value)}
         placeholder="https://example.com/friends"
       />

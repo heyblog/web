@@ -8,27 +8,44 @@
 
   import type { CommonSiteForm } from './site-editable-fields.types';
 
-  export let form: CommonSiteForm;
-  export let errors: FieldErrors = {};
-  export let options: SiteSubmissionOptionsResult;
-  export let optionsPending = false;
-  export let disabled = false;
-  export let idPrefix = 'site-fields';
-  export let inputClass = '';
-  export let textAreaClass = '';
-  export let selectClass = '';
-  export let selectChevronStyle = '';
-  export let withInputStateClass: (base: string, warned: boolean, missing: boolean) => string = (
-    base,
-  ) => base;
-  export let isAutoFillMissing: (field: AutoFillFieldKey) => boolean = () => false;
-  export let clearAutoFillMissing: (field: AutoFillFieldKey) => void = () => {};
-  export let updateUrl: ((value: string) => void) | undefined = undefined;
-  export let applyAddressInference: (() => void) | undefined = undefined;
-  export let runAutoFill: (() => Promise<void> | void) | undefined = undefined;
+  let {
+    form = $bindable(),
+    errors = {},
+    options,
+    optionsPending = false,
+    disabled = false,
+    idPrefix = 'site-fields',
+    inputClass = '',
+    textAreaClass = '',
+    selectClass = '',
+    selectChevronStyle = '',
+    withInputStateClass = (base) => base,
+    isAutoFillMissing = () => false,
+    clearAutoFillMissing = () => {},
+    updateUrl = undefined,
+    applyAddressInference = undefined,
+    runAutoFill = undefined,
+  }: {
+    form: CommonSiteForm;
+    errors?: FieldErrors;
+    options: SiteSubmissionOptionsResult;
+    optionsPending?: boolean;
+    disabled?: boolean;
+    idPrefix?: string;
+    inputClass?: string;
+    textAreaClass?: string;
+    selectClass?: string;
+    selectChevronStyle?: string;
+    withInputStateClass?: (base: string, warned: boolean, missing: boolean) => string;
+    isAutoFillMissing?: (field: AutoFillFieldKey) => boolean;
+    clearAutoFillMissing?: (field: AutoFillFieldKey) => void;
+    updateUrl?: ((value: string) => void) | undefined;
+    applyAddressInference?: (() => void) | undefined;
+    runAutoFill?: (() => Promise<void> | void) | undefined;
+  } = $props();
 
   const syncForm = (): void => {
-    form = form;
+    form = { ...form };
   };
 
   const handleUrlInput = (value: string): void => {
@@ -41,7 +58,7 @@
     syncForm();
   };
 
-  $: showAutofillActions = Boolean(applyAddressInference || runAutoFill);
+  let showAutofillActions = $derived(Boolean(applyAddressInference || runAutoFill));
 </script>
 
 <div class="space-y-4">
@@ -56,7 +73,7 @@
         class={withInputStateClass(inputClass, false, isAutoFillMissing('name'))}
         {disabled}
         value={form.name}
-        on:input={(event) => {
+        oninput={(event) => {
           form.name = (event.currentTarget as HTMLInputElement).value;
           clearAutoFillMissing('name');
           syncForm();
@@ -76,14 +93,14 @@
           class={`${inputClass} flex-1`}
           {disabled}
           value={form.url}
-          on:input={(event) => handleUrlInput((event.currentTarget as HTMLInputElement).value)}
+          oninput={(event) => handleUrlInput((event.currentTarget as HTMLInputElement).value)}
           placeholder="https://example.com"
         />
         {#if showAutofillActions}
           <button
             class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-(--color-line-med) px-4 text-sm"
             type="button"
-            on:click={() => applyAddressInference?.()}
+            onclick={() => applyAddressInference?.()}
             {disabled}
           >
             同步基础地址
@@ -91,7 +108,7 @@
           <button
             class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-red-700/20 px-4 text-sm font-medium text-red-700 dark:border-red-400/20 dark:text-red-400"
             type="button"
-            on:click={() => void runAutoFill?.()}
+            onclick={() => void runAutoFill?.()}
             {disabled}
           >
             自动填写
@@ -109,7 +126,7 @@
         id={`${idPrefix}-sign`}
         class={withInputStateClass(textAreaClass, false, isAutoFillMissing('sign'))}
         {disabled}
-        on:input={(event) => {
+        oninput={(event) => {
           form.sign = (event.currentTarget as HTMLTextAreaElement).value;
           clearAutoFillMissing('sign');
           syncForm();
@@ -131,7 +148,7 @@
         style={selectChevronStyle}
         disabled={disabled || optionsPending}
         value={form.main_tag_id}
-        on:change={(event) => {
+        onchange={(event) => {
           form.main_tag_id = (event.currentTarget as HTMLSelectElement).value;
           syncForm();
         }}

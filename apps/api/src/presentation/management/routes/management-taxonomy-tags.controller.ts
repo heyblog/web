@@ -11,6 +11,7 @@ import {
 import { asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
+import { invalidatePublicSiteCache } from '@/application/public/usecase/public-cache.usecase';
 import { buildSnapshotDiff } from '@/domain/sites/service/site-snapshot.service';
 
 import {
@@ -99,6 +100,7 @@ export function registerManagementTaxonomyTagRoutes(app: FastifyInstance): void 
             .returning()
         : await app.db.write.insert(TagDefinitions).values(values).returning();
       const row = Array.isArray(rows) ? (rows[0] ?? null) : null;
+      await invalidatePublicSiteCache(app);
 
       return {
         ok: true,
@@ -287,6 +289,7 @@ export function registerManagementTaxonomyTagRoutes(app: FastifyInstance): void 
           updated_time: new Date(),
         })
         .where(eq(TagDefinitions.id, sourceTag.id));
+      await invalidatePublicSiteCache(app);
 
       return {
         ok: true,

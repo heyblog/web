@@ -3,7 +3,11 @@
 
   type AsidePage = Exclude<SubmissionPage, 'query'>;
 
-  export let activePage: AsidePage = 'create';
+  let {
+    activePage = 'create',
+  }: {
+    activePage?: AsidePage;
+  } = $props();
 
   const asideContent: Record<
     AsidePage,
@@ -67,7 +71,7 @@
     },
   };
 
-  const content = asideContent[activePage];
+  const content = $derived(asideContent[activePage]);
 </script>
 
 <aside class="order-1 space-y-5 rounded-md border border-(--color-line-med) p-6 sm:p-7 lg:order-2">

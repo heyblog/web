@@ -4,17 +4,29 @@
     FieldErrors,
   } from '@/application/site-submission/site-submission.service';
 
-  export let submitDelete: () => Promise<void>;
+  let {
+    submitDelete,
+    deleteForm,
+    deleteErrors = {},
+    deletePending = false,
+    inputClass = '',
+    textAreaClass = '',
+  }: {
+    submitDelete: () => Promise<void>;
+    deleteForm: DeleteSubmissionFormState;
+    deleteErrors?: FieldErrors;
+    deletePending?: boolean;
+    inputClass?: string;
+    textAreaClass?: string;
+  } = $props();
 
-  export let deleteForm: DeleteSubmissionFormState;
-  export let deleteErrors: FieldErrors = {};
-  export let deletePending = false;
-
-  export let inputClass = '';
-  export let textAreaClass = '';
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
+    await submitDelete();
+  }
 </script>
 
-<form class="space-y-6" on:submit|preventDefault={submitDelete}>
+<form class="space-y-6" onsubmit={handleSubmit}>
   <p
     class="rounded-md border border-(--color-line) px-4 py-3 text-sm leading-7 text-(--color-fg-2)"
   >

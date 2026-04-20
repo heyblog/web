@@ -25,81 +25,35 @@ describe('public site random route', () => {
         { id: 'main-1', name: '技术', machineKey: null, tagType: 'MAIN' },
         { id: 'main-2', name: '生活', machineKey: null, tagType: 'MAIN' },
       ],
-      sites: [
-        {
-          id: 'site-safe',
-          bid: 'safe',
-          name: 'Safe Site',
-          url: 'https://safe.example',
-          sign: '安全站点',
-          feeds: [{ url: 'https://safe.example/feed.xml', isDefault: true }],
-          sitemap: null,
-          linkPage: null,
-          featured: false,
-          status: 'OK',
-          accessScope: 'ALL',
-          joinTime: new Date('2026-03-01T08:00:00.000Z'),
-          updateTime: new Date('2026-03-25T08:00:00.000Z'),
-          reason: null,
-        },
-        {
-          id: 'site-down',
-          bid: 'down',
-          name: 'Down Site',
-          url: 'https://down.example',
-          sign: '异常站点',
-          feeds: [],
-          sitemap: null,
-          linkPage: null,
-          featured: true,
-          status: 'DOWN',
-          accessScope: 'ALL',
-          joinTime: new Date('2026-03-02T08:00:00.000Z'),
-          updateTime: new Date('2026-03-20T08:00:00.000Z'),
-          reason: null,
-        },
-        {
-          id: 'site-warn',
-          bid: 'warn',
-          name: 'Warn Site',
-          url: 'https://warn.example',
-          sign: '告警站点',
-          feeds: [],
-          sitemap: null,
-          linkPage: null,
-          featured: false,
-          status: 'OK',
-          accessScope: 'ALL',
-          joinTime: new Date('2026-03-03T08:00:00.000Z'),
-          updateTime: new Date('2026-03-18T08:00:00.000Z'),
-          reason: null,
-        },
-      ],
-      stats: [
-        {
-          site_id: 'site-safe',
-          visible_articles: 12,
-          total_articles: 12,
-          latest_published_time: new Date('2026-03-24T08:00:00.000Z'),
-        },
-      ],
-      access: [{ site_id: 'site-safe', total: 80 }],
-      tags: [
-        { site_id: 'site-safe', tagName: '技术', tagType: 'MAIN' },
-        { site_id: 'site-warn', tagName: '生活', tagType: 'MAIN' },
-      ],
-      warnings: [
-        {
-          siteId: 'site-warn',
-          source: 'MANUAL',
-          note: 'warn',
-          createdTime: new Date('2026-03-24T08:00:00.000Z'),
-          id: 'warning-1',
-          machineKey: 'EXTERNAL_LIMIT',
-          name: '外部限制',
-          description: 'warning',
-        },
-      ],
+      randomSite: {
+        siteId: 'site-safe',
+        bid: 'safe',
+        name: 'Safe Site',
+        url: 'https://safe.example',
+        sign: '安全站点',
+        feeds: [{ url: 'https://safe.example/feed.xml', isDefault: true }],
+        feedUrl: 'https://safe.example/feed.xml',
+        sitemap: null,
+        linkPage: null,
+        featured: false,
+        status: 'OK',
+        accessScope: 'ALL',
+        joinTime: new Date('2026-03-01T08:00:00.000Z'),
+        updateTime: new Date('2026-03-25T08:00:00.000Z'),
+        reason: null,
+        articleCount: 12,
+        latestPublishedTime: new Date('2026-03-24T08:00:00.000Z'),
+        visitCount: 80,
+        primaryTag: '技术',
+        subTags: [],
+        warningTags: [],
+        warningNames: [],
+        programId: null,
+        programName: null,
+        programIsOpenSource: null,
+        websiteUrl: null,
+        repoUrl: null,
+      },
     });
 
     const response = await app.inject({
@@ -130,7 +84,6 @@ describe('public site random route', () => {
 
     mockRandomQueries(app, {
       mainTags: [{ id: 'main-1', name: '技术', machineKey: null, tagType: 'MAIN' }],
-      sites: [],
     });
 
     const response = await app.inject({
@@ -149,7 +102,6 @@ describe('public site random route', () => {
 
     mockRandomQueries(app, {
       mainTags: [{ id: 'main-1', name: '技术', machineKey: null, tagType: 'MAIN' }],
-      sites: [],
     });
 
     const response = await app.inject({
@@ -167,7 +119,6 @@ describe('public site random route', () => {
 
     mockRandomQueries(app, {
       mainTags: [{ id: 'main-1', name: '技术', machineKey: null, tagType: 'MAIN' }],
-      sites: [],
     });
 
     const response = await app.inject({
@@ -185,7 +136,6 @@ describe('public site random route', () => {
 
     mockRandomQueries(app, {
       mainTags: [{ id: 'main-1', name: '技术', machineKey: null, tagType: 'MAIN' }],
-      sites: [],
     });
 
     const response = await app.inject({
@@ -204,25 +154,6 @@ describe('public site random route', () => {
 
     mockRandomQueries(app, {
       mainTags: [{ id: 'main-1', name: '技术', machineKey: null, tagType: 'MAIN' }],
-      sites: [
-        {
-          id: 'site-1',
-          bid: 'site-1',
-          name: 'Site 1',
-          url: 'https://site-1.example',
-          sign: '技术站点',
-          feeds: [],
-          sitemap: null,
-          linkPage: null,
-          featured: false,
-          status: 'OK',
-          accessScope: 'ALL',
-          joinTime: new Date('2026-03-01T08:00:00.000Z'),
-          updateTime: new Date('2026-03-25T08:00:00.000Z'),
-          reason: null,
-        },
-      ],
-      tags: [{ site_id: 'site-1', tagName: '技术', tagType: 'MAIN' }],
     });
 
     const response = await app.inject({

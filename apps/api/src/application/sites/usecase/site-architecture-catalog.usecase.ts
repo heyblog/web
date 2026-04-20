@@ -3,6 +3,7 @@ import { Programs, TagDefinitions, TechnologyCatalogs } from '@zhblogs/db';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
+import { invalidatePublicSiteCache } from '@/application/public/usecase/public-cache.usecase';
 import { normalizeSubTagSnapshots } from '@/domain/sites/service/site-snapshot-diff.service';
 
 const normalizeArchitectureName = (value: string | null | undefined) => {
@@ -78,6 +79,8 @@ export async function ensureSubTagIdsBySnapshot(
     for (const row of inserted) {
       idByName.set(row.name, row.id);
     }
+
+    await invalidatePublicSiteCache(app);
   }
 
   return [
@@ -179,6 +182,7 @@ export async function ensureProgramByInput(
             updated_time: new Date(),
           })
           .where(eq(Programs.id, existingId));
+        await invalidatePublicSiteCache(app);
       }
     }
 
@@ -192,6 +196,7 @@ export async function ensureProgramByInput(
           updated_time: new Date(),
         })
         .where(eq(Programs.id, existingId));
+      await invalidatePublicSiteCache(app);
     }
 
     return {
@@ -240,6 +245,7 @@ export async function ensureProgramByInput(
           updated_time: new Date(),
         })
         .where(eq(Programs.id, existing.id));
+      await invalidatePublicSiteCache(app);
     }
 
     return {
@@ -259,6 +265,10 @@ export async function ensureProgramByInput(
       is_enabled: true,
     })
     .returning({ id: Programs.id });
+
+  if (inserted?.id) {
+    await invalidatePublicSiteCache(app);
+  }
 
   return {
     program_id: inserted?.id ?? null,

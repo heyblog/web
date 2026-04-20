@@ -3,6 +3,7 @@ import { SiteAudits, type SiteAuditSnapshot, Sites } from '@zhblogs/db';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
+import { invalidatePublicSiteCache } from '@/application/public/usecase/public-cache.usecase';
 import {
   syncSiteArchitecture,
   syncSiteTags,
@@ -123,6 +124,7 @@ export function registerManagementSiteUpdateRoute(app: FastifyInstance): void {
 
       await syncSiteTags(app, request.params.siteId, normalizedSnapshot);
       await syncSiteArchitecture(app, request.params.siteId, normalizedSnapshot);
+      await invalidatePublicSiteCache(app);
       const appliedSnapshot = await loadCurrentSiteSnapshot(app, request.params.siteId);
 
       if (!appliedSnapshot) {

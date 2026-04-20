@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
 
   import {
     getPublicContactEmail,
@@ -49,111 +49,125 @@
   import SiteSubmissionWorkspacePanel from './SiteSubmissionWorkspacePanel.svelte';
   import WorkspaceAside from './WorkspaceAside.svelte';
 
-  export let activePage: SubmissionPage = 'create';
-  export let initialIdentifier = '';
-  export let initialAuditId = '';
-  export let initialRestoreTarget: RestoreTargetResult | null = null;
+  let {
+    activePage = 'create',
+    initialIdentifier = '',
+    initialAuditId = '',
+    initialRestoreTarget = null,
+  }: {
+    activePage?: SubmissionPage;
+    initialIdentifier?: string;
+    initialAuditId?: string;
+    initialRestoreTarget?: RestoreTargetResult | null;
+  } = $props();
 
-  let options: SiteSubmissionOptionsResult = {
+  const activePageValue = untrack(() => activePage);
+  const initialIdentifierValue = untrack(() => initialIdentifier);
+  const initialAuditIdValue = untrack(() => initialAuditId);
+  const initialRestoreTargetValue = untrack(() => initialRestoreTarget);
+
+  let options = $state<SiteSubmissionOptionsResult>({
     main_tags: [],
     sub_tags: [],
     programs: [],
     tech_stacks: [],
-  };
-  let optionsPending = false;
-
-  let createForm = createInitialCreateForm();
-  let updateForm = createInitialUpdateForm();
-  let deleteForm = createInitialDeleteForm();
-  let restoreForm = createInitialRestoreForm();
-  let queryForm = createInitialQueryForm({
-    audit_id: initialAuditId,
   });
+  let optionsPending = $state(false);
 
-  let createErrors: FieldErrors = {};
-  let updateErrors: FieldErrors = {};
-  let deleteErrors: FieldErrors = {};
-  let restoreErrors: FieldErrors = {};
-  let queryErrors: FieldErrors = {};
+  let createForm = $state(createInitialCreateForm());
+  let updateForm = $state(createInitialUpdateForm());
+  let deleteForm = $state(createInitialDeleteForm());
+  let restoreForm = $state(createInitialRestoreForm());
+  let queryForm = $state(
+    createInitialQueryForm({
+      audit_id: initialAuditIdValue,
+    }),
+  );
 
-  let queryError: string | null = null;
+  let createErrors = $state<FieldErrors>({});
+  let updateErrors = $state<FieldErrors>({});
+  let deleteErrors = $state<FieldErrors>({});
+  let restoreErrors = $state<FieldErrors>({});
+  let queryErrors = $state<FieldErrors>({});
 
-  let createSuccess: SubmissionResult | null = null;
-  let updateSuccess: SubmissionResult | null = null;
-  let deleteSuccess: SubmissionResult | null = null;
-  let restoreSuccess: SubmissionResult | null = null;
-  let querySuccess: SubmissionStatusResult | null = null;
-  let createDuplicateDialog: CreateSubmissionDuplicateDialogState | null = null;
-  let blockedSubmission: BlockedSubmissionNoticeState | null = null;
+  let queryError = $state<string | null>(null);
 
-  let createPending = false;
-  let updatePending = false;
-  let deletePending = false;
-  let restorePending = false;
-  let queryPending = false;
-  let searchPending = false;
-  let resolvePending = false;
-  let autoFillPending = false;
-  let autoFillTarget: 'create' | 'update' | null = null;
-  let createAutoFillMissing: AutoFillMissingState = createEmptyAutoFillMissingState();
-  let updateAutoFillMissing: AutoFillMissingState = createEmptyAutoFillMissingState();
+  let createSuccess = $state<SubmissionResult | null>(null);
+  let updateSuccess = $state<SubmissionResult | null>(null);
+  let deleteSuccess = $state<SubmissionResult | null>(null);
+  let restoreSuccess = $state<SubmissionResult | null>(null);
+  let querySuccess = $state<SubmissionStatusResult | null>(null);
+  let createDuplicateDialog = $state<CreateSubmissionDuplicateDialogState | null>(null);
+  let blockedSubmission = $state<BlockedSubmissionNoticeState | null>(null);
 
-  let searchQuery = initialIdentifier;
-  let searchResults: SiteSearchItem[] = [];
-  let searchError: string | null = null;
-  let selectedSite: SiteResolveResult | null = null;
-  let restoreTarget: RestoreTargetResult | null = initialRestoreTarget;
-  let createProgramPickerValue = '';
-  let updateProgramPickerValue = '';
-  let copiedAuditId = '';
+  let createPending = $state(false);
+  let updatePending = $state(false);
+  let deletePending = $state(false);
+  let restorePending = $state(false);
+  let queryPending = $state(false);
+  let searchPending = $state(false);
+  let resolvePending = $state(false);
+  let autoFillPending = $state(false);
+  let autoFillTarget = $state<'create' | 'update' | null>(null);
+  let createAutoFillMissing = $state<AutoFillMissingState>(createEmptyAutoFillMissingState());
+  let updateAutoFillMissing = $state<AutoFillMissingState>(createEmptyAutoFillMissingState());
+
+  let searchQuery = $state(initialIdentifierValue);
+  let searchResults = $state<SiteSearchItem[]>([]);
+  let searchError = $state<string | null>(null);
+  let selectedSite = $state<SiteResolveResult | null>(null);
+  let restoreTarget = $state<RestoreTargetResult | null>(initialRestoreTargetValue);
+  let createProgramPickerValue = $state('');
+  let updateProgramPickerValue = $state('');
+  let copiedAuditId = $state('');
   const publicContactEmail = getPublicContactEmail();
   const publicContactMailtoHref = getPublicContactMailtoHref();
 
-  const state = <T,>(get: () => T, set: (value: T) => void): ValueState<T> => ({
+  const createValueState = <T,>(get: () => T, set: (value: T) => void): ValueState<T> => ({
     get,
     set,
   });
 
   const controller = createSiteSubmissionWorkspaceController({
-    activePage,
-    options: state(
+    activePage: activePageValue,
+    options: createValueState(
       () => options,
       (value) => {
         options = value;
       },
     ),
-    optionsPending: state(
+    optionsPending: createValueState(
       () => optionsPending,
       (value) => {
         optionsPending = value;
       },
     ),
     forms: {
-      create: state(
+      create: createValueState(
         () => createForm,
         (value) => {
           createForm = value;
         },
       ),
-      update: state(
+      update: createValueState(
         () => updateForm,
         (value) => {
           updateForm = value;
         },
       ),
-      delete: state(
+      delete: createValueState(
         () => deleteForm,
         (value) => {
           deleteForm = value;
         },
       ),
-      restore: state(
+      restore: createValueState(
         () => restoreForm,
         (value) => {
           restoreForm = value;
         },
       ),
-      query: state(
+      query: createValueState(
         () => queryForm,
         (value) => {
           queryForm = value;
@@ -161,37 +175,37 @@
       ),
     },
     errors: {
-      create: state(
+      create: createValueState(
         () => createErrors,
         (value) => {
           createErrors = value;
         },
       ),
-      update: state(
+      update: createValueState(
         () => updateErrors,
         (value) => {
           updateErrors = value;
         },
       ),
-      delete: state(
+      delete: createValueState(
         () => deleteErrors,
         (value) => {
           deleteErrors = value;
         },
       ),
-      restore: state(
+      restore: createValueState(
         () => restoreErrors,
         (value) => {
           restoreErrors = value;
         },
       ),
-      query: state(
+      query: createValueState(
         () => queryErrors,
         (value) => {
           queryErrors = value;
         },
       ),
-      queryError: state(
+      queryError: createValueState(
         () => queryError,
         (value) => {
           queryError = value;
@@ -199,31 +213,31 @@
       ),
     },
     success: {
-      create: state(
+      create: createValueState(
         () => createSuccess,
         (value) => {
           createSuccess = value;
         },
       ),
-      update: state(
+      update: createValueState(
         () => updateSuccess,
         (value) => {
           updateSuccess = value;
         },
       ),
-      delete: state(
+      delete: createValueState(
         () => deleteSuccess,
         (value) => {
           deleteSuccess = value;
         },
       ),
-      restore: state(
+      restore: createValueState(
         () => restoreSuccess,
         (value) => {
           restoreSuccess = value;
         },
       ),
-      query: state(
+      query: createValueState(
         () => querySuccess,
         (value) => {
           querySuccess = value;
@@ -231,69 +245,69 @@
       ),
     },
     duplicate: {
-      create: state(
+      create: createValueState(
         () => createDuplicateDialog,
         (value) => {
           createDuplicateDialog = value;
         },
       ),
     },
-    blockedSubmission: state(
+    blockedSubmission: createValueState(
       () => blockedSubmission,
       (value) => {
         blockedSubmission = value;
       },
     ),
     pending: {
-      create: state(
+      create: createValueState(
         () => createPending,
         (value) => {
           createPending = value;
         },
       ),
-      update: state(
+      update: createValueState(
         () => updatePending,
         (value) => {
           updatePending = value;
         },
       ),
-      delete: state(
+      delete: createValueState(
         () => deletePending,
         (value) => {
           deletePending = value;
         },
       ),
-      restore: state(
+      restore: createValueState(
         () => restorePending,
         (value) => {
           restorePending = value;
         },
       ),
-      query: state(
+      query: createValueState(
         () => queryPending,
         (value) => {
           queryPending = value;
         },
       ),
-      search: state(
+      search: createValueState(
         () => searchPending,
         (value) => {
           searchPending = value;
         },
       ),
-      resolve: state(
+      resolve: createValueState(
         () => resolvePending,
         (value) => {
           resolvePending = value;
         },
       ),
-      autoFill: state(
+      autoFill: createValueState(
         () => autoFillPending,
         (value) => {
           autoFillPending = value;
         },
       ),
-      autoFillTarget: state(
+      autoFillTarget: createValueState(
         () => autoFillTarget,
         (value) => {
           autoFillTarget = value;
@@ -301,25 +315,25 @@
       ),
     },
     search: {
-      query: state(
+      query: createValueState(
         () => searchQuery,
         (value) => {
           searchQuery = value;
         },
       ),
-      results: state(
+      results: createValueState(
         () => searchResults,
         (value) => {
           searchResults = value;
         },
       ),
-      error: state(
+      error: createValueState(
         () => searchError,
         (value) => {
           searchError = value;
         },
       ),
-      selectedSite: state(
+      selectedSite: createValueState(
         () => selectedSite,
         (value) => {
           selectedSite = value;
@@ -327,7 +341,7 @@
       ),
     },
     restore: {
-      target: state(
+      target: createValueState(
         () => restoreTarget,
         (value) => {
           restoreTarget = value;
@@ -335,13 +349,13 @@
       ),
     },
     autoFillMissing: {
-      create: state(
+      create: createValueState(
         () => createAutoFillMissing,
         (value) => {
           createAutoFillMissing = value;
         },
       ),
-      update: state(
+      update: createValueState(
         () => updateAutoFillMissing,
         (value) => {
           updateAutoFillMissing = value;
@@ -349,13 +363,13 @@
       ),
     },
     programPicker: {
-      create: state(
+      create: createValueState(
         () => createProgramPickerValue,
         (value) => {
           createProgramPickerValue = value;
         },
       ),
-      update: state(
+      update: createValueState(
         () => updateProgramPickerValue,
         (value) => {
           updateProgramPickerValue = value;
@@ -374,37 +388,35 @@
     DELETE: '删除申请已进入审核',
     RESTORE: '恢复申请已进入审核',
   } as const;
-  let activeSubmissionResult: SubmissionResult | null = null;
-  let activeSubmissionTitle: string;
-  let duplicateDialogTitle: string;
-  let primaryStrongDuplicate: {
-    site_id: string;
-    bid: string | null;
-    name: string;
-    url: string;
-    visibility: 'VISIBLE' | 'HIDDEN';
-    reason: string;
-  } | null;
-  let blockedSubmissionQueryHref;
-
-  $: activeSubmissionResult =
-    createSuccess ?? updateSuccess ?? deleteSuccess ?? restoreSuccess ?? null;
-  $: activeSubmissionTitle = activeSubmissionResult
-    ? (successTitleMap[activeSubmissionResult.action as keyof typeof successTitleMap] ??
-      '提交申请已进入审核')
-    : '';
-  $: duplicateDialogTitle =
+  let activeSubmissionResult = $derived<SubmissionResult | null>(
+    createSuccess ?? updateSuccess ?? deleteSuccess ?? restoreSuccess ?? null,
+  );
+  let activeSubmissionTitle = $derived(
+    activeSubmissionResult
+      ? (successTitleMap[activeSubmissionResult.action as keyof typeof successTitleMap] ??
+          '提交申请已进入审核')
+      : '',
+  );
+  let duplicateDialogTitle = $derived(
     createDuplicateDialog?.code === 'SITE_DUPLICATE_WEAK_CONFIRMATION_REQUIRED'
       ? '检测到疑似重复站点'
       : createDuplicateDialog?.code === 'SITE_RESTORE_REQUIRED'
         ? '检测到已下线站点'
         : createDuplicateDialog?.code === 'SITE_DUPLICATE_STRONG_CONTACT_REQUIRED'
           ? '检测到重复站点'
-          : '';
-  $: primaryStrongDuplicate = createDuplicateDialog?.review.strong[0] ?? null;
-  $: blockedSubmissionQueryHref = blockedSubmission
-    ? buildSubmissionQueryHref(blockedSubmission.submission.audit_id)
-    : '';
+          : '',
+  );
+  let primaryStrongDuplicate = $derived<{
+    site_id: string;
+    bid: string | null;
+    name: string;
+    url: string;
+    visibility: 'VISIBLE' | 'HIDDEN';
+    reason: string;
+  } | null>(createDuplicateDialog?.review.strong[0] ?? null);
+  let blockedSubmissionQueryHref = $derived(
+    blockedSubmission ? buildSubmissionQueryHref(blockedSubmission.submission.audit_id) : '',
+  );
 
   const {
     withInputStateClass,
@@ -436,7 +448,11 @@
   } = controller;
 
   onMount(async () => {
-    await controller.initialize({ initialIdentifier, initialAuditId, initialRestoreTarget });
+    await controller.initialize({
+      initialIdentifier: initialIdentifierValue,
+      initialAuditId: initialAuditIdValue,
+      initialRestoreTarget: initialRestoreTargetValue,
+    });
   });
 
   async function handleCopyAuditId(auditId: string) {
@@ -714,7 +730,7 @@
         <button
           class="rounded-md border border-(--color-line-med) px-4 py-2 text-sm text-(--color-fg) transition hover:border-(--color-line-strong)"
           type="button"
-          on:click={() => handleCopyAuditId(activeSubmissionResult.audit_id)}
+          onclick={() => handleCopyAuditId(activeSubmissionResult.audit_id)}
         >
           {copiedAuditId === activeSubmissionResult.audit_id ? '已复制查询 ID' : '复制查询 ID'}
         </button>

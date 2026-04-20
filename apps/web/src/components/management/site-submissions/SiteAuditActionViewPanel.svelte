@@ -9,12 +9,21 @@
 
   import type { AuditDetail } from './site-audit-review.types';
 
-  export let detail: AuditDetail;
-  export let mode: 'detail' | 'process' = 'detail';
-  export let canEditSnapshot = false;
-  export let pending = false;
-  export let correctionDraft: SiteSnapshotDraft;
-  export let options: SiteSubmissionOptions;
+  let {
+    detail,
+    mode = 'detail',
+    canEditSnapshot = false,
+    pending = false,
+    correctionDraft,
+    options,
+  }: {
+    detail: AuditDetail;
+    mode?: 'detail' | 'process';
+    canEditSnapshot?: boolean;
+    pending?: boolean;
+    correctionDraft: SiteSnapshotDraft;
+    options: SiteSubmissionOptions;
+  } = $props();
 
   type EditableAuditField =
     | 'name'
@@ -61,10 +70,11 @@
       return accumulator;
     }, {});
 
-  $: fieldAlerts =
+  let fieldAlerts = $derived(
     canEditSnapshot && detail.action_view.kind === 'UPDATE'
       ? buildFieldAlerts(detail.action_view.changes ?? [])
-      : {};
+      : {},
+  );
 </script>
 
 <article class="page-section space-y-4">

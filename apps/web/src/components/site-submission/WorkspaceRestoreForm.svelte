@@ -6,13 +6,23 @@
   } from '@/application/site-submission/site-submission.service';
   import FormMessage from '@/shared/ui/FormMessage.svelte';
 
-  export let submitRestore: () => Promise<void>;
-  export let target: RestoreTargetResult | null = null;
-  export let form: RestoreSubmissionFormState;
-  export let errors: FieldErrors = {};
-  export let pending = false;
-  export let inputClass = '';
-  export let textAreaClass = '';
+  let {
+    submitRestore,
+    target = null,
+    form,
+    errors = {},
+    pending = false,
+    inputClass = '',
+    textAreaClass = '',
+  }: {
+    submitRestore: () => Promise<void>;
+    target?: RestoreTargetResult | null;
+    form: RestoreSubmissionFormState;
+    errors?: FieldErrors;
+    pending?: boolean;
+    inputClass?: string;
+    textAreaClass?: string;
+  } = $props();
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
@@ -46,7 +56,7 @@
       </div>
     </FormMessage>
 
-    <form class="space-y-5" on:submit={handleSubmit}>
+    <form class="space-y-5" onsubmit={handleSubmit}>
       <div class="grid gap-4 md:grid-cols-2">
         <div class="space-y-2">
           <label class="block text-sm" for="restore-submitter-name">联系人</label>

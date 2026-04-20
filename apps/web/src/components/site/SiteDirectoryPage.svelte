@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
 
   import type {
     SiteDirectoryItem,
@@ -18,6 +18,7 @@
     persistSiteDirectoryPreference,
     readSiteDirectoryPreference,
     requestSiteDirectory,
+    requestSiteDirectoryMeta,
     resolveSiteDirectoryAccessSummary,
     resolveSiteDirectorySortSummary,
     syncSiteDirectoryUrl,
@@ -35,6 +36,7 @@
     handleSiteDirectoryStatusModeChange,
   } from '@/components/site/site-directory-page.logic';
   import {
+    cloneSiteDirectoryMeta,
     cloneSiteDirectoryPreference,
     cloneSiteDirectoryResult,
     createInitialSiteDirectoryQuery,
@@ -55,30 +57,20 @@
     canUsePreference?: boolean;
   } = $props();
 
-  function createInitialResultValue(): SiteDirectoryResult {
-    return cloneSiteDirectoryResult(initialResult);
-  }
+  const initialMetaValue = untrack(() => cloneSiteDirectoryMeta(initialMeta));
+  const initialResultValue = untrack(() => cloneSiteDirectoryResult(initialResult));
+  const initialPreferenceValue = untrack(() => cloneSiteDirectoryPreference(initialPreference));
 
-  function createInitialDraftSearchValue(): string {
-    return createInitialResultValue().query.q;
-  }
-
-  function createInitialPreferenceValue(): SiteDirectoryPreference | null {
-    return cloneSiteDirectoryPreference(initialPreference);
-  }
-
-  function createInitialQueryValue(): SiteDirectoryQueryState {
-    return createInitialSiteDirectoryQuery(createInitialResultValue());
-  }
-
-  let result = $state(createInitialResultValue());
-  let query = $state<SiteDirectoryQueryState>(createInitialQueryValue());
-  let draftSearch = $state(createInitialDraftSearchValue());
+  let meta = $state(initialMetaValue);
+  let result = $state(initialResultValue);
+  let query = $state<SiteDirectoryQueryState>(createInitialSiteDirectoryQuery(initialResultValue));
+  let draftSearch = $state(initialResultValue.query.q);
   let pending = $state(false);
   let feedbackTarget = $state<SiteDirectoryItem | null>(null);
   let feedbackSubmitting = $state(false);
-  let preference = $state<SiteDirectoryPreference | null>(createInitialPreferenceValue());
+  let preference = $state<SiteDirectoryPreference | null>(initialPreferenceValue);
   let syntaxHelpOpen = $state(false);
+  let metaLoading = $state(false);
 
   const draftStructured = $derived(parseSiteDirectoryStructuredSearch(draftSearch));
   const sortSummary = $derived(resolveSiteDirectorySortSummary(query.sort));
@@ -86,6 +78,49 @@
   const featuredSummary = $derived(
     draftStructured.featured === null ? '' : draftStructured.featured ? '已推荐' : '未推荐',
   );
+  const hasLoadedFilters = $derived(
+    meta.filters.mainTags.length > 0 ||
+      meta.filters.subTags.length > 0 ||
+      meta.filters.warningTags.length > 0 ||
+      meta.filters.programs.length > 0,
+  );
+
+  async function loadMetaFilters() {
+    if (metaLoading || hasLoadedFilters) {
+      return;
+    }
+
+    metaLoading = true;
+
+    try {
+      const nextMeta = await requestSiteDirectoryMeta();
+
+      if (!nextMeta) {
+        return;
+      }
+
+      meta = cloneSiteDirectoryMeta(nextMeta);
+    } finally {
+      metaLoading = false;
+    }
+  }
+
+  function scheduleMetaFiltersLoad() {
+    if (typeof window === 'undefined' || hasLoadedFilters) {
+      return;
+    }
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => {
+        void loadMetaFilters();
+      });
+      return;
+    }
+
+    globalThis.setTimeout(() => {
+      void loadMetaFilters();
+    }, 160);
+  }
 
   async function loadDirectory(
     nextQuery: SiteDirectoryQueryState,
@@ -165,6 +200,8 @@
       return;
     }
 
+    scheduleMetaFiltersLoad();
+
     if (!canUsePreference) {
       return;
     }
@@ -200,7 +237,7 @@
 
 <div class="page-stack">
   <SiteDirectorySearchSection
-    meta={initialMeta}
+    {meta}
     value={draftSearch}
     {pending}
     structured={draftStructured}

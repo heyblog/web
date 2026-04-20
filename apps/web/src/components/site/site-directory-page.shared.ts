@@ -1,4 +1,5 @@
 import type {
+  SiteDirectoryMeta,
   SiteDirectoryPreference,
   SiteDirectoryResult,
 } from '@/application/site/site-directory.models';
@@ -42,6 +43,19 @@ export function cloneSiteDirectoryResult(source: SiteDirectoryResult): SiteDirec
       warning: [...source.query.warning],
       program: [...source.query.program],
     },
+  };
+}
+
+export function cloneSiteDirectoryMeta(source: SiteDirectoryMeta): SiteDirectoryMeta {
+  return {
+    stats: { ...source.stats },
+    filters: {
+      mainTags: source.filters.mainTags.map((item) => ({ ...item })),
+      subTags: source.filters.subTags.map((item) => ({ ...item })),
+      warningTags: source.filters.warningTags.map((item) => ({ ...item })),
+      programs: source.filters.programs.map((item) => ({ ...item })),
+    },
+    defaults: { ...source.defaults },
   };
 }
 

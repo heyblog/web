@@ -14,39 +14,70 @@
 
   const noop = (): void => {};
   const returnFalse = (): boolean => false;
-
-  export const mode: 'create' | 'update' | 'management' = 'update';
-  export let form: CommonSiteForm;
-  export let errors: FieldErrors = {};
-  export let options: SiteSubmissionOptionsResult;
-  export let optionsPending = false;
-  export let disabled = false;
-  export let idPrefix = 'site-fields';
-  export let inputClass = '';
-  export let textAreaClass = '';
-  export let selectClass = '';
-  export let selectChevronStyle = '';
-  export let selectedProgramId = '';
-  export let allowFeedTypeSelect = false;
-  export let feedTypeOptions: FeedTypeOption[] = [];
-  export let withInputStateClass: (base: string, warned: boolean, missing: boolean) => string = (
-    base,
-  ) => base;
-  export let isAutoFillMissing: (field: AutoFillFieldKey) => boolean = returnFalse;
-  export let clearAutoFillMissing: (field: AutoFillFieldKey) => void = noop;
-  export let fieldNeedsRefinement: (value: string) => boolean = returnFalse;
-  export let updateUrl: ((value: string) => void) | undefined = undefined;
-  export let applyAddressInference: (() => void) | undefined = undefined;
-  export let runAutoFill: (() => Promise<void> | void) | undefined = undefined;
-  export let addFeed: (() => void) | undefined = undefined;
-  export let removeFeed: ((id: string) => void) | undefined = undefined;
-  export let updateFeedName: ((id: string, value: string) => void) | undefined = undefined;
-  export let updateFeedUrl: ((id: string, value: string) => void) | undefined = undefined;
-  export let selectDefaultFeed: ((id: string) => void) | undefined = undefined;
-  export let updateFeedType: ((id: string, value: FeedType) => void) | undefined = undefined;
-  export let selectProgram: ((id: string) => void) | undefined = undefined;
-  export let applyProgramCustomDraft: ((draft: CustomProgramDraft) => void) | undefined = undefined;
-  export let trimText: (value: string) => string = (value) => value.trim();
+  const DEFAULT_MODE = 'update' as const;
+  let {
+    mode: _mode = DEFAULT_MODE,
+    form = $bindable(),
+    errors = {},
+    options,
+    optionsPending = false,
+    disabled = false,
+    idPrefix = 'site-fields',
+    inputClass = '',
+    textAreaClass = '',
+    selectClass = '',
+    selectChevronStyle = '',
+    selectedProgramId = '',
+    allowFeedTypeSelect = false,
+    feedTypeOptions = [],
+    withInputStateClass = (base) => base,
+    isAutoFillMissing = returnFalse,
+    clearAutoFillMissing = noop,
+    fieldNeedsRefinement = returnFalse,
+    updateUrl = undefined,
+    applyAddressInference = undefined,
+    runAutoFill = undefined,
+    addFeed = undefined,
+    removeFeed = undefined,
+    updateFeedName = undefined,
+    updateFeedUrl = undefined,
+    selectDefaultFeed = undefined,
+    updateFeedType = undefined,
+    selectProgram = undefined,
+    applyProgramCustomDraft = undefined,
+    trimText = (value) => value.trim(),
+  }: {
+    mode?: 'create' | 'update' | 'management';
+    form: CommonSiteForm;
+    errors?: FieldErrors;
+    options: SiteSubmissionOptionsResult;
+    optionsPending?: boolean;
+    disabled?: boolean;
+    idPrefix?: string;
+    inputClass?: string;
+    textAreaClass?: string;
+    selectClass?: string;
+    selectChevronStyle?: string;
+    selectedProgramId?: string;
+    allowFeedTypeSelect?: boolean;
+    feedTypeOptions?: FeedTypeOption[];
+    withInputStateClass?: (base: string, warned: boolean, missing: boolean) => string;
+    isAutoFillMissing?: (field: AutoFillFieldKey) => boolean;
+    clearAutoFillMissing?: (field: AutoFillFieldKey) => void;
+    fieldNeedsRefinement?: (value: string) => boolean;
+    updateUrl?: ((value: string) => void) | undefined;
+    applyAddressInference?: (() => void) | undefined;
+    runAutoFill?: (() => Promise<void> | void) | undefined;
+    addFeed?: (() => void) | undefined;
+    removeFeed?: ((id: string) => void) | undefined;
+    updateFeedName?: ((id: string, value: string) => void) | undefined;
+    updateFeedUrl?: ((id: string, value: string) => void) | undefined;
+    selectDefaultFeed?: ((id: string) => void) | undefined;
+    updateFeedType?: ((id: string, value: FeedType) => void) | undefined;
+    selectProgram?: ((id: string) => void) | undefined;
+    applyProgramCustomDraft?: ((draft: CustomProgramDraft) => void) | undefined;
+    trimText?: (value: string) => string;
+  } = $props();
 </script>
 
 <div class="space-y-6">

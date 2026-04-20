@@ -3,6 +3,11 @@ import { FeedArticles, Sites } from '@zhblogs/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
+import {
+  createPublicCacheHash,
+  loadVersionedPublicCache,
+  PUBLIC_CACHE_TTL,
+} from '@/application/public/usecase/public-cache.usecase';
 import { createSiteSlug } from '@/application/public/usecase/public-site.directory.core';
 import type {
   PublicSiteSubscriptionItem,
@@ -101,41 +106,51 @@ export async function loadPublicSiteSubscriptions(
   pageSize = 20,
 ): Promise<PublicSiteSubscriptionResult> {
   const { normalizedPage, normalizedPageSize } = normalizePaging(page, pageSize);
-  const summary = await loadSubscriptionSummary(app);
-  const totalPages = Math.max(1, Math.ceil(summary.totalArticles / normalizedPageSize));
-  const currentPage = Math.min(normalizedPage, totalPages);
-  const offset = (currentPage - 1) * normalizedPageSize;
-  const recentTime = sql`coalesce(${FeedArticles.published_time}, ${FeedArticles.fetched_time})`;
-
-  const rows = await app.db.read
-    .select({
-      id: FeedArticles.id,
-      articleUrl: FeedArticles.article_url,
-      title: FeedArticles.title,
-      summary: FeedArticles.summary,
-      publishedTime: FeedArticles.published_time,
-      fetchedTime: FeedArticles.fetched_time,
-      source: FeedArticles.source,
-      siteId: Sites.id,
-      siteBid: Sites.bid,
-      siteName: Sites.name,
-      siteUrl: Sites.url,
-    })
-    .from(FeedArticles)
-    .innerJoin(Sites, eq(FeedArticles.site_id, Sites.id))
-    .where(and(eq(FeedArticles.visibility, 'VISIBLE'), eq(Sites.is_show, true)))
-    .orderBy(desc(recentTime), desc(FeedArticles.fetched_time), desc(FeedArticles.id))
-    .limit(normalizedPageSize)
-    .offset(offset);
-
-  return {
-    summary,
-    items: rows.map(mapSubscriptionItem),
-    pagination: {
-      page: currentPage,
+  return loadVersionedPublicCache(app, {
+    namespace: 'site',
+    suffix: `subscriptions:${createPublicCacheHash({
+      page: normalizedPage,
       pageSize: normalizedPageSize,
-      totalItems: summary.totalArticles,
-      totalPages,
+    })}`,
+    ttlSeconds: PUBLIC_CACHE_TTL.subscriptions,
+    loader: async () => {
+      const summary = await loadSubscriptionSummary(app);
+      const totalPages = Math.max(1, Math.ceil(summary.totalArticles / normalizedPageSize));
+      const currentPage = Math.min(normalizedPage, totalPages);
+      const offset = (currentPage - 1) * normalizedPageSize;
+      const recentTime = sql`coalesce(${FeedArticles.published_time}, ${FeedArticles.fetched_time})`;
+
+      const rows = await app.db.read
+        .select({
+          id: FeedArticles.id,
+          articleUrl: FeedArticles.article_url,
+          title: FeedArticles.title,
+          summary: FeedArticles.summary,
+          publishedTime: FeedArticles.published_time,
+          fetchedTime: FeedArticles.fetched_time,
+          source: FeedArticles.source,
+          siteId: Sites.id,
+          siteBid: Sites.bid,
+          siteName: Sites.name,
+          siteUrl: Sites.url,
+        })
+        .from(FeedArticles)
+        .innerJoin(Sites, eq(FeedArticles.site_id, Sites.id))
+        .where(and(eq(FeedArticles.visibility, 'VISIBLE'), eq(Sites.is_show, true)))
+        .orderBy(desc(recentTime), desc(FeedArticles.fetched_time), desc(FeedArticles.id))
+        .limit(normalizedPageSize)
+        .offset(offset);
+
+      return {
+        summary,
+        items: rows.map(mapSubscriptionItem),
+        pagination: {
+          page: currentPage,
+          pageSize: normalizedPageSize,
+          totalItems: summary.totalArticles,
+          totalPages,
+        },
+      };
     },
-  };
+  });
 }

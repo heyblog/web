@@ -1,34 +1,51 @@
 <script lang="ts">
-  import { tick } from 'svelte';
-
   import type { SiteSubmissionOptionItem } from '@/application/site-submission/site-submission.service';
   import ModalSurface from '@/shared/ui/ModalSurface.svelte';
 
   import SiteTechStackCombobox from './SiteTechStackCombobox.svelte';
 
-  export let open = false;
-  export let programName = '';
-  export let programOpenSource: boolean | null = null;
-  export let websiteUrl = '';
-  export let repoUrl = '';
-  export let frameworkIds: string[] = [];
-  export let frameworkCustomNames: string[] = [];
-  export let languageIds: string[] = [];
-  export let languageCustomNames: string[] = [];
-  export let techStackOptions: SiteSubmissionOptionItem[] = [];
-  export let error = '';
-  export let onCancel: (() => void) | undefined;
-  export let onConfirm: (() => void) | undefined;
-  export let onProgramNameInput: ((value: string) => void) | undefined;
+  let {
+    open = $bindable(false),
+    programName = $bindable(''),
+    programOpenSource = $bindable<boolean | null>(null),
+    websiteUrl = $bindable(''),
+    repoUrl = $bindable(''),
+    frameworkIds = $bindable<string[]>([]),
+    frameworkCustomNames = $bindable<string[]>([]),
+    languageIds = $bindable<string[]>([]),
+    languageCustomNames = $bindable<string[]>([]),
+    techStackOptions = [],
+    error = '',
+    onCancel,
+    onConfirm,
+    onProgramNameInput,
+  }: {
+    open?: boolean;
+    programName?: string;
+    programOpenSource?: boolean | null;
+    websiteUrl?: string;
+    repoUrl?: string;
+    frameworkIds?: string[];
+    frameworkCustomNames?: string[];
+    languageIds?: string[];
+    languageCustomNames?: string[];
+    techStackOptions?: SiteSubmissionOptionItem[];
+    error?: string;
+    onCancel: (() => void) | undefined;
+    onConfirm: (() => void) | undefined;
+    onProgramNameInput: ((value: string) => void) | undefined;
+  } = $props();
 
   let inputElement: HTMLInputElement | null = null;
 
-  $: if (open) {
-    tick().then(() => {
-      inputElement?.focus();
-      inputElement?.select();
-    });
-  }
+  $effect(() => {
+    if (!open) {
+      return;
+    }
+
+    inputElement?.focus();
+    inputElement?.select();
+  });
 
   const openSourceSelectValue = (value: boolean | null): string => {
     if (value === true) {
@@ -62,8 +79,8 @@
         class="min-h-11 w-full rounded-md border border-(--color-line-med) bg-(--color-bg-raised) px-3 py-2 text-sm text-(--color-fg) outline-none placeholder:text-(--color-fg-3) focus:border-red-700/35 dark:focus:border-red-400/35"
         placeholder="例如：WordPress、Astro、自研博客系统"
         maxlength="128"
-        on:input={(event) => onProgramNameInput?.((event.currentTarget as HTMLInputElement).value)}
-        on:keydown={(event) => {
+        oninput={(event) => onProgramNameInput?.((event.currentTarget as HTMLInputElement).value)}
+        onkeydown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
             onConfirm?.();
@@ -79,7 +96,7 @@
           id="submission-custom-program-open-source"
           class="min-h-11 w-full rounded-md border border-(--color-line-med) bg-(--color-bg-raised) px-3 py-2 text-sm text-(--color-fg) outline-none focus:border-red-700/35 dark:focus:border-red-400/35"
           value={openSourceSelectValue(programOpenSource)}
-          on:change={(event) => {
+          onchange={(event) => {
             const value = (event.currentTarget as HTMLSelectElement).value;
             programOpenSource = value === 'true' ? true : value === 'false' ? false : null;
           }}

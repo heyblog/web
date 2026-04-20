@@ -1,4 +1,5 @@
 import type {
+  SiteDirectoryMeta,
   SiteDirectoryPreference,
   SiteDirectoryResult,
 } from '@/application/site/site-directory.models';
@@ -106,6 +107,23 @@ export async function requestSiteDirectory(
     }
 
     const payload = (await response.json()) as Envelope<SiteDirectoryResult>;
+    return payload.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function requestSiteDirectoryMeta(): Promise<SiteDirectoryMeta | null> {
+  try {
+    const response = await fetch('/api/site-directory/meta', {
+      headers: { accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as Envelope<SiteDirectoryMeta>;
     return payload.data;
   } catch {
     return null;

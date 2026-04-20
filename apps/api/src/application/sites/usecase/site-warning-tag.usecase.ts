@@ -8,6 +8,8 @@ import {
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
+import { invalidatePublicSiteCache } from '@/application/public/usecase/public-cache.usecase';
+
 const SITE_WARNING_TAG_QUERY_BATCH_SIZE = 500;
 
 export type SiteWarningTagDefinition = {
@@ -106,6 +108,8 @@ export async function upsertSiteWarningTag(
   if (!row) {
     throw new Error('failed to upsert site warning tag');
   }
+
+  await invalidatePublicSiteCache(app);
 
   return {
     ...definition,

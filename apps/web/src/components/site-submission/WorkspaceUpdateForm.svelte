@@ -10,44 +10,67 @@
 
   import SiteEditableFields from './SiteEditableFields.svelte';
 
-  export let autoFillPending = false;
-  export let autoFillTarget: 'create' | 'update' | null = null;
-  export let submitUpdate: () => Promise<void>;
-
-  export let updateForm: UpdateSubmissionFormState;
-  export let updateErrors: FieldErrors = {};
-  export let updatePending = false;
-
-  export let inputClass = '';
-  export let textAreaClass = '';
-  export let selectClass = '';
-  export let selectChevronStyle = '';
-
-  export let withInputStateClass: (base: string, warned: boolean, missing: boolean) => string;
-  export let isAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => boolean;
-  export let clearAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => void;
-  export let fieldNeedsRefinement: (kind: 'create' | 'update', value: string) => boolean;
-
-  export let updateUpdateUrl: (value: string) => void;
-  export let applyAddressInference: (kind: 'create' | 'update') => void;
-  export let runAutoFill: (kind: 'create' | 'update') => Promise<void>;
-  export let addFeed: (kind: 'create' | 'update') => void;
-  export let removeFeed: (kind: 'create' | 'update', id: string) => void;
-  export let updateFeedName: (kind: 'create' | 'update', id: string, value: string) => void;
-  export let updateFeedType: (
-    kind: 'create' | 'update',
-    id: string,
-    value: 'RSS' | 'ATOM' | 'JSON',
-  ) => void;
-  export let updateFeedUrl: (kind: 'create' | 'update', id: string, value: string) => void;
-  export let selectDefaultFeed: (kind: 'create' | 'update', id: string) => void;
-
-  export let optionsPending = false;
-  export let options: SiteSubmissionOptionsResult;
-  export let updateProgramSelectedId = '';
-  export let selectProgramForUpdate: (id: string) => void;
-  export let applyProgramCustomDraftForUpdate: (draft: CustomProgramDraft) => void;
-  export let trimText: (value: string) => string;
+  let {
+    autoFillPending = false,
+    autoFillTarget = null,
+    submitUpdate,
+    updateForm,
+    updateErrors = {},
+    updatePending = false,
+    inputClass = '',
+    textAreaClass = '',
+    selectClass = '',
+    selectChevronStyle = '',
+    withInputStateClass,
+    isAutoFillMissing,
+    clearAutoFillMissing,
+    fieldNeedsRefinement,
+    updateUpdateUrl,
+    applyAddressInference,
+    runAutoFill,
+    addFeed,
+    removeFeed,
+    updateFeedName,
+    updateFeedType,
+    updateFeedUrl,
+    selectDefaultFeed,
+    optionsPending = false,
+    options,
+    updateProgramSelectedId = '',
+    selectProgramForUpdate,
+    applyProgramCustomDraftForUpdate,
+    trimText,
+  }: {
+    autoFillPending?: boolean;
+    autoFillTarget?: 'create' | 'update' | null;
+    submitUpdate: () => Promise<void>;
+    updateForm: UpdateSubmissionFormState;
+    updateErrors?: FieldErrors;
+    updatePending?: boolean;
+    inputClass?: string;
+    textAreaClass?: string;
+    selectClass?: string;
+    selectChevronStyle?: string;
+    withInputStateClass: (base: string, warned: boolean, missing: boolean) => string;
+    isAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => boolean;
+    clearAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => void;
+    fieldNeedsRefinement: (kind: 'create' | 'update', value: string) => boolean;
+    updateUpdateUrl: (value: string) => void;
+    applyAddressInference: (kind: 'create' | 'update') => void;
+    runAutoFill: (kind: 'create' | 'update') => Promise<void>;
+    addFeed: (kind: 'create' | 'update') => void;
+    removeFeed: (kind: 'create' | 'update', id: string) => void;
+    updateFeedName: (kind: 'create' | 'update', id: string, value: string) => void;
+    updateFeedType: (kind: 'create' | 'update', id: string, value: 'RSS' | 'ATOM' | 'JSON') => void;
+    updateFeedUrl: (kind: 'create' | 'update', id: string, value: string) => void;
+    selectDefaultFeed: (kind: 'create' | 'update', id: string) => void;
+    optionsPending?: boolean;
+    options: SiteSubmissionOptionsResult;
+    updateProgramSelectedId?: string;
+    selectProgramForUpdate: (id: string) => void;
+    applyProgramCustomDraftForUpdate: (draft: CustomProgramDraft) => void;
+    trimText: (value: string) => string;
+  } = $props();
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -55,7 +78,7 @@
   }
 </script>
 
-<form class="relative space-y-6" on:submit={handleSubmit}>
+<form class="relative space-y-6" onsubmit={handleSubmit}>
   {#if autoFillPending && autoFillTarget === 'update'}
     <div
       class="absolute inset-0 z-20 flex items-center justify-center rounded-md bg-(--color-bg)/65 backdrop-blur-[1.5px]"

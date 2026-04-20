@@ -1,14 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolvePublicSiteBySlug } from '@/application/public/usecase/public-site.usecase';
 import {
   loadPublicSiteChecks,
   loadRecentPublicSiteChecks,
 } from '@/application/public/usecase/public-site-checks.usecase';
-
-vi.mock('@/application/public/usecase/public-site.usecase', () => ({
-  resolvePublicSiteBySlug: vi.fn(),
-}));
 
 function createAppMock() {
   return {
@@ -25,12 +20,11 @@ function createAppMock() {
 
 describe('public site checks usecase', () => {
   beforeEach(() => {
-    vi.mocked(resolvePublicSiteBySlug).mockReset();
+    vi.restoreAllMocks();
   });
 
   it('falls back to summary rows when expanded check rows fail', async () => {
     const app = createAppMock();
-    vi.mocked(resolvePublicSiteBySlug).mockResolvedValue({ id: 'site-1' } as never);
     app.db.read.execute
       .mockResolvedValueOnce([{ totalItems: 2 }])
       .mockRejectedValueOnce(new Error('invalid probe summary'))

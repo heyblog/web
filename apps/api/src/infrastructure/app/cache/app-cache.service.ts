@@ -16,7 +16,46 @@ export const cachePlugin = fp(
   async (app) => {
     if (app.bootstrapOptions.disableExternalServices) {
       const stringStore = new Map<string, string>();
+      const expiryStore = new Map<string, number>();
       const sortedSetStore = new Map<string, Map<string, number>>();
+
+      const cleanupExpiredKey = (key: string) => {
+        const expiresAt = expiryStore.get(key);
+
+        if (typeof expiresAt === 'number' && expiresAt <= Date.now()) {
+          stringStore.delete(key);
+          sortedSetStore.delete(key);
+          expiryStore.delete(key);
+        }
+      };
+
+      const setStringValue = (key: string, value: string, ttlSeconds?: number) => {
+        stringStore.set(key, value);
+
+        if (ttlSeconds && ttlSeconds > 0) {
+          expiryStore.set(key, Date.now() + ttlSeconds * 1_000);
+          return;
+        }
+
+        expiryStore.delete(key);
+      };
+
+      const deleteKey = (key: string) => {
+        cleanupExpiredKey(key);
+
+        let deleted = 0;
+
+        if (stringStore.delete(key)) {
+          deleted += 1;
+        }
+
+        if (sortedSetStore.delete(key)) {
+          deleted += 1;
+        }
+
+        expiryStore.delete(key);
+        return deleted;
+      };
 
       const getSortedSet = (key: string) => {
         let members = sortedSetStore.get(key);
@@ -45,9 +84,12 @@ export const cachePlugin = fp(
 
       const mockClient = {
         ping: async () => 'PONG',
-        get: async (key: string) => stringStore.get(key) ?? null,
+        get: async (key: string) => {
+          cleanupExpiredKey(key);
+          return stringStore.get(key) ?? null;
+        },
         set: async (key: string, value: string) => {
-          stringStore.set(key, value);
+          setStringValue(key, value);
           return 'OK';
         },
         delete: async (keys: string[] | string) => {
@@ -55,13 +97,7 @@ export const cachePlugin = fp(
           let deleted = 0;
 
           for (const key of targets) {
-            if (stringStore.delete(key)) {
-              deleted += 1;
-            }
-
-            if (sortedSetStore.delete(key)) {
-              deleted += 1;
-            }
+            deleted += deleteKey(key);
           }
 
           return deleted;
@@ -71,24 +107,34 @@ export const cachePlugin = fp(
 
           switch (command?.toUpperCase()) {
             case 'GET':
+              cleanupExpiredKey(rest[0] ?? '');
               return stringStore.get(rest[0] ?? '') ?? null;
-            case 'SET':
-              stringStore.set(rest[0] ?? '', rest[1] ?? '');
+            case 'SET': {
+              const ttlIndex = rest.findIndex((value) => value.toUpperCase() === 'EX');
+              const ttlSeconds =
+                ttlIndex >= 0 && rest[ttlIndex + 1] ? Number(rest[ttlIndex + 1]) : undefined;
+
+              setStringValue(rest[0] ?? '', rest[1] ?? '', ttlSeconds);
               return 'OK';
+            }
             case 'DEL': {
               let deleted = 0;
 
               for (const key of rest) {
-                if (stringStore.delete(key)) {
-                  deleted += 1;
-                }
-
-                if (sortedSetStore.delete(key)) {
-                  deleted += 1;
-                }
+                deleted += deleteKey(key);
               }
 
               return deleted;
+            }
+            case 'INCR': {
+              const key = rest[0] ?? '';
+
+              cleanupExpiredKey(key);
+
+              const nextValue = Number(stringStore.get(key) ?? '0') + 1;
+
+              setStringValue(key, String(nextValue));
+              return nextValue;
             }
             case 'ZADD': {
               const [key, scoreValue, member] = rest;

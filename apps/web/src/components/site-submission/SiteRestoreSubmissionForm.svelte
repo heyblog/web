@@ -19,13 +19,17 @@
     WORKSPACE_TEXTAREA_CLASS,
   } from './site-submission-workspace.constants';
 
-  export let target: RestoreTargetResult | null = null;
+  let {
+    target = null,
+  }: {
+    target?: RestoreTargetResult | null;
+  } = $props();
 
-  let form = createInitialRestoreForm();
-  let errors: FieldErrors = {};
-  let pending = false;
-  let success: SubmissionResult | null = null;
-  let copiedAuditId = '';
+  let form = $state(createInitialRestoreForm());
+  let errors = $state<FieldErrors>({});
+  let pending = $state(false);
+  let success = $state<SubmissionResult | null>(null);
+  let copiedAuditId = $state('');
 
   const inputClass = WORKSPACE_INPUT_CLASS;
   const textareaClass = WORKSPACE_TEXTAREA_CLASS;
@@ -171,7 +175,7 @@
           class="inline-flex items-center rounded-md border border-(--color-line-med) px-4 py-2 text-sm text-(--color-fg) transition hover:border-(--color-line-strong) disabled:cursor-not-allowed disabled:opacity-60"
           disabled={pending}
           type="button"
-          on:click={() => void submitRestore()}
+          onclick={() => void submitRestore()}
         >
           {pending ? '提交中…' : '提交恢复申请'}
         </button>
@@ -207,7 +211,7 @@
         <button
           class="rounded-md border border-(--color-line-med) px-4 py-2 text-sm text-(--color-fg) transition hover:border-(--color-line-strong)"
           type="button"
-          on:click={() => void handleCopyAuditId(auditId)}
+          onclick={() => void handleCopyAuditId(auditId)}
         >
           {copiedAuditId === auditId ? '已复制查询 ID' : '复制查询 ID'}
         </button>

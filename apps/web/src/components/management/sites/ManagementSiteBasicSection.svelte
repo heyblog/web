@@ -11,11 +11,19 @@
   } from '@/components/site-submission/site-submission-workspace.constants';
   import TagMultiCombobox from '@/shared/ui/TagMultiCombobox.svelte';
 
-  export let draft: SiteSnapshotDraft;
-  export let options: SiteSubmissionOptions;
-  export let disabled = false;
-  export let idPrefix = 'site-management-fields';
-  export let fieldAlerts: Partial<Record<string, { label: string; value: string }>> = {};
+  let {
+    draft = $bindable(),
+    options,
+    disabled = false,
+    idPrefix = 'site-management-fields',
+    fieldAlerts = {},
+  }: {
+    draft: SiteSnapshotDraft;
+    options: SiteSubmissionOptions;
+    disabled?: boolean;
+    idPrefix?: string;
+    fieldAlerts?: Partial<Record<string, { label: string; value: string }>>;
+  } = $props();
 
   type DraftTextField = 'name' | 'url' | 'sign' | 'main_tag_id';
 
@@ -49,7 +57,7 @@
         class={WORKSPACE_INPUT_CLASS}
         {disabled}
         value={draft.name}
-        on:input={(event) =>
+        oninput={(event) =>
           updateDraftTextField('name', (event.currentTarget as HTMLInputElement).value)}
         placeholder="例如：Example Blog"
       />
@@ -72,7 +80,7 @@
         class={WORKSPACE_INPUT_CLASS}
         {disabled}
         value={draft.url}
-        on:input={(event) =>
+        oninput={(event) =>
           updateDraftTextField('url', (event.currentTarget as HTMLInputElement).value)}
         placeholder="https://example.com"
       />
@@ -94,7 +102,7 @@
         id={`${idPrefix}-sign`}
         class={WORKSPACE_TEXTAREA_CLASS}
         {disabled}
-        on:input={(event) =>
+        oninput={(event) =>
           updateDraftTextField('sign', (event.currentTarget as HTMLTextAreaElement).value)}
         placeholder="请简要介绍站点内容、或者是个性签名。">{draft.sign}</textarea
       >
@@ -122,7 +130,7 @@
         style={WORKSPACE_SELECT_CHEVRON_STYLE}
         {disabled}
         value={draft.main_tag_id}
-        on:change={(event) =>
+        onchange={(event) =>
           updateDraftTextField('main_tag_id', (event.currentTarget as HTMLSelectElement).value)}
       >
         <option value="">请选择主分类</option>

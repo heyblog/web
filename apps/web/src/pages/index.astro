@@ -4,7 +4,7 @@ import { getCollection } from 'astro:content';
 import { readCurrentAnnouncement } from '@/application/announcement/announcement.server';
 import { readCommunityRoles } from '@/application/community/community.server';
 import { readHomeSummary } from '@/application/home/home.server';
-import { readPublicSites, shuffleSites } from '@/application/site/site-public.server';
+import { readRandomPublicSites } from '@/application/site/site-public.server';
 import HomeCommunityDocs from '@/components/home/HomeCommunityDocs.astro';
 import HomeHero from '@/components/home/HomeHero.astro';
 import HomeProjectBlogs from '@/components/home/HomeProjectBlogs.astro';
@@ -36,15 +36,13 @@ const docs = (await getCollection('docs')).sort(
   (left, right) => right.data.create_time.getTime() - left.data.create_time.getTime(),
 );
 const docGroups = groupDocsByCategory(docs);
-const publicSites = await readPublicSites();
+const randomBlogs = await readRandomPublicSites(6);
 const communityRoles = await readCommunityRoles();
 
 const fallbackSummary = {
-  totalSites: publicSites.length,
-  featuredSites: publicSites.filter((entry) => entry.featured).length,
-  todayUpdates: publicSites.filter(
-    (entry) => entry.updatedLabel?.includes('今天') || entry.updatedLabel?.includes('1 天前'),
-  ).length,
+  totalSites: 0,
+  featuredSites: 0,
+  todayUpdates: 0,
 };
 
 const summary = await readHomeSummary(fallbackSummary);
@@ -52,7 +50,6 @@ const leadAnnouncement = await readCurrentAnnouncement();
 const leadAnnouncementDate = leadAnnouncement?.publishTime
   ? formatDate(leadAnnouncement.publishTime)
   : '';
-const randomBlogs = shuffleSites(publicSites).slice(0, 6);
 const recentProjectBlogs = projectBlogs.slice(0, 3).map((entry) => ({
   id: entry.id,
   title: entry.data.title,
@@ -77,7 +74,7 @@ const homeDescription = '尝试收集并链接所有的个人博客站点';
         summary={summary}
       />
 
-      <HomeRandomBlogs client:load randomBlogs={randomBlogs} />
+      <HomeRandomBlogs client:idle randomBlogs={randomBlogs} />
 
       <HomeProjectBlogs blogs={recentProjectBlogs} />
 

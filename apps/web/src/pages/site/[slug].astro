@@ -21,45 +21,22 @@ if (!detail) {
   Astro.response.status = 404;
 }
 
-const articles = detail
-  ? ((await fetchSiteArticles(detail.slug, 1, 20)) ?? {
-      items: [],
-      pagination: {
-        page: 1,
-        pageSize: 20,
-        totalItems: 0,
-        totalPages: 1,
-      },
-    })
-  : {
-      items: [],
-      pagination: {
-        page: 1,
-        pageSize: 20,
-        totalItems: 0,
-        totalPages: 1,
-      },
-    };
+const emptyTabPage = {
+  items: [],
+  pagination: {
+    page: 1,
+    pageSize: 20,
+    totalItems: 0,
+    totalPages: 1,
+  },
+};
 
-const checks = detail
-  ? ((await fetchSiteChecks(detail.slug, 1, 20)) ?? {
-      items: [],
-      pagination: {
-        page: 1,
-        pageSize: 20,
-        totalItems: 0,
-        totalPages: 1,
-      },
-    })
-  : {
-      items: [],
-      pagination: {
-        page: 1,
-        pageSize: 20,
-        totalItems: 0,
-        totalPages: 1,
-      },
-    };
+const [articles, checks] = detail
+  ? await Promise.all([
+      fetchSiteArticles(detail.slug, 1, 20).then((result) => result ?? emptyTabPage),
+      fetchSiteChecks(detail.slug, 1, 20).then((result) => result ?? emptyTabPage),
+    ])
+  : [emptyTabPage, emptyTabPage];
 
 const ArrowLeftIcon = IconArrowLeft;
 const detailDescription = detail ? resolveSiteDetailDescription(detail.sign) : '未找到对应站点。';
@@ -93,7 +70,7 @@ const detailOgImagePath = detail ? buildSiteOgImagePath(detail.slug) : undefined
       {
         detail ? (
           <SiteDetailPage
-            client:load
+            client:idle
             detail={detail}
             initialArticles={articles}
             initialChecks={checks}

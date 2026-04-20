@@ -87,7 +87,12 @@ export const createSessionHelpers = (deps: SessionDeps) => {
     currentSessionId: string,
     payload: RefreshSessionRecord,
   ): Promise<void> => {
-    await writeCacheJson(deps.cache, sessionKey(currentSessionId), payload);
+    await writeCacheJson(
+      deps.cache,
+      sessionKey(currentSessionId),
+      payload,
+      deps.jwt.refreshTtlSeconds,
+    );
   };
 
   const clearSession = async (reply: FastifyReply, currentSessionId?: string): Promise<void> => {

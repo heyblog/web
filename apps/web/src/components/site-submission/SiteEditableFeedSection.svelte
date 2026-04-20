@@ -11,30 +11,50 @@
 
   import type { CommonSiteForm, FeedTypeOption } from './site-editable-fields.types';
 
-  export let form: CommonSiteForm;
-  export let errors: FieldErrors = {};
-  export let disabled = false;
-  export let idPrefix = 'site-fields';
-  export let inputClass = '';
-  export let selectClass = '';
-  export let selectChevronStyle = '';
-  export let allowFeedTypeSelect = false;
-  export let feedTypeOptions: FeedTypeOption[] = [];
-  export let withInputStateClass: (base: string, warned: boolean, missing: boolean) => string = (
-    base,
-  ) => base;
-  export let fieldNeedsRefinement: (value: string) => boolean = () => false;
-  export let isAutoFillMissing: (field: AutoFillFieldKey) => boolean = () => false;
-  export let clearAutoFillMissing: (field: AutoFillFieldKey) => void = () => {};
-  export let addFeed: (() => void) | undefined = undefined;
-  export let removeFeed: ((id: string) => void) | undefined = undefined;
-  export let updateFeedName: ((id: string, value: string) => void) | undefined = undefined;
-  export let updateFeedUrl: ((id: string, value: string) => void) | undefined = undefined;
-  export let selectDefaultFeed: ((id: string) => void) | undefined = undefined;
-  export let updateFeedType: ((id: string, value: FeedType) => void) | undefined = undefined;
+  let {
+    form = $bindable(),
+    errors = {},
+    disabled = false,
+    idPrefix = 'site-fields',
+    inputClass = '',
+    selectClass = '',
+    selectChevronStyle = '',
+    allowFeedTypeSelect = false,
+    feedTypeOptions = [],
+    withInputStateClass = (base) => base,
+    fieldNeedsRefinement = () => false,
+    isAutoFillMissing = () => false,
+    clearAutoFillMissing = () => {},
+    addFeed = undefined,
+    removeFeed = undefined,
+    updateFeedName = undefined,
+    updateFeedUrl = undefined,
+    selectDefaultFeed = undefined,
+    updateFeedType = undefined,
+  }: {
+    form: CommonSiteForm;
+    errors?: FieldErrors;
+    disabled?: boolean;
+    idPrefix?: string;
+    inputClass?: string;
+    selectClass?: string;
+    selectChevronStyle?: string;
+    allowFeedTypeSelect?: boolean;
+    feedTypeOptions?: FeedTypeOption[];
+    withInputStateClass?: (base: string, warned: boolean, missing: boolean) => string;
+    fieldNeedsRefinement?: (value: string) => boolean;
+    isAutoFillMissing?: (field: AutoFillFieldKey) => boolean;
+    clearAutoFillMissing?: (field: AutoFillFieldKey) => void;
+    addFeed?: (() => void) | undefined;
+    removeFeed?: ((id: string) => void) | undefined;
+    updateFeedName?: ((id: string, value: string) => void) | undefined;
+    updateFeedUrl?: ((id: string, value: string) => void) | undefined;
+    selectDefaultFeed?: ((id: string) => void) | undefined;
+    updateFeedType?: ((id: string, value: FeedType) => void) | undefined;
+  } = $props();
 
   const syncForm = (): void => {
-    form = form;
+    form = { ...form };
   };
 
   const handleAddFeed = (): void => {
@@ -83,7 +103,7 @@
               <button
                 class={`subscription-feed-default-toggle ${feed.isDefault ? 'active' : ''}`}
                 type="button"
-                on:click={() => handleSelectDefaultFeed(feed.id)}
+                onclick={() => handleSelectDefaultFeed(feed.id)}
                 {disabled}
                 aria-label={`设为默认订阅 ${index + 1}`}
               >
@@ -93,7 +113,7 @@
             <button
               class="subscription-feed-delete-button"
               type="button"
-              on:click={() => handleRemoveFeed(feed.id)}
+              onclick={() => handleRemoveFeed(feed.id)}
               {disabled}
               aria-label={`删除订阅 ${index + 1}`}
               title="删除"
@@ -112,7 +132,7 @@
                   class={inputClass}
                   {disabled}
                   value={feed.name}
-                  on:input={(event) =>
+                  oninput={(event) =>
                     handleFeedNameInput(feed.id, (event.currentTarget as HTMLInputElement).value)}
                   placeholder={form.feeds.length === 1 ? '如：主站更新' : `订阅名称 ${index + 1}`}
                 />
@@ -128,7 +148,7 @@
                   )}
                   {disabled}
                   value={feed.url}
-                  on:input={(event) =>
+                  oninput={(event) =>
                     handleFeedUrlInput(feed.id, (event.currentTarget as HTMLInputElement).value)}
                   placeholder="https://example.com/feed"
                 />
@@ -142,7 +162,7 @@
                     style={selectChevronStyle}
                     {disabled}
                     value={feed.type ?? 'RSS'}
-                    on:change={(event) =>
+                    onchange={(event) =>
                       handleFeedTypeInput(
                         feed.id,
                         (event.currentTarget as HTMLSelectElement).value as FeedType,
@@ -175,7 +195,7 @@
     </div>
   {/if}
 
-  <button class="subscription-feed-add-button" type="button" on:click={handleAddFeed} {disabled}>
+  <button class="subscription-feed-add-button" type="button" onclick={handleAddFeed} {disabled}>
     <span class="subscription-feed-add-icon">+</span>
     添加订阅地址
   </button>
@@ -197,7 +217,7 @@
         )}
         {disabled}
         value={form.sitemap}
-        on:input={(event) => {
+        oninput={(event) => {
           form.sitemap = (event.currentTarget as HTMLInputElement).value;
           clearAutoFillMissing('sitemap');
           syncForm();
@@ -221,7 +241,7 @@
         )}
         {disabled}
         value={form.link_page}
-        on:input={(event) => {
+        oninput={(event) => {
           form.link_page = (event.currentTarget as HTMLInputElement).value;
           clearAutoFillMissing('linkPage');
           syncForm();

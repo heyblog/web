@@ -2,15 +2,27 @@
   import { WORKSPACE_TEXTAREA_CLASS } from '@/components/site-submission/site-submission-workspace.constants';
   import FormMessage from '@/shared/ui/FormMessage.svelte';
 
-  export let correctionHref: string | null = null;
-  export let isCreateOrUpdate = false;
-  export let isPending = false;
-  export let mode: 'detail' | 'process' = 'detail';
-  export let pending = false;
-  export let formError = '';
-  export let manualComment = '';
-  export let onApprove: () => Promise<void> | void;
-  export let onReject: () => Promise<void> | void;
+  let {
+    correctionHref = null,
+    isCreateOrUpdate = false,
+    isPending = false,
+    mode = 'detail',
+    pending = false,
+    formError = '',
+    manualComment = '',
+    onApprove,
+    onReject,
+  }: {
+    correctionHref?: string | null;
+    isCreateOrUpdate?: boolean;
+    isPending?: boolean;
+    mode?: 'detail' | 'process';
+    pending?: boolean;
+    formError?: string;
+    manualComment?: string;
+    onApprove: () => Promise<void> | void;
+    onReject: () => Promise<void> | void;
+  } = $props();
 </script>
 
 <section class="page-section space-y-4">
@@ -21,7 +33,7 @@
       class={WORKSPACE_TEXTAREA_CLASS}
       value={manualComment}
       disabled={pending || !isPending}
-      on:input={(event) => (manualComment = (event.currentTarget as HTMLTextAreaElement).value)}
+      oninput={(event) => (manualComment = (event.currentTarget as HTMLTextAreaElement).value)}
       placeholder="通过可不填，驳回时必填。"
     ></textarea>
   </div>
@@ -43,7 +55,7 @@
       class="action-button action-button-primary"
       type="button"
       disabled={pending || !isPending}
-      on:click={() => void onApprove?.()}
+      onclick={() => void onApprove?.()}
     >
       {pending ? '提交中...' : '审核通过'}
     </button>
@@ -52,7 +64,7 @@
       class="action-button action-button-danger"
       type="button"
       disabled={pending || !isPending}
-      on:click={() => void onReject?.()}
+      onclick={() => void onReject?.()}
     >
       {pending ? '提交中...' : '审核驳回'}
     </button>

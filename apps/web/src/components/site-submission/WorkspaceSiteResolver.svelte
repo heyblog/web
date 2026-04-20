@@ -5,16 +5,27 @@
     SiteSearchItem,
   } from '@/application/site-submission/site-submission.service';
 
-  export let inputClass = '';
-  export let searchQuery = '';
-  export let searchPending = false;
-  export let resolvePending = false;
-  export let searchError: string | null = null;
-  export let searchResults: SiteSearchItem[] = [];
-  export let selectedSite: SiteResolveResult | null = null;
-
-  export let runSearch: () => Promise<void>;
-  export let resolveSite: (identifier: string | SiteResolveRequest) => Promise<void>;
+  let {
+    inputClass = '',
+    searchQuery = $bindable(''),
+    searchPending = false,
+    resolvePending = false,
+    searchError = null,
+    searchResults = [],
+    selectedSite = null,
+    runSearch,
+    resolveSite,
+  }: {
+    inputClass?: string;
+    searchQuery?: string;
+    searchPending?: boolean;
+    resolvePending?: boolean;
+    searchError?: string | null;
+    searchResults?: SiteSearchItem[];
+    selectedSite?: SiteResolveResult | null;
+    runSearch: () => Promise<void>;
+    resolveSite: (identifier: string | SiteResolveRequest) => Promise<void>;
+  } = $props();
 </script>
 
 <section class="space-y-4 rounded-md border border-(--color-line) p-4">
@@ -27,7 +38,7 @@
     <button
       class="inline-flex min-h-11 items-center justify-center rounded-md border border-(--color-line-med) px-4 text-sm font-medium"
       type="button"
-      on:click={runSearch}
+      onclick={runSearch}
       disabled={searchPending}
     >
       {searchPending ? '搜索中...' : '搜索站点'}
@@ -35,7 +46,7 @@
     <button
       class="inline-flex min-h-11 items-center justify-center rounded-md border border-(--color-line-med) px-4 text-sm"
       type="button"
-      on:click={() => resolveSite(searchQuery)}
+      onclick={() => resolveSite(searchQuery)}
       disabled={resolvePending}
     >
       {resolvePending ? '载入中...' : '直接载入'}
@@ -49,7 +60,7 @@
         <button
           class="rounded-md border border-(--color-line) px-4 py-3 text-left transition hover:border-red-700/25 hover:bg-(--color-bg-raised) dark:hover:border-red-400/25"
           type="button"
-          on:click={() => resolveSite({ site_id: item.site_id })}
+          onclick={() => resolveSite({ site_id: item.site_id })}
         >
           <p class="text-sm font-medium">{item.name}</p>
           <p class="mt-1 text-xs text-(--color-fg-3)">{item.url}</p>

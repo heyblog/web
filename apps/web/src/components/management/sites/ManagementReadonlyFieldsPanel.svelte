@@ -5,18 +5,15 @@
     type SiteSnapshotDraft,
   } from '@/application/management/site-management.snapshot';
 
-  interface ReadonlyField {
-    label: string;
-    value: string;
-    className?: string;
-    valueClassName?: string;
-  }
-
-  export let draft: SiteSnapshotDraft;
-  export let title = '只读字段';
-  export let note = '以下字段由系统、审核流或自动脚本维护。';
-
-  let readonlyFields: ReadonlyField[];
+  let {
+    draft,
+    title = '只读字段',
+    note = '以下字段由系统、审核流或自动脚本维护。',
+  }: {
+    draft: SiteSnapshotDraft;
+    title?: string;
+    note?: string;
+  } = $props();
 
   const withOptionalClass = (baseClass: string, extraClass?: string): string =>
     extraClass ? `${baseClass} ${extraClass}` : baseClass;
@@ -31,7 +28,7 @@
       ? values.map((value) => readOptionLabel(FROM_SOURCE_OPTIONS, value)).join('; ')
       : '—';
 
-  $: readonlyFields = [
+  let readonlyFields = $derived([
     {
       label: '站点 BID',
       value: draft.bid || '—',
@@ -51,7 +48,7 @@
       className: 'md:col-span-2',
       valueClassName: 'whitespace-pre-wrap',
     },
-  ];
+  ]);
 </script>
 
 <section class="border-t border-(--color-line) pt-5">

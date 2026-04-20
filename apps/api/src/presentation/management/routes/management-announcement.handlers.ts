@@ -3,6 +3,8 @@ import { Announcements } from '@zhblogs/db';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+import { invalidateAnnouncementCache } from '@/application/public/usecase/public-cache.usecase';
+
 import {
   findOverlapConflict,
   isConstraintError,
@@ -260,6 +262,8 @@ export const buildSaveAnnouncementHandler =
       );
     }
 
+    await invalidateAnnouncementCache(app);
+
     return {
       ok: true,
       data: persisted.data,
@@ -281,6 +285,8 @@ export const buildArchiveAnnouncementHandler =
         archived.error.message,
       );
     }
+
+    await invalidateAnnouncementCache(app);
 
     return {
       ok: true,
@@ -318,6 +324,7 @@ export const buildDeleteAnnouncementHandler =
     }
 
     await app.db.write.delete(Announcements).where(eq(Announcements.id, existing.id));
+    await invalidateAnnouncementCache(app);
 
     return {
       ok: true,

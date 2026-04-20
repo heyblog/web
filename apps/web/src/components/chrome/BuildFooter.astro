@@ -173,12 +173,14 @@ const friendLinks = [
 </footer>
 
 <script>
-  import { initBuildFooterPresence } from '@/application/presence/presence.browser';
-  import { initBuildFooterPopover } from '@/shared/browser/build-footer.browser';
+  import {
+    initBuildFooterPopover,
+    initBuildFooterPresenceLazy,
+  } from '@/shared/browser/build-footer.browser';
 
   const init = () => {
-    initBuildFooterPresence();
     initBuildFooterPopover();
+    initBuildFooterPresenceLazy();
   };
 
   if (document.readyState === 'loading') {

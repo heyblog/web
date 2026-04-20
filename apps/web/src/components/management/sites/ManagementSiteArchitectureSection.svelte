@@ -12,20 +12,28 @@
   import WorkspaceProgramCustomDialog from '@/components/site-submission/WorkspaceProgramCustomDialog.svelte';
   import SingleSelectCombobox from '@/shared/ui/SingleSelectCombobox.svelte';
 
-  export let draft: SiteSnapshotDraft;
-  export let options: SiteSubmissionOptions;
-  export let disabled = false;
-  export let idPrefix = 'site-management-fields';
-  export let fieldAlerts: Partial<Record<string, { label: string; value: string }>> = {};
+  let {
+    draft = $bindable(),
+    options,
+    disabled = false,
+    idPrefix = 'site-management-fields',
+    fieldAlerts = {},
+  }: {
+    draft: SiteSnapshotDraft;
+    options: SiteSubmissionOptions;
+    disabled?: boolean;
+    idPrefix?: string;
+    fieldAlerts?: Partial<Record<string, { label: string; value: string }>>;
+  } = $props();
 
   type ProgramSelectionFormState = Parameters<typeof applyProgramOptionToForm>[0];
 
   const asProgramSelectionFormState = (value: SiteSnapshotDraft): ProgramSelectionFormState =>
     value as unknown as ProgramSelectionFormState;
 
-  let customProgramDialogOpen = false;
-  let customProgramDialogError = '';
-  let customProgramDialogDraft: CustomProgramDraft = {
+  let customProgramDialogOpen = $state(false);
+  let customProgramDialogError = $state('');
+  let customProgramDialogDraft = $state<CustomProgramDraft>({
     name: '',
     isOpenSource: null,
     websiteUrl: '',
@@ -34,7 +42,7 @@
     frameworkCustomNames: [],
     languageIds: [],
     languageCustomNames: [],
-  };
+  });
 
   const syncDraft = (): void => {
     draft = { ...draft };
@@ -90,16 +98,22 @@
     syncDraft();
   };
 
-  $: programOptions = (options?.programs ?? []).map((item) => ({ id: item.id, name: item.name }));
-  $: techStackOptions = (options?.tech_stacks ?? []).map((item) => ({
-    id: item.id,
-    name: item.name,
-    category: item.category,
-  }));
-  $: hasCustomProgramSelected =
-    Boolean(trimText(draft.architecture_program_name)) && !trimText(draft.architecture_program_id);
-  $: displayedProgramSelectedId =
-    customProgramDialogOpen || hasCustomProgramSelected ? '' : draft.architecture_program_id;
+  let programOptions = $derived(
+    (options?.programs ?? []).map((item) => ({ id: item.id, name: item.name })),
+  );
+  let techStackOptions = $derived(
+    (options?.tech_stacks ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+    })),
+  );
+  let hasCustomProgramSelected = $derived(
+    Boolean(trimText(draft.architecture_program_name)) && !trimText(draft.architecture_program_id),
+  );
+  let displayedProgramSelectedId = $derived(
+    customProgramDialogOpen || hasCustomProgramSelected ? '' : draft.architecture_program_id,
+  );
 </script>
 
 <div class="space-y-4 border-t border-(--color-line) pt-5">
@@ -136,7 +150,7 @@
           <button
             class="rounded-md border border-(--color-line-med) px-2 py-1 transition hover:text-(--color-fg)"
             type="button"
-            on:click={() => openCustomProgramDialog('')}
+            onclick={() => openCustomProgramDialog('')}
             {disabled}
           >
             编辑自定义信息

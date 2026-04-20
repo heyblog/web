@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
 
   interface SingleSelectOption {
     id: string;
@@ -178,9 +178,7 @@
       return;
     }
 
-    void tick().then(() => {
-      updatePanelPosition();
-    });
+    updatePanelPosition();
   });
 </script>
 

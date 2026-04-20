@@ -1,5 +1,12 @@
 const VIEWPORT_PADDING_PX = 16;
 const POPOVER_GAP_PX = 12;
+const FOOTER_PRESENCE_ROOT_MARGIN = '320px 0px';
+
+type IdleWindow = Window &
+  typeof globalThis & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
 
 type BuildInfoPopoverElements = {
   root: HTMLElement;
@@ -136,6 +143,107 @@ export function initBuildFooterPopover() {
       cleanups.forEach((cleanup) => {
         cleanup();
       });
+    },
+  };
+}
+
+function scheduleFooterPresenceLoad(callback: () => void) {
+  let disposed = false;
+  let idleHandle: number | null = null;
+  let observer: IntersectionObserver | null = null;
+  const currentWindow = window as IdleWindow;
+  const countNode = document.querySelector('[data-online-count]');
+
+  if (!(countNode instanceof HTMLElement)) {
+    return null;
+  }
+
+  const run = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    observer?.disconnect();
+
+    if (idleHandle !== null && typeof currentWindow.cancelIdleCallback === 'function') {
+      currentWindow.cancelIdleCallback(idleHandle);
+    }
+
+    callback();
+  };
+
+  const queueRun = () => {
+    if (disposed || idleHandle !== null) {
+      return;
+    }
+
+    if (typeof currentWindow.requestIdleCallback === 'function') {
+      idleHandle = currentWindow.requestIdleCallback(run, { timeout: 2_000 });
+      return;
+    }
+
+    idleHandle = window.setTimeout(run, 0);
+  };
+
+  if (typeof IntersectionObserver !== 'function') {
+    queueRun();
+
+    return () => {
+      disposed = true;
+
+      if (idleHandle !== null) {
+        window.clearTimeout(idleHandle);
+      }
+    };
+  }
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return;
+      }
+
+      queueRun();
+    },
+    {
+      rootMargin: FOOTER_PRESENCE_ROOT_MARGIN,
+    },
+  );
+
+  observer.observe(countNode);
+
+  return () => {
+    disposed = true;
+    observer?.disconnect();
+
+    if (idleHandle !== null) {
+      if (typeof currentWindow.cancelIdleCallback === 'function') {
+        currentWindow.cancelIdleCallback(idleHandle);
+      } else {
+        window.clearTimeout(idleHandle);
+      }
+    }
+  };
+}
+
+export function initBuildFooterPresenceLazy() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return null;
+  }
+
+  let controller: { stop(): void } | null = null;
+
+  const cleanupSchedule = scheduleFooterPresenceLoad(() => {
+    void import('@/application/presence/presence.browser').then(({ initBuildFooterPresence }) => {
+      controller = initBuildFooterPresence();
+    });
+  });
+
+  return {
+    destroy() {
+      cleanupSchedule?.();
+      controller?.stop();
     },
   };
 }

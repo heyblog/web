@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
 
   import { resolveTone } from '@/application/site/site-card.shared';
   import type {
@@ -31,17 +31,12 @@
     initialChecks: PagedResult<SiteCheckItem>;
   } = $props();
 
-  function createInitialArticlesValue(): PagedResult<SiteArticleItem> {
-    return cloneSiteDetailPagedResult(initialArticles);
-  }
-
-  function createInitialChecksValue(): PagedResult<SiteCheckItem> {
-    return cloneSiteDetailPagedResult(initialChecks);
-  }
+  const initialArticlesValue = untrack(() => cloneSiteDetailPagedResult(initialArticles));
+  const initialChecksValue = untrack(() => cloneSiteDetailPagedResult(initialChecks));
 
   let activeTab = $state<'articles' | 'checks' | 'history'>('articles');
-  let articles = $state(createInitialArticlesValue());
-  let checks = $state(createInitialChecksValue());
+  let articles = $state(initialArticlesValue);
+  let checks = $state(initialChecksValue);
   let loadingTab = $state<'articles' | 'checks' | null>(null);
   let copiedKey = $state('');
   let feedbackOpen = $state(false);

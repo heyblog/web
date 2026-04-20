@@ -1,16 +1,20 @@
 import type { FastifyInstance } from 'fastify';
 
-import { compareNames, stableHash } from '@/application/public/usecase/public-site.directory.core';
+import {
+  createPublicCacheHash,
+  loadVersionedPublicCache,
+  PUBLIC_CACHE_TTL,
+} from '@/application/public/usecase/public-cache.usecase';
+import { compareNames } from '@/application/public/usecase/public-site.directory.core';
+import {
+  loadRandomDirectoryItem,
+  loadTagFilters,
+} from '@/application/public/usecase/public-site.query';
 import type {
-  PublicSiteDirectoryItem,
   PublicSiteRandomFailureReason,
   PublicSiteRandomFilters,
   PublicSiteRandomResult,
 } from '@/application/public/usecase/public-site.types';
-import {
-  loadDirectoryItems,
-  loadTagFilters,
-} from '@/application/public/usecase/public-site.usecase';
 
 const RANDOM_ALLOWED_PARAMS = new Set(['recommend', 'type']);
 
@@ -61,49 +65,6 @@ function resolveRandomFailureReason(
   return null;
 }
 
-function filterRandomCandidates(
-  items: PublicSiteDirectoryItem[],
-  filters: PublicSiteRandomFilters,
-): PublicSiteDirectoryItem[] {
-  return items.filter((item) => {
-    if (item.status !== 'OK') {
-      return false;
-    }
-
-    if (item.warningTags.length > 0) {
-      return false;
-    }
-
-    if (filters.recommend && !item.featured) {
-      return false;
-    }
-
-    return !filters.type || item.primaryTag === filters.type;
-  });
-}
-
-function pickRandomSite(
-  items: PublicSiteDirectoryItem[],
-  seed: string,
-): PublicSiteDirectoryItem | null {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    [...items].sort((left, right) => {
-      const leftHash = stableHash(`${seed}:${left.id}`);
-      const rightHash = stableHash(`${seed}:${right.id}`);
-
-      if (leftHash !== rightHash) {
-        return leftHash - rightHash;
-      }
-
-      return compareNames(left.name, right.name);
-    })[0] ?? null
-  );
-}
-
 export async function loadPublicSiteRandom(
   app: FastifyInstance,
   rawUrl: string,
@@ -124,15 +85,25 @@ export async function loadPublicSiteRandom(
     };
   }
 
-  const target = pickRandomSite(
-    filterRandomCandidates(await loadDirectoryItems(app), filters),
-    createSiteRandomSeed(),
-  );
+  const seed = createSiteRandomSeed();
 
-  return {
-    site: target,
-    availableTypes,
-    filters,
-    failureReason: target ? null : 'NO_MATCH',
-  };
+  return loadVersionedPublicCache(app, {
+    namespace: 'site',
+    suffix: `random:${createPublicCacheHash({ filters, seed })}`,
+    ttlSeconds: PUBLIC_CACHE_TTL.random,
+    loader: async () => {
+      const site = await loadRandomDirectoryItem(app, {
+        seed,
+        recommend: filters.recommend,
+        type: filters.type,
+      });
+
+      return {
+        site,
+        availableTypes,
+        filters,
+        failureReason: site ? null : 'NO_MATCH',
+      };
+    },
+  });
 }

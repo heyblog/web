@@ -26,72 +26,125 @@
   import WorkspaceSiteResolver from './WorkspaceSiteResolver.svelte';
   import WorkspaceUpdateForm from './WorkspaceUpdateForm.svelte';
 
-  export let activePage: SubmissionPage;
-  export let autoFillPending = false;
-  export let autoFillTarget: 'create' | 'update' | null = null;
-  export let createForm: CreateSubmissionFormState;
-  export let createErrors: FieldErrors = {};
-  export let createPending = false;
-  export let createProgramSelectedId = '';
-  export let deleteForm: DeleteSubmissionFormState;
-  export let deleteErrors: FieldErrors = {};
-  export let deletePending = false;
-  export let restoreForm: RestoreSubmissionFormState;
-  export let restoreErrors: FieldErrors = {};
-  export let restorePending = false;
-  export let restoreTarget: RestoreTargetResult | null = null;
-  export let fieldNeedsRefinement: (kind: 'create' | 'update', value: string) => boolean;
-  export let inputClass = '';
-  export let isAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => boolean;
-  export let options: SiteSubmissionOptionsResult;
-  export let optionsPending = false;
-  export let queryErrors: FieldErrors = {};
-  export let queryForm: QuerySubmissionFormState;
-  export let queryPending = false;
-  export let querySuccess: SubmissionStatusResult | null = null;
-  export let resolvePending = false;
-  export let searchError: string | null = null;
-  export let searchPending = false;
-  export let searchQuery = '';
-  export let searchResults: SiteSearchItem[] = [];
-  export let selectClass = '';
-  export let selectChevronStyle = '';
-  export let selectedSite: SiteResolveResult | null = null;
-  export let statusToneClass: (status: string) => string;
-  export let textAreaClass = '';
-  export let updateErrors: FieldErrors = {};
-  export let updateForm: UpdateSubmissionFormState;
-  export let updatePending = false;
-  export let updateProgramSelectedId = '';
-  export let withInputStateClass: (base: string, warned: boolean, missing: boolean) => string;
-
-  export let addFeed: (kind: 'create' | 'update') => void;
-  export let applyAddressInference: (kind: 'create' | 'update') => void;
-  export let clearAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => void;
-  export let removeFeed: (kind: 'create' | 'update', id: string) => void;
-  export let applyProgramCustomDraft: (
-    kind: 'create' | 'update',
-    draft: CustomProgramDraft,
-  ) => void;
-  export let resolveSite: (identifier: string | SiteResolveRequest) => Promise<void>;
-  export let runAutoFill: (kind: 'create' | 'update') => Promise<void>;
-  export let runSearch: () => Promise<void>;
-  export let selectDefaultFeed: (kind: 'create' | 'update', id: string) => void;
-  export let selectProgramOption: (kind: 'create' | 'update', id: string) => void;
-  export let submitCreate: () => Promise<void>;
-  export let submitDelete: () => Promise<void>;
-  export let submitQuery: () => Promise<void>;
-  export let submitRestore: () => Promise<void>;
-  export let submitUpdate: () => Promise<void>;
-  export let updateCreateUrl: (value: string) => void;
-  export let updateFeedName: (kind: 'create' | 'update', id: string, value: string) => void;
-  export let updateFeedType: (
-    kind: 'create' | 'update',
-    id: string,
-    value: 'RSS' | 'ATOM' | 'JSON',
-  ) => void;
-  export let updateFeedUrl: (kind: 'create' | 'update', id: string, value: string) => void;
-  export let updateUpdateUrl: (value: string) => void;
+  let {
+    activePage,
+    autoFillPending = false,
+    autoFillTarget = null,
+    createForm,
+    createErrors = {},
+    createPending = false,
+    createProgramSelectedId = '',
+    deleteForm,
+    deleteErrors = {},
+    deletePending = false,
+    restoreForm,
+    restoreErrors = {},
+    restorePending = false,
+    restoreTarget = null,
+    fieldNeedsRefinement,
+    inputClass = '',
+    isAutoFillMissing,
+    options,
+    optionsPending = false,
+    queryErrors = {},
+    queryForm,
+    queryPending = false,
+    querySuccess = null,
+    resolvePending = false,
+    searchError = null,
+    searchPending = false,
+    searchQuery = $bindable(''),
+    searchResults = [],
+    selectClass = '',
+    selectChevronStyle = '',
+    selectedSite = null,
+    statusToneClass,
+    textAreaClass = '',
+    updateErrors = {},
+    updateForm,
+    updatePending = false,
+    updateProgramSelectedId = '',
+    withInputStateClass,
+    addFeed,
+    applyAddressInference,
+    clearAutoFillMissing,
+    removeFeed,
+    applyProgramCustomDraft,
+    resolveSite,
+    runAutoFill,
+    runSearch,
+    selectDefaultFeed,
+    selectProgramOption,
+    submitCreate,
+    submitDelete,
+    submitQuery,
+    submitRestore,
+    submitUpdate,
+    updateCreateUrl,
+    updateFeedName,
+    updateFeedType,
+    updateFeedUrl,
+    updateUpdateUrl,
+  }: {
+    activePage: SubmissionPage;
+    autoFillPending?: boolean;
+    autoFillTarget?: 'create' | 'update' | null;
+    createForm: CreateSubmissionFormState;
+    createErrors?: FieldErrors;
+    createPending?: boolean;
+    createProgramSelectedId?: string;
+    deleteForm: DeleteSubmissionFormState;
+    deleteErrors?: FieldErrors;
+    deletePending?: boolean;
+    restoreForm: RestoreSubmissionFormState;
+    restoreErrors?: FieldErrors;
+    restorePending?: boolean;
+    restoreTarget?: RestoreTargetResult | null;
+    fieldNeedsRefinement: (kind: 'create' | 'update', value: string) => boolean;
+    inputClass?: string;
+    isAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => boolean;
+    options: SiteSubmissionOptionsResult;
+    optionsPending?: boolean;
+    queryErrors?: FieldErrors;
+    queryForm: QuerySubmissionFormState;
+    queryPending?: boolean;
+    querySuccess?: SubmissionStatusResult | null;
+    resolvePending?: boolean;
+    searchError?: string | null;
+    searchPending?: boolean;
+    searchQuery?: string;
+    searchResults?: SiteSearchItem[];
+    selectClass?: string;
+    selectChevronStyle?: string;
+    selectedSite?: SiteResolveResult | null;
+    statusToneClass: (status: string) => string;
+    textAreaClass?: string;
+    updateErrors?: FieldErrors;
+    updateForm: UpdateSubmissionFormState;
+    updatePending?: boolean;
+    updateProgramSelectedId?: string;
+    withInputStateClass: (base: string, warned: boolean, missing: boolean) => string;
+    addFeed: (kind: 'create' | 'update') => void;
+    applyAddressInference: (kind: 'create' | 'update') => void;
+    clearAutoFillMissing: (kind: 'create' | 'update', field: AutoFillFieldKey) => void;
+    removeFeed: (kind: 'create' | 'update', id: string) => void;
+    applyProgramCustomDraft: (kind: 'create' | 'update', draft: CustomProgramDraft) => void;
+    resolveSite: (identifier: string | SiteResolveRequest) => Promise<void>;
+    runAutoFill: (kind: 'create' | 'update') => Promise<void>;
+    runSearch: () => Promise<void>;
+    selectDefaultFeed: (kind: 'create' | 'update', id: string) => void;
+    selectProgramOption: (kind: 'create' | 'update', id: string) => void;
+    submitCreate: () => Promise<void>;
+    submitDelete: () => Promise<void>;
+    submitQuery: () => Promise<void>;
+    submitRestore: () => Promise<void>;
+    submitUpdate: () => Promise<void>;
+    updateCreateUrl: (value: string) => void;
+    updateFeedName: (kind: 'create' | 'update', id: string, value: string) => void;
+    updateFeedType: (kind: 'create' | 'update', id: string, value: 'RSS' | 'ATOM' | 'JSON') => void;
+    updateFeedUrl: (kind: 'create' | 'update', id: string, value: string) => void;
+    updateUpdateUrl: (value: string) => void;
+  } = $props();
 </script>
 
 <section

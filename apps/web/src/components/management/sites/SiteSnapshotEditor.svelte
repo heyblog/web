@@ -57,13 +57,23 @@
     },
   ];
 
-  export let draft: SiteSnapshotDraft;
-  export let options: SiteSubmissionOptions;
-  export let disabled = false;
-  export let idPrefix = 'site-snapshot';
-  export let showManagement = true;
-  export let showReadonly = true;
-  export let fieldAlerts: Partial<Record<string, { label: string; value: string }>> = {};
+  let {
+    draft = $bindable(),
+    options,
+    disabled = false,
+    idPrefix = 'site-snapshot',
+    showManagement = true,
+    showReadonly = true,
+    fieldAlerts = {},
+  }: {
+    draft: SiteSnapshotDraft;
+    options: SiteSubmissionOptions;
+    disabled?: boolean;
+    idPrefix?: string;
+    showManagement?: boolean;
+    showReadonly?: boolean;
+    fieldAlerts?: Partial<Record<string, { label: string; value: string }>>;
+  } = $props();
 
   const updateDraft = (patch: Partial<SiteSnapshotDraft>) => {
     draft = {
@@ -115,7 +125,7 @@
               style={WORKSPACE_SELECT_CHEVRON_STYLE}
               {disabled}
               value={draft[field.key]}
-              on:change={(event) => handleManagementSelectChange(field.key, event)}
+              onchange={(event) => handleManagementSelectChange(field.key, event)}
             >
               {#each field.options as item (item.value)}
                 <option value={item.value}>{item.label}</option>
@@ -143,7 +153,7 @@
                 type="checkbox"
                 checked={draft[field.key]}
                 {disabled}
-                on:change={(event) => handleManagementToggleChange(field.key, event)}
+                onchange={(event) => handleManagementToggleChange(field.key, event)}
               />
               <span class="toggle-check-box" aria-hidden="true"></span>
               <span class="toggle-check-copy">

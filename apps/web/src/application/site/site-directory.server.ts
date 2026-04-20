@@ -1,4 +1,4 @@
-import { getApiBaseUrl, readSessionUser } from '@/application/auth/auth.server';
+import { getApiBaseUrl } from '@/application/auth/auth.server';
 import type {
   PagedResult,
   SiteArticleItem,
@@ -102,14 +102,6 @@ export async function fetchSiteRandom(search = ''): Promise<SiteGoResult | null>
   return payload?.data ?? null;
 }
 
-async function canUseSiteDirectoryPreference(request: Request): Promise<boolean> {
-  try {
-    return Boolean(await readSessionUser(request));
-  } catch {
-    return false;
-  }
-}
-
 export async function resolveInitialSiteDirectoryData(
   request: Request,
   url: URL,
@@ -120,8 +112,8 @@ export async function resolveInitialSiteDirectoryData(
   canUsePreference: boolean;
 }> {
   const params = url.searchParams;
-  const canUsePreference = await canUseSiteDirectoryPreference(request);
-  const preference = canUsePreference ? await fetchSiteDirectoryPreference(request) : null;
+  const preference = await fetchSiteDirectoryPreference(request);
+  const canUsePreference = preference !== null;
   const rawSort = params.get('sort');
   const sort: SiteDirectoryQueryState['sort'] =
     rawSort === 'updated' || rawSort === 'joined' || rawSort === 'visits' || rawSort === 'articles'

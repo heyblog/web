@@ -10,21 +10,35 @@
   import type { CommonSiteForm } from './site-editable-fields.types';
   import WorkspaceProgramCustomDialog from './WorkspaceProgramCustomDialog.svelte';
 
-  export let form: CommonSiteForm;
-  export let errors: FieldErrors = {};
-  export let options: SiteSubmissionOptionsResult;
-  export let optionsPending = false;
-  export let disabled = false;
-  export let idPrefix = 'site-fields';
-  export let selectedProgramId = '';
-  export let isAutoFillMissing: (field: AutoFillFieldKey) => boolean = () => false;
-  export let selectProgram: ((id: string) => void) | undefined = undefined;
-  export let applyProgramCustomDraft: ((draft: CustomProgramDraft) => void) | undefined = undefined;
-  export let trimText: (value: string) => string = (value) => value.trim();
+  let {
+    form = $bindable(),
+    errors = {},
+    options,
+    optionsPending = false,
+    disabled = false,
+    idPrefix = 'site-fields',
+    selectedProgramId = '',
+    isAutoFillMissing = () => false,
+    selectProgram = undefined,
+    applyProgramCustomDraft = undefined,
+    trimText = (value) => value.trim(),
+  }: {
+    form: CommonSiteForm;
+    errors?: FieldErrors;
+    options: SiteSubmissionOptionsResult;
+    optionsPending?: boolean;
+    disabled?: boolean;
+    idPrefix?: string;
+    selectedProgramId?: string;
+    isAutoFillMissing?: (field: AutoFillFieldKey) => boolean;
+    selectProgram?: ((id: string) => void) | undefined;
+    applyProgramCustomDraft?: ((draft: CustomProgramDraft) => void) | undefined;
+    trimText?: (value: string) => string;
+  } = $props();
 
-  let customProgramDialogOpen = false;
-  let customProgramDialogError = '';
-  let customProgramDialogDraft: CustomProgramDraft = {
+  let customProgramDialogOpen = $state(false);
+  let customProgramDialogError = $state('');
+  let customProgramDialogDraft = $state<CustomProgramDraft>({
     name: '',
     isOpenSource: null,
     websiteUrl: '',
@@ -33,10 +47,10 @@
     frameworkCustomNames: [],
     languageIds: [],
     languageCustomNames: [],
-  };
+  });
 
   const syncForm = (): void => {
-    form = form;
+    form = { ...form };
   };
 
   const openCustomProgramDialog = (query: string) => {
@@ -118,18 +132,24 @@
     syncForm();
   };
 
-  $: programOptions = (options?.programs ?? []).map((item) => ({ id: item.id, name: item.name }));
-  $: techStackOptions = (options?.tech_stacks ?? []).map((item) => ({
-    id: item.id,
-    name: item.name,
-    category: item.category,
-  }));
-  $: hasCustomProgramSelected =
-    Boolean(trimText(form.architecture_program_name)) && !trimText(form.architecture_program_id);
-  $: displayedProgramSelectedId =
+  let programOptions = $derived(
+    (options?.programs ?? []).map((item) => ({ id: item.id, name: item.name })),
+  );
+  let techStackOptions = $derived(
+    (options?.tech_stacks ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+    })),
+  );
+  let hasCustomProgramSelected = $derived(
+    Boolean(trimText(form.architecture_program_name)) && !trimText(form.architecture_program_id),
+  );
+  let displayedProgramSelectedId = $derived(
     customProgramDialogOpen || hasCustomProgramSelected
       ? ''
-      : selectedProgramId || form.architecture_program_id;
+      : selectedProgramId || form.architecture_program_id,
+  );
 </script>
 
 <div class="space-y-4 border-t border-(--color-line) pt-5">
@@ -157,7 +177,7 @@
           <button
             class="rounded-md border border-(--color-line-med) px-2 py-1 transition hover:text-(--color-fg)"
             type="button"
-            on:click={() => openCustomProgramDialog('')}
+            onclick={() => openCustomProgramDialog('')}
             {disabled}
           >
             编辑自定义信息
