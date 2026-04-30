@@ -20,11 +20,11 @@
   "dependencies": {
     "@zhblogs/configs": "workspace:*",
     "chanfana": "^3.3.0",
-    "hono": "^4.6.20"
+    "hono": "^4.12.16"
   },
   "devDependencies": {
     "@types/node": "24.12.2",
     "@types/service-worker-mock": "^2.0.4",
-    "wrangler": "^4.81.1"
+    "wrangler": "^4.86.0"
   }
 }

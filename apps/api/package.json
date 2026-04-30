@@ -21,19 +21,19 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/env": "^5.0.3",
     "@fastify/helmet": "^13.0.2",
-    "@fastify/oauth2": "^8.1.1",
+    "@fastify/oauth2": "^8.2.0",
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/sensible": "^6.0.4",
-    "@valkey/valkey-glide": "^2.2.7",
+    "@valkey/valkey-glide": "^2.3.1",
     "@zhblogs/configs": "workspace:*",
     "@zhblogs/db": "workspace:*",
     "@zhblogs/utils": "workspace:*",
-    "drizzle-orm": "^0.44.7",
-    "fastify": "^5.7.4",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.5",
     "fastify-plugin": "^5.1.0",
     "pino": "^10.3.1"
   },
   "devDependencies": {
-    "pino-pretty": "^13.1.2"
+    "pino-pretty": "^13.1.3"
   }
 }

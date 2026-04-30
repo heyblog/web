@@ -48,13 +48,13 @@
   "dependencies": {
     "@zhblogs/configs": "workspace:*",
     "@zhblogs/utils": "workspace:*",
-    "drizzle-orm": "^0.44.5",
+    "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
-    "pg": "^8.16.3",
-    "uuid": "^13.0.0"
+    "pg": "^8.20.0",
+    "uuid": "^13.0.1"
   },
   "devDependencies": {
-    "@types/pg": "^8.18.0",
-    "drizzle-kit": "^0.31.9"
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10"
   }
 }
