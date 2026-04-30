@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "astro-build.astro-vscode",
+    "editorconfig.editorconfig",
+    "svelte.svelte-vscode",
+    "bradlc.vscode-tailwindcss",
+    "vitest.explorer",
+    "stylelint.vscode-stylelint",
+    "esbenp.prettier-vscode",
+    "ms-playwright.playwright",
+    "dbaeumer.vscode-eslint"
+  ]
+}
