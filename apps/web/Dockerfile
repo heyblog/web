@@ -1,4 +1,4 @@
-FROM node:24-trixie AS builder
+FROM node:24.15.0-trixie AS builder
 WORKDIR /workspace
 
 RUN corepack enable
@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile
 
 RUN pnpm -F @zhblogs/web run build
 
-FROM node:24-trixie-slim AS runner
+FROM node:24.15.0-trixie-slim AS runner
 WORKDIR /workspace
 
 ENV NODE_ENV=production
