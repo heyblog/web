@@ -1,6 +1,6 @@
-const DEFAULT_FAILURE_MESSAGE = '请求未完成，请稍后重试。';
+import { getConfiguredApiBaseUrl } from '@/application/api/api-env';
 
-const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+const DEFAULT_FAILURE_MESSAGE = '请求未完成，请稍后重试。';
 
 const isCrossOriginApiBaseUrl = (value: string): boolean => {
   if (typeof window === 'undefined') {
@@ -15,13 +15,12 @@ const isCrossOriginApiBaseUrl = (value: string): boolean => {
 };
 
 const resolveApiBaseUrl = (): string => {
-  const raw = import.meta.env.PUBLIC_API_BASE_URL?.trim() ?? '';
-  if (!raw) {
+  const apiBaseUrl = getConfiguredApiBaseUrl();
+  if (!apiBaseUrl) {
     return '';
   }
 
-  const normalized = trimTrailingSlash(raw);
-  return isCrossOriginApiBaseUrl(normalized) ? normalized : '';
+  return isCrossOriginApiBaseUrl(apiBaseUrl) ? apiBaseUrl : '';
 };
 
 export const buildTaskManagementApiPath = (path: string): string =>

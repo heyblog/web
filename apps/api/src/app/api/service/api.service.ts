@@ -4,6 +4,7 @@ import { cachePlugin } from '@/infrastructure/app/cache/app-cache.service';
 import { drizzlePlugin } from '@/infrastructure/app/db/app-database.service';
 import {
   type AppBootstrapOptions,
+  buildAppConfigData,
   configPlugin,
 } from '@/infrastructure/app/http/app-config.service';
 import { securityPlugin } from '@/infrastructure/app/http/app-security.service';
@@ -22,11 +23,9 @@ import { registerSiteDirectoryPreferenceRoutes } from '@/presentation/user/route
 import { getLoggerOptions } from '@/shared/runtime/service/app-logger.service';
 
 export function createApp(options: AppBootstrapOptions = {}) {
+  const configData = buildAppConfigData(options.envOverrides);
   const app = fastify({
-    logger:
-      options.envOverrides?.NODE_ENV === 'test' || process.env.NODE_ENV === 'test'
-        ? false
-        : getLoggerOptions(),
+    logger: configData.NODE_ENV === 'test' ? false : getLoggerOptions(configData),
   });
 
   app.register(configPlugin, options);

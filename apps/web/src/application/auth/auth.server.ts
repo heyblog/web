@@ -1,8 +1,7 @@
+import { getApiBaseUrl } from '../api/api-env';
+
 import type { SessionUser } from './auth.guard';
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:9201';
-
-const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 const buildWebAuthPath = (pathname: string, params: Record<string, string> = {}): string => {
   const target = new URL(pathname, 'http://zhblogs.local');
 
@@ -15,8 +14,7 @@ const buildWebAuthPath = (pathname: string, params: Record<string, string> = {})
   return `${target.pathname}${target.search}`;
 };
 
-export const getApiBaseUrl = (): string =>
-  trimTrailingSlash(import.meta.env.PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL);
+export { getApiBaseUrl };
 
 export const getLoginHref = (next?: string): string => {
   const normalizedNext = next?.trim();

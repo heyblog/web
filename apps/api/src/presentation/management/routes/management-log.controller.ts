@@ -16,8 +16,8 @@ export function registerManagementLogRoutes(app: FastifyInstance): void {
       const query = request.query as { tail?: string; q?: string };
       const tail = Math.min(Math.max(Number(query.tail ?? 200) || 200, 10), 500);
       const keyword = query.q?.trim().toLowerCase() ?? '';
-      const env = process.env.NODE_ENV ?? 'development';
-      const filePath = resolveApiLogFilePath(env);
+      const env = app.config.NODE_ENV;
+      const filePath = resolveApiLogFilePath(app.config);
 
       const raw = await readFile(filePath, 'utf8').catch(() => '');
       const lines = raw

@@ -1,5 +1,4 @@
 export interface WorkerBindings {
-  CHECKER_TOKEN?: string;
   WORKER_CALLBACK_SECRET?: string;
 }
 

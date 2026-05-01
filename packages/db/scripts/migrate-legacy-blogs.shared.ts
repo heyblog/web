@@ -45,7 +45,7 @@ Do not write:
   NEW_DATABASE_URL=DATABASE_URL=postgresql://...
 
 Environment variables:
-  OLD_DATABASE_URL / LEGACY_DATABASE_URL
+  OLD_DATABASE_URL
     Required. Connection string for the old database that still has the blogs table.
 
   NEW_DATABASE_URL / DATABASE_URL
@@ -187,10 +187,7 @@ const normalizeConnectionString = (value: string | undefined, envName: string): 
 };
 
 export const getOldDatabaseUrl = (): string =>
-  normalizeConnectionString(
-    process.env.OLD_DATABASE_URL?.trim() || process.env.LEGACY_DATABASE_URL?.trim(),
-    'OLD_DATABASE_URL or LEGACY_DATABASE_URL',
-  );
+  normalizeConnectionString(process.env.OLD_DATABASE_URL?.trim(), 'OLD_DATABASE_URL');
 
 export const getNewDatabaseUrl = (): string =>
   normalizeConnectionString(

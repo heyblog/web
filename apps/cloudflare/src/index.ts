@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 
+import { resolveWorkerConfig } from './config';
 import type {
   CheckRequestBody,
   CheckResponseData,
@@ -19,7 +20,8 @@ app.get('/', (context) =>
 );
 
 app.post('/check', async (context) => {
-  if (!isAuthorized(context.req.header('authorization'), resolveCheckerToken(context.env))) {
+  const config = resolveWorkerConfig(context.env);
+  if (!isAuthorized(context.req.header('authorization'), config.workerCallbackSecret)) {
     return context.json(
       { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid bearer token' } },
       401,
@@ -58,7 +60,8 @@ app.post('/check', async (context) => {
 });
 
 app.post('/rss/fetch', async (context) => {
-  if (!isAuthorized(context.req.header('authorization'), resolveCheckerToken(context.env))) {
+  const config = resolveWorkerConfig(context.env);
+  if (!isAuthorized(context.req.header('authorization'), config.workerCallbackSecret)) {
     return context.json(
       { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid bearer token' } },
       401,
@@ -192,19 +195,6 @@ function isAuthorized(headerValue: string | undefined, expectedToken: string | u
   }
 
   return normalized.slice(7).trim() === expectedToken;
-}
-
-function resolveCheckerToken(bindings?: WorkerBindings): string | undefined {
-  const bindingToken = bindings?.CHECKER_TOKEN?.trim() || bindings?.WORKER_CALLBACK_SECRET?.trim();
-  if (bindingToken) {
-    return bindingToken;
-  }
-
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.CHECKER_TOKEN?.trim() || process.env.WORKER_CALLBACK_SECRET?.trim();
-  }
-
-  return undefined;
 }
 
 function isHttpUrl(value: string | undefined): boolean {

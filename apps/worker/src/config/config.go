@@ -61,7 +61,7 @@ func Load() (Config, error) {
 		CloudflareToken:           strings.TrimSpace(os.Getenv("WORKER_CALLBACK_SECRET")),
 		CallbackTimeout:           envDurationMS("WORKER_CALLBACK_TIMEOUT_MS", 5000),
 		APIBaseURL:                strings.TrimSpace(os.Getenv("WORKER_API_BASE_URL")),
-		APIInternalToken:          strings.TrimSpace(envOrDefault("WORKER_API_INTERNAL_TOKEN", os.Getenv("API_INTERNAL_TOKEN"))),
+		APIInternalToken:          strings.TrimSpace(os.Getenv("API_INTERNAL_TOKEN")),
 		APIRequestTimeout:         envDurationMS("WORKER_API_TIMEOUT_MS", 5000),
 		Timezone:                  timezone,
 	}

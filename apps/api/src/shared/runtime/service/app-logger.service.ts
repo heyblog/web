@@ -5,12 +5,18 @@ import type pino from 'pino';
 
 const DEFAULT_LOG_DIR = join(process.cwd(), 'logs');
 
-const resolveLogLevel = (): string => {
-  if (process.env.API_LOG_LEVEL) {
-    return process.env.API_LOG_LEVEL;
+type ApiLoggerConfig = {
+  NODE_ENV?: string;
+  API_LOG_LEVEL?: string;
+  API_LOG_DIR?: string;
+};
+
+const resolveLogLevel = (config: ApiLoggerConfig): string => {
+  if (config.API_LOG_LEVEL) {
+    return config.API_LOG_LEVEL;
   }
 
-  const env = process.env.NODE_ENV ?? 'development';
+  const env = config.NODE_ENV ?? 'development';
   if (env === 'production') {
     return 'info';
   }
@@ -18,16 +24,17 @@ const resolveLogLevel = (): string => {
   return 'debug';
 };
 
-export const resolveApiLogFilePath = (env: string): string => {
-  const logDir = process.env.API_LOG_DIR ?? DEFAULT_LOG_DIR;
+export const resolveApiLogFilePath = (config: ApiLoggerConfig): string => {
+  const env = config.NODE_ENV ?? 'development';
+  const logDir = config.API_LOG_DIR ?? DEFAULT_LOG_DIR;
   mkdirSync(logDir, { recursive: true });
   return join(logDir, `api-${env}.log`);
 };
 
-export function getLoggerOptions(): pino.LoggerOptions {
-  const env = process.env.NODE_ENV ?? 'development';
-  const level = resolveLogLevel();
-  const logFilePath = resolveApiLogFilePath(env);
+export function getLoggerOptions(config: ApiLoggerConfig): pino.LoggerOptions {
+  const env = config.NODE_ENV ?? 'development';
+  const level = resolveLogLevel(config);
+  const logFilePath = resolveApiLogFilePath(config);
 
   if (env === 'production') {
     return {

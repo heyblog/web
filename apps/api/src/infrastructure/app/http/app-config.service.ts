@@ -33,6 +33,16 @@ export interface AppBootstrapOptions {
   disableExternalServices?: boolean;
 }
 
+export type AppConfigData = NodeJS.ProcessEnv & Partial<AppConfig>;
+
+export const buildAppConfigData = (
+  envOverrides: AppBootstrapOptions['envOverrides'] = {},
+): AppConfigData =>
+  ({
+    ...process.env,
+    ...envOverrides,
+  }) as AppConfigData;
+
 declare module 'fastify' {
   interface FastifyInstance {
     config: AppConfig;
@@ -177,15 +187,10 @@ export const configPlugin = fp<AppBootstrapOptions>(
   async (app, options) => {
     app.decorate('bootstrapOptions', options);
 
-    const envData = {
-      ...process.env,
-      ...options.envOverrides,
-    };
-
     await app.register(fastifyEnv, {
       confKey: 'config',
       schema: envSchema,
-      data: envData,
+      data: buildAppConfigData(options.envOverrides),
       dotenv: false,
     });
 

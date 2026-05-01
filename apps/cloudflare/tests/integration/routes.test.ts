@@ -41,7 +41,6 @@ async function readJson<T>(response: Response): Promise<T> {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.CHECKER_TOKEN;
   delete process.env.WORKER_CALLBACK_SECRET;
 });
 
@@ -82,7 +81,7 @@ describe('cloudflare worker routes', () => {
         },
         body: JSON.stringify({ url: 'https://example.com', timeout_ms: 2500 }),
       },
-      { CHECKER_TOKEN: 'secret-token' },
+      { WORKER_CALLBACK_SECRET: 'secret-token' },
     );
 
     const payload = await readJson<CheckRouteResponse>(response);
@@ -116,7 +115,7 @@ describe('cloudflare worker routes', () => {
         },
         body: JSON.stringify({ url: 'https://example.com/plain.txt', timeout_ms: 2500 }),
       },
-      { CHECKER_TOKEN: 'secret-token' },
+      { WORKER_CALLBACK_SECRET: 'secret-token' },
     );
 
     const payload = await readJson<CheckRouteResponse>(response);
@@ -151,7 +150,7 @@ describe('cloudflare worker routes', () => {
         },
         body: JSON.stringify({ url: 'https://example.com', timeout_ms: 2500 }),
       },
-      { CHECKER_TOKEN: 'secret-token' },
+      { WORKER_CALLBACK_SECRET: 'secret-token' },
     );
 
     const payload = await readJson<CheckRouteResponse>(response);
@@ -177,7 +176,7 @@ describe('cloudflare worker routes', () => {
         },
         body: JSON.stringify({ url: 'https://blog.zezeshe.com', timeout_ms: 2500 }),
       },
-      { CHECKER_TOKEN: 'secret-token' },
+      { WORKER_CALLBACK_SECRET: 'secret-token' },
     );
 
     const payload = await readJson<CheckRouteResponse>(response);
@@ -189,7 +188,7 @@ describe('cloudflare worker routes', () => {
   });
 
   it('falls back to process env token and returns rss payload', async () => {
-    process.env.CHECKER_TOKEN = 'env-secret';
+    process.env.WORKER_CALLBACK_SECRET = 'env-secret';
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('<rss><channel><item>a</item><item>b</item></channel></rss>', {
@@ -233,7 +232,7 @@ describe('cloudflare worker routes', () => {
         },
         body: JSON.stringify({ feed_url: 'https://example.com/feed.xml' }),
       },
-      { CHECKER_TOKEN: 'secret-token' },
+      { WORKER_CALLBACK_SECRET: 'secret-token' },
     );
 
     const payload = await readJson<RSSRouteResponse>(response);
