@@ -1,0 +1,115 @@
+name: ci
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      node_packages_json: ${{ steps.affected.outputs.node_packages_json }}
+      go_packages_json: ${{ steps.affected.outputs.go_packages_json }}
+      has_node: ${{ steps.affected.outputs.has_node }}
+      has_go: ${{ steps.affected.outputs.has_go }}
+      has_code: ${{ steps.affected.outputs.has_code }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Detect affected modules
+        id: affected
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/ci/affected-modules.mjs --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
+          else
+            node scripts/ci/affected-modules.mjs --base "${{ github.event.before }}" --head "${{ github.sha }}"
+          fi
+
+  node-checks:
+    needs: detect
+    if: needs.detect.outputs.has_node == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.node_packages_json) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare env files
+        run: |
+          cp .env.example .env.dev
+          cp .env.example .env.prod
+          cp .env.example .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=test/' .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env.prod
+
+      - name: Check format
+        run: pnpm --filter "${{ matrix.package }}" --if-present run format:check
+
+      - name: Lint
+        run: pnpm --filter "${{ matrix.package }}" --if-present run lint
+
+      - name: Typecheck
+        run: pnpm --filter "${{ matrix.package }}" --if-present run typecheck
+
+      - name: Test
+        run: pnpm env:test -- "pnpm --filter '${{ matrix.package }}' --if-present run test"
+
+      - name: Build
+        run: pnpm env:prod -- "pnpm --filter '${{ matrix.package }}...' --if-present run build"
+
+  go-checks:
+    needs: detect
+    if: needs.detect.outputs.has_go == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.go_packages_json) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+          cache-dependency-path: ${{ matrix.path }}/go.sum
+
+      - name: Check format
+        run: pnpm --filter "${{ matrix.package }}" run format:check
+
+      - name: Lint
+        run: pnpm --filter "${{ matrix.package }}" run lint
+
+      - name: Test
+        run: pnpm --filter "${{ matrix.package }}" run test
+
+      - name: Build
+        run: pnpm --filter "${{ matrix.package }}" run build

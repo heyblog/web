@@ -96,8 +96,7 @@ const envSchema = {
     },
     API_CORS_ORIGINS: {
       type: 'string',
-      default:
-        'http://127.0.0.1:4321,http://localhost:4321,http://127.0.0.1:9101,http://localhost:9101',
+      default: 'http://127.0.0.1:9101,http://localhost:9101',
     },
     API_GITHUB_CLIENT_ID: {
       type: 'string',

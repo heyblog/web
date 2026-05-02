@@ -7,32 +7,77 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  verify-build-publish:
+  detect:
     runs-on: ubuntu-latest
+    outputs:
+      node_packages_json: ${{ steps.affected.outputs.node_packages_json }}
+      go_packages_json: ${{ steps.affected.outputs.go_packages_json }}
+      docker_images_json: ${{ steps.affected.outputs.docker_images_json }}
+      has_node: ${{ steps.affected.outputs.has_node }}
+      has_go: ${{ steps.affected.outputs.has_go }}
+      has_code: ${{ steps.affected.outputs.has_code }}
+      has_docker: ${{ steps.affected.outputs.has_docker }}
+      deploy_cloudflare: ${{ steps.affected.outputs.deploy_cloudflare }}
+      notify_deployer: ${{ steps.affected.outputs.notify_deployer }}
+      needs_db_migrate: ${{ steps.affected.outputs.needs_db_migrate }}
+      needs_infra_sync: ${{ steps.affected.outputs.needs_infra_sync }}
+      needs_deployer_update: ${{ steps.affected.outputs.needs_deployer_update }}
+      needs_env_manual_review: ${{ steps.affected.outputs.needs_env_manual_review }}
+      changed_files: ${{ steps.affected.outputs.changed_files }}
+      is_pr_merge: ${{ steps.pr.outputs.is_pr_merge }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Detect affected modules
+        id: affected
+        run: node scripts/ci/affected-modules.mjs --base "${{ github.event.before }}" --head "${{ github.sha }}"
+
+      - name: Detect associated pull request
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const response = await fetch(`${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/commits/${process.env.GITHUB_SHA}/pulls`, {
+            headers: {
+              accept: 'application/vnd.github+json',
+              authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              'x-github-api-version': '2022-11-28',
+            },
+          });
+          const pulls = response.ok ? await response.json() : [];
+          console.log(`is_pr_merge=${Array.isArray(pulls) && pulls.length > 0}`);
+          NODE
+
+  node-checks:
+    needs: detect
+    if: needs.detect.outputs.has_node == 'true' && needs.detect.outputs.is_pr_merge != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.node_packages_json) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
 
       - uses: actions/setup-node@v6
         with:
           node-version: 24.15.0
           cache: pnpm
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: apps/worker/go.mod
-          cache-dependency-path: |
-            apps/worker/go.sum
-            apps/deployer/go.sum
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -46,22 +91,69 @@ jobs:
           sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env.prod
 
       - name: Check format
-        run: pnpm run format:check
+        run: pnpm --filter "${{ matrix.package }}" --if-present run format:check
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm --filter "${{ matrix.package }}" --if-present run lint
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: pnpm --filter "${{ matrix.package }}" --if-present run typecheck
 
       - name: Test
-        run: pnpm run test
+        run: pnpm env:test -- "pnpm --filter '${{ matrix.package }}' --if-present run test"
 
-      - name: Build apps
-        run: pnpm run build
+      - name: Build
+        run: pnpm env:prod -- "pnpm --filter '${{ matrix.package }}...' --if-present run build"
 
-      - name: Build Cloudflare worker
-        run: pnpm run build:cf
+  go-checks:
+    needs: detect
+    if: needs.detect.outputs.has_go == 'true' && needs.detect.outputs.is_pr_merge != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.go_packages_json) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+          cache-dependency-path: ${{ matrix.path }}/go.sum
+
+      - name: Check format
+        run: pnpm --filter "${{ matrix.package }}" run format:check
+
+      - name: Lint
+        run: pnpm --filter "${{ matrix.package }}" run lint
+
+      - name: Test
+        run: pnpm --filter "${{ matrix.package }}" run test
+
+      - name: Build
+        run: pnpm --filter "${{ matrix.package }}" run build
+
+  publish-images:
+    needs:
+      - detect
+      - node-checks
+      - go-checks
+    if: always() && needs.detect.outputs.has_docker == 'true' && needs.detect.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.docker_images_json) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
       - uses: docker/setup-buildx-action@v4
 
@@ -70,32 +162,53 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push API image
+      - name: Build and push ${{ matrix.id }} image
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: apps/api/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            docker.io/${{ env.DOCKERHUB_USERNAME }}/zhblogs-api:${{ env.IMAGE_TAG }}
-            docker.io/${{ env.DOCKERHUB_USERNAME }}/zhblogs-api:main
+            docker.io/${{ env.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}
+            docker.io/${{ env.DOCKERHUB_USERNAME }}/${{ matrix.image }}:main
 
-      - name: Build and push web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: |
-            docker.io/${{ env.DOCKERHUB_USERNAME }}/zhblogs-web:${{ env.IMAGE_TAG }}
-            docker.io/${{ env.DOCKERHUB_USERNAME }}/zhblogs-web:main
+      - name: Prune ${{ matrix.id }} image history
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_REPOSITORY: ${{ matrix.image }}
+          DOCKERHUB_KEEP_TAGS: "10"
+        run: node scripts/ci/prune-dockerhub-tags.mjs
 
-      - name: Build and push worker image
-        uses: docker/build-push-action@v7
+  deploy-cloudflare:
+    needs:
+      - detect
+      - node-checks
+      - go-checks
+    if: always() && needs.detect.outputs.deploy_cloudflare == 'true' && needs.detect.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
         with:
-          context: .
-          file: apps/worker/Dockerfile
-          push: true
-          tags: |
-            docker.io/${{ env.DOCKERHUB_USERNAME }}/zhblogs-worker:${{ env.IMAGE_TAG }}
-            docker.io/${{ env.DOCKERHUB_USERNAME }}/zhblogs-worker:main
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare env files
+        run: |
+          cp .env.example .env.dev
+          cp .env.example .env.prod
+          cp .env.example .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=test/' .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env.prod
+
+      - name: Deploy Cloudflare worker
+        run: pnpm env:prod -- "CLOUDFLARE_INCLUDE_PROCESS_ENV=true pnpm -F @zhblogs/cloudflare run deploy"
