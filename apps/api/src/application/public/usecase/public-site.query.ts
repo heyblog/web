@@ -66,35 +66,39 @@ type ProgramFilterRow = {
   name: string;
 };
 
+const DIRECTORY_BASE_FIELDS = sql`
+  site_id as "siteId",
+  bid as "bid",
+  name as "name",
+  url as "url",
+  sign as "sign",
+  feeds as "feeds",
+  feed_url as "feedUrl",
+  sitemap as "sitemap",
+  link_page as "linkPage",
+  featured as "featured",
+  status as "status",
+  access_scope as "accessScope",
+  join_time as "joinTime",
+  update_time as "updateTime",
+  reason as "reason",
+  article_count as "articleCount",
+  latest_published_time as "latestPublishedTime",
+  visit_count as "visitCount",
+  primary_tag as "primaryTag",
+  sub_tags as "subTags",
+  warning_tags as "warningTags",
+  warning_names as "warningNames",
+  program_id as "programId",
+  program_name as "programName",
+  program_is_open_source as "programIsOpenSource",
+  website_url as "websiteUrl",
+  repo_url as "repoUrl"
+`;
+
 const DIRECTORY_BASE_SELECT = sql<DirectoryQueryRow>`
   select
-    site_id as "siteId",
-    bid as "bid",
-    name as "name",
-    url as "url",
-    sign as "sign",
-    feeds as "feeds",
-    feed_url as "feedUrl",
-    sitemap as "sitemap",
-    link_page as "linkPage",
-    featured as "featured",
-    status as "status",
-    access_scope as "accessScope",
-    join_time as "joinTime",
-    update_time as "updateTime",
-    reason as "reason",
-    article_count as "articleCount",
-    latest_published_time as "latestPublishedTime",
-    visit_count as "visitCount",
-    primary_tag as "primaryTag",
-    sub_tags as "subTags",
-    warning_tags as "warningTags",
-    warning_names as "warningNames",
-    program_id as "programId",
-    program_name as "programName",
-    program_is_open_source as "programIsOpenSource",
-    website_url as "websiteUrl",
-    repo_url as "repoUrl"
+    ${DIRECTORY_BASE_FIELDS}
   from ${PublicSiteDirectoryReadView}
 `;
 
@@ -412,10 +416,10 @@ export async function loadDirectoryStats(
 ): Promise<PublicSiteDirectoryMeta['stats']> {
   const query = await app.db.read.execute(sql<DirectoryStatsRow>`
     select
-      count(*)::int as "totalSites",
-      count(*) filter (where status = 'OK')::int as "normalSites",
-      count(*) filter (where status <> 'OK')::int as "abnormalSites",
-      count(*) filter (where feed_url is not null)::int as "rssSites"
+      count(distinct site_id)::int as "totalSites",
+      count(distinct site_id) filter (where status = 'OK')::int as "normalSites",
+      count(distinct site_id) filter (where status <> 'OK')::int as "abnormalSites",
+      count(distinct site_id) filter (where feed_url is not null)::int as "rssSites"
     from ${PublicSiteDirectoryReadView}
   `);
   const row = readQueryRows<DirectoryStatsRow>(query)[0];
@@ -484,7 +488,7 @@ export async function countFilteredDirectoryItems(
 ): Promise<number> {
   const filters = buildDirectoryFilters(query);
   const result = await app.db.read.execute(sql<CountRow>`
-    select count(*)::int as "totalItems"
+    select count(distinct site_id)::int as "totalItems"
     from ${PublicSiteDirectoryReadView}
     ${filters}
   `);
@@ -501,8 +505,19 @@ export async function loadFilteredDirectoryItems(
   const orderBy = buildDirectoryOrderBy(query);
   const offset = Math.max(0, (page - 1) * query.pageSize);
   const result = await app.db.read.execute(sql<DirectoryQueryRow>`
-    ${DIRECTORY_BASE_SELECT}
-    ${filters}
+    select
+      ${DIRECTORY_BASE_FIELDS}
+    from (
+      select
+        *,
+        row_number() over (
+          partition by site_id
+          order by lower(coalesce(program_name, '')) asc, program_id asc nulls last
+        ) as site_row_rank
+      from ${PublicSiteDirectoryReadView}
+      ${filters}
+    ) directory_rows
+    where site_row_rank = 1
     ${orderBy}
     limit ${query.pageSize}
     offset ${offset}

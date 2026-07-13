@@ -120,7 +120,7 @@
 
   {#if result.items.length > 0}
     <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {#each directoryCards as entry, index (entry.id)}
+      {#each directoryCards as entry, index}
         <BlogCard {entry} onFeedback={() => onFeedback?.(result.items[index]!)} />
       {/each}
     </div>

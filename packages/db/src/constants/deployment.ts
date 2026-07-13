@@ -7,6 +7,26 @@ export const DEPLOYMENT_STATUSES = {
     label: '执行中',
     description: '部署流程正在执行',
   },
+  SELF_UPDATING: {
+    label: '自更新中',
+    description: '部署服务正在构建并替换自身二进制',
+  },
+  WAITING_RESUME: {
+    label: '等待恢复',
+    description: '部署服务已触发自更新，等待新进程恢复后续阶段',
+  },
+  RUNNING_INFRA_SYNC: {
+    label: '同步配置中',
+    description: '部署流程正在同步生产配置',
+  },
+  RUNNING_DB_MIGRATE: {
+    label: '迁移数据库中',
+    description: '部署流程正在执行数据库迁移',
+  },
+  RUNNING_SERVICES: {
+    label: '更新服务中',
+    description: '部署流程正在更新服务容器',
+  },
   SUCCESS: {
     label: '成功',
     description: '部署流程执行成功',

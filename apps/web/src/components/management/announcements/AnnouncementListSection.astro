@@ -78,7 +78,11 @@ const { items, pagination } = Astro.props;
                   编辑
                 </button>
                 {entry.status === 'DRAFT' && (
-                  <form action={`/management/announcements/${entry.id}/delete`} method="post">
+                  <form
+                    action={`/management/announcements/${entry.id}/delete`}
+                    data-announcement-json-form
+                    method="post"
+                  >
                     <input name="page" type="hidden" value={pagination.page} />
                     <input name="pageSize" type="hidden" value={pagination.pageSize} />
                     <button class="action-button action-button-ghost" type="submit">
@@ -87,7 +91,11 @@ const { items, pagination } = Astro.props;
                   </form>
                 )}
                 {canArchive && (
-                  <form action={`/management/announcements/${entry.id}/archive`} method="post">
+                  <form
+                    action={`/management/announcements/${entry.id}/archive`}
+                    data-announcement-json-form
+                    method="post"
+                  >
                     <input name="page" type="hidden" value={pagination.page} />
                     <input name="pageSize" type="hidden" value={pagination.pageSize} />
                     <button class="action-button action-button-ghost" type="submit">

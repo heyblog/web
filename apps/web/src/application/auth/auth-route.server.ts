@@ -1,5 +1,5 @@
 import type { ManagementPermissionKey } from './auth.guard';
-import { forwardSetCookieHeaders, getApiBaseUrl } from './auth.server';
+import { forwardSetCookieHeaders, getApiBaseUrl, getWebPublicBaseUrl } from './auth.server';
 
 type RedirectParams = Record<string, string | null | undefined>;
 
@@ -21,7 +21,73 @@ export const buildRedirectUrl = (
   params: RedirectParams = {},
 ): string => {
   const location = buildRedirectLocation(pathname, params);
-  return new URL(location, request.url).toString();
+  return new URL(location, resolveRequestOrigin(request)).toString();
+};
+
+const INTERNAL_REDIRECT_HOSTS = new Set([
+  'api',
+  'web',
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  'host.docker.internal',
+  '::1',
+  '[::1]',
+]);
+
+const isInternalRedirectTarget = (target: URL, apiUrl: URL): boolean =>
+  target.origin === apiUrl.origin || INTERNAL_REDIRECT_HOSTS.has(target.hostname);
+
+const readFirstForwardedValue = (request: Request, name: string): string | null => {
+  const value = request.headers.get(name)?.split(',')[0]?.trim();
+  return value || null;
+};
+
+export const resolveRequestOrigin = (request: Request): string => {
+  const configuredPublicBaseUrl = getWebPublicBaseUrl();
+  if (configuredPublicBaseUrl) {
+    return configuredPublicBaseUrl;
+  }
+
+  const requestUrl = new URL(request.url);
+  const forwardedHost =
+    readFirstForwardedValue(request, 'x-forwarded-host') ||
+    readFirstForwardedValue(request, 'host');
+
+  if (!forwardedHost) {
+    return requestUrl.origin;
+  }
+
+  const forwardedProto =
+    readFirstForwardedValue(request, 'x-forwarded-proto') || requestUrl.protocol;
+  const protocol = forwardedProto.replace(/:$/, '');
+
+  return `${protocol}://${forwardedHost}`;
+};
+
+export const resolveUpstreamRedirectLocation = (
+  request: Request,
+  location: string | null,
+  fallbackPath = '/login',
+  fallbackParams: RedirectParams = { error: 'request_failed' },
+): string => {
+  if (!location) {
+    return buildRedirectUrl(request, fallbackPath, fallbackParams);
+  }
+
+  try {
+    const requestUrl = new URL(resolveRequestOrigin(request));
+    const apiUrl = new URL(getApiBaseUrl());
+    const target = new URL(location, requestUrl);
+
+    if (isInternalRedirectTarget(target, apiUrl)) {
+      return new URL(`${target.pathname}${target.search}${target.hash}`, requestUrl).toString();
+    }
+
+    return target.toString();
+  } catch {
+    return buildRedirectUrl(request, fallbackPath, fallbackParams);
+  }
 };
 
 const isManagementPath = (path: string): boolean =>

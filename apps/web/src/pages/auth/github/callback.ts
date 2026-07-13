@@ -1,7 +1,11 @@
 import type { APIRoute } from 'astro';
 
 import { getApiBaseUrl } from '@/application/auth/auth.server';
-import { buildRedirectUrl, createRedirectHeaders } from '@/application/auth/auth-route.server';
+import {
+  buildRedirectUrl,
+  createRedirectHeaders,
+  resolveUpstreamRedirectLocation,
+} from '@/application/auth/auth-route.server';
 
 export const prerender = false;
 
@@ -23,9 +27,8 @@ export const GET: APIRoute = async ({ request, url }) => {
 
   const headers = createRedirectHeaders(response);
   headers.set(
-    'location',
-    response.headers.get('location') ??
-      buildRedirectUrl(request, '/login', { error: 'request_failed' }),
+    'Location',
+    resolveUpstreamRedirectLocation(request, response.headers.get('location')),
   );
 
   return new Response(null, {

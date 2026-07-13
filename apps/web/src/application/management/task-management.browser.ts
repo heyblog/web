@@ -94,9 +94,9 @@ const requestTaskApi = async <T>(
     headers,
   };
 
-  if (init.body !== undefined) {
+  if (init.method !== 'GET') {
     headers.set('content-type', 'application/json');
-    requestInit.body = JSON.stringify(init.body);
+    requestInit.body = JSON.stringify(init.body ?? {});
   }
 
   const response = await fetch(buildTaskManagementApiPath(path), requestInit);

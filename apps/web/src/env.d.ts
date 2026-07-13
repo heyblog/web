@@ -11,14 +11,6 @@ interface WebBuildMetadata {
 
 declare const __ZHBLOGS_BUILD_METADATA__: WebBuildMetadata;
 
-interface ImportMetaEnv {
-  readonly PUBLIC_API_BASE_URL?: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
 interface ZhblogsNoticeApi {
   close: (id?: string) => void;
   open: (

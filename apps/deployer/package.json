@@ -1,0 +1,13 @@
+{
+  "name": "@zhblogs/deployer",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p ./bin && bash -c 'mkdir -p ./.cache/go-build ./.cache/go-tmp && GOCACHE=$PWD/.cache/go-build GOTMPDIR=$PWD/.cache/go-tmp go build -o ./bin/deployer ./'",
+    "dev": "bash -c 'mkdir -p ./.cache/go-build ./.cache/go-tmp && GOCACHE=$PWD/.cache/go-build GOTMPDIR=$PWD/.cache/go-tmp go run ./'",
+    "format": "find . -type f -name '*.go' -not -path './vendor/*' -print0 | xargs -0 gofmt -w",
+    "format:check": "test -z \"$(find . -type f -name '*.go' -not -path './vendor/*' -print0 | xargs -0 gofmt -l)\"",
+    "lint": "bash -c 'mkdir -p ./.cache/go-build ./.cache/go-tmp && GOCACHE=$PWD/.cache/go-build GOTMPDIR=$PWD/.cache/go-tmp go vet ./...'",
+    "start": "./bin/deployer",
+    "test": "bash -c 'mkdir -p ./.cache/go-build ./.cache/go-tmp && GOCACHE=$PWD/.cache/go-build GOTMPDIR=$PWD/.cache/go-tmp go test ./...'"
+  }
+}

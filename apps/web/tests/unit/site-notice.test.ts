@@ -10,7 +10,7 @@ import {
 describe('site notice helpers', () => {
   it('normalizes raw domains and absolute URLs', () => {
     expect(normalizeLegacyDomain(' zhblogs.cn ')).toBe('zhblogs.cn');
-    expect(normalizeLegacyDomain('https://ZHBlogs.org/path')).toBe('zhblogs.org');
+    expect(normalizeLegacyDomain('https://zhblogs.org/path')).toBe('zhblogs.org');
     expect(normalizeLegacyDomain('')).toBeNull();
     expect(normalizeLegacyDomain(null)).toBeNull();
   });

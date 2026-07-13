@@ -9,7 +9,7 @@
     mode = 'detail',
     pending = false,
     formError = '',
-    manualComment = '',
+    manualComment = $bindable(''),
     onApprove,
     onReject,
   }: {
@@ -31,9 +31,8 @@
     <textarea
       id="audit-manual-comment"
       class={WORKSPACE_TEXTAREA_CLASS}
-      value={manualComment}
       disabled={pending || !isPending}
-      oninput={(event) => (manualComment = (event.currentTarget as HTMLTextAreaElement).value)}
+      bind:value={manualComment}
       placeholder="通过可不填，驳回时必填。"
     ></textarea>
   </div>

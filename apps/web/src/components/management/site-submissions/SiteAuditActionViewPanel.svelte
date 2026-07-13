@@ -14,7 +14,7 @@
     mode = 'detail',
     canEditSnapshot = false,
     pending = false,
-    correctionDraft,
+    correctionDraft = $bindable(),
     options,
   }: {
     detail: AuditDetail;

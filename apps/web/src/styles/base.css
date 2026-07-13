@@ -5,7 +5,7 @@
     --color-bg-raised: #fafaf9;
     --color-fg: #1c1917;
     --color-fg-2: #44403c;
-    --color-fg-3: #78716c;
+    --color-fg-3: #57534e;
     --color-line: rgb(28 25 23 / 10%);
     --color-line-med: rgb(28 25 23 / 18%);
     --color-ok: #047857;
@@ -64,10 +64,13 @@
   }
 
   body {
-    @apply min-h-screen antialiased;
+    @apply min-h-screen;
     background: var(--color-bg);
     color: var(--color-fg);
-    font: 400 16px/1.55 var(--font-sans);
+    font: 400 16px/1.55 var(--font-body, var(--font-sans));
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
     transition:
       background-color 160ms var(--ease-out-smooth),
       color 160ms var(--ease-out-smooth);

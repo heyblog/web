@@ -4,7 +4,7 @@ WORKDIR /workspace
 RUN corepack enable
 
 COPY . .
-RUN pnpm install --frozen-lockfile --config.inject-workspace-packages=true
+RUN pnpm install --frozen-lockfile
 
 RUN pnpm -F @zhblogs/api run build
 
@@ -13,8 +13,12 @@ WORKDIR /workspace
 
 RUN corepack enable
 
+COPY --from=builder /workspace/package.json ./package.json
+COPY --from=builder /workspace/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /workspace/node_modules ./node_modules
+COPY --from=builder /workspace/packages ./packages
 COPY --from=builder /workspace/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /workspace/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /workspace/apps/api/dist ./apps/api/dist
 
 EXPOSE 9201

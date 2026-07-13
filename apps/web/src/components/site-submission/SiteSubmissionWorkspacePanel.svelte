@@ -30,7 +30,7 @@
     activePage,
     autoFillPending = false,
     autoFillTarget = null,
-    createForm,
+    createForm = $bindable(),
     createErrors = {},
     createPending = false,
     createProgramSelectedId = '',
@@ -61,7 +61,7 @@
     statusToneClass,
     textAreaClass = '',
     updateErrors = {},
-    updateForm,
+    updateForm = $bindable(),
     updatePending = false,
     updateProgramSelectedId = '',
     withInputStateClass,
@@ -158,7 +158,7 @@
         {autoFillPending}
         {autoFillTarget}
         {submitCreate}
-        {createForm}
+        bind:createForm
         {createErrors}
         {createPending}
         {inputClass}
@@ -205,7 +205,7 @@
           {autoFillPending}
           {autoFillTarget}
           {submitUpdate}
-          {updateForm}
+          bind:updateForm
           {updateErrors}
           {updatePending}
           {inputClass}

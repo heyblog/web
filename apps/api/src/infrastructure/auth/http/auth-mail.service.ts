@@ -1,5 +1,6 @@
 import type { AppConfig } from '@/infrastructure/app/http/app-config.service';
-import { sendMailThroughSmtp } from '@/infrastructure/sites/http/submission-mail-smtp.service';
+import { sendMailThroughSmtp } from '@/infrastructure/mail/http/mail-smtp.service';
+import { buildPublicWebUrl } from '@/infrastructure/mail/http/public-web-url.service';
 
 type AuthMailBaseInput = {
   recipient: string;
@@ -7,21 +8,11 @@ type AuthMailBaseInput = {
   nextPath?: string | null;
 };
 
-const buildWebUrl = (baseUrl: string, pathname: string, params: Record<string, string>): string => {
-  const target = new URL(pathname, baseUrl);
-
-  for (const [key, value] of Object.entries(params)) {
-    target.searchParams.set(key, value);
-  }
-
-  return target.toString();
-};
-
 export const sendVerificationMail = async (
   config: AppConfig,
   input: AuthMailBaseInput & { token: string },
 ): Promise<void> => {
-  const verifyUrl = buildWebUrl(config.API_WEB_BASE_URL, '/verify-email', {
+  const verifyUrl = buildPublicWebUrl(config.WEB_PUBLIC_BASE_URL, '/verify-email', {
     token: input.token,
     ...(input.nextPath ? { next: input.nextPath } : {}),
   });
@@ -44,7 +35,7 @@ export const sendPasswordResetMail = async (
   config: AppConfig,
   input: AuthMailBaseInput & { token: string },
 ): Promise<void> => {
-  const resetUrl = buildWebUrl(config.API_WEB_BASE_URL, '/reset-password', {
+  const resetUrl = buildPublicWebUrl(config.WEB_PUBLIC_BASE_URL, '/reset-password', {
     token: input.token,
     ...(input.nextPath ? { next: input.nextPath } : {}),
   });

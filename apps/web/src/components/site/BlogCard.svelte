@@ -197,7 +197,7 @@
                 class="inline-flex shrink-0 items-center gap-1"
                 aria-label={`${entry.name} 资源链接`}
               >
-                {#each resourceLinks as link (link.href)}
+                {#each resourceLinks as link}
                   <a
                     class={iconActionClass}
                     href={link.href}
@@ -225,7 +225,7 @@
 
           <footer class="mt-auto flex min-h-9 items-end justify-between gap-2">
             <dl class="flex min-w-0 items-end gap-4 overflow-hidden">
-              {#each metrics as metric (metric.label)}
+              {#each metrics as metric}
                 <div class="min-w-18">
                   <dt class={metricLabelClass}>{metric.label}</dt>
                   <dd class={metricValueClass}>{metric.value}</dd>

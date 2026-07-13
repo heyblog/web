@@ -14,6 +14,24 @@ export default defineConfig({
     mode: 'standalone',
   }),
   site: 'https://www.zhblogs.net',
+  security: {
+    allowedDomains: [
+      {
+        protocol: 'https',
+        hostname: 'www.zhblogs.net',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '9101',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9101',
+      },
+    ],
+  },
   server: {
     host: true,
     port: 9101,

@@ -15,6 +15,10 @@ WORKDIR /app
 
 ENV TZ=Asia/Shanghai
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /out/worker /usr/local/bin/zhblogs-worker
 
 EXPOSE 9301

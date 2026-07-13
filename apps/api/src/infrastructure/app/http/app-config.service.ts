@@ -1,6 +1,8 @@
 import fastifyEnv from '@fastify/env';
 import fp from 'fastify-plugin';
 
+import { isLoopbackPublicWebUrl } from '@/infrastructure/mail/http/public-web-url.service';
+
 export interface AppConfig {
   NODE_ENV: 'development' | 'test' | 'production';
   DATABASE_URL: string;
@@ -9,6 +11,7 @@ export interface AppConfig {
   API_LOG_LEVEL?: string;
   API_LOG_DIR?: string;
   API_WEB_BASE_URL: string;
+  WEB_PUBLIC_BASE_URL: string;
   API_CORS_ORIGINS: string;
   API_GITHUB_CLIENT_ID: string;
   API_GITHUB_CLIENT_SECRET: string;
@@ -91,6 +94,10 @@ const envSchema = {
       type: 'string',
     },
     API_WEB_BASE_URL: {
+      type: 'string',
+      default: 'http://127.0.0.1:9101',
+    },
+    WEB_PUBLIC_BASE_URL: {
       type: 'string',
       default: 'http://127.0.0.1:9101',
     },
@@ -194,6 +201,19 @@ export const configPlugin = fp<AppBootstrapOptions>(
     });
 
     validateCookieDomain(app.config.API_COOKIE_DOMAIN);
+
+    if (
+      app.config.NODE_ENV === 'production' &&
+      isLoopbackPublicWebUrl(app.config.WEB_PUBLIC_BASE_URL)
+    ) {
+      app.log.warn(
+        {
+          baseUrl: app.config.WEB_PUBLIC_BASE_URL,
+          configKey: 'WEB_PUBLIC_BASE_URL',
+        },
+        'mail public web base url points to a loopback host',
+      );
+    }
   },
   { name: 'config' },
 );

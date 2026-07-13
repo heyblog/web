@@ -1,0 +1,4 @@
+interface:
+  display_name: "Realtime Updates"
+  short_description: "Design zhblogs realtime update flows"
+  default_prompt: "Design a zhblogs realtime update flow with SSE, cache invalidation, and partial refresh."

@@ -496,7 +496,7 @@
     {activePage}
     {autoFillPending}
     {autoFillTarget}
-    {createForm}
+    bind:createForm
     {createErrors}
     {createPending}
     createProgramSelectedId={getProgramPickerSelected('create')}
@@ -527,7 +527,7 @@
     {statusToneClass}
     {textAreaClass}
     {updateErrors}
-    {updateForm}
+    bind:updateForm
     {updatePending}
     updateProgramSelectedId={getProgramPickerSelected('update')}
     {withInputStateClass}

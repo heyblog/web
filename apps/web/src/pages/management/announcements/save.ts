@@ -4,6 +4,19 @@ import { getApiBaseUrl } from '@/application/auth/auth.server';
 
 export const prerender = false;
 
+type AnnouncementSavePayload = {
+  id?: unknown;
+  page?: unknown;
+  pageSize?: unknown;
+  submit_intent?: unknown;
+  schedule_enabled?: unknown;
+  auto_expire?: unknown;
+  title?: unknown;
+  content?: unknown;
+  publish_time?: unknown;
+  expire_time?: unknown;
+};
+
 const buildRedirectPath = (params: Record<string, string | null | undefined>): string => {
   const target = new URL('/management/announcements', 'http://zhblogs.local');
 
@@ -34,36 +47,55 @@ const readErrorMessage = async (response: Response): Promise<string> => {
   return '公告保存失败，请稍后再试。';
 };
 
-export const POST: APIRoute = async ({ request, redirect }) => {
+const readString = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
+
+const readBoolean = (value: unknown): boolean =>
+  value === true || value === 'true' || value === 'on' || value === '1';
+
+const readSavePayload = async (request: Request): Promise<AnnouncementSavePayload> => {
+  const contentType = request.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    const payload = await request.json().catch(() => null);
+    return payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+  }
+
   const formData = await request.formData();
-  const announcementId =
-    typeof formData.get('id') === 'string' && formData.get('id')?.toString().trim()
-      ? formData.get('id')?.toString().trim()
-      : null;
-  const page =
-    typeof formData.get('page') === 'string' && formData.get('page')?.toString().trim()
-      ? formData.get('page')?.toString().trim()
-      : null;
-  const pageSize =
-    typeof formData.get('pageSize') === 'string' && formData.get('pageSize')?.toString().trim()
-      ? formData.get('pageSize')?.toString().trim()
-      : null;
-  const submitIntent =
-    typeof formData.get('submit_intent') === 'string' &&
-    formData.get('submit_intent')?.toString().trim()
-      ? formData.get('submit_intent')?.toString().trim()
-      : 'draft';
-  const scheduleEnabled = formData.has('schedule_enabled');
-  const autoExpireEnabled = formData.has('auto_expire');
+
+  return {
+    id: formData.get('id'),
+    page: formData.get('page'),
+    pageSize: formData.get('pageSize'),
+    submit_intent: formData.get('submit_intent'),
+    schedule_enabled: formData.has('schedule_enabled'),
+    auto_expire: formData.has('auto_expire'),
+    title: formData.get('title'),
+    content: formData.get('content'),
+    publish_time: formData.get('publish_time'),
+    expire_time: formData.get('expire_time'),
+  };
+};
+
+export const GET: APIRoute = async ({ redirect }) => redirect('/management/announcements', 302);
+
+export const POST: APIRoute = async ({ request, redirect }) => {
+  const payload = await readSavePayload(request);
+  const announcementId = readString(payload.id);
+  const page = readString(payload.page);
+  const pageSize = readString(payload.pageSize);
+  const submitIntent = readString(payload.submit_intent) ?? 'draft';
+  const scheduleEnabled = readBoolean(payload.schedule_enabled);
+  const autoExpireEnabled = readBoolean(payload.auto_expire);
   const status =
     submitIntent === 'publish' ? (scheduleEnabled ? 'SCHEDULED' : 'PUBLISHED') : 'DRAFT';
   const body = {
     id: announcementId ?? undefined,
-    title: formData.get('title'),
-    content: formData.get('content') || null,
+    title: readString(payload.title) ?? '',
+    content: readString(payload.content),
     status,
-    publish_time: scheduleEnabled ? formData.get('publish_time') || null : null,
-    expire_time: autoExpireEnabled ? formData.get('expire_time') || null : null,
+    publish_time: scheduleEnabled ? readString(payload.publish_time) : null,
+    expire_time: autoExpireEnabled ? readString(payload.expire_time) : null,
   };
 
   try {

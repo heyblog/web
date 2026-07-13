@@ -205,6 +205,119 @@
     elements.fieldExpireTime.addEventListener('input', () => updateTimingValidity(elements));
   };
 
+  const readFormString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+  const buildSubmitPayload = (elements, event) => {
+    const formData = new FormData(elements.form);
+    const submitter = event.submitter;
+
+    if (submitter instanceof HTMLButtonElement && submitter.name && submitter.value) {
+      formData.set(submitter.name, submitter.value);
+    }
+
+    return {
+      id: readFormString(formData.get('id')),
+      page: readFormString(formData.get('page')),
+      pageSize: readFormString(formData.get('pageSize')),
+      title: readFormString(formData.get('title')),
+      content: readFormString(formData.get('content')),
+      submit_intent: readFormString(formData.get('submit_intent')) || 'draft',
+      schedule_enabled: formData.has('schedule_enabled'),
+      auto_expire: formData.has('auto_expire'),
+      publish_time: readFormString(formData.get('publish_time')),
+      expire_time: readFormString(formData.get('expire_time')),
+    };
+  };
+
+  const submitAnnouncementForm = async (elements, event) => {
+    const submitter = event.submitter;
+
+    if (submitter instanceof HTMLButtonElement) {
+      submitter.disabled = true;
+    }
+
+    try {
+      const response = await fetch(elements.form.action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          accept: 'text/html,application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(buildSubmitPayload(elements, event)),
+      });
+
+      if (response.redirected && response.url) {
+        window.location.assign(response.url);
+        return;
+      }
+
+      window.location.assign('/management/announcements?status=saved');
+    } catch {
+      window.location.assign(
+        '/management/announcements?error=save_failed&message=' +
+          encodeURIComponent('公告保存失败，请稍后再试。'),
+      );
+    } finally {
+      if (submitter instanceof HTMLButtonElement) {
+        submitter.disabled = false;
+      }
+    }
+  };
+
+  const submitJsonForm = async (form, event) => {
+    const formData = new FormData(form);
+    const submitter = event.submitter;
+
+    if (submitter instanceof HTMLButtonElement) {
+      submitter.disabled = true;
+    }
+
+    try {
+      const response = await fetch(form.action, {
+        method: form.method || 'POST',
+        credentials: 'same-origin',
+        headers: {
+          accept: 'text/html,application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          page: readFormString(formData.get('page')),
+          pageSize: readFormString(formData.get('pageSize')),
+        }),
+      });
+
+      if (response.redirected && response.url) {
+        window.location.assign(response.url);
+        return;
+      }
+
+      window.location.assign('/management/announcements');
+    } catch {
+      window.location.assign(
+        '/management/announcements?error=save_failed&message=' +
+          encodeURIComponent('公告操作失败，请稍后再试。'),
+      );
+    } finally {
+      if (submitter instanceof HTMLButtonElement) {
+        submitter.disabled = false;
+      }
+    }
+  };
+
+  const bindJsonForms = () => {
+    document.querySelectorAll('form[data-announcement-json-form]').forEach((form) => {
+      if (!(form instanceof HTMLFormElement)) {
+        return;
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void submitJsonForm(form, event);
+      });
+    });
+  };
+
   const bindFormValidation = (elements) => {
     elements.form.addEventListener('submit', (event) => {
       updateTimingValidity(elements);
@@ -212,7 +325,11 @@
       if (!elements.form.checkValidity()) {
         event.preventDefault();
         elements.form.reportValidity();
+        return;
       }
+
+      event.preventDefault();
+      void submitAnnouncementForm(elements, event);
     });
   };
 
@@ -257,6 +374,7 @@
     bindEditorTriggers(openCreate, openEdit);
     bindTimingListeners(elements);
     bindFormValidation(elements);
+    bindJsonForms();
     elements.closeButton?.addEventListener('click', () => elements.dialog.close());
 
     const handled = bindFeedbackDialog(elements, openCreate, openEdit);

@@ -47,13 +47,13 @@
     </span>
   {/if}
 
-  {#each subTags as tag (tag)}
+  {#each subTags as tag}
     <span class={[baseClass, 'border-(--color-line) bg-transparent text-(--color-fg-3)'].join(' ')}>
       {tag}
     </span>
   {/each}
 
-  {#each warningTags as tag (tag.name)}
+  {#each warningTags as tag}
     <span
       class={[
         baseClass,

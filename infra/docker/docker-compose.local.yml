@@ -1,0 +1,65 @@
+name: zhblogs
+
+services:
+  valkey:
+    image: valkey/valkey:9-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  api:
+    image: zhblogs-api:local
+    restart: unless-stopped
+    env_file:
+      - ../../.env.prod
+    environment:
+      API_WEB_BASE_URL: ${WEB_PUBLIC_BASE_URL:-http://127.0.0.1:9101}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      valkey:
+        condition: service_healthy
+    ports:
+      - "${API_HOST_PORT:-9201}:9201"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://127.0.0.1:9201/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+
+  web:
+    image: zhblogs-web:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      WEB_API_BASE_URL: http://api:9201
+      WEB_PUBLIC_BASE_URL: ${WEB_PUBLIC_BASE_URL:-http://127.0.0.1:9101}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_HOST_PORT:-9101}:9101"
+
+  worker:
+    image: zhblogs-worker:local
+    restart: unless-stopped
+    env_file:
+      - ../../.env.prod
+    environment:
+      WORKER_PORT: 9301
+      WORKER_API_BASE_URL: http://api:9201
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WORKER_HOST_PORT:-9301}:9301"

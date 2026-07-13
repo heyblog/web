@@ -14,7 +14,7 @@
     autoFillPending = false,
     autoFillTarget = null,
     submitUpdate,
-    updateForm,
+    updateForm = $bindable(),
     updateErrors = {},
     updatePending = false,
     inputClass = '',
@@ -95,7 +95,7 @@
 
   <SiteEditableFields
     mode="update"
-    form={updateForm}
+    bind:form={updateForm}
     errors={updateErrors}
     {options}
     {optionsPending}

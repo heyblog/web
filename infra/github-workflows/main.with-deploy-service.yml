@@ -1,0 +1,278 @@
+name: main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE || secrets.DOCKERHUB_USERNAME }}
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      node_packages_json: ${{ steps.affected.outputs.node_packages_json }}
+      go_packages_json: ${{ steps.affected.outputs.go_packages_json }}
+      docker_images_json: ${{ steps.affected.outputs.docker_images_json }}
+      has_node: ${{ steps.affected.outputs.has_node }}
+      has_go: ${{ steps.affected.outputs.has_go }}
+      has_code: ${{ steps.affected.outputs.has_code }}
+      has_docker: ${{ steps.affected.outputs.has_docker }}
+      deploy_cloudflare: ${{ steps.affected.outputs.deploy_cloudflare }}
+      notify_deployer: ${{ steps.affected.outputs.notify_deployer }}
+      needs_db_migrate: ${{ steps.affected.outputs.needs_db_migrate }}
+      needs_infra_sync: ${{ steps.affected.outputs.needs_infra_sync }}
+      needs_deployer_update: ${{ steps.affected.outputs.needs_deployer_update }}
+      needs_env_manual_review: ${{ steps.affected.outputs.needs_env_manual_review }}
+      changed_files: ${{ steps.affected.outputs.changed_files }}
+      is_pr_merge: ${{ steps.pr.outputs.is_pr_merge }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Detect affected modules
+        id: affected
+        run: node scripts/ci/affected-modules.mjs --base "${{ github.event.before }}" --head "${{ github.sha }}"
+
+      - name: Detect associated pull request
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const response = await fetch(`${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/commits/${process.env.GITHUB_SHA}/pulls`, {
+            headers: {
+              accept: 'application/vnd.github+json',
+              authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              'x-github-api-version': '2022-11-28',
+            },
+          });
+          const pulls = response.ok ? await response.json() : [];
+          console.log(`is_pr_merge=${Array.isArray(pulls) && pulls.length > 0}`);
+          NODE
+
+  node-checks:
+    needs: detect
+    if: needs.detect.outputs.has_node == 'true' && needs.detect.outputs.is_pr_merge != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.node_packages_json || '{"include":[{"id":"none","package":"__none__","path":"."}]}') }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare env files
+        run: |
+          cp .env.example .env.dev
+          cp .env.example .env.prod
+          cp .env.example .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=test/' .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env.prod
+
+      - name: Check format
+        run: pnpm --filter "${{ matrix.package }}" --if-present run format:check
+
+      - name: Lint
+        run: pnpm --filter "${{ matrix.package }}" --if-present run lint
+
+      - name: Typecheck
+        run: pnpm --filter "${{ matrix.package }}" --if-present run typecheck
+
+      - name: Test
+        run: pnpm env:test -- "pnpm --filter '${{ matrix.package }}' --if-present run test"
+
+      - name: Build
+        run: pnpm env:prod -- "pnpm --filter '${{ matrix.package }}...' --if-present run build"
+
+  go-checks:
+    needs: detect
+    if: needs.detect.outputs.has_go == 'true' && needs.detect.outputs.is_pr_merge != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.go_packages_json || '{"include":[{"id":"none","package":"__none__","path":"."}]}') }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+          cache-dependency-path: ${{ matrix.path }}/go.sum
+
+      - name: Check format
+        run: pnpm --filter "${{ matrix.package }}" run format:check
+
+      - name: Lint
+        run: pnpm --filter "${{ matrix.package }}" run lint
+
+      - name: Test
+        run: pnpm --filter "${{ matrix.package }}" run test
+
+      - name: Build
+        run: pnpm --filter "${{ matrix.package }}" run build
+
+  publish-images:
+    needs:
+      - detect
+      - node-checks
+      - go-checks
+    if: always() && needs.detect.outputs.has_docker == 'true' && needs.detect.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.docker_images_json || '{"include":[{"id":"none","dockerfile":"Dockerfile","image":"none"}]}') }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.id }} image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            docker.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}
+            docker.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}:main
+
+      - name: Prune ${{ matrix.id }} image history
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_REPOSITORY: ${{ matrix.image }}
+          DOCKERHUB_KEEP_TAGS: "10"
+        run: node scripts/ci/prune-dockerhub-tags.mjs
+
+  deploy-cloudflare:
+    needs:
+      - detect
+      - node-checks
+      - go-checks
+    if: always() && needs.detect.outputs.deploy_cloudflare == 'true' && needs.detect.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare env files
+        run: |
+          cp .env.example .env.dev
+          cp .env.example .env.prod
+          cp .env.example .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=test/' .env.test
+          sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env.prod
+
+      - name: Deploy Cloudflare worker
+        run: pnpm env:prod -- "CLOUDFLARE_INCLUDE_PROCESS_ENV=true pnpm -F @zhblogs/cloudflare run deploy"
+
+  notify-deployer:
+    needs:
+      - detect
+      - node-checks
+      - go-checks
+      - publish-images
+      - deploy-cloudflare
+    if: always() && needs.detect.outputs.notify_deployer == 'true' && needs.detect.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    env:
+      DEPLOYER_NOTIFY_URL: ${{ secrets.DEPLOYER_NOTIFY_URL }}
+      DEPLOYER_NOTIFY_SECRET: ${{ secrets.DEPLOYER_NOTIFY_SECRET }}
+      CHANGED_FILES: ${{ needs.detect.outputs.changed_files }}
+      NEEDS_DB_MIGRATE: ${{ needs.detect.outputs.needs_db_migrate }}
+      NEEDS_INFRA_SYNC: ${{ needs.detect.outputs.needs_infra_sync }}
+      NEEDS_DEPLOYER_UPDATE: ${{ needs.detect.outputs.needs_deployer_update }}
+      NEEDS_ENV_MANUAL_REVIEW: ${{ needs.detect.outputs.needs_env_manual_review }}
+      WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Notify deployer
+        run: |
+          node <<'NODE'
+          const crypto = require('node:crypto');
+
+          async function main() {
+            const body = JSON.stringify({
+              event: 'workflow_push',
+              repository: process.env.GITHUB_REPOSITORY,
+              ref: process.env.GITHUB_REF,
+              commit_sha: process.env.GITHUB_SHA,
+              image_tag: process.env.IMAGE_TAG,
+              dockerhub_namespace: process.env.DOCKERHUB_NAMESPACE,
+              workflow_run_id: process.env.GITHUB_RUN_ID,
+              workflow_run_url: process.env.WORKFLOW_RUN_URL,
+              needs_db_migrate: process.env.NEEDS_DB_MIGRATE === 'true',
+              needs_infra_sync: process.env.NEEDS_INFRA_SYNC === 'true',
+              needs_deployer_update: process.env.NEEDS_DEPLOYER_UPDATE === 'true',
+              needs_env_manual_review: process.env.NEEDS_ENV_MANUAL_REVIEW === 'true',
+              changed_files: (process.env.CHANGED_FILES || '').split('\n').filter(Boolean),
+            });
+            const signature = crypto
+              .createHmac('sha256', process.env.DEPLOYER_NOTIFY_SECRET)
+              .update(body)
+              .digest('hex');
+            const response = await fetch(process.env.DEPLOYER_NOTIFY_URL, {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                'x-zhblogs-signature-256': `sha256=${signature}`,
+              },
+              body,
+            });
+            if (!response.ok) {
+              throw new Error(`deployer notify failed: ${response.status} ${await response.text()}`);
+            }
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE

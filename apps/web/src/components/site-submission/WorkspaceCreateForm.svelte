@@ -14,7 +14,7 @@
     autoFillPending = false,
     autoFillTarget = null,
     submitCreate,
-    createForm,
+    createForm = $bindable(),
     createErrors = {},
     createPending = false,
     inputClass = '',
@@ -95,7 +95,7 @@
 
   <SiteEditableFields
     mode="create"
-    form={createForm}
+    bind:form={createForm}
     errors={createErrors}
     {options}
     {optionsPending}

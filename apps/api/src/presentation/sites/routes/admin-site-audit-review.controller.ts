@@ -89,7 +89,6 @@ type ReviewRouteDeps = {
       action: string;
       status: 'APPROVED' | 'REJECTED';
       reviewerComment: string | null;
-      queryUrl: string;
     },
   ) => Promise<void>;
   resolveAuditSiteName: (
@@ -297,7 +296,6 @@ export function registerAdminAuditReviewRoute(app: FastifyInstance, deps: Review
               currentSnapshot ??
                 (updatedAudit.current_snapshot as SiteAuditSnapshot | null | undefined),
             ) ?? '未命名站点';
-          const queryUrl = `${app.config.API_WEB_BASE_URL}/site/submit/query?audit_id=${updatedAudit.id}`;
 
           try {
             await deps.sendSubmissionDecisionMail(app.config, {
@@ -307,7 +305,6 @@ export function registerAdminAuditReviewRoute(app: FastifyInstance, deps: Review
               action: updatedAudit.action,
               status: parsedBody.data.decision,
               reviewerComment: updatedAudit.reviewer_comment ?? null,
-              queryUrl,
             });
           } catch (error) {
             app.log.error(

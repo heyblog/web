@@ -126,6 +126,65 @@ describe('management audit review route', () => {
     });
   });
 
+  it('forwards reviewer comment when rejecting with a filled reason', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              audit_id: auditId,
+              action: 'UPDATE',
+              status: 'REJECTED',
+              site_id: siteId,
+            },
+          }),
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await reviewPost(
+      createReviewContext(
+        new Request(`${getWebBaseUrl()}/management/site-submissions/${auditId}/review`, {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            decision: 'REJECTED',
+            reviewer_comment: '缺少审核所需说明',
+          }),
+        }),
+      ),
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${getApiBaseUrl()}/api/management/site-audits/${auditId}/review`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          decision: 'REJECTED',
+          reviewer_comment: '缺少审核所需说明',
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      status: 'reviewed',
+      target: auditId,
+      redirect: null,
+      message: '',
+      data: {
+        audit_id: auditId,
+        action: 'UPDATE',
+        status: 'REJECTED',
+        site_id: siteId,
+      },
+    });
+  });
+
   it('returns JSON invalid payload when rejecting without reviewer comment', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

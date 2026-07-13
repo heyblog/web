@@ -34,6 +34,31 @@ const readErrorMessage = async (response: Response): Promise<string> => {
   return '公告归档失败，请稍后再试。';
 };
 
+const readString = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
+
+const readRedirectPayload = async (
+  request: Request,
+): Promise<{ page: string | null; pageSize: string | null }> => {
+  const contentType = request.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    const payload = await request.json().catch(() => null);
+    const record = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+    return {
+      page: readString((record as { page?: unknown }).page),
+      pageSize: readString((record as { pageSize?: unknown }).pageSize),
+    };
+  }
+
+  const formData = await request.formData();
+
+  return {
+    page: readString(formData.get('page')),
+    pageSize: readString(formData.get('pageSize')),
+  };
+};
+
 export const POST: APIRoute = async ({ request, params, redirect }) => {
   const id = params.id?.trim();
 
@@ -41,15 +66,7 @@ export const POST: APIRoute = async ({ request, params, redirect }) => {
     return new Response('Invalid announcement archive request', { status: 400 });
   }
 
-  const formData = await request.formData();
-  const page =
-    typeof formData.get('page') === 'string' && formData.get('page')?.toString().trim()
-      ? formData.get('page')?.toString().trim()
-      : null;
-  const pageSize =
-    typeof formData.get('pageSize') === 'string' && formData.get('pageSize')?.toString().trim()
-      ? formData.get('pageSize')?.toString().trim()
-      : null;
+  const { page, pageSize } = await readRedirectPayload(request);
 
   const response = await fetch(`${getApiBaseUrl()}/api/management/announcements/${id}/archive`, {
     method: 'POST',

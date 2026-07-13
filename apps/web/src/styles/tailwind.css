@@ -4,8 +4,10 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme {
-  --font-sans: 'Noto Serif SC', Noto Serif SC, system-ui, sans-serif;
+  --font-body: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
+  --font-sans: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
   --font-display: 'Instrument Serif', Georgia, serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
   --font-editorial: 'Instrument Serif', Georgia, serif;
   --font-mono: 'JetBrains Mono', Menlo, monospace;
   --radius-sm: 3px;

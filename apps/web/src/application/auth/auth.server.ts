@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../api/api-env';
+import { getApiBaseUrl, getWebPublicBaseUrl } from '../api/api-env';
 
 import type { SessionUser } from './auth.guard';
 
@@ -14,7 +14,7 @@ const buildWebAuthPath = (pathname: string, params: Record<string, string> = {})
   return `${target.pathname}${target.search}`;
 };
 
-export { getApiBaseUrl };
+export { getApiBaseUrl, getWebPublicBaseUrl };
 
 export const getLoginHref = (next?: string): string => {
   const normalizedNext = next?.trim();

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getProtectionLevel,
@@ -12,13 +12,22 @@ import {
   getLoginHref,
   readSessionUser,
 } from '@/application/auth/auth.server';
-import { buildRedirectUrl, resolvePostLoginRedirect } from '@/application/auth/auth-route.server';
+import {
+  buildRedirectUrl,
+  resolvePostLoginRedirect,
+  resolveRequestOrigin,
+  resolveUpstreamRedirectLocation,
+} from '@/application/auth/auth-route.server';
 import { getWebBaseUrl } from '@tests/setup/env';
 
 import { apiStubs } from '../setup/api-stubs';
 import { adminUserFixture } from '../setup/fixtures';
 
 const adminUser: SessionUser = adminUserFixture;
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('route protection helpers', () => {
   it('detects protected route levels', () => {
@@ -83,6 +92,64 @@ describe('server auth helpers', () => {
         next: '/management',
       }),
     ).toBe(`${getWebBaseUrl()}/login?status=reset-sent&next=%2Fmanagement`);
+  });
+
+  it('keeps upstream oauth redirects on the public web origin', () => {
+    const request = new Request('http://localhost:9101/auth/github?next=%2Fdashboard', {
+      headers: {
+        host: 'localhost:9101',
+        'x-forwarded-host': 'www.zhblogs.net',
+        'x-forwarded-proto': 'https',
+      },
+    });
+
+    expect(resolveUpstreamRedirectLocation(request, '/auth/github/start')).toBe(
+      'https://www.zhblogs.net/auth/github/start',
+    );
+    expect(
+      resolveUpstreamRedirectLocation(request, 'http://127.0.0.1:9201/auth/github/start'),
+    ).toBe('https://www.zhblogs.net/auth/github/start');
+    expect(
+      resolveUpstreamRedirectLocation(request, 'http://api:9201/auth/github?next=%2Fdashboard'),
+    ).toBe('https://www.zhblogs.net/auth/github?next=%2Fdashboard');
+    expect(resolveUpstreamRedirectLocation(request, 'http://web:9101/dashboard')).toBe(
+      'https://www.zhblogs.net/dashboard',
+    );
+    expect(
+      resolveUpstreamRedirectLocation(request, 'https://github.com/login/oauth/authorize'),
+    ).toBe('https://github.com/login/oauth/authorize');
+  });
+
+  it('resolves request origin from forwarded headers', () => {
+    const request = new Request('http://localhost:9101/login', {
+      headers: {
+        host: 'localhost:9101',
+        'x-forwarded-host': 'www.zhblogs.net',
+        'x-forwarded-proto': 'https',
+      },
+    });
+
+    expect(resolveRequestOrigin(request)).toBe('https://www.zhblogs.net');
+    expect(buildRedirectUrl(request, '/login', { next: '/dashboard' })).toBe(
+      'https://www.zhblogs.net/login?next=%2Fdashboard',
+    );
+  });
+
+  it('prefers configured public web base url over forwarded headers', () => {
+    vi.stubEnv('WEB_PUBLIC_BASE_URL', 'https://www.zhblogs.net/');
+
+    const request = new Request('http://localhost:9101/auth/github', {
+      headers: {
+        host: 'origin.zhblogs.net',
+        'x-forwarded-host': 'origin.zhblogs.net',
+        'x-forwarded-proto': 'https',
+      },
+    });
+
+    expect(resolveRequestOrigin(request)).toBe('https://www.zhblogs.net');
+    expect(resolveUpstreamRedirectLocation(request, '/auth/github/start')).toBe(
+      'https://www.zhblogs.net/auth/github/start',
+    );
   });
 
   it('redirects users away from management paths after login', () => {

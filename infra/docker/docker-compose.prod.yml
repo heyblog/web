@@ -12,20 +12,19 @@ services:
       retries: 6
 
   api:
-    image: ${DOCKERHUB_NAMESPACE:?DOCKERHUB_NAMESPACE is required}/zhblogs-api:${IMAGE_TAG:-main}
+    image: zhblogs/zhblogs-api:main
     restart: unless-stopped
     env_file:
       - ../../.env.prod
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      VALKEY_URL: valkey://valkey:6379
+      API_WEB_BASE_URL: ${WEB_PUBLIC_BASE_URL:-https://www.zhblogs.net}
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
       valkey:
         condition: service_healthy
     ports:
-      - "${API_PORT:-9201}:9201"
+      - "${API_HOST_PORT:-9201}:9201"
     healthcheck:
       test:
         [
@@ -37,30 +36,30 @@ services:
       retries: 12
 
   web:
-    image: ${DOCKERHUB_NAMESPACE:?DOCKERHUB_NAMESPACE is required}/zhblogs-web:${IMAGE_TAG:-main}
+    image: zhblogs/zhblogs-web:main
     restart: unless-stopped
-    env_file:
-      - ../../.env.prod
     environment:
-      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://api:9201}
+      NODE_ENV: production
+      WEB_API_BASE_URL: http://api:9201
+      WEB_PUBLIC_BASE_URL: ${WEB_PUBLIC_BASE_URL:-https://www.zhblogs.net}
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-9101}:9101"
+      - "${WEB_HOST_PORT:-9101}:9101"
 
   worker:
-    image: ${DOCKERHUB_NAMESPACE:?DOCKERHUB_NAMESPACE is required}/zhblogs-worker:${IMAGE_TAG:-main}
+    image: zhblogs/zhblogs-worker:main
     restart: unless-stopped
     env_file:
       - ../../.env.prod
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
-      WORKER_API_BASE_URL: ${WORKER_API_BASE_URL:-http://api:9201}
+      WORKER_PORT: 9301
+      WORKER_API_BASE_URL: http://api:9201
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${WORKER_PORT:-9301}:9301"
+      - "${WORKER_HOST_PORT:-9301}:9301"

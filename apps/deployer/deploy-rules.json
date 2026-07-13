@@ -1,0 +1,40 @@
+{
+  "full_update_paths": [
+    ".github/**",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "scripts/**",
+    "packages/**",
+    "apps/*/Dockerfile"
+  ],
+  "ignored_paths": [
+    ".agents/**",
+    ".vscode/**",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "design/**"
+  ],
+  "modules": [
+    {
+      "module": "API",
+      "paths": ["apps/api/**"]
+    },
+    {
+      "module": "WEB",
+      "paths": ["apps/web/**"]
+    },
+    {
+      "module": "WORKER",
+      "paths": ["apps/worker/**"]
+    },
+    {
+      "module": "DEPLOYER",
+      "paths": ["apps/deployer/**"]
+    },
+    {
+      "module": "CLOUDFLARE",
+      "paths": ["apps/cloudflare/**"]
+    }
+  ]
+}
