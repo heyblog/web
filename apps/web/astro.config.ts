@@ -1,16 +1,15 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-
-import svelte from '@astrojs/svelte';
 import mdx from '@astrojs/mdx';
-import sitemap from '@astrojs/sitemap';
 import partytown from '@astrojs/partytown';
-import tailwindcss from "@tailwindcss/vite";
+import sitemap from '@astrojs/sitemap';
+import svelte from '@astrojs/svelte';
+import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  integrations: [svelte(), mdx(), sitemap(), partytown()]
+  integrations: [svelte(), mdx(), sitemap(), partytown()],
 });

@@ -4,12 +4,8 @@
   "exclude": ["dist"],
   "compilerOptions": {
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@tests/*": [
-        "./tests/*"
-      ]
-    },
+      "@/*": ["./src/*"],
+      "@tests/*": ["./tests/*"]
+    }
   }
 }
