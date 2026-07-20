@@ -26,7 +26,7 @@ ambiguity before implementing behavior.
 - `packages/node/configs`: shared Node.js quality-tool configuration.
 - `scripts`: repository automation and Git-hook support.
 - `skills`: project-owned source Skills installed for development agents.
-- `taskfiles`: repository-wide Task definitions included by `Taskfile.yml`.
+- `taskfiles`: repository-wide Task definitions included by `Taskfile.yaml`.
 
 Modules under `apps/` and `packages/` own their detailed architecture, commands, and conventions in
 their nearest `AGENTS.md`.
@@ -36,7 +36,9 @@ their nearest `AGENTS.md`.
 - Read `.nvmrc` for the Node.js version and `package.json#packageManager` for the pnpm version.
 - Read `go.work` and module `go.mod` files for the Go toolchain and dependencies.
 - Treat module manifests and lockfiles as dependency truth.
-- Treat `Taskfile.yml` and included module Taskfiles as command truth.
+- Treat `Taskfile.yaml` and included module Taskfiles as command truth.
+- Use the `.yaml` extension for every repository-owned YAML file and reference. Do not add `.yml`
+  files or `.yml` compatibility patterns.
 - Treat `skills/` as the only source for project-owned Skills. Expose each project-owned Skill in
   `.agents/skills` through a relative symlink; do not maintain copied project-owned directories
   there.

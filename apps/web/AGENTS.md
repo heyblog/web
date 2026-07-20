@@ -5,13 +5,12 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 ## Scope and Sources of Truth
 
 - `apps/web` is the browser-facing Astro and Svelte application.
-- Treat `package.json`, `astro.config.ts`, `svelte.config.ts`, and `Taskfile.yml` as the current
+- Treat `package.json`, `astro.config.ts`, `svelte.config.ts`, and `Taskfile.yaml` as the current
   dependency, runtime, and command truth.
 - Browser requests that require backend data enter through this application, which communicates
   with the Go API over HTTP.
-- The `old` branch is a migration reference for routes, user-visible behavior, server-side API
-  forwarding, and tests. Do not copy its dependency versions, commands, or obsolete backend
-  assumptions.
+- Treat current task requirements, accepted HTTP contracts, committed routes, and tests as
+  migration behavior truth.
 
 ## Ownership and Boundaries
 
@@ -46,7 +45,7 @@ Browser -> Astro server route/page -> Go API -> database
 - Keep TypeScript strict and use the `@/*` alias for `src/*` imports where it improves clarity.
 - Keep Astro pages and endpoint files thin. Move feature orchestration and reusable logic out of
   route files and components.
-- As features return from the old application, prefer these boundaries:
+- As features are implemented, prefer these boundaries:
   - `src/pages`: Astro pages and same-origin HTTP endpoints.
   - `src/layouts`: page shells and cross-page layout composition.
   - `src/components`: focused Astro and Svelte presentation components.
@@ -54,8 +53,7 @@ Browser -> Astro server route/page -> Go API -> database
   - `src/shared`: genuinely cross-feature browser, server, UI, and integration utilities.
 - Use `.server.ts` for server-only code and `.browser.ts` for browser-only code. Shared modules must
   not depend on either runtime implicitly.
-- Split large feature files by responsibility. Do not rebuild the old application's uneven file
-  structure verbatim.
+- Split large feature files by responsibility. Do not reproduce uneven legacy directory structures.
 
 ## Rendering and HTTP Data Flow
 
@@ -90,14 +88,12 @@ Browser -> Astro server route/page -> Go API -> database
 
 ## Migration Guidance
 
-- Before rebuilding an old route, inspect its old Astro page, application module, API forwarding
-  code, and focused tests together.
+- Before rebuilding a route, inspect its current requirements, application boundary, API forwarding
+  contract, and focused committed tests together.
 - Preserve accepted URLs, status handling, cookies, redirects, and user-visible behavior unless the
   current task or accepted HTTP contract changes them.
-- Reimplement old direct or browser-facing backend calls through the current same-origin HTTP
-  boundary.
-- Do not restore old Node database access, Fastify assumptions, or direct imports from the former
-  database package.
+- Implement direct or browser-facing backend calls through the current same-origin HTTP boundary.
+- Do not introduce Node database access, Fastify assumptions, or imports from database packages.
 
 ## Commands and Validation
 
@@ -112,7 +108,7 @@ Run commands from the repository root:
 
 The current module has no test task. When behavior changes, add focused tests for server adapters,
 authentication, proxying, rendering decisions, or critical browser logic as appropriate. Do not
-restore the old Vitest or Playwright setup without explaining why it is still the right choice.
+introduce a Vitest or Playwright setup without explaining why it is the right choice.
 Use browser-based end-to-end tests only when requested or when a critical interaction cannot be
 verified reliably at a lower level.
 

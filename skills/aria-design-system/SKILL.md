@@ -31,9 +31,9 @@ For changes to the design system itself, update in this fixed order: design rule
 Search long references instead of loading the entire preview. From this Skill directory, use targeted queries such as:
 
 ```bash
-rtk grep '^## |^### ' references/DESIGN.md
-rtk grep 'Modal\|modal' references/DESIGN.md references/tokens.json
-rtk grep 'modal-' references/preview.html
+grep -nE '^## |^### ' references/DESIGN.md
+grep -ni 'modal' references/DESIGN.md references/tokens.json
+grep -n 'modal-' references/preview.html
 ```
 
 Start with the relevant `DESIGN.md` section, inspect matching token objects, and read only the corresponding preview styles, markup, and script.

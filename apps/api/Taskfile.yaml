@@ -23,27 +23,47 @@ tasks:
     cmds:
       - go test ./...
 
+  test:integration:
+    desc: Test API infrastructure with PostgreSQL/AGE and Redis containers
+    cmds:
+      - go test -tags=integration ./internal/integration
+
+  sqlc:generate:
+    desc: Generate pgx/v5 data access code
+    cmds:
+      - go tool sqlc generate
+
+  sqlc:vet:
+    desc: Validate SQL queries against migrations
+    cmds:
+      - go tool sqlc vet
+
+  sqlc:diff:
+    desc: Check that sqlc generated code is current
+    cmds:
+      - go tool sqlc diff
+
   lint:
     desc: Lint API Go files
     cmds:
-      - golangci-lint run --config ../../.golangci.yml ./...
+      - golangci-lint run --config ../../.golangci.yaml ./...
 
   lint:fix:
     desc: Lint and fix API Go files
     cmds:
-      - golangci-lint run --config ../../.golangci.yml --fix ./...
+      - golangci-lint run --config ../../.golangci.yaml --fix ./...
 
   format:
     desc: Format API Go files and sort imports
     aliases: [fmt]
     cmds:
-      - golangci-lint fmt --config ../../.golangci.yml
+      - golangci-lint fmt --config ../../.golangci.yaml
 
   format:check:
     desc: Check API Go formatting and import sorting
     aliases: [fmt:check]
     cmds:
-      - golangci-lint fmt --config ../../.golangci.yml --diff
+      - golangci-lint fmt --config ../../.golangci.yaml --diff
 
   vulncheck:
     desc: Check API Go vulnerabilities
@@ -54,6 +74,8 @@ tasks:
     desc: Run offline checks for API
     cmds:
       - task: test
+      - task: sqlc:vet
+      - task: sqlc:diff
       - task: format:check
       - task: lint
       - task: build

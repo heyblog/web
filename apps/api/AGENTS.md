@@ -5,11 +5,11 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 ## Scope and Sources of Truth
 
 - `apps/api` is the unified Go HTTP backend for the web, shell, edge, and worker applications.
-- Treat `go.mod`, `go.sum`, source code, and `Taskfile.yml` as the current dependency, toolchain, and
+- Treat `go.mod`, `go.sum`, source code, and `Taskfile.yaml` as the current dependency, toolchain, and
   command truth.
-- The `old` branch is a migration reference for product behavior, routes, use cases, domain rules,
-  and tests. It is not dependency or implementation truth.
-- Do not restore the old Fastify, Drizzle, Node database, or per-service connection model.
+- Treat current task requirements, committed HTTP contracts, schema requirements, and tests as
+  migration behavior truth.
+- Do not introduce Fastify, Drizzle, Node database access, or per-service connection pools.
 
 ## Ownership and Service Boundary
 
@@ -54,7 +54,7 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   transport values into application or repository code.
 - Keep handlers thin: parse and validate, call one application operation, then map its result or
   typed error to an HTTP response.
-- Preserve stable external behavior when migrating old endpoints unless the current specification
+- Preserve stable external behavior when migrating existing endpoints unless the current specification
   explicitly changes it.
 - Do not leak internal errors, SQL details, upstream addresses, credentials, or stack traces.
 - Internal HTTP endpoints require an explicit trust and authentication model; network placement is
@@ -85,13 +85,12 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 
 ## Migration Guidance
 
-- For each feature migrated from `old`, inspect the corresponding route, use case, domain service,
-  repository, and tests before implementing it in Go.
-- Translate behavior and boundaries, not TypeScript structure. Fastify plugins become explicit Go
-  startup dependencies; old route handlers become Gin transport adapters; use cases and domain
-  rules remain framework-independent.
-- Use the old database implementation only to understand behavior and data requirements. The Go
-  schema and migrations become authoritative.
+- For each migrated feature, define the route, use case, domain rules, repository boundary, and
+  focused tests from current requirements and committed contracts before implementing it in Go.
+- Translate behavior and boundaries into explicit Go startup dependencies and Gin transport
+  adapters; keep use cases and domain rules framework-independent.
+- Derive data requirements from current contracts and schema requirements. The Go schema and
+  migrations are authoritative.
 - Preserve externally accepted paths, validation, status codes, authorization, and response meaning
   unless the new specification requires a breaking change.
 - Do not add compatibility shims solely to imitate obsolete internal APIs.

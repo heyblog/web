@@ -5,9 +5,9 @@
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "format": "pnpm run format:root && pnpm -r --if-present run format",
-    "format:root": "prettier --config ./packages/node/configs/prettier.config.ts --write \".golangci.yml\" \"Taskfile.yml\" \"taskfiles/**/*.{yml,yaml}\" \"apps/*/Taskfile.{yml,yaml}\" \"commitlint.config.cjs\" \"package.json\" \"pnpm-workspace.yaml\" \"scripts/**/*.mjs\"",
+    "format:root": "prettier --config ./packages/node/configs/prettier.config.ts --write \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"infra/docker/**/*.yaml\" \"commitlint.config.cjs\" \"package.json\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
     "format:check": "pnpm run format:check:root && pnpm -r --if-present run format:check",
-    "format:check:root": "prettier --config ./packages/node/configs/prettier.config.ts --check \".golangci.yml\" \"Taskfile.yml\" \"taskfiles/**/*.{yml,yaml}\" \"apps/*/Taskfile.{yml,yaml}\" \"commitlint.config.cjs\" \"package.json\" \"pnpm-workspace.yaml\" \"scripts/**/*.mjs\"",
+    "format:check:root": "prettier --config ./packages/node/configs/prettier.config.ts --check \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"infra/docker/**/*.yaml\" \"commitlint.config.cjs\" \"package.json\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
     "lint": "pnpm run lint:root && pnpm -r --if-present run lint",
     "lint:root": "eslint --config ./packages/node/configs/eslint.config.ts \"commitlint.config.cjs\" \"scripts/**/*.mjs\"",
     "lint:fix": "pnpm run lint:fix:root && pnpm -r --if-present run lint:fix",

@@ -13,7 +13,7 @@ const rootPrettierConfig = {
 const goModuleConfigs = [
   {
     dir: 'apps/api',
-    config: '../../.golangci.yml',
+    config: '../../.golangci.yaml',
   },
 ];
 
@@ -37,8 +37,8 @@ const trackedRoots = [
 ];
 
 const rootPrettierFileNames = new Set([
-  '.golangci.yml',
-  'Taskfile.yml',
+  '.golangci.yaml',
+  'Taskfile.yaml',
   'commitlint.config.cjs',
   'package.json',
   'pnpm-workspace.yaml',
@@ -153,7 +153,7 @@ export function isRootPrettierFile(file) {
     return true;
   }
 
-  if (/(^|\/)Taskfile\.ya?ml$/.test(file)) {
+  if (/(^|\/)Taskfile\.yaml$/.test(file)) {
     return true;
   }
 
@@ -162,8 +162,7 @@ export function isRootPrettierFile(file) {
   }
 
   if (file.startsWith('taskfiles/')) {
-    const extension = getExtension(file);
-    return extension === '.yml' || extension === '.yaml';
+    return getExtension(file) === '.yaml';
   }
 
   return false;

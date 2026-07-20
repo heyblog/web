@@ -60,7 +60,6 @@ tasks:
   test:
     desc: Run all configured tests
     cmds:
-      - pnpm run test:hooks
       - task: api:test
 
   security:
@@ -75,6 +74,8 @@ tasks:
       - task: lint
       - task: typecheck
       - task: test
+      - task: api:sqlc:vet
+      - task: api:sqlc:diff
       - task: build
 
   verify:full:

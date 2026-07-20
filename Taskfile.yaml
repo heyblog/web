@@ -4,16 +4,19 @@ version: '3'
 
 includes:
   api:
-    taskfile: ./apps/api/Taskfile.yml
+    taskfile: ./apps/api/Taskfile.yaml
     dir: ./apps/api
   web:
-    taskfile: ./apps/web/Taskfile.yml
+    taskfile: ./apps/web/Taskfile.yaml
     dir: ./apps/web
   project:
-    taskfile: ./taskfiles/project.yml
+    taskfile: ./taskfiles/project.yaml
     flatten: true
   hooks:
-    taskfile: ./taskfiles/hooks.yml
+    taskfile: ./taskfiles/hooks.yaml
+    flatten: true
+  container:
+    taskfile: ./taskfiles/container.yaml
     flatten: true
 
 tasks:
