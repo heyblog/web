@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aria Design System — 组件预览 Component Preview</title>
+
+<!-- 防闪烁：在渲染前根据 localStorage / 系统偏好决定主题 -->
+<script>
+  (function () {
+    var stored = localStorage.getItem('aria-theme');
+    var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) document.documentElement.classList.add('dark');
+  })();
+</script>
+
+<!-- Fonts: Inter + Noto Sans SC + JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS v4 Browser -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<style type="text/tailwindcss">
+  /* ============================================================
+     Aria Design System · Tailwind v4 theme
+     Token source of truth: tokens.json (W3C DTCG)
+     ============================================================ */
+
+  @custom-variant dark (&:where(.dark, .dark *));
+
+  /* ---------- Semantic CSS variables: light (:root) / dark (.dark) ---------- */
+  :root {
+    --sem-canvas: #F8FAFC;          /* semantic.color.light.bg.canvas */
+    --sem-surface: #FFFFFF;         /* bg.surface */
+    --sem-subtle: #F1F5F9;          /* bg.subtle */
+    --sem-inverse: #0F172A;         /* bg.inverse */
+    --sem-fg: #0F172A;              /* fg.default */
+    --sem-fg-muted: #64748B;        /* fg.muted */
+    --sem-fg-subtle: #94A3B8;       /* fg.subtle */
+    --sem-fg-inverse: #F8FAFC;      /* fg.inverse */
+    --sem-line: #E2E8F0;            /* border.default */
+    --sem-line-strong: #64748B;     /* border.strong */
+    --sem-focus: #0F7B80;           /* border.focus */
+    --sem-primary: #0F7B80;         /* action.primary.default (teal-600) */
+    --sem-primary-hover: #0C666B;   /* hover (teal-700) */
+    --sem-primary-active: #0B5357;  /* active (teal-800) */
+    --sem-primary-disabled: #7FC5C9;
+    --sem-tint-bg: #EFF8F8;         /* action.primary.tintBg */
+    --sem-tint-fg: #0C666B;         /* action.primary.tintFg */
+    --sem-success-fg: #047857;  --sem-success-bg: #ECFDF5;  --sem-success: #059669;  --sem-success-line: #10B981;
+    --sem-warning-fg: #B45309;  --sem-warning-bg: #FFFBEB;  --sem-warning: #F59E0B;  --sem-warning-line: #F59E0B;
+    --sem-danger-fg: #BE123C;   --sem-danger-bg: #FFF1F2;   --sem-danger: #E11D48;   --sem-danger-line: #F43F5E;
+    --sem-info-fg: #0369A1;     --sem-info-bg: #F0F9FF;     --sem-info: #0284C7;     --sem-info-line: #0EA5E9;
+    --sem-scrim: rgb(15 23 42 / 0.6);
+    --motion-micro: 80ms;
+    --motion-fast: 150ms;
+    --motion-base: 250ms;
+    --motion-medium: 350ms;
+    --motion-slow: 400ms;
+    --motion-emphasis: 500ms;
+    --motion-stagger: 40ms;
+    --motion-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --motion-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --breakpoint-xs: 30rem;
+    --breakpoint-sm: 48rem;
+    --breakpoint-md: 64rem;
+    --breakpoint-lg: 80rem;
+    --breakpoint-xl: 90rem;
+    --breakpoint-2xl: 120rem;
+  }
+  .dark {
+    --sem-canvas: #09090B;
+    --sem-surface: #18181B;
+    --sem-subtle: #27272A;
+    --sem-inverse: #F4F4F5;
+    --sem-fg: #F4F4F5;
+    --sem-fg-muted: #A1A1AA;
+    --sem-fg-subtle: #71717A;
+    --sem-fg-inverse: #18181B;
+    --sem-line: #27272A;
+    --sem-line-strong: #71717A;
+    --sem-focus: #3FA6AC;
+    --sem-primary: #158187;         /* teal-500 */
+    --sem-primary-hover: #0F7B80;   /* teal-600 */
+    --sem-primary-active: #0C666B;  /* teal-700 */
+    --sem-primary-disabled: #0A4346;
+    --sem-tint-bg: rgb(10 67 70 / 0.4);
+    --sem-tint-fg: #7FC5C9;
+    --sem-success-fg: #34D399;  --sem-success-bg: rgb(2 44 34 / 0.3);   --sem-success: #10B981;  --sem-success-line: #10B981;
+    --sem-warning-fg: #FBBF24;  --sem-warning-bg: rgb(69 26 3 / 0.3);   --sem-warning: #F59E0B;  --sem-warning-line: #F59E0B;
+    --sem-danger-fg: #FB7185;   --sem-danger-bg: rgb(76 5 25 / 0.3);    --sem-danger: #E11D48;   --sem-danger-line: #F43F5E;
+    --sem-info-fg: #38BDF8;     --sem-info-bg: rgb(8 47 73 / 0.3);      --sem-info: #0EA5E9;     --sem-info-line: #0EA5E9;
+    --sem-scrim: rgb(9 9 11 / 0.7);
+  }
+
+  /* ---------- @theme: 注册为 Tailwind 原生工具类 ---------- */
+  @theme {
+    --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+    /* primitive.color.teal — 青瓷主色阶（Celadon Teal，清冽低鸣） */
+    --color-primary-50: #EFF8F8;  --color-primary-100: #D9EEEF; --color-primary-200: #B3DEE0;
+    --color-primary-300: #7FC5C9; --color-primary-400: #3FA6AC; --color-primary-500: #158187;
+    --color-primary-600: #0F7B80; --color-primary-700: #0C666B; --color-primary-800: #0B5357;
+    --color-primary-900: #0A4346; --color-primary-950: #062D2F;
+
+    /* radius — 硬上限 6px；full 仅限白名单组件 */
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+
+    /* responsive — mobile-first min-width */
+    --breakpoint-xs: 30rem;
+    --breakpoint-sm: 48rem;
+    --breakpoint-md: 64rem;
+    --breakpoint-lg: 80rem;
+    --breakpoint-xl: 90rem;
+    --breakpoint-2xl: 120rem;
+
+  }
+
+  /* 语义色接入工具类（bg-surface / text-fg-muted / border-line …），随 .dark 自动换肤 */
+  @theme inline {
+    --color-canvas: var(--sem-canvas);
+    --color-surface: var(--sem-surface);
+    --color-subtle: var(--sem-subtle);
+    --color-inverse: var(--sem-inverse);
+    --color-fg: var(--sem-fg);
+    --color-fg-muted: var(--sem-fg-muted);
+    --color-fg-subtle: var(--sem-fg-subtle);
+    --color-fg-inverse: var(--sem-fg-inverse);
+    --color-line: var(--sem-line);
+    --color-line-strong: var(--sem-line-strong);
+    --color-focus: var(--sem-focus);
+    --color-primary: var(--sem-primary);
+    --color-primary-hover: var(--sem-primary-hover);
+    --color-primary-active: var(--sem-primary-active);
+    --color-primary-disabled: var(--sem-primary-disabled);
+    --color-tint: var(--sem-tint-bg);
+    --color-tint-fg: var(--sem-tint-fg);
+    --color-success: var(--sem-success);       --color-success-fg: var(--sem-success-fg);
+    --color-success-bg: var(--sem-success-bg); --color-success-line: var(--sem-success-line);
+    --color-warning: var(--sem-warning);       --color-warning-fg: var(--sem-warning-fg);
+    --color-warning-bg: var(--sem-warning-bg); --color-warning-line: var(--sem-warning-line);
+    --color-danger: var(--sem-danger);         --color-danger-fg: var(--sem-danger-fg);
+    --color-danger-bg: var(--sem-danger-bg);   --color-danger-line: var(--sem-danger-line);
+    --color-info: var(--sem-info);             --color-info-fg: var(--sem-info-fg);
+    --color-info-bg: var(--sem-info-bg);       --color-info-line: var(--sem-info-line);
+    --color-scrim: var(--sem-scrim);
+  }
+
+  /* ============================ 基础 ============================ */
+  @layer base {
+    html { scroll-behavior: smooth; }
+    body { @apply bg-canvas text-fg font-sans antialiased; }
+    h1, h2, h3 { text-wrap: balance; }
+    p { text-wrap: pretty; }
+    ::selection { background: var(--color-primary-200); color: #062D2F; }
+    .dark ::selection { background: var(--color-primary-800); color: #D9EEEF; }
+
+    /* 焦点：2px ring + 2px offset，仅键盘触发 */
+    :focus-visible {
+      outline: 2px solid var(--sem-focus);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  /* ============================ 组件 ============================ */
+  @layer components {
+    /* ---- Button ---- */
+    .btn {
+      @apply inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium
+             relative select-none whitespace-nowrap cursor-pointer
+             transition-[background-color,border-color,color,scale] duration-150 ease-out
+             disabled:pointer-events-none;
+    }
+    .btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+    .btn-sm { @apply h-8 px-3 text-xs; }
+    .btn-md { @apply h-9 px-4; }
+    .btn-lg { @apply h-10 px-5 text-base; }
+    .btn-primary { @apply bg-primary text-white hover:bg-primary-hover active:bg-primary-active disabled:bg-primary-disabled; }
+    .btn-secondary { @apply bg-tint text-tint-fg hover:bg-primary-100 dark:hover:bg-primary-900/60 disabled:opacity-50; }
+    .btn-outline { @apply border border-line-strong bg-surface text-fg hover:bg-subtle disabled:opacity-50; }
+    .btn-ghost { @apply text-fg-muted hover:bg-subtle hover:text-fg disabled:opacity-50; }
+    .btn-danger { @apply bg-danger text-white hover:opacity-90 disabled:opacity-50; }
+    .btn-link { @apply text-tint-fg underline-offset-4 hover:underline px-1 disabled:opacity-50; }
+    .btn-icon { @apply size-9 p-0; }
+
+    /* ---- Form ---- */
+    .label { @apply block text-sm font-medium text-fg mb-1.5; }
+    .input {
+      @apply h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-sm text-fg sm:h-10
+             placeholder:text-fg-subtle
+             transition-[background-color,border-color,color] duration-150 ease-in-out focus:border-focus
+             disabled:cursor-not-allowed disabled:bg-subtle disabled:text-fg-subtle;
+    }
+    .input:not(:disabled):hover { border-color: var(--sem-focus); }
+    .input-error { @apply border-danger focus:border-danger focus:ring-danger/20; }
+    .help { @apply mt-1.5 text-xs text-fg-muted; }
+    .help-error { @apply mt-1.5 text-xs text-danger-fg; }
+
+    /* ---- Card ---- */
+    .card { @apply rounded-md border border-line bg-surface shadow-2xs; }
+
+    /* ---- Badge / Tag ---- */
+    .badge { @apply inline-flex h-5 items-center gap-1 rounded-sm px-2 text-xs font-medium; }
+    .badge-pill { @apply rounded-full; }
+
+    /* ---- 展示区容器 ---- */
+    .section-card { @apply rounded-md border border-line bg-surface shadow-2xs p-6 md:p-8; }
+    .demo-label { @apply mb-3 text-xs font-medium text-fg-muted; }
+    .nav-link { @apply flex min-h-10 items-center rounded-sm px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-subtle transition-colors duration-150; }
+    .nav-link.active { @apply bg-tint text-tint-fg font-medium; }
+
+    /* ---- Select 下拉箭头 ---- */
+    .select-arrow {
+      appearance: none;
+      color-scheme: light;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%2394A3B8'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m6%209%206%206%206-6'/%3E%3C/svg%3E");
+      background-position: right 0.75rem center;
+      background-repeat: no-repeat;
+    }
+    .dark .select-arrow {
+      color-scheme: dark;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%23A1A1AA'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m6%209%206%206%206-6'/%3E%3C/svg%3E");
+    }
+    .select-arrow:disabled { background-blend-mode: luminosity; opacity: 0.72; }
+    .select-arrow option { background: var(--sem-surface); color: var(--sem-fg); }
+
+    /* ---- Choice controls ---- */
+    .choice-row { @apply flex min-h-11 cursor-pointer items-center gap-2.5 text-sm sm:min-h-10; }
+
+    /* ---- Checkbox ---- */
+    .checkbox {
+      @apply size-4 cursor-pointer appearance-none rounded-sm border border-line-strong bg-surface
+             checked:border-primary checked:bg-primary
+             disabled:cursor-not-allowed disabled:border-line disabled:bg-subtle;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='white'%20stroke-width='3.5'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M20%206%209%2017l-5-5'/%3E%3C/svg%3E");
+      background-size: 0;
+      background-position: center;
+      background-repeat: no-repeat;
+      transition-property: background-color, border-color, background-size, scale;
+      transition-duration: var(--motion-fast);
+      transition-timing-function: var(--motion-out);
+    }
+    .checkbox:checked { background-size: 12px; }
+    .checkbox:indeterminate {
+      border-color: var(--sem-primary);
+      background-color: var(--sem-primary);
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='white'%20stroke-width='3.5'%20stroke-linecap='round'%3E%3Cpath%20d='M5%2012h14'/%3E%3C/svg%3E");
+      background-size: 10px;
+    }
+
+    /* ---- Radio ---- */
+    .radio {
+      @apply grid size-4 shrink-0 cursor-pointer appearance-none place-content-center rounded-full border border-line-strong bg-surface checked:border-primary disabled:cursor-not-allowed disabled:border-line disabled:bg-subtle;
+      transition-property: border-color, background-color, scale;
+      transition-duration: var(--motion-fast);
+      transition-timing-function: var(--motion-out);
+    }
+    .radio::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      background: var(--sem-primary);
+      opacity: 0;
+      transform: scale(0);
+      transition: transform var(--motion-fast) var(--motion-out), opacity var(--motion-fast) var(--motion-out);
+    }
+    .radio:checked::before { opacity: 1; transform: scale(1); }
+    .radio:disabled::before { background: var(--sem-fg-subtle); }
+
+    /* ---- Switch ---- */
+    .switch-control { transition: scale var(--motion-fast) var(--motion-out); }
+    .switch-track { @apply absolute inset-0 rounded-full bg-line-strong transition-colors ease-in-out peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-focus peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface; transition-duration: var(--motion-base); }
+    .switch-thumb { @apply absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-xs transition-transform ease-in-out peer-checked:translate-x-4; transition-duration: var(--motion-base); }
+
+    /* ---- Menu item ---- */
+    .menu-item { @apply flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-sm transition-colors duration-150 sm:min-h-10; }
+    .menu-item:focus-visible { outline-offset: -2px; }
+    .tag-close::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+    }
+    .dismissible { transition: opacity var(--motion-base) var(--motion-out); }
+    .progress-determinate { transition: transform var(--motion-slow) var(--motion-standard); }
+    .dropdown-chevron { transition: transform var(--motion-base) var(--motion-standard); }
+
+    /* ---- Tooltip（纯 CSS，150ms 意图延迟）---- */
+    .tip { @apply relative inline-flex; }
+    .tip-bubble {
+      @apply pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 -translate-x-1/2 translate-y-0.5
+             whitespace-nowrap rounded-sm bg-inverse px-2 py-1 text-xs text-fg-inverse opacity-0 shadow-sm
+             origin-bottom transition-[opacity,transform] duration-150 ease-out;
+    }
+    .tip:focus-within .tip-bubble {
+      @apply opacity-100 translate-y-0;
+      transition-delay: var(--motion-micro);
+    }
+
+    .interactive-card { @apply cursor-pointer transition-[transform,border-color] ease-in-out; transition-duration: var(--motion-base); }
+  }
+
+  @media (min-width: 48rem) {
+    .btn::after, .tag-close::after { width: max(100%, 40px); height: max(100%, 40px); }
+  }
+
+  /* ============================ 动效 ============================ */
+  @keyframes shake {
+    0% { transform: translateX(0); }
+    28.57% { transform: translateX(6px); }
+    57.14% { transform: translateX(-6px); }
+    78.57% { transform: translateX(4px); }
+    100% { transform: translateX(0); }
+  }
+  .animate-shake { animation: shake 280ms var(--motion-out); }
+
+  @keyframes progress-indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+  .progress-indeterminate { animation: progress-indeterminate 1.4s linear infinite; }
+
+  /* 滚动入场：按语义内容块拆分，40ms stagger */
+  .reveal > * {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity var(--motion-emphasis) var(--motion-out), transform var(--motion-emphasis) var(--motion-out);
+  }
+  .reveal > :nth-child(2) { transition-delay: var(--motion-stagger); }
+  .reveal > :nth-child(3) { transition-delay: calc(var(--motion-stagger) * 2); }
+  .reveal > :nth-child(4) { transition-delay: calc(var(--motion-stagger) * 3); }
+  .reveal > :nth-child(n + 5) { transition-delay: calc(var(--motion-stagger) * 4); }
+  .reveal.revealed > * { opacity: 1; transform: translateY(0); }
+
+  /* Dropdown / Modal / Toast 入场 */
+  .pop-panel {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.97) translateY(-4px);
+    transform-origin: top left;
+    transition: opacity var(--motion-base) var(--motion-out), transform var(--motion-base) var(--motion-out), visibility 0s linear var(--motion-base);
+  }
+  .pop-panel.is-open { visibility: visible; pointer-events: auto; opacity: 1; transform: none; transition-delay: 0s; will-change: transform, opacity; }
+  .pop-panel.is-closing { visibility: visible; opacity: 0; transform: scale(0.99) translateY(-2px); transition: opacity var(--motion-fast) var(--motion-out), transform var(--motion-fast) var(--motion-out); will-change: transform, opacity; }
+
+  .modal-root { visibility: hidden; pointer-events: none; }
+  .modal-root.is-open, .modal-root.is-closing { visibility: visible; }
+  .modal-root.is-open { pointer-events: auto; }
+  .modal-overlay { opacity: 0; transition: opacity var(--motion-base) var(--motion-out); }
+  .modal-panel { opacity: 0; transform: scale(0.96); transition: opacity var(--motion-base) var(--motion-out), transform var(--motion-base) var(--motion-out); }
+  .modal-root.is-open .modal-overlay, .modal-root.is-open .modal-panel { opacity: 1; }
+  .modal-root.is-open .modal-panel { transform: scale(1); will-change: transform, opacity; }
+  .modal-root.is-closing .modal-overlay { opacity: 0; transition-duration: var(--motion-fast); }
+  .modal-root.is-closing .modal-panel { opacity: 0; transform: scale(0.96); transition-duration: var(--motion-fast); will-change: transform, opacity; }
+
+  .toast {
+    opacity: 0;
+    transform: translateX(16px);
+    transition: opacity var(--motion-slow) var(--motion-out), transform var(--motion-slow) var(--motion-out);
+  }
+  .toast.is-open { opacity: 1; transform: none; }
+  .toast.is-closing { pointer-events: none; opacity: 0; transform: translateX(16px); transition-duration: var(--motion-medium); }
+
+  /* Accordion */
+  .acc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-base) var(--motion-standard); }
+  .acc-item[data-open="true"] .acc-body { grid-template-rows: 1fr; }
+  .acc-chevron { transition: transform var(--motion-base) var(--motion-standard); }
+  .acc-item[data-open="true"] .acc-chevron { transform: rotate(180deg); }
+
+  /* Tabs 滑动指示器 */
+  .tab-indicator { transition: transform var(--motion-base) var(--motion-standard); }
+
+  /* 主题语义色即时切换，仅状态图标保留局部动效。 */
+  html.theme-switching * { transition: none !important; }
+  html.theme-switching .theme-glyph {
+    transition: opacity var(--motion-base) var(--motion-out), transform var(--motion-base) var(--motion-out), filter var(--motion-base) var(--motion-out) !important;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn:active { scale: 0.96; }
+    .checkbox:active, .radio:active, .choice-row:active .switch-control { scale: 0.96; }
+    .interactive-card:hover { @apply -translate-y-px border-line-strong shadow-xs; }
+    .tip:hover .tip-bubble {
+      @apply opacity-100 translate-y-0;
+      transition-delay: var(--motion-micro);
+    }
+  }
+
+  /* 减少动效偏好：移除空间运动，保留必要的透明度反馈。 */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal > * { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .animate-spin, .animate-pulse, .animate-shake, .progress-indeterminate { animation: none !important; transform: none !important; }
+    .btn, .checkbox, .radio, .switch-control, .interactive-card { scale: 1 !important; transform: none !important; }
+    .tip-bubble { transform: translateX(-50%) !important; transition: opacity var(--motion-fast) var(--motion-out) !important; }
+    .pop-panel { transform: none !important; transition: opacity var(--motion-fast) var(--motion-out), visibility 0s linear var(--motion-fast) !important; }
+    .pop-panel.is-open { transition-delay: 0s !important; }
+    .modal-panel, .toast { transform: none !important; transition-property: opacity !important; transition-duration: 0.15s !important; }
+    .modal-overlay { transition-duration: 0.15s !important; }
+    .acc-body, .acc-chevron, .tab-indicator, .checkbox, .radio, .radio::before, .switch-control, .switch-track, .switch-thumb, .dropdown-chevron { transition: none !important; }
+    .theme-glyph { transform: none !important; transition: opacity var(--motion-fast) var(--motion-out) !important; }
+    html.theme-switching .theme-glyph { transform: none !important; transition: opacity var(--motion-fast) var(--motion-out) !important; }
+  }
+</style>
+</head>
+
+<body>
+
+<a href="#main-content" class="sr-only z-50 rounded-sm bg-surface px-3 py-2 text-sm font-medium text-fg shadow-sm focus:not-sr-only focus:fixed focus:left-3 focus:top-3">跳到主要内容</a>
+
+<!-- ============================ Header ============================ -->
+<header class="sticky top-0 z-30 border-b border-line bg-surface/80 backdrop-blur-sm">
+  <div class="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:px-6">
+    <div class="flex items-center gap-2.5">
+      <div class="flex size-7 items-center justify-center rounded-md bg-primary text-white">
+        <i data-lucide="layers" class="size-4"></i>
+      </div>
+      <div>
+        <span class="text-sm font-semibold">Aria Design System</span>
+        <span class="ml-2 hidden text-xs text-fg-muted sm:inline">Flat 2.0 · Minimal · Teal</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="badge badge-pill bg-tint text-tint-fg">v1.0</span>
+      <button id="theme-toggle" class="btn btn-ghost btn-icon relative" aria-label="深色主题" aria-pressed="true">
+        <i data-lucide="sun" class="theme-glyph size-4 dark:rotate-90 dark:scale-[0.25] dark:opacity-0 dark:blur-[4px]"></i>
+        <i data-lucide="moon" class="theme-glyph absolute size-4 -rotate-90 scale-[0.25] opacity-0 blur-[4px] dark:rotate-0 dark:scale-100 dark:opacity-100 dark:blur-0"></i>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="mx-auto flex max-w-7xl gap-8 px-4 md:px-6">
+
+  <!-- ============================ 侧边导航 ============================ -->
+  <aside class="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-44 shrink-0 overflow-y-auto py-8 lg:block" aria-label="页面导航">
+    <nav id="side-nav" class="space-y-0.5">
+      <p class="px-3 pb-2 text-xs font-semibold text-fg-muted">目录</p>
+      <a href="#foundations" class="nav-link">Foundations 基础</a>
+      <a href="#buttons" class="nav-link">Buttons 按钮</a>
+      <a href="#forms" class="nav-link">Forms 表单</a>
+      <a href="#data" class="nav-link">Data Display 数据</a>
+      <a href="#navigation" class="nav-link">Navigation 导航</a>
+      <a href="#feedback" class="nav-link">Feedback 反馈</a>
+      <a href="#motion" class="nav-link">Motion 动效</a>
+    </nav>
+  </aside>
+
+  <!-- ============================ 主内容 ============================ -->
+  <main id="main-content" class="min-w-0 flex-1 space-y-16 py-10">
+
+    <!-- Hero -->
+    <section class="reveal">
+      <h1 class="text-balance text-4xl font-bold">淡雅 · 优雅 · 视觉清爽</h1>
+      <p class="mt-3 max-w-xl text-fg-muted leading-normal">
+        Flat 2.0 + Minimal 设计语言：结构靠 1px 边框与留白，层级靠克制的青瓷语义色，圆角不超过 6px。
+        A calm, elegant, visually clean design language — structure first, color as accent.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="#buttons" class="btn btn-primary btn-md">开始使用 <i data-lucide="arrow-right" class="size-4"></i></a>
+        <a href="DESIGN.md" class="btn btn-outline btn-md">查看文档</a>
+      </div>
+    </section>
+
+    <!-- ==================== Foundations ==================== -->
+    <section id="foundations" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Foundations 基础</h2>
+        <p class="mt-1 text-sm text-fg-muted">色彩、字号、间距、圆角、阴影 —— 点击色块复制 HEX。</p>
+      </div>
+
+      <!-- 色板 -->
+      <div class="section-card space-y-6">
+        <div>
+          <p class="demo-label">Primary · Teal 青瓷</p>
+          <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-11" id="palette-teal"></div>
+        </div>
+        <div>
+          <p class="demo-label">Neutral · Slate（Light）</p>
+          <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-11" id="palette-slate"></div>
+        </div>
+        <div>
+          <p class="demo-label">Neutral · Zinc（Dark）</p>
+          <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-11" id="palette-zinc"></div>
+        </div>
+        <div>
+          <p class="demo-label">Semantic 语义色</p>
+          <div class="flex flex-wrap gap-4">
+            <div class="flex items-center gap-2"><span class="size-4 rounded-sm bg-success"></span><span class="text-sm">Success</span></div>
+            <div class="flex items-center gap-2"><span class="size-4 rounded-sm bg-warning"></span><span class="text-sm">Warning</span></div>
+            <div class="flex items-center gap-2"><span class="size-4 rounded-sm bg-danger"></span><span class="text-sm">Danger</span></div>
+            <div class="flex items-center gap-2"><span class="size-4 rounded-sm bg-info"></span><span class="text-sm">Info</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 字号 / 间距 / 圆角 / 阴影 -->
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div class="section-card">
+          <p class="demo-label">Typography 字号阶梯</p>
+          <div class="space-y-3">
+            <p class="text-4xl font-bold leading-tight">36 / Display 标题</p>
+            <p class="text-2xl font-semibold leading-tight">24 / Heading 标题</p>
+            <p class="text-lg font-medium leading-snug">18 / Subtitle 副标题</p>
+            <p class="text-base leading-normal">16 / Body 正文 The quick brown fox</p>
+            <p class="text-sm text-fg-muted leading-normal">14 / Secondary 次要文字</p>
+            <p class="text-xs text-fg-muted leading-normal">12 / Caption 辅助说明</p>
+            <p class="font-mono text-sm text-fg-muted">mono: const radius = "6px";</p>
+          </div>
+        </div>
+        <div class="space-y-6">
+          <div class="section-card">
+            <p class="demo-label">Spacing 间距（4px 基准）</p>
+            <div class="space-y-2">
+              <div class="flex items-center gap-3"><span class="w-8 font-mono text-xs text-fg-muted">4</span><div class="h-3 w-1 rounded-xs bg-primary/70"></div></div>
+              <div class="flex items-center gap-3"><span class="w-8 font-mono text-xs text-fg-muted">8</span><div class="h-3 w-2 rounded-xs bg-primary/70"></div></div>
+              <div class="flex items-center gap-3"><span class="w-8 font-mono text-xs text-fg-muted">16</span><div class="h-3 w-4 rounded-xs bg-primary/70"></div></div>
+              <div class="flex items-center gap-3"><span class="w-8 font-mono text-xs text-fg-muted">24</span><div class="h-3 w-6 rounded-xs bg-primary/70"></div></div>
+              <div class="flex items-center gap-3"><span class="w-8 font-mono text-xs text-fg-muted">32</span><div class="h-3 w-8 rounded-xs bg-primary/70"></div></div>
+              <div class="flex items-center gap-3"><span class="w-8 font-mono text-xs text-fg-muted">48</span><div class="h-3 w-12 rounded-xs bg-primary/70"></div></div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="grid gap-6 sm:grid-cols-2">
+              <div>
+                <p class="demo-label">Radius 圆角（≤ 6px）</p>
+                <div class="grid grid-cols-4 gap-3">
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-xs border border-line-strong bg-subtle"></div><span class="font-mono text-xs text-fg-muted">2</span></div>
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-sm border border-line-strong bg-subtle"></div><span class="font-mono text-xs text-fg-muted">4</span></div>
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-md border border-line-strong bg-subtle"></div><span class="font-mono text-xs text-fg-muted">6</span></div>
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-full border border-line-strong bg-subtle"></div><span class="font-mono text-xs text-fg-muted">full*</span></div>
+                </div>
+                <p class="help">* full 仅限头像、胶囊/状态点、开关、单选、进度与步骤点</p>
+              </div>
+              <div>
+                <p class="demo-label">Shadow 阴影</p>
+                <div class="grid grid-cols-4 gap-3">
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-md border border-line bg-surface shadow-2xs"></div><span class="font-mono text-xs text-fg-muted">2xs</span></div>
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-md border border-line bg-surface shadow-xs"></div><span class="font-mono text-xs text-fg-muted">xs</span></div>
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-md border border-line bg-surface shadow-sm"></div><span class="font-mono text-xs text-fg-muted">sm</span></div>
+                  <div class="text-center"><div class="mx-auto aspect-square w-full max-w-10 rounded-md border border-line bg-surface shadow-md"></div><span class="font-mono text-xs text-fg-muted">md</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== Buttons ==================== -->
+    <section id="buttons" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Buttons 按钮</h2>
+        <p class="mt-1 text-sm text-fg-muted">颜色优先：实心青瓷只给最高优先级动作；按下时轻微缩放 scale(0.96)。</p>
+      </div>
+      <div class="section-card space-y-8">
+        <div>
+          <p class="demo-label">Variants 变体</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <button class="btn btn-primary btn-md">Primary 主要</button>
+            <button class="btn btn-secondary btn-md">Secondary 次要</button>
+            <button class="btn btn-outline btn-md">Outline 描边</button>
+            <button class="btn btn-ghost btn-md">Ghost 幽灵</button>
+            <button class="btn btn-danger btn-md">Danger 危险</button>
+            <button class="btn btn-link btn-md">Link 链接</button>
+          </div>
+        </div>
+        <div>
+          <p class="demo-label">Sizes 尺寸</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <button class="btn btn-primary btn-sm">Small 32px</button>
+            <button class="btn btn-primary btn-md">Medium 36px</button>
+            <button class="btn btn-primary btn-lg">Large 40px</button>
+          </div>
+        </div>
+        <div>
+          <p class="demo-label">States & Icons 状态与图标</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <button class="btn btn-primary btn-md" disabled>Disabled 禁用</button>
+            <button class="btn btn-primary btn-md" disabled aria-busy="true">
+              <svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+              Loading 加载中
+            </button>
+            <button class="btn btn-outline btn-md"><i data-lucide="download" class="size-4"></i> 下载</button>
+            <button class="btn btn-secondary btn-md">发送 <i data-lucide="send" class="size-4"></i></button>
+            <span class="tip">
+              <button class="btn btn-outline btn-icon" aria-label="设置" aria-describedby="tooltip-settings"><i data-lucide="settings" class="size-4"></i></button>
+              <span id="tooltip-settings" class="tip-bubble" role="tooltip">设置 Settings</span>
+            </span>
+            <span class="tip">
+              <button class="btn btn-ghost btn-icon" aria-label="更多" aria-describedby="tooltip-more"><i data-lucide="ellipsis" class="size-4"></i></button>
+              <span id="tooltip-more" class="tip-bubble" role="tooltip">更多操作</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== Forms ==================== -->
+    <section id="forms" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Forms 表单</h2>
+        <p class="mt-1 text-sm text-fg-muted">聚焦时 2px 青瓷 ring；错误态 rose 边框 + shake 动画。</p>
+      </div>
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div class="section-card space-y-5">
+          <div>
+            <label class="label" for="f-name">用户名 Username</label>
+            <input id="f-name" class="input" type="text" placeholder="输入用户名…">
+            <p class="help">3–20 个字符，支持字母与数字。</p>
+          </div>
+          <div>
+            <label class="label" for="f-search">搜索 Search（带图标）</label>
+            <div class="relative">
+              <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-subtle"></i>
+              <input id="f-search" class="input pl-9" type="search" placeholder="搜索组件…">
+            </div>
+          </div>
+          <div>
+            <label class="label" for="f-error">邮箱 Email（错误态）</label>
+            <input id="f-error" class="input input-error" type="email" value="invalid@@example" aria-invalid="true" aria-describedby="f-error-message">
+            <p id="f-error-message" class="help-error flex items-center gap-1"><i data-lucide="circle-alert" class="size-3.5"></i>邮箱格式不正确</p>
+          </div>
+          <div>
+            <label class="label" for="f-disabled">禁用 Disabled</label>
+            <input id="f-disabled" class="input" type="text" value="不可编辑" disabled>
+          </div>
+          <div>
+            <label class="label" for="f-select">选择框 Select</label>
+            <select id="f-select" class="input select-arrow pr-9">
+              <option>Teal（默认）</option><option>Slate</option><option>Emerald</option><option disabled>Indigo（不可用）</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="f-textarea">备注 Textarea</label>
+            <textarea id="f-textarea" class="input h-auto min-h-20 py-2 resize-y" placeholder="补充说明…"></textarea>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="section-card space-y-5">
+            <div>
+              <p class="demo-label">Checkbox 复选框</p>
+              <div class="space-y-2.5">
+                <label class="choice-row">
+                  <input type="checkbox" checked class="checkbox">
+                  接收产品更新邮件
+                </label>
+                <label class="choice-row">
+                  <input type="checkbox" class="checkbox">
+                  订阅每周精选
+                </label>
+                <label class="choice-row">
+                  <input id="checkbox-mixed" type="checkbox" class="checkbox" aria-label="部分选择">
+                  部分选择 Indeterminate
+                </label>
+                <label class="choice-row cursor-not-allowed! text-fg-subtle">
+                  <input type="checkbox" disabled class="checkbox">
+                  禁用选项
+                </label>
+              </div>
+            </div>
+            <div>
+              <p class="demo-label">Radio 单选框</p>
+              <div class="space-y-2.5">
+                <label class="choice-row">
+                  <input type="radio" name="plan" checked class="radio">
+                  基础版 Basic
+                </label>
+                <label class="choice-row">
+                  <input type="radio" name="plan" class="radio">
+                  专业版 Pro
+                </label>
+              </div>
+            </div>
+            <div>
+              <p class="demo-label">Switch 开关（thumb 250ms 滑动）</p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <label class="choice-row">
+                  <span class="switch-control relative inline-block h-5 w-9 shrink-0">
+                    <input type="checkbox" checked class="peer sr-only">
+                    <span class="switch-track"></span>
+                    <span class="switch-thumb"></span>
+                  </span>
+                  暗黑模式跟随系统
+                </label>
+                <label class="choice-row">
+                  <span class="switch-control relative inline-block h-5 w-9 shrink-0">
+                    <input type="checkbox" class="peer sr-only">
+                    <span class="switch-track"></span>
+                    <span class="switch-thumb"></span>
+                  </span>
+                  通知
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="demo-label block" for="volume-slider">Slider 滑块</label>
+              <input id="volume-slider" type="range" min="0" max="100" value="60" class="h-11 w-full accent-[var(--sem-primary)] sm:h-10">
+            </div>
+          </div>
+
+          <!-- 完整表单示例 -->
+          <form id="demo-form" class="section-card space-y-4" novalidate>
+            <div>
+              <h3 class="text-base font-semibold">登录 Sign in</h3>
+              <p class="mt-0.5 text-sm text-fg-muted">提交空邮箱可查看错误 shake 动画。</p>
+            </div>
+            <div>
+              <label class="label" for="login-email">邮箱</label>
+              <input id="login-email" class="input" type="email" name="email" autocomplete="username" placeholder="you@example.com" aria-describedby="login-email-error">
+              <p id="login-email-error" class="help-error hidden items-center gap-1" data-error aria-live="polite"><i data-lucide="circle-alert" class="size-3.5"></i>请输入有效邮箱</p>
+            </div>
+            <div>
+              <label class="label" for="login-pwd">密码</label>
+              <input id="login-pwd" class="input" type="password" name="password" autocomplete="current-password" placeholder="••••••••" aria-describedby="login-password-error">
+              <p id="login-password-error" class="help-error hidden items-center gap-1" data-error aria-live="polite"><i data-lucide="circle-alert" class="size-3.5"></i>请输入密码</p>
+            </div>
+            <button type="submit" class="btn btn-primary btn-md w-full">登录</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== Data Display ==================== -->
+    <section id="data" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Data Display 数据展示</h2>
+        <p class="mt-1 text-sm text-fg-muted">结构优先：1px 边框与斑马纹组织信息；静态数据卡片不伪装成可点元素。</p>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div class="card p-6">
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-fg-muted">月活跃用户</p>
+            <i data-lucide="users" class="size-4 text-fg-subtle"></i>
+          </div>
+          <p class="mt-2 text-2xl font-semibold tabular-nums">24,318</p>
+          <p class="mt-1 flex items-center gap-1 text-xs text-success-fg"><i data-lucide="trending-up" class="size-3.5"></i>+12.4% 较上月</p>
+        </div>
+        <div class="card p-6">
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-fg-muted">转化率</p>
+            <i data-lucide="percent" class="size-4 text-fg-subtle"></i>
+          </div>
+          <p class="mt-2 text-2xl font-semibold tabular-nums">3.42%</p>
+          <p class="mt-1 flex items-center gap-1 text-xs text-danger-fg"><i data-lucide="trending-down" class="size-3.5"></i>-0.8% 较上月</p>
+        </div>
+        <div class="card p-6">
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-fg-muted">收入 MRR</p>
+            <i data-lucide="circle-dollar-sign" class="size-4 text-fg-subtle"></i>
+          </div>
+          <p class="mt-2 text-2xl font-semibold tabular-nums">¥86,400</p>
+          <p class="mt-1 flex items-center gap-1 text-xs text-success-fg"><i data-lucide="trending-up" class="size-3.5"></i>+6.1% 较上月</p>
+        </div>
+      </div>
+
+      <div class="grid min-w-0 gap-6 lg:grid-cols-2">
+        <!-- Badge / Tag / Avatar / Progress -->
+        <div class="section-card min-w-0 space-y-6">
+          <div>
+            <p class="demo-label">Badge 徽标</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge bg-tint text-tint-fg">默认</span>
+              <span class="badge bg-success-bg text-success-fg">成功</span>
+              <span class="badge bg-warning-bg text-warning-fg">警告</span>
+              <span class="badge bg-danger-bg text-danger-fg">错误</span>
+              <span class="badge bg-info-bg text-info-fg">信息</span>
+              <span class="badge badge-pill bg-tint text-tint-fg"><span class="size-1.5 rounded-full bg-primary"></span>运行中</span>
+              <span class="badge badge-pill border border-line text-fg-muted">Pill 描边</span>
+            </div>
+          </div>
+          <div>
+            <p class="demo-label">Tag 标签（可关闭）</p>
+            <div id="tag-group" class="flex flex-wrap gap-2">
+              <span class="dismissible badge bg-subtle text-fg-muted">Tailwind<button class="tag-close relative -mr-0.5 inline-flex size-4 items-center justify-center rounded-xs hover:text-fg" aria-label="移除 Tailwind 标签"><i data-lucide="x" class="size-3"></i></button></span>
+              <span class="dismissible badge bg-subtle text-fg-muted">Teal<button class="tag-close relative -mr-0.5 inline-flex size-4 items-center justify-center rounded-xs hover:text-fg" aria-label="移除 Teal 标签"><i data-lucide="x" class="size-3"></i></button></span>
+              <span class="dismissible badge bg-subtle text-fg-muted">Flat 2.0<button class="tag-close relative -mr-0.5 inline-flex size-4 items-center justify-center rounded-xs hover:text-fg" aria-label="移除 Flat 2.0 标签"><i data-lucide="x" class="size-3"></i></button></span>
+              <span class="dismissible badge bg-subtle text-fg-muted">Minimal<button class="tag-close relative -mr-0.5 inline-flex size-4 items-center justify-center rounded-xs hover:text-fg" aria-label="移除 Minimal 标签"><i data-lucide="x" class="size-3"></i></button></span>
+            </div>
+          </div>
+          <div>
+            <p class="demo-label">Avatar 头像</p>
+            <div class="flex items-center gap-6">
+              <div class="flex items-center gap-3">
+                <span class="flex size-7 items-center justify-center rounded-full bg-tint text-xs font-medium text-tint-fg">SM</span>
+                <span class="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-medium text-white">MD</span>
+                <span class="flex size-12 items-center justify-center rounded-full bg-subtle text-base font-medium text-fg-muted">LG</span>
+              </div>
+              <div class="flex -space-x-2">
+                <span class="flex size-9 items-center justify-center rounded-full bg-primary-600 text-xs font-medium text-white ring-2 ring-surface">A</span>
+                <span class="flex size-9 items-center justify-center rounded-full bg-primary-500 text-xs font-medium text-white ring-2 ring-surface">B</span>
+                <span class="flex size-9 items-center justify-center rounded-full bg-primary-700 text-xs font-medium text-white ring-2 ring-surface">C</span>
+                <span class="flex size-9 items-center justify-center rounded-full bg-subtle text-xs font-medium text-fg-muted ring-2 ring-surface">+5</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="demo-label">Progress 进度条</p>
+            <div class="space-y-4">
+              <div>
+                <div class="mb-1.5 flex justify-between text-xs text-fg-muted"><span>存储空间</span><span>68%</span></div>
+                <div class="h-1.5 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-label="存储空间" aria-valuemin="0" aria-valuemax="100" aria-valuenow="68">
+                  <div id="progress-demo" class="progress-determinate h-full w-full origin-left rounded-full bg-primary [transform:scaleX(0.68)]"></div>
+                </div>
+              </div>
+              <div>
+                <div class="mb-1.5 text-xs text-fg-muted">不确定状态 Indeterminate</div>
+                <div class="h-1.5 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-label="正在加载">
+                  <div class="progress-indeterminate h-full w-1/4 rounded-full bg-primary"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="demo-label">Skeleton 骨架屏（pulse）</p>
+            <div class="flex items-center gap-3" role="status" aria-label="内容加载中">
+              <div class="size-10 animate-pulse rounded-full bg-subtle" aria-hidden="true"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-3.5 w-2/5 animate-pulse rounded-sm bg-subtle" aria-hidden="true"></div>
+                <div class="h-3 w-4/5 animate-pulse rounded-sm bg-subtle" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table + Empty state -->
+        <div class="min-w-0 space-y-6">
+          <div class="card overflow-hidden">
+            <div class="flex items-center justify-between border-b border-line px-5 py-3.5">
+              <h3 id="members-title" class="text-sm font-semibold">成员列表 Members</h3>
+              <button class="btn btn-secondary btn-sm"><i data-lucide="plus" class="size-3.5"></i>邀请</button>
+            </div>
+            <div class="overflow-x-auto">
+            <table class="w-full min-w-xl text-sm leading-5" aria-labelledby="members-title">
+              <thead>
+                <tr class="border-b border-line text-left text-xs text-fg-muted">
+                  <th class="px-4 py-3.5 font-medium" scope="col">成员</th>
+                  <th class="px-4 py-3.5 font-medium" scope="col">角色</th>
+                  <th class="px-4 py-3.5 font-medium" scope="col">状态</th>
+                  <th class="px-4 py-3.5 text-right font-medium" scope="col">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-line transition-colors duration-150 hover:bg-subtle">
+                  <td class="px-4 py-3.5"><div class="flex items-center gap-2.5"><span class="flex size-7 items-center justify-center rounded-full bg-primary text-xs text-white">林</span>林晚舟</div></td>
+                  <td class="px-4 py-3.5 text-fg-muted">Owner</td>
+                  <td class="px-4 py-3.5"><span class="badge badge-pill bg-success-bg text-success-fg"><span class="size-1.5 rounded-full bg-success"></span>活跃</span></td>
+                  <td class="px-4 py-3.5 text-right"><button class="btn btn-ghost btn-sm">编辑</button></td>
+                </tr>
+                <tr class="border-b border-line bg-subtle/50 transition-colors duration-150 hover:bg-subtle">
+                  <td class="px-4 py-3.5"><div class="flex items-center gap-2.5"><span class="flex size-7 items-center justify-center rounded-full bg-primary-700 text-xs text-white">沈</span>沈青梧</div></td>
+                  <td class="px-4 py-3.5 text-fg-muted">Editor</td>
+                  <td class="px-4 py-3.5"><span class="badge badge-pill bg-warning-bg text-warning-fg"><span class="size-1.5 rounded-full bg-warning"></span>离开</span></td>
+                  <td class="px-4 py-3.5 text-right"><button class="btn btn-ghost btn-sm">编辑</button></td>
+                </tr>
+                <tr class="transition-colors duration-150 hover:bg-subtle">
+                  <td class="px-4 py-3.5"><div class="flex items-center gap-2.5"><span class="flex size-7 items-center justify-center rounded-full bg-subtle text-xs text-fg-muted">顾</span>顾北辰</div></td>
+                  <td class="px-4 py-3.5 text-fg-muted">Viewer</td>
+                  <td class="px-4 py-3.5"><span class="badge badge-pill bg-subtle text-fg-muted"><span class="size-1.5 rounded-full bg-fg-subtle"></span>离线</span></td>
+                  <td class="px-4 py-3.5 text-right"><button class="btn btn-ghost btn-sm">编辑</button></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+
+          <div class="section-card flex flex-col items-center py-12 text-center">
+            <div class="flex size-12 items-center justify-center rounded-md bg-subtle">
+              <i data-lucide="inbox" class="size-5 text-fg-subtle"></i>
+            </div>
+            <h3 class="mt-4 text-sm font-semibold">暂无数据 No data yet</h3>
+            <p class="mt-1 max-w-60 text-sm text-fg-muted">创建你的第一个项目，数据将在这里展示。</p>
+            <button class="btn btn-primary btn-sm mt-4"><i data-lucide="plus" class="size-3.5"></i>新建项目</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== Navigation ==================== -->
+    <section id="navigation" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Navigation 导航</h2>
+        <p class="mt-1 text-sm text-fg-muted">Tabs 下划线指示器 250ms 滑动；Dropdown 250ms 入场 / 150ms 退出。</p>
+      </div>
+      <div class="section-card space-y-8">
+        <!-- Navbar demo -->
+        <div>
+          <p class="demo-label">Navbar 导航栏</p>
+          <div class="flex h-12 items-center justify-between rounded-md border border-line bg-surface px-4">
+            <div class="flex items-center gap-6">
+              <span class="flex items-center gap-2 text-sm font-semibold"><span class="flex size-5 items-center justify-center rounded-sm bg-primary text-white"><i data-lucide="layers" class="size-3"></i></span>Aria</span>
+              <nav class="hidden items-center gap-1 sm:flex">
+                <a href="#foundations" class="rounded-sm bg-tint px-3 py-1.5 text-sm font-medium text-tint-fg" aria-current="page">概览</a>
+                <a href="#data" class="rounded-sm px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 hover:bg-subtle hover:text-fg">项目</a>
+                <a href="#forms" class="rounded-sm px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 hover:bg-subtle hover:text-fg">团队</a>
+              </nav>
+            </div>
+            <span class="flex size-7 items-center justify-center rounded-full bg-primary text-xs text-white">林</span>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div>
+          <p class="demo-label">Tabs 标签页（滑动指示器）</p>
+          <div id="tabs" class="relative border-b border-line" role="tablist" aria-label="设置分类">
+            <div class="grid grid-cols-4">
+              <button id="tab-account" class="tab-btn relative min-h-11 px-2 py-2.5 text-sm font-medium text-fg transition-colors duration-150 sm:min-h-10 sm:px-4" data-tab="0" role="tab" aria-selected="true" aria-controls="panel-account" tabindex="0">账户</button>
+              <button id="tab-notifications" class="tab-btn relative min-h-11 px-2 py-2.5 text-sm text-fg-muted transition-colors duration-150 hover:text-fg sm:min-h-10 sm:px-4" data-tab="1" role="tab" aria-selected="false" aria-controls="panel-notifications" tabindex="-1">通知</button>
+              <button id="tab-security" class="tab-btn relative min-h-11 px-2 py-2.5 text-sm text-fg-muted transition-colors duration-150 hover:text-fg sm:min-h-10 sm:px-4" data-tab="2" role="tab" aria-selected="false" aria-controls="panel-security" tabindex="-1">安全</button>
+              <button id="tab-billing" class="tab-btn relative min-h-11 px-2 py-2.5 text-sm text-fg-muted transition-colors duration-150 hover:text-fg sm:min-h-10 sm:px-4" data-tab="3" role="tab" aria-selected="false" aria-controls="panel-billing" tabindex="-1">账单</button>
+            </div>
+            <span id="tab-indicator" class="tab-indicator absolute bottom-0 left-0 h-0.5 w-1/4 bg-primary" aria-hidden="true"></span>
+          </div>
+          <div class="pt-4 text-sm text-fg-muted">
+            <p id="panel-account" class="tab-panel" data-panel="0" role="tabpanel" aria-labelledby="tab-account">账户面板：管理个人资料与偏好设置。</p>
+            <p id="panel-notifications" class="tab-panel hidden" data-panel="1" role="tabpanel" aria-labelledby="tab-notifications">通知面板：配置邮件与站内推送。</p>
+            <p id="panel-security" class="tab-panel hidden" data-panel="2" role="tabpanel" aria-labelledby="tab-security">安全面板：两步验证与登录设备。</p>
+            <p id="panel-billing" class="tab-panel hidden" data-panel="3" role="tabpanel" aria-labelledby="tab-billing">账单面板：订阅计划与发票。</p>
+          </div>
+        </div>
+
+        <div class="grid gap-8 md:grid-cols-2">
+          <!-- Breadcrumb + Pagination -->
+          <div class="space-y-8">
+            <div>
+              <p class="demo-label">Breadcrumb 面包屑</p>
+              <nav class="flex items-center gap-1.5 text-sm" aria-label="面包屑">
+                <a href="#navigation" class="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted transition-colors duration-150 hover:text-fg sm:min-h-10 sm:min-w-10">首页</a>
+                <i data-lucide="chevron-right" class="size-3.5 text-fg-subtle"></i>
+                <a href="#navigation" class="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted transition-colors duration-150 hover:text-fg sm:min-h-10 sm:min-w-10">组件</a>
+                <i data-lucide="chevron-right" class="size-3.5 text-fg-subtle"></i>
+                <span class="font-medium text-fg" aria-current="page">导航</span>
+              </nav>
+            </div>
+            <div>
+              <p class="demo-label">Pagination 分页</p>
+              <nav class="flex items-center gap-3 sm:gap-2" aria-label="分页">
+                <button class="btn btn-ghost btn-icon size-8!" aria-label="上一页"><i data-lucide="chevron-left" class="size-4"></i></button>
+                <button class="btn btn-ghost size-8! p-0! text-xs">1</button>
+                <button class="btn size-8! bg-tint p-0! text-xs font-medium text-tint-fg" aria-current="page" aria-label="第 2 页">2</button>
+                <button class="btn btn-ghost size-8! p-0! text-xs">3</button>
+                <span class="px-1 text-fg-subtle">…</span>
+                <button class="btn btn-ghost size-8! p-0! text-xs">12</button>
+                <button class="btn btn-ghost btn-icon size-8!" aria-label="下一页"><i data-lucide="chevron-right" class="size-4"></i></button>
+              </nav>
+            </div>
+            <div>
+              <p class="demo-label">Dropdown 下拉菜单</p>
+              <div class="relative inline-block">
+                <button id="dropdown-trigger" class="btn btn-outline btn-md" aria-haspopup="menu" aria-expanded="false" aria-controls="dropdown-menu">
+                  操作 <i data-lucide="chevron-down" class="dropdown-chevron size-4" id="dropdown-chevron"></i>
+                </button>
+                <div id="dropdown-menu" class="pop-panel absolute left-0 top-full z-20 mt-1.5 w-48 rounded-md border border-line bg-surface p-1 shadow-sm" data-origin="top-left" role="menu" aria-labelledby="dropdown-trigger" aria-hidden="true">
+                  <button class="menu-item text-fg hover:bg-subtle focus-visible:bg-subtle" role="menuitem" tabindex="-1"><i data-lucide="pencil" class="size-4 text-fg-muted"></i>编辑</button>
+                  <button class="menu-item text-fg hover:bg-subtle focus-visible:bg-subtle" role="menuitem" tabindex="-1"><i data-lucide="copy" class="size-4 text-fg-muted"></i>复制链接</button>
+                  <button class="menu-item text-fg hover:bg-subtle focus-visible:bg-subtle" role="menuitem" tabindex="-1"><i data-lucide="share-2" class="size-4 text-fg-muted"></i>分享</button>
+                  <div class="my-1 h-px bg-line" role="separator"></div>
+                  <button class="menu-item text-danger-fg hover:bg-danger-bg focus-visible:bg-danger-bg" role="menuitem" tabindex="-1"><i data-lucide="trash-2" class="size-4"></i>删除</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stepper + Accordion -->
+          <div class="space-y-8">
+            <div>
+              <p class="demo-label">Stepper 步骤条</p>
+              <ol class="flex items-center">
+                <li class="flex items-center">
+                  <span class="flex size-7 items-center justify-center rounded-full bg-primary text-white"><i data-lucide="check" class="size-3.5"></i></span>
+                  <span class="ml-2 text-sm font-medium">账户</span>
+                </li>
+                <li class="mx-3 h-px flex-1 bg-primary" role="presentation" aria-hidden="true"></li>
+                <li class="flex items-center" aria-current="step">
+                  <span class="flex size-7 items-center justify-center rounded-full border-2 border-primary text-xs font-semibold text-tint-fg">2</span>
+                  <span class="ml-2 text-sm font-medium">资料</span>
+                </li>
+                <li class="mx-3 h-px flex-1 bg-line" role="presentation" aria-hidden="true"></li>
+                <li class="flex items-center">
+                  <span class="flex size-7 items-center justify-center rounded-full border border-line-strong text-xs text-fg-muted">3</span>
+                  <span class="ml-2 text-sm text-fg-muted">完成</span>
+                </li>
+              </ol>
+            </div>
+            <div>
+              <p class="demo-label">Accordion 手风琴</p>
+              <div class="divide-y divide-line rounded-md border border-line">
+                <div class="acc-item" data-open="true">
+                  <button id="acc-trigger-1" class="acc-trigger flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors duration-150 hover:bg-subtle" aria-expanded="true" aria-controls="acc-panel-1">
+                    什么是 Flat 2.0？
+                    <i data-lucide="chevron-down" class="acc-chevron size-4 text-fg-subtle"></i>
+                  </button>
+                  <div id="acc-panel-1" class="acc-body" role="region" aria-labelledby="acc-trigger-1" aria-hidden="false"><div class="overflow-hidden"><p class="px-4 pb-3.5 text-sm text-fg-muted">在纯平面基础上加入极轻的深度暗示：1px 边框与极淡阴影，无渐变堆砌与拟物。</p></div></div>
+                </div>
+                <div class="acc-item" data-open="false">
+                  <button id="acc-trigger-2" class="acc-trigger flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors duration-150 hover:bg-subtle" aria-expanded="false" aria-controls="acc-panel-2">
+                    为什么圆角不超过 6px？
+                    <i data-lucide="chevron-down" class="acc-chevron size-4 text-fg-subtle"></i>
+                  </button>
+                  <div id="acc-panel-2" class="acc-body" role="region" aria-labelledby="acc-trigger-2" aria-hidden="true"><div class="overflow-hidden"><p class="px-4 pb-3.5 text-sm text-fg-muted">小圆角保持克制、利落的几何感，与 Minimal 的低装饰原则一致。</p></div></div>
+                </div>
+                <div class="acc-item" data-open="false">
+                  <button id="acc-trigger-3" class="acc-trigger flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors duration-150 hover:bg-subtle" aria-expanded="false" aria-controls="acc-panel-3">
+                    暗黑模式如何实现？
+                    <i data-lucide="chevron-down" class="acc-chevron size-4 text-fg-subtle"></i>
+                  </button>
+                  <div id="acc-panel-3" class="acc-body" role="region" aria-labelledby="acc-trigger-3" aria-hidden="true"><div class="overflow-hidden"><p class="px-4 pb-3.5 text-sm text-fg-muted">语义颜色角色在 dark 模式下整体重映射，组件结构保持不变。</p></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== Feedback ==================== -->
+    <section id="feedback" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Feedback 反馈</h2>
+        <p class="mt-1 text-sm text-fg-muted">Alert tint 底 + 左侧 3px 色条；Toast 右下角滑入，4s 自动消退。</p>
+      </div>
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div class="section-card space-y-3">
+          <p class="demo-label">Alert 警告框</p>
+          <div class="flex gap-3 rounded-md border-l-[3px] border-success-line bg-success-bg p-4">
+            <i data-lucide="circle-check" class="size-4.5 shrink-0 text-success-fg"></i>
+            <div class="text-sm"><p class="font-medium text-success-fg">部署成功</p><p class="mt-0.5 text-success-fg">v2.4.0 已发布至生产环境。</p></div>
+          </div>
+          <div class="flex gap-3 rounded-md border-l-[3px] border-warning-line bg-warning-bg p-4">
+            <i data-lucide="triangle-alert" class="size-4.5 shrink-0 text-warning-fg"></i>
+            <div class="text-sm"><p class="font-medium text-warning-fg">存储即将用尽</p><p class="mt-0.5 text-warning-fg">已使用 92%，请及时清理或升级。</p></div>
+          </div>
+          <div class="flex gap-3 rounded-md border-l-[3px] border-danger-line bg-danger-bg p-4">
+            <i data-lucide="circle-x" class="size-4.5 shrink-0 text-danger-fg"></i>
+            <div class="text-sm"><p class="font-medium text-danger-fg">构建失败</p><p class="mt-0.5 text-danger-fg">在 build 阶段出现 2 个错误，查看日志。</p></div>
+          </div>
+          <div class="flex gap-3 rounded-md border-l-[3px] border-info-line bg-info-bg p-4">
+            <i data-lucide="info" class="size-4.5 shrink-0 text-info-fg"></i>
+            <div class="text-sm"><p class="font-medium text-info-fg">新版本可用</p><p class="mt-0.5 text-info-fg">v2.5.0 包含性能改进与若干修复。</p></div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="section-card space-y-4">
+            <p class="demo-label">Toast / Modal / Banner 触发</p>
+            <div class="flex flex-wrap gap-3">
+              <button class="btn btn-outline btn-md" data-toast="success">成功 Toast</button>
+              <button class="btn btn-outline btn-md" data-toast="danger">错误 Toast</button>
+              <button class="btn btn-outline btn-md" data-toast="info">信息 Toast</button>
+              <button id="modal-open" class="btn btn-primary btn-md">打开 Modal</button>
+            </div>
+            <div>
+              <p class="demo-label mt-2">Banner 横幅</p>
+              <div id="banner" class="dismissible flex items-center justify-between gap-3 rounded-md bg-tint px-4 py-3">
+                <p class="flex items-center gap-2 text-sm text-tint-fg"><i data-lucide="sparkles" class="size-4"></i>Aria v1.0 正式发布 — 全新暗黑模式与动效系统。</p>
+                <div class="flex items-center gap-2">
+                  <button class="btn btn-link btn-sm text-tint-fg!">了解更多</button>
+                  <button id="banner-close" class="btn btn-ghost btn-icon size-8! text-tint-fg/70 hover:text-tint-fg" aria-label="关闭发布横幅"><i data-lucide="x" class="size-4"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <p class="demo-label">Tooltip 文字提示（hover/focus 80ms 延迟）</p>
+            <div class="flex flex-wrap gap-3">
+              <span class="tip"><button class="btn btn-outline btn-md" aria-describedby="tooltip-example">悬停查看</button><span id="tooltip-example" class="tip-bubble" role="tooltip">这是一条提示 Tooltip</span></span>
+              <span class="tip"><button class="btn btn-ghost btn-icon" aria-label="帮助" aria-describedby="tooltip-help"><i data-lucide="circle-help" class="size-4"></i></button><span id="tooltip-help" class="tip-bubble" role="tooltip">查看帮助文档</span></span>
+              <span class="tip"><button class="badge relative bg-subtle text-fg-muted after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-['']" aria-describedby="tooltip-api">API</button><span id="tooltip-api" class="tip-bubble" role="tooltip">Application Programming Interface</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== Motion ==================== -->
+    <section id="motion" class="reveal scroll-mt-20 space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold">Motion 动效</h2>
+        <p class="mt-1 text-sm text-fg-muted">六档语义时长、四种缓动；点击卡片重放动画。遵循 prefers-reduced-motion。</p>
+      </div>
+      <div class="space-y-6">
+        <div class="section-card overflow-x-auto">
+          <table class="w-full text-sm" aria-label="动效令牌">
+            <thead>
+              <tr class="border-b border-line text-left text-xs text-fg-muted">
+                <th class="py-2.5 pr-4 font-medium" scope="col">Token</th>
+                <th class="py-2.5 pr-4 font-medium" scope="col">值</th>
+                <th class="py-2.5 font-medium" scope="col">用途</th>
+              </tr>
+            </thead>
+            <tbody class="text-fg-muted">
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">duration.micro</td><td class="py-2.5 pr-4 font-mono text-xs">80ms</td><td class="py-2.5">Tooltip 意图延迟、短序列节拍</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">duration.fast</td><td class="py-2.5 pr-4 font-mono text-xs">150ms</td><td class="py-2.5">颜色 / 边框 / 透明度 hover 与退出</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">duration.base</td><td class="py-2.5 pr-4 font-mono text-xs">250ms</td><td class="py-2.5">开关、Tab、Accordion、浮层入场</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">duration.medium</td><td class="py-2.5 pr-4 font-mono text-xs">350ms</td><td class="py-2.5">Toast 与次级面板退出</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">duration.slow</td><td class="py-2.5 pr-4 font-mono text-xs">400ms</td><td class="py-2.5">Toast 与内容面板入场</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">duration.emphasis</td><td class="py-2.5 pr-4 font-mono text-xs">500ms</td><td class="py-2.5">分组内容 reveal</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">easing.standard</td><td class="py-2.5 pr-4 font-mono text-xs">cubic-bezier(0.4,0,0.2,1)</td><td class="py-2.5">可逆状态与屏内位移</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">easing.out</td><td class="py-2.5 pr-4 font-mono text-xs">cubic-bezier(0.22,1,0.36,1)</td><td class="py-2.5">浮层与内容进出场</td></tr>
+              <tr class="border-b border-line"><td class="py-2.5 pr-4 font-mono text-xs text-fg">easing.linear</td><td class="py-2.5 pr-4 font-mono text-xs">linear</td><td class="py-2.5">Spinner 与不确定进度</td></tr>
+              <tr><td class="py-2.5 pr-4 font-mono text-xs text-fg">easing.pulse</td><td class="py-2.5 pr-4 font-mono text-xs">cubic-bezier(0.4,0,0.6,1)</td><td class="py-2.5">Tailwind Skeleton pulse</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <p class="demo-label">点击重放 Click to replay</p>
+          <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <button class="replay interactive-card group card p-6 text-center" data-anim="fade-up">
+              <div class="anim-target mx-auto size-8 rounded-md bg-primary"></div>
+              <p class="mt-3 text-xs text-fg-muted">Fade in up</p>
+            </button>
+            <button class="replay interactive-card group card p-6 text-center" data-anim="scale-in">
+              <div class="anim-target mx-auto size-8 rounded-md bg-primary"></div>
+              <p class="mt-3 text-xs text-fg-muted">Scale in</p>
+            </button>
+            <button class="replay interactive-card group card p-6 text-center" data-anim="slide-right">
+              <div class="anim-target mx-auto size-8 rounded-md bg-primary"></div>
+              <p class="mt-3 text-xs text-fg-muted">Slide in</p>
+            </button>
+            <button class="replay interactive-card group card p-6 text-center" data-anim="shake-demo">
+              <div class="anim-target mx-auto size-8 rounded-md bg-danger"></div>
+              <p class="mt-3 text-xs text-fg-muted">Shake（错误）</p>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="border-t border-line py-8 text-center text-xs text-fg-muted">
+      Aria Design System · Flat 2.0 + Minimal · tokens.json (W3C DTCG) · Tailwind CSS v4
+    </footer>
+  </main>
+</div>
+
+<!-- ============================ Modal ============================ -->
+<div id="modal" class="modal-root fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description" aria-hidden="true">
+  <div class="modal-overlay absolute inset-0 bg-scrim" data-modal-close></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+    <div class="modal-panel pointer-events-auto w-full max-w-120 rounded-md border border-line bg-surface shadow-md">
+      <div class="flex items-start justify-between p-6 pb-0">
+        <div>
+          <h3 id="modal-title" class="text-base font-semibold">删除项目？Delete project?</h3>
+          <p id="modal-description" class="mt-1.5 text-sm text-fg-muted">此操作不可撤销，项目「aria-web」及其全部数据将被永久删除。</p>
+        </div>
+        <button class="btn btn-ghost btn-icon size-8!" data-modal-close aria-label="关闭删除项目对话框"><i data-lucide="x" class="size-4"></i></button>
+      </div>
+      <div class="flex justify-end gap-3 p-6">
+        <button class="btn btn-outline btn-md" data-modal-close>取消</button>
+        <button class="btn btn-danger btn-md" data-modal-close>确认删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 容器 -->
+<div id="toast-region" class="fixed bottom-4 right-4 z-50 flex w-90 max-w-[calc(100vw-2rem)] flex-col gap-2" role="region" aria-label="通知"></div>
+
+<script>
+/* ============================ 交互逻辑（原生 JS）============================ */
+
+function motionDuration(token, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  if (!value) return fallback;
+  return value.endsWith('ms') ? parseFloat(value) : parseFloat(value) * 1000;
+}
+
+document.getElementById('checkbox-mixed').indeterminate = true;
+
+/* ---- 主题切换 ---- */
+const themeToggle = document.getElementById('theme-toggle');
+function syncThemeToggle() {
+  const dark = document.documentElement.classList.contains('dark');
+  themeToggle.setAttribute('aria-pressed', String(dark));
+}
+syncThemeToggle();
+themeToggle.addEventListener('click', () => {
+  const root = document.documentElement;
+  root.classList.add('theme-switching');
+  const dark = root.classList.toggle('dark');
+  localStorage.setItem('aria-theme', dark ? 'dark' : 'light');
+  syncThemeToggle();
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')));
+});
+
+/* ---- 色板：生成 + 点击复制 ---- */
+const SCALES = {
+  teal: { el: 'palette-teal', colors: { 50:'#EFF8F8',100:'#D9EEEF',200:'#B3DEE0',300:'#7FC5C9',400:'#3FA6AC',500:'#158187',600:'#0F7B80',700:'#0C666B',800:'#0B5357',900:'#0A4346',950:'#062D2F' } },
+  slate:  { el: 'palette-slate',  colors: { 50:'#F8FAFC',100:'#F1F5F9',200:'#E2E8F0',300:'#CBD5E1',400:'#94A3B8',500:'#64748B',600:'#475569',700:'#334155',800:'#1E293B',900:'#0F172A',950:'#020617' } },
+  zinc:   { el: 'palette-zinc',   colors: { 100:'#F4F4F5',400:'#A1A1AA',500:'#71717A',700:'#3F3F46',800:'#27272A',900:'#18181B',950:'#09090B' } }
+};
+async function copyText(value) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const input = document.createElement('textarea');
+  input.value = value;
+  input.setAttribute('readonly', '');
+  input.className = 'fixed opacity-0';
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand('copy');
+  input.remove();
+}
+Object.values(SCALES).forEach(({ el, colors }) => {
+  const wrap = document.getElementById(el);
+  Object.entries(colors).forEach(([step, hex]) => {
+    const b = document.createElement('button');
+    b.className = 'palette-swatch group relative h-14 rounded-sm border border-line transition-colors duration-150 ease-in-out hover:border-line-strong';
+    b.style.background = hex;
+    b.setAttribute('aria-label', `复制 ${hex}`);
+    b.innerHTML = `<span class="absolute inset-x-0 bottom-1 text-center font-mono text-xs ${+step >= 500 ? 'text-white' : 'text-slate-900'}">${step}</span>`;
+    b.addEventListener('click', async () => {
+      try {
+        await copyText(hex);
+        showToast('success', '已复制', hex + ' 已复制到剪贴板');
+      } catch {
+        showToast('danger', '复制失败', '请手动复制 ' + hex);
+      }
+    });
+    wrap.appendChild(b);
+  });
+});
+
+/* ---- 滚动入场（IntersectionObserver）---- */
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); io.unobserve(e.target); } });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* ---- 侧边导航 scroll spy ---- */
+const navLinks = [...document.querySelectorAll('#side-nav .nav-link')];
+function setActiveNav(sectionId) {
+  navLinks.forEach(link => {
+    const active = link.getAttribute('href') === '#' + sectionId;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'location');
+    else link.removeAttribute('aria-current');
+  });
+}
+const spy = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) setActiveNav(e.target.id);
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+document.querySelectorAll('main section[id]').forEach(s => spy.observe(s));
+const firstNavSection = document.querySelector(navLinks[0].getAttribute('href'));
+const firstSectionActivationTop = firstNavSection.getBoundingClientRect().top + window.scrollY - 56;
+function syncTopNavigation() {
+  if (window.scrollY < firstSectionActivationTop) setActiveNav(firstNavSection.id);
+}
+window.addEventListener('scroll', syncTopNavigation, { passive: true });
+syncTopNavigation();
+
+/* ---- Tabs 滑动指示器 ---- */
+const tabsRoot = document.getElementById('tabs');
+const indicator = document.getElementById('tab-indicator');
+const tabBtns = [...tabsRoot.querySelectorAll('.tab-btn')];
+function moveTabIndicator(index, animate) {
+  if (animate) {
+    indicator.style.transform = `translateX(${index * 100}%)`;
+    return;
+  }
+  const previousTransition = indicator.style.transition;
+  indicator.style.transition = 'none';
+  indicator.style.transform = `translateX(${index * 100}%)`;
+  void indicator.offsetWidth;
+  indicator.style.transition = previousTransition;
+}
+function activateTab(btn, { moveFocus = false, animate = true } = {}) {
+  const index = tabBtns.indexOf(btn);
+  tabBtns.forEach(b => {
+    const on = b === btn;
+    b.classList.toggle('text-fg', on);
+    b.classList.toggle('font-medium', on);
+    b.classList.toggle('text-fg-muted', !on);
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  moveTabIndicator(index, animate);
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    const on = p.dataset.panel === btn.dataset.tab;
+    p.classList.toggle('hidden', !on);
+  });
+  if (moveFocus) btn.focus();
+}
+tabBtns.forEach(b => b.addEventListener('click', () => activateTab(b)));
+tabsRoot.addEventListener('keydown', (e) => {
+  const current = tabBtns.indexOf(document.activeElement);
+  if (current < 0) return;
+  let next = current;
+  if (e.key === 'ArrowRight') next = (current + 1) % tabBtns.length;
+  else if (e.key === 'ArrowLeft') next = (current - 1 + tabBtns.length) % tabBtns.length;
+  else if (e.key === 'Home') next = 0;
+  else if (e.key === 'End') next = tabBtns.length - 1;
+  else return;
+  e.preventDefault();
+  activateTab(tabBtns[next], { moveFocus: true, animate: false });
+});
+requestAnimationFrame(() => activateTab(tabBtns[0], { animate: false }));
+
+/* ---- Dropdown ---- */
+const ddTrigger = document.getElementById('dropdown-trigger');
+const ddMenu = document.getElementById('dropdown-menu');
+const ddChevron = document.getElementById('dropdown-chevron');
+const menuItems = [...ddMenu.querySelectorAll('[role="menuitem"]')];
+const dropdownCloseMs = motionDuration('--motion-fast', 150);
+let dropdownCloseTimer;
+function toggleDropdown(open, focusItem = false) {
+  clearTimeout(dropdownCloseTimer);
+  ddMenu.classList.remove('is-closing');
+  ddMenu.classList.toggle('is-open', open);
+  ddMenu.setAttribute('aria-hidden', String(!open));
+  ddChevron.style.transform = open ? 'rotate(180deg)' : '';
+  ddTrigger.setAttribute('aria-expanded', String(open));
+  if (open && focusItem) requestAnimationFrame(() => menuItems[0]?.focus());
+  if (!open) {
+    ddMenu.classList.add('is-closing');
+    dropdownCloseTimer = setTimeout(() => ddMenu.classList.remove('is-closing'), dropdownCloseMs);
+  }
+}
+ddTrigger.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleDropdown(!ddMenu.classList.contains('is-open'));
+});
+ddTrigger.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    toggleDropdown(true, true);
+  }
+});
+ddMenu.addEventListener('keydown', (e) => {
+  const current = menuItems.indexOf(document.activeElement);
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    toggleDropdown(false);
+    ddTrigger.focus();
+    return;
+  }
+  let next = current;
+  if (e.key === 'ArrowDown') next = (current + 1) % menuItems.length;
+  else if (e.key === 'ArrowUp') next = (current - 1 + menuItems.length) % menuItems.length;
+  else if (e.key === 'Home') next = 0;
+  else if (e.key === 'End') next = menuItems.length - 1;
+  else return;
+  e.preventDefault();
+  menuItems[next]?.focus();
+});
+menuItems.forEach(item => item.addEventListener('click', () => {
+  toggleDropdown(false);
+  ddTrigger.focus();
+}));
+document.addEventListener('click', (e) => {
+  if (!ddMenu.contains(e.target) && !ddTrigger.contains(e.target) && ddMenu.classList.contains('is-open')) toggleDropdown(false);
+});
+
+/* ---- Accordion ---- */
+document.querySelectorAll('.acc-trigger').forEach(t => {
+  t.addEventListener('click', () => {
+    const item = t.closest('.acc-item');
+    const panel = document.getElementById(t.getAttribute('aria-controls'));
+    const open = item.dataset.open === 'true';
+    item.dataset.open = String(!open);
+    t.setAttribute('aria-expanded', String(!open));
+    panel.setAttribute('aria-hidden', String(open));
+  });
+});
+
+/* ---- Tag 关闭 ---- */
+document.querySelectorAll('.tag-close').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tag = btn.closest('.badge');
+    tag.classList.add('pointer-events-none', 'opacity-0');
+    tag.setAttribute('aria-hidden', 'true');
+    setTimeout(() => tag.remove(), motionDuration('--motion-base', 250));
+  });
+});
+
+/* ---- Banner 关闭 ---- */
+document.getElementById('banner-close').addEventListener('click', () => {
+  const b = document.getElementById('banner');
+  b.classList.add('pointer-events-none', 'opacity-0');
+  b.setAttribute('aria-hidden', 'true');
+  setTimeout(() => b.remove(), motionDuration('--motion-base', 250));
+});
+
+/* ---- Modal ---- */
+const modal = document.getElementById('modal');
+const modalPanel = modal.querySelector('.modal-panel');
+let lastFocus = null;
+let modalCloseTimer;
+const focusableSelector = 'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+function openModal(event) {
+  clearTimeout(modalCloseTimer);
+  lastFocus = event?.currentTarget || document.activeElement;
+  modal.classList.remove('is-closing');
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  modal.querySelector('.btn-outline')?.focus();
+}
+function closeModal() {
+  if (!modal.classList.contains('is-open')) return;
+  modal.classList.remove('is-open');
+  modal.classList.add('is-closing');
+  document.body.style.overflow = '';
+  modalCloseTimer = setTimeout(() => {
+    modal.classList.remove('is-closing');
+    modal.setAttribute('aria-hidden', 'true');
+    lastFocus?.focus();
+  }, motionDuration('--motion-fast', 150));
+}
+document.getElementById('modal-open').addEventListener('click', openModal);
+modal.querySelectorAll('[data-modal-close]').forEach(el => el.addEventListener('click', closeModal));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (modal.classList.contains('is-open')) {
+      e.preventDefault();
+      closeModal();
+    } else if (ddMenu.classList.contains('is-open')) {
+      e.preventDefault();
+      toggleDropdown(false);
+      ddTrigger.focus();
+    }
+  }
+});
+modal.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab' || !modal.classList.contains('is-open')) return;
+  const focusable = [...modalPanel.querySelectorAll(focusableSelector)];
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+});
+
+/* ---- Toast ---- */
+const TOAST_META = {
+  success: { icon: 'circle-check', cls: 'text-success-fg', title: '操作成功', msg: '你的更改已保存。' },
+  danger:  { icon: 'circle-x', cls: 'text-danger-fg', title: '出错了', msg: '请求失败，请稍后重试。' },
+  info:    { icon: 'info', cls: 'text-info-fg', title: '提示', msg: '有 3 条新通知等待查看。' }
+};
+function showToast(type, title, msg) {
+  const meta = TOAST_META[type] || TOAST_META.info;
+  const el = document.createElement('div');
+  el.className = 'toast flex items-start gap-3 rounded-md border border-line bg-surface p-4 shadow-md';
+  el.setAttribute('role', type === 'danger' ? 'alert' : 'status');
+  el.innerHTML = `
+    <i data-lucide="${meta.icon}" class="size-4.5 shrink-0 ${meta.cls}"></i>
+    <div class="min-w-0 flex-1 text-sm">
+      <p class="toast-title font-medium"></p>
+      <p class="toast-message mt-0.5 text-fg-muted"></p>
+    </div>
+    <button class="btn btn-ghost btn-icon size-8! shrink-0" aria-label="关闭通知"><i data-lucide="x" class="size-3.5"></i></button>`;
+  el.querySelector('.toast-title').textContent = title || meta.title;
+  el.querySelector('.toast-message').textContent = msg || meta.msg;
+  document.getElementById('toast-region').appendChild(el);
+  lucide.createIcons({ nameAttr: 'data-lucide' });
+  let timer = null;
+  let remaining = 4000;
+  let timerStartedAt = 0;
+  let hovered = false;
+  let focusWithin = false;
+  let dismissed = false;
+  requestAnimationFrame(() => {
+    if (!dismissed) el.classList.add('is-open');
+  });
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    clearTimeout(timer);
+    timer = null;
+    el.classList.remove('is-open');
+    el.classList.add('is-closing');
+    const remove = () => el.remove();
+    el.addEventListener('transitionend', remove, { once: true });
+    setTimeout(remove, motionDuration('--motion-medium', 350) + 50);
+  };
+  const startTimer = () => {
+    if (dismissed || timer || hovered || focusWithin) return;
+    if (remaining <= 0) {
+      dismiss();
+      return;
+    }
+    timerStartedAt = performance.now();
+    timer = setTimeout(() => {
+      timer = null;
+      dismiss();
+    }, remaining);
+  };
+  const pauseTimer = () => {
+    if (!timer) return;
+    clearTimeout(timer);
+    timer = null;
+    remaining = Math.max(0, remaining - (performance.now() - timerStartedAt));
+  };
+  el.querySelector('button').addEventListener('click', dismiss);
+  el.addEventListener('mouseenter', () => { hovered = true; pauseTimer(); });
+  el.addEventListener('mouseleave', () => { hovered = false; startTimer(); });
+  el.addEventListener('focusin', () => { focusWithin = true; pauseTimer(); });
+  el.addEventListener('focusout', (e) => {
+    if (!el.contains(e.relatedTarget)) {
+      focusWithin = false;
+      startTimer();
+    }
+  });
+  startTimer();
+}
+document.querySelectorAll('[data-toast]').forEach(b =>
+  b.addEventListener('click', () => showToast(b.dataset.toast)));
+
+/* ---- 表单校验（shake）---- */
+const demoForm = document.getElementById('demo-form');
+const loginFields = [
+  {
+    input: document.getElementById('login-email'),
+    error: document.getElementById('login-email-error'),
+    validate: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+  },
+  {
+    input: document.getElementById('login-pwd'),
+    error: document.getElementById('login-password-error'),
+    validate: (value) => value.length > 0,
+  },
+];
+function setFieldError(field, invalid) {
+  field.input.classList.toggle('input-error', invalid);
+  if (invalid) field.input.setAttribute('aria-invalid', 'true');
+  else field.input.removeAttribute('aria-invalid');
+  field.error.classList.toggle('hidden', !invalid);
+  field.error.classList.toggle('flex', invalid);
+}
+demoForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const invalidFields = loginFields.filter((field) => {
+    const invalid = !field.validate(field.input.value.trim());
+    setFieldError(field, invalid);
+    return invalid;
+  });
+  if (invalidFields.length) {
+    const first = invalidFields[0].input;
+    first.classList.remove('animate-shake');
+    void first.offsetWidth;
+    first.classList.add('animate-shake');
+    first.focus();
+    first.addEventListener('animationend', () => first.classList.remove('animate-shake'), { once: true });
+  } else {
+    showToast('success', '登录成功', '欢迎回来，' + loginFields[0].input.value.trim());
+  }
+});
+loginFields.forEach((field) => field.input.addEventListener('input', () => {
+  field.input.classList.remove('animate-shake');
+  setFieldError(field, false);
+}));
+
+/* ---- Motion 重放 ---- */
+const ANIMS = {
+  'fade-up':    [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }],
+  'scale-in':   [{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'scale(1)' }],
+  'slide-right':[{ opacity: 0, transform: 'translateX(-16px)' }, { opacity: 1, transform: 'translateX(0)' }],
+  'shake-demo': [
+    { transform: 'translateX(0)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(-6px)' },
+    { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }
+  ]
+};
+document.querySelectorAll('.replay').forEach(card => {
+  card.addEventListener('click', () => {
+    const target = card.querySelector('.anim-target');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const frames = ANIMS[card.dataset.anim];
+    const dur = card.dataset.anim === 'shake-demo'
+      ? 280
+      : card.dataset.anim === 'fade-up'
+        ? motionDuration('--motion-emphasis', 500)
+        : motionDuration('--motion-base', 250);
+    const easing = getComputedStyle(document.documentElement).getPropertyValue('--motion-out').trim();
+    target.getAnimations().forEach(animation => animation.cancel());
+    target.animate(frames, { duration: dur, easing });
+  });
+});
+
+/* ---- Lucide 图标渲染 ---- */
+lucide.createIcons();
+</script>
+</body>
+</html>

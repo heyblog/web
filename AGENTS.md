@@ -25,6 +25,7 @@ ambiguity before implementing behavior.
 - `apps/web`: frontend web application.
 - `packages/node/configs`: shared Node.js quality-tool configuration.
 - `scripts`: repository automation and Git-hook support.
+- `skills`: project-owned source Skills installed for development agents.
 - `taskfiles`: repository-wide Task definitions included by `Taskfile.yml`.
 
 Modules under `apps/` and `packages/` own their detailed architecture, commands, and conventions in
@@ -36,21 +37,39 @@ their nearest `AGENTS.md`.
 - Read `go.work` and module `go.mod` files for the Go toolchain and dependencies.
 - Treat module manifests and lockfiles as dependency truth.
 - Treat `Taskfile.yml` and included module Taskfiles as command truth.
-- Do not edit generated lockfiles manually. Update them only through the owning package manager
-  when a dependency change is required.
+- Treat `skills/` as the only source for project-owned Skills. Expose each project-owned Skill in
+  `.agents/skills` through a relative symlink; do not maintain copied project-owned directories
+  there.
+- Treat downloaded third-party directories in `.agents/skills` and the `.claude/skills` link as
+  installation outputs.
+- `skills-lock.json` records downloaded third-party Skills only. Do not add project-owned or other
+  local Skills to it.
+- Do not edit package-manager lockfiles manually. Update them only through the owning package
+  manager when a dependency change is required.
+
+## Module Guidance Maintenance
+
+- Review the nearest module-level `AGENTS.md` after adding, removing, or upgrading dependencies;
+  changing a toolchain, framework, runtime, build, test, development command, environment contract,
+  directory structure, ownership boundary, or deployment assumption; or introducing a new module.
+- Update the module-level `AGENTS.md` in the same change when its sources of truth, architecture,
+  conventions, commands, validation requirements, or completion checks are affected. If no update
+  is needed, report that the review was performed.
+- Add an `AGENTS.md` when a new module under `apps/` or `packages/` gains module-specific ownership,
+  architecture, commands, or validation requirements.
+- Keep this maintenance policy in the root `AGENTS.md`. Module-level files contain only
+  module-specific sources of truth, architecture, conventions, commands, and validation rules; do
+  not duplicate repository-wide or personal workflow preferences there.
 
 ## Commands
 
-Prefix every shell command with `rtk`. In a command chain, prefix every segment separately. Use a
-raw command only when unfiltered output is required for debugging.
-
-- `rtk task --list-all`: discover available repository and module tasks.
-- `rtk task install`: install repository dependencies and Git hooks when setup is required.
-- `rtk task <module>:<task>`: run a focused module task, such as `rtk task api:verify` or
-  `rtk task web:verify`.
-- `rtk task verify`: run all offline repository checks.
-- `rtk task verify:full`: run offline checks and network-backed vulnerability scanning.
-- `rtk task security`: run only the network-backed vulnerability checks.
+- `task --list-all`: discover available repository and module tasks.
+- `task install`: install repository dependencies and Git hooks when setup is required.
+- `task <module>:<task>`: run a focused module task, such as `task api:verify` or
+  `task web:verify`.
+- `task verify`: run all offline repository checks.
+- `task verify:full`: run offline checks and network-backed vulnerability scanning.
+- `task security`: run only the network-backed vulnerability checks.
 
 Prefer the narrowest relevant module command while iterating, then run repository-wide validation.
 
@@ -97,8 +116,8 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 3. State a short implementation plan.
 4. Make the smallest coherent change that preserves clear ownership.
 5. Run the affected modules' focused checks.
-6. Run `rtk task verify` and any relevant integration or end-to-end checks.
-7. Run `rtk task verify:full` when security validation is required and network access is available.
+6. Run `task verify` and any relevant integration or end-to-end checks.
+7. Run `task verify:full` when security validation is required and network access is available.
 8. Report changed files, validation evidence, risks, and follow-up work.
 
 ## Testing
@@ -120,7 +139,6 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 - Do not modify generated files directly or introduce dependencies without justification.
 - Stop and report conflicting requirements, unclear ownership, or a change that needs broader
   authority.
-- Do not commit, push, publish, or rewrite history unless explicitly requested.
 - When commits are requested, use Conventional Commits with a maximum 72-character header, as
   enforced by `commitlint.config.cjs`.
 

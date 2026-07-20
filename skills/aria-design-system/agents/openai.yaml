@@ -1,0 +1,4 @@
+interface:
+  display_name: "Aria Design System"
+  short_description: "Apply Aria UI and motion design sources"
+  default_prompt: "Use $aria-design-system to implement this UI with the project design tokens, components, motion, and accessibility rules."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Astro Project"
+  short_description: "Project-aware Astro application development guidance"
+  default_prompt: "Use $astro-project to implement an Astro route with the repository boundaries and current official APIs."

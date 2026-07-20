@@ -1,2 +1,2 @@
-# build output
-dist/
+# Go test artifacts
+/coverage.out

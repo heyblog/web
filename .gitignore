@@ -1,2 +1,30 @@
-# Node Dependency directories
+# dependencies
 node_modules/
+
+# common build outputs and caches
+dist/
+.cache/
+*.tsbuildinfo
+
+# root-only build output
+/bin/
+
+# logs
+logs/
+*.log
+pnpm-debug.log*
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# coverage artifacts
+coverage/
+
+# repository-wide OS metadata and IDE files
+**/.DS_Store
+.idea/
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
