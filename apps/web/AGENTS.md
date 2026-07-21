@@ -5,8 +5,8 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 ## Scope and Sources of Truth
 
 - `apps/web` is the browser-facing Astro and Svelte application.
-- Treat `package.json`, `astro.config.ts`, `svelte.config.ts`, and `Taskfile.yaml` as the current
-  dependency, runtime, and command truth.
+- Treat `package.json`, `astro.config.ts`, `heyblog.config.ts`, `svelte.config.ts`, and
+  `Taskfile.yaml` as the current dependency, runtime, site metadata, and command truth.
 - Browser requests that require backend data enter through this application, which communicates
   with the Go API over HTTP.
 - Treat current task requirements, accepted HTTP contracts, committed routes, and tests as
@@ -21,6 +21,9 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 - Service communication uses HTTP exclusively.
 - Keep changes inside `apps/web` unless a public HTTP contract or shared Node configuration must
   change intentionally.
+- Web currently owns no application environment variables. Framework runtime variables are set by
+  the container adapter. Introduce one dedicated typed configuration source before any Web feature
+  reads an application-owned environment variable.
 
 The target request path is:
 
