@@ -1,17 +1,38 @@
 ---
+import { siteConfig } from '../../heyblog.config';
+
 import '@/styles/global.css';
+
+const canonicalUrl = new URL(Astro.url.pathname, siteConfig.url).toString();
+const imageUrl = new URL(siteConfig.openGraph.imagePath, siteConfig.url).toString();
 ---
 
-<html lang="en">
+<html lang={siteConfig.language}>
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
-    <title>Astro</title>
+    <meta name="description" content={siteConfig.description} />
+    <meta name="robots" content={siteConfig.robots} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:locale" content={siteConfig.locale} />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:type" content={siteConfig.openGraph.type} />
+    <meta property="og:title" content={siteConfig.title} />
+    <meta property="og:description" content={siteConfig.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:alt" content={siteConfig.openGraph.imageAlt} />
+    <meta name="twitter:card" content={siteConfig.twitterCard} />
+    <meta name="twitter:title" content={siteConfig.title} />
+    <meta name="twitter:description" content={siteConfig.description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content={siteConfig.openGraph.imageAlt} />
+    <title>{siteConfig.title}</title>
   </head>
   <body>
-    <h1>Astro</h1>
+    <h1>{siteConfig.name}</h1>
   </body>
 </html>

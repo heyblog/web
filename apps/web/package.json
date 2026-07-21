@@ -23,14 +23,15 @@
   "dependencies": {
     "@astrojs/check": "^0.9.9",
     "@astrojs/mdx": "^7.0.3",
+    "@astrojs/node": "^11.0.2",
     "@astrojs/partytown": "^2.1.7",
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/svelte": "^9.0.1",
-    "@tailwindcss/vite": "^4.3.2",
     "@heyblog/configs": "workspace:*",
-    "astro": "^7.0.9",
-    "svelte": "^5.56.4",
-    "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3"
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.1.0",
+    "svelte": "^5.56.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "6.0.3"
   }
 }
