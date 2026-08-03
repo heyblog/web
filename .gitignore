@@ -22,6 +22,10 @@ pnpm-debug.log*
 # coverage artifacts
 coverage/
 
+# generated external content snapshots
+/apps/web/contents/
+/apps/web/.content-sync-*/
+
 # repository-wide OS metadata and IDE files
 **/.DS_Store
 .idea/

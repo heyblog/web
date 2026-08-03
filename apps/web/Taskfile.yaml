@@ -52,3 +52,8 @@ tasks:
       - task: lint
       - task: format:check
       - task: build
+
+  content:
+    desc: Sync web content from heyblog/.github main
+    cmds:
+      - node ../../scripts/sync-web-content.mjs

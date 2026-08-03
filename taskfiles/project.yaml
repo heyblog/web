@@ -19,6 +19,7 @@ tasks:
       - pnpm install
       - task: api:install
       - task: hooks:install
+      - task: web:content
 
   format:
     desc: Format all active modules

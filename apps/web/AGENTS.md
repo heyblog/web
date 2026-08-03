@@ -7,6 +7,11 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 - `apps/web` is the browser-facing Astro and Svelte application.
 - Treat `package.json`, `astro.config.ts`, `heyblog.config.ts`, `svelte.config.ts`, and
   `Taskfile.yaml` as the current dependency, runtime, site metadata, and command truth.
+- Treat `apps/web/contents` as a generated snapshot of the `contents/` directory from the
+  `heyblog/.github` repository. `task web:content` resolves the remote `main` branch to a commit,
+  requires every source declared in `content-sources.mjs` and consumed by `content.config.ts` to be
+  non-empty, downloads the files from that immutable commit, and records the resolved source in
+  `.source-revision`.
 - Browser requests that require backend data enter through this application, which communicates
   with the Go API over HTTP.
 - Treat current task requirements, accepted HTTP contracts, committed routes, and tests as
@@ -107,7 +112,11 @@ Run commands from the repository root:
 - `task web:lint`: run ESLint and Stylelint.
 - `task web:format:check`: check formatting.
 - `task web:build`: build the web application.
+- `task web:content`: sync generated content from the `heyblog/.github` `main` branch.
 - `task web:verify`: run all current offline web checks.
+
+Run `task web:content` after initial checkout or when the remote content changes. Offline checks
+consume the existing generated snapshot and do not update it.
 
 The current module has no test task. When behavior changes, add focused tests for server adapters,
 authentication, proxying, rendering decisions, or critical browser logic as appropriate. Do not
