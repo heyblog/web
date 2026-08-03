@@ -111,6 +111,20 @@ Prefer the narrowest relevant module command while iterating, then run repositor
   and consumers with public API changes; do not place raw SQL in route handlers.
 - Explain the need for every new dependency before adding it.
 
+### Environment Configuration
+
+- Before adding an environment variable, compare its meaning, sensitivity, lifecycle, defaults,
+  and ownership with existing variables. Prefer reuse when those semantics are consistent; do not
+  create module-specific aliases for the same value.
+- Every module that consumes application-owned environment variables must have one dedicated
+  configuration source file that reads, validates, applies defaults, and exports typed
+  configuration. All other module code must consume that exported configuration instead of reading
+  the process environment directly.
+- Task and Compose files select and inject scenario-specific environment files; application modules
+  own configuration validation.
+- Scenario templates contain only variables required or intentionally overridden in that scenario.
+  Do not enumerate optional variables that already have suitable code defaults.
+
 ## Required Workflow
 
 1. Read relevant root and module instructions and task-specific requirements.
