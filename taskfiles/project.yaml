@@ -17,6 +17,7 @@ tasks:
     desc: Install repo dependencies and hooks
     cmds:
       - pnpm install
+      - go mod download
       - task: api:install
       - task: hooks:install
       - task: web:content
@@ -61,6 +62,7 @@ tasks:
   test:
     desc: Run all configured tests
     cmds:
+      - node --test ./scripts/*.test.mjs
       - task: api:test
 
   security:

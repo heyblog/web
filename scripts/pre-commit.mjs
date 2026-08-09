@@ -191,15 +191,14 @@ function formatRootFiles(files) {
   return prettierFiles;
 }
 
-export function formatGoFiles(files, moduleConfig, run = runCommand, root = repoRoot) {
+export function formatGoFiles(files, run = runCommand, root = repoRoot) {
   const goFiles = files.filter((file) => file.endsWith('.go'));
 
   if (goFiles.length === 0) {
     return [];
   }
 
-  const moduleDir = resolve(root, moduleConfig.dir);
-  run('goimports', ['-w', ...goFiles.map((file) => relative(moduleConfig.dir, file))], moduleDir);
+  run('go', ['tool', 'goimports', '-w', ...goFiles], root);
 
   return goFiles;
 }
@@ -294,7 +293,7 @@ export function main() {
 
   for (const moduleConfig of goModuleConfigs) {
     const moduleFiles = getModuleFiles(trackedFiles, moduleConfig.dir);
-    formattedFiles.push(...formatGoFiles(moduleFiles, moduleConfig));
+    formattedFiles.push(...formatGoFiles(moduleFiles));
   }
 
   for (const moduleConfig of nodeModuleConfigs) {
