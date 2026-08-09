@@ -1,0 +1,66 @@
+# HeyBlog API configuration schema version. The process rejects unsupported versions.
+version: 1
+
+server:
+  # Bind address. "auto" resolves to 127.0.0.1 in development and 0.0.0.0 in production.
+  host: auto
+  # TCP port exposed by the API. Production containers require 10201.
+  port: 10201
+
+database:
+  # Runtime PostgreSQL pool bounds. Credentials and endpoints belong in API_DATABASE_URL.
+  max_connections: 20
+  min_connections: 2
+  # Go duration strings controlling connection recycling and health checks.
+  max_connection_lifetime: 30m
+  max_connection_idle_time: 5m
+  health_check_period: 1m
+
+redis:
+  # Client timeouts. The endpoint and credentials belong in API_REDIS_URL.
+  dial_timeout: 3s
+  read_timeout: 2s
+  write_timeout: 2s
+
+logging:
+  # Minimum level: debug, info, warn, or error.
+  level: info
+  # auto selects text in development and JSON in production; text/json force a format.
+  console_format: auto
+  file:
+    # auto disables files in development and enables them in production.
+    # Use enabled or disabled for an explicit override.
+    mode: auto
+    # auto selects ./var/log/heyblog-api.log in development and
+    # /var/log/heyblog/api/api.log in production.
+    path: auto
+    # lumberjack rotation policy. Sizes are MiB and ages are days.
+    max_size_mb: 100
+    max_backups: 10
+    max_age_days: 14
+    compress: true
+
+http:
+  # net/http server timeouts. Endpoint-specific deadlines remain the route owner's responsibility.
+  read_header_timeout: 5s
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 1m
+  shutdown_timeout: 10s
+  # Maximum request-header and request-body sizes in bytes.
+  max_header_bytes: 65536
+  max_body_bytes: 1048576
+  # Empty means no trusted proxy. Each item must be an IP address or CIDR.
+  trusted_proxies: []
+  cors:
+    # Empty rejects every request carrying Origin; list each browser origin explicitly.
+    # Only exact http/https origins are accepted; wildcard origins are not supported.
+    # Arrays in conf.yaml replace this list rather than appending to it.
+    allow_origins: []
+    allow_credentials: true
+
+health:
+  # Total deadline for concurrent PostgreSQL and Redis readiness probes.
+  readiness_timeout: 2s
+  # Time to remain online but unready before graceful shutdown, allowing load balancers to drain.
+  drain_delay: 5s

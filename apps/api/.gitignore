@@ -1,2 +1,6 @@
 # Go test artifacts
 /coverage.out
+
+# Local API configuration and runtime data
+/config/conf.yaml
+/var/

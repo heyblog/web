@@ -1,19 +1,11 @@
 package main
 
 import (
-	"log"
+	"os"
 
-	"github.com/gin-gonic/gin"
+	"heyblog-api/internal/bootstrap"
 )
 
 func main() {
-	router := gin.Default()
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-	if err := router.Run(); err != nil {
-		log.Fatalf("failed to run API server: %v", err)
-	}
+	os.Exit(bootstrap.Execute(os.Args[1:], os.Stdout, os.Stderr))
 }

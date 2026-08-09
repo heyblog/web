@@ -1,0 +1,2 @@
+# Deploy as config/conf.yaml beside the production binary.
+mode: production

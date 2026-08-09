@@ -1,0 +1,1356 @@
+//go:build integration
+
+package integration_test
+
+import (
+	"context"
+	"net/url"
+	"slices"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
+
+	"heyblog-api/internal/cache"
+	"heyblog-api/internal/config"
+	"heyblog-api/internal/database"
+	dbgen "heyblog-api/internal/database/gen"
+	"heyblog-api/internal/database/migrations"
+	"heyblog-api/internal/ratelimit"
+)
+
+func TestPostgresAGEInfrastructure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	container, err := postgres.Run(
+		ctx,
+		"apache/age:release_PG18_1.7.0",
+		postgres.WithDatabase("heyblog"),
+		postgres.WithUsername("postgres"),
+		postgres.WithPassword("postgres-secret"),
+		postgres.BasicWaitStrategies(),
+	)
+	if err != nil {
+		t.Fatalf("start PostgreSQL/AGE container: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(container); err != nil {
+			t.Errorf("terminate PostgreSQL/AGE container: %v", err)
+		}
+	})
+
+	adminURL, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("get PostgreSQL connection string: %v", err)
+	}
+
+	adminConnection, err := pgx.Connect(ctx, adminURL)
+	if err != nil {
+		t.Fatalf("connect to migration database: %v", err)
+	}
+	t.Cleanup(func() { _ = adminConnection.Close(context.Background()) })
+
+	bootstrapDatabaseRoles(ctx, t, adminConnection)
+	migrationURL := databaseURLForRole(t, adminURL, "migrator", "migrator-secret")
+	if err := database.Migrate(ctx, migrationURL); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	if err := database.Migrate(ctx, migrationURL); err != nil {
+		t.Fatalf("reapply migrations: %v", err)
+	}
+
+	verifyDatabaseCatalog(ctx, t, adminConnection)
+	verifyRoleBoundaries(ctx, t, adminConnection)
+
+	runtimeURL := databaseURLForRole(t, adminURL, "api_runtime", "runtime-secret")
+	pool, err := database.OpenPool(ctx, config.DatabaseConfig{
+		URL:                   runtimeURL,
+		MaxConnections:        4,
+		MinConnections:        0,
+		MaxConnectionLifetime: time.Minute,
+		MaxConnectionIdleTime: time.Minute,
+		HealthCheckPeriod:     30 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("open runtime pgxpool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	if result, err := dbgen.New(pool).Ping(ctx); err != nil || result != 1 {
+		t.Fatalf("sqlc Ping() = (%d, %v), want (1, nil)", result, err)
+	}
+
+	verifyDirectoryConstraints(ctx, t, pool)
+	verifyAnnouncementQueries(ctx, t, pool)
+	verifyAnnouncementConstraints(ctx, t, pool)
+	verifySoftwareComponentDependencies(ctx, t, pool)
+	verifyFriendLinkGraph(ctx, t, pool)
+	verifyRuntimePermissions(ctx, t, pool)
+	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)
+	verifyUserDeletionSemantics(ctx, t, pool, migrationURL)
+	verifyMigrationRollback(ctx, t, adminConnection, migrationURL)
+}
+
+func bootstrapDatabaseRoles(ctx context.Context, t *testing.T, connection *pgx.Conn) {
+	t.Helper()
+	if _, err := connection.Exec(ctx, `
+		CREATE EXTENSION IF NOT EXISTS age;
+		COMMENT ON EXTENSION age IS
+			'Apache AGE provides the authoritative directed site friend-link graph.';
+		CREATE ROLE migrator
+			LOGIN PASSWORD 'migrator-secret'
+			NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+		CREATE ROLE api_runtime
+			LOGIN PASSWORD 'runtime-secret'
+			NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+		ALTER ROLE migrator SET session_preload_libraries = 'age';
+		ALTER ROLE api_runtime SET session_preload_libraries = 'age';
+		REVOKE ALL ON DATABASE heyblog FROM PUBLIC;
+		GRANT CONNECT, CREATE ON DATABASE heyblog TO migrator;
+		GRANT CONNECT ON DATABASE heyblog TO api_runtime;
+		GRANT USAGE ON SCHEMA ag_catalog TO migrator;
+		CREATE SCHEMA migration AUTHORIZATION migrator;
+		COMMENT ON SCHEMA migration IS 'Goose migration history owned by the migration role.';
+	`); err != nil {
+		t.Fatalf("bootstrap database roles: %v", err)
+	}
+}
+
+func verifyRoleBoundaries(ctx context.Context, t *testing.T, connection *pgx.Conn) {
+	t.Helper()
+	for _, role := range []string{"migrator", "api_runtime"} {
+		var canLogin, isSuperuser, canCreateDatabase, canCreateRole, canReplicate, canBypassRLS bool
+		if err := connection.QueryRow(ctx, `
+			SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls
+			  FROM pg_roles
+			 WHERE rolname = $1
+		`, role).Scan(
+			&canLogin,
+			&isSuperuser,
+			&canCreateDatabase,
+			&canCreateRole,
+			&canReplicate,
+			&canBypassRLS,
+		); err != nil {
+			t.Fatalf("query %s role: %v", role, err)
+		}
+		if !canLogin || isSuperuser || canCreateDatabase || canCreateRole || canReplicate || canBypassRLS {
+			t.Fatalf(
+				"role %s attributes = login:%t super:%t createdb:%t createrole:%t replication:%t bypassrls:%t",
+				role,
+				canLogin,
+				isSuperuser,
+				canCreateDatabase,
+				canCreateRole,
+				canReplicate,
+				canBypassRLS,
+			)
+		}
+	}
+
+	var migratorCanCreate, runtimeCanCreate, runtimeCanConnect, runtimeCanUseAGE bool
+	if err := connection.QueryRow(ctx, `
+		SELECT has_database_privilege('migrator', 'heyblog', 'CREATE'),
+		       has_database_privilege('api_runtime', 'heyblog', 'CREATE'),
+		       has_database_privilege('api_runtime', 'heyblog', 'CONNECT'),
+		       has_schema_privilege('api_runtime', 'ag_catalog', 'USAGE')
+	`).Scan(&migratorCanCreate, &runtimeCanCreate, &runtimeCanConnect, &runtimeCanUseAGE); err != nil {
+		t.Fatalf("query database role privileges: %v", err)
+	}
+	if !migratorCanCreate || runtimeCanCreate || !runtimeCanConnect || runtimeCanUseAGE {
+		t.Fatalf(
+			"database privileges = migrator create:%t, runtime create:%t connect:%t AGE usage:%t",
+			migratorCanCreate,
+			runtimeCanCreate,
+			runtimeCanConnect,
+			runtimeCanUseAGE,
+		)
+	}
+}
+
+func verifyDatabaseCatalog(ctx context.Context, t *testing.T, connection *pgx.Conn) {
+	t.Helper()
+
+	var extensionVersion string
+	if err := connection.QueryRow(ctx, "SELECT extversion FROM pg_extension WHERE extname = 'age'").Scan(&extensionVersion); err != nil {
+		t.Fatalf("query AGE extension: %v", err)
+	}
+
+	var businessSchemaCount int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*) FROM pg_namespace
+		WHERE nspname = ANY($1::text[])
+	`, []string{"identity", "directory", "content"}).Scan(&businessSchemaCount); err != nil {
+		t.Fatalf("query business schemas: %v", err)
+	}
+	if businessSchemaCount != 3 {
+		t.Fatalf("business schema count = %d, want 3", businessSchemaCount)
+	}
+
+	var tableCount int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM pg_class AS relation
+		  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+		 WHERE namespace.nspname = ANY($1::text[])
+		   AND relation.relkind IN ('r', 'p')
+	`, []string{"identity", "directory", "content"}).Scan(&tableCount); err != nil {
+		t.Fatalf("query business tables: %v", err)
+	}
+	if tableCount != 15 {
+		t.Fatalf("business table count = %d, want 15", tableCount)
+	}
+
+	var graphExists bool
+	if err := connection.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'heyblog_directory')
+	`).Scan(&graphExists); err != nil {
+		t.Fatalf("query AGE graph: %v", err)
+	}
+	if !graphExists {
+		t.Fatal("heyblog_directory AGE graph does not exist")
+	}
+
+	verifyCatalogComments(ctx, t, connection)
+	verifyIdentitySchema(ctx, t, connection)
+}
+
+func verifyIdentitySchema(ctx context.Context, t *testing.T, connection *pgx.Conn) {
+	t.Helper()
+
+	rows, err := connection.Query(ctx, `
+		SELECT column_name || ':' || data_type || ':' || is_nullable
+		  FROM information_schema.columns
+		 WHERE table_schema = 'identity'
+		   AND table_name = 'users'
+		 ORDER BY ordinal_position
+	`)
+	if err != nil {
+		t.Fatalf("query identity user columns: %v", err)
+	}
+	columns, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatalf("collect identity user columns: %v", err)
+	}
+
+	want := []string{
+		"id:uuid:NO",
+		"email:text:NO",
+		"username:text:NO",
+		"display_name:text:NO",
+		"password_hash:text:YES",
+		"role:text:NO",
+		"status:text:NO",
+		"email_verified_at:timestamp with time zone:YES",
+		"auth_version:integer:NO",
+		"profile:jsonb:NO",
+		"settings:jsonb:NO",
+		"last_login_at:timestamp with time zone:YES",
+		"created_at:timestamp with time zone:NO",
+		"updated_at:timestamp with time zone:NO",
+	}
+	if !slices.Equal(columns, want) {
+		t.Fatalf("identity user columns = %v, want %v", columns, want)
+	}
+}
+
+func verifyCatalogComments(ctx context.Context, t *testing.T, connection *pgx.Conn) {
+	t.Helper()
+	schemas := []string{"identity", "directory", "content"}
+
+	var undocumentedRelations int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM pg_class AS relation
+		  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+		  LEFT JOIN pg_description AS description
+		    ON description.objoid = relation.oid AND description.objsubid = 0
+		 WHERE namespace.nspname = ANY($1::text[])
+		   AND relation.relkind IN ('r', 'v', 'p')
+		   AND description.description IS NULL
+	`, schemas).Scan(&undocumentedRelations); err != nil {
+		t.Fatalf("query undocumented business relations: %v", err)
+	}
+	if undocumentedRelations != 0 {
+		t.Fatalf("undocumented business relation count = %d, want 0", undocumentedRelations)
+	}
+
+	var undocumentedColumns int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM pg_class AS relation
+		  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+		  JOIN pg_attribute AS attribute
+		    ON attribute.attrelid = relation.oid
+		   AND attribute.attnum > 0
+		   AND NOT attribute.attisdropped
+		  LEFT JOIN pg_description AS description
+		    ON description.objoid = relation.oid AND description.objsubid = attribute.attnum
+		 WHERE namespace.nspname = ANY($1::text[])
+		   AND relation.relkind IN ('r', 'v', 'p')
+		   AND description.description IS NULL
+	`, schemas).Scan(&undocumentedColumns); err != nil {
+		t.Fatalf("query undocumented business columns: %v", err)
+	}
+	if undocumentedColumns != 0 {
+		t.Fatalf("undocumented business column count = %d, want 0", undocumentedColumns)
+	}
+
+	var undocumentedFunctions int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM pg_proc AS routine
+		  JOIN pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+		 WHERE namespace.nspname = ANY($1::text[])
+		   AND obj_description(routine.oid, 'pg_proc') IS NULL
+	`, schemas).Scan(&undocumentedFunctions); err != nil {
+		t.Fatalf("query undocumented business functions: %v", err)
+	}
+	if undocumentedFunctions != 0 {
+		t.Fatalf("undocumented business function count = %d, want 0", undocumentedFunctions)
+	}
+
+	var undocumentedTriggers int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM pg_trigger AS trigger
+		  JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+		  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+		 WHERE namespace.nspname = ANY($1::text[])
+		   AND NOT trigger.tgisinternal
+		   AND obj_description(trigger.oid, 'pg_trigger') IS NULL
+	`, schemas).Scan(&undocumentedTriggers); err != nil {
+		t.Fatalf("query undocumented business triggers: %v", err)
+	}
+	if undocumentedTriggers != 0 {
+		t.Fatalf("undocumented business trigger count = %d, want 0", undocumentedTriggers)
+	}
+}
+
+func verifyDirectoryConstraints(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+
+	siteID := insertSite(ctx, t, connection, "0Aa1Bb2Cc", "Example Blog", "example.com")
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.site_feeds (
+			site_id, name, location_type, url_ref, url_key, is_default
+		) VALUES ($1, 'Default', 'RELATIVE', '/feed.xml', '/feed.xml', true)
+	`, siteID); err != nil {
+		t.Fatalf("insert default feed: %v", err)
+	}
+
+	feedlessSiteID := insertSite(ctx, t, connection, "1Aa2Bb3Cc", "Feed Constraint", "feed.example.com")
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.site_feeds (
+			site_id, name, location_type, url_ref, url_key, is_default
+		) VALUES ($1, 'Not Default', 'RELATIVE', '/feed.xml', '/feed.xml', false)
+	`, feedlessSiteID); err == nil {
+		t.Fatal("enabled feed without a default unexpectedly succeeded")
+	}
+
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.sites (short_id, custom_id, name, normalized_host)
+		VALUES ('2Aa3Bb4Cc', 'bad--id', 'Invalid Custom ID', 'invalid-custom.example.com')
+	`); err == nil {
+		t.Fatal("invalid custom ID unexpectedly succeeded")
+	}
+
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.sites (short_id, name, normalized_host)
+		VALUES ('3Aa4Bb5Cc', 'Duplicate Host', 'example.com')
+	`); err == nil {
+		t.Fatal("duplicate normalized host unexpectedly succeeded")
+	}
+}
+
+func verifyAnnouncementConstraints(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+
+	var actorID pgtype.UUID
+	if err := connection.QueryRow(ctx, `
+		INSERT INTO identity.users (email, username, display_name)
+		VALUES ('announcement@example.com', 'announcement_admin', 'Announcement Admin')
+		RETURNING id
+	`).Scan(&actorID); err != nil {
+		t.Fatalf("create announcement actor: %v", err)
+	}
+
+	now := time.Now().UTC()
+	activeStart := now.Add(-2 * time.Hour)
+	activeEnd := now.Add(2 * time.Hour)
+	highPriorityID, highPriorityVersion := insertAnnouncement(
+		ctx,
+		t,
+		connection,
+		actorID,
+		"MAIN",
+		"High priority announcement",
+		20,
+		activeStart,
+		&activeEnd,
+	)
+	_, _ = insertAnnouncement(
+		ctx,
+		t,
+		connection,
+		actorID,
+		"MAIN",
+		"Lower priority announcement",
+		10,
+		activeStart.Add(time.Minute),
+		&activeEnd,
+	)
+
+	rows, err := connection.Query(ctx, `
+		SELECT title
+		  FROM content.announcements
+		 WHERE kind = 'MAIN'
+		   AND status = 'PUBLISHED'
+		   AND starts_at <= clock_timestamp()
+		   AND (ends_at IS NULL OR ends_at > clock_timestamp())
+		 ORDER BY priority DESC, starts_at DESC, id DESC
+	`)
+	if err != nil {
+		t.Fatalf("query active main announcements: %v", err)
+	}
+	mainTitles, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatalf("collect active main announcements: %v", err)
+	}
+	if !slices.Equal(mainTitles, []string{"High priority announcement", "Lower priority announcement"}) {
+		t.Fatalf("active main announcement titles = %v", mainTitles)
+	}
+
+	bannerEnd := now.Add(time.Hour)
+	_, _ = insertAnnouncement(
+		ctx,
+		t,
+		connection,
+		actorID,
+		"BANNER",
+		"Current banner",
+		0,
+		now.Add(-time.Hour),
+		&bannerEnd,
+	)
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO content.announcements (
+			kind, title, status, starts_at, ends_at, published_at,
+			created_by, updated_by, published_by
+		) VALUES ('BANNER', 'Overlapping banner', 'PUBLISHED', $1, $2, $3, $4, $4, $4)
+	`, now, now.Add(30*time.Minute), now.Add(-time.Hour), actorID); err == nil {
+		t.Fatal("overlapping published banner unexpectedly succeeded")
+	}
+
+	adjacentBannerID, adjacentBannerVersion := insertAnnouncement(
+		ctx,
+		t,
+		connection,
+		actorID,
+		"BANNER",
+		"Adjacent scheduled banner",
+		0,
+		bannerEnd,
+		timePointer(bannerEnd.Add(time.Hour)),
+	)
+	if _, err := connection.Exec(ctx, `
+		UPDATE content.announcements
+		   SET title = 'Adjusted scheduled banner', updated_by = $2
+		 WHERE id = $1 AND row_version = $3
+	`, adjacentBannerID, actorID, adjacentBannerVersion); err != nil {
+		t.Fatalf("update scheduled banner before public window: %v", err)
+	}
+	var scheduledRevisionCount int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*) FROM content.announcement_revisions WHERE announcement_id = $1
+	`, adjacentBannerID).Scan(&scheduledRevisionCount); err != nil {
+		t.Fatalf("count scheduled banner revisions: %v", err)
+	}
+	if scheduledRevisionCount != 0 {
+		t.Fatalf("scheduled banner revision count = %d, want 0", scheduledRevisionCount)
+	}
+	if _, err := connection.Exec(ctx, `
+		DELETE FROM content.announcements WHERE id = $1
+	`, adjacentBannerID); err == nil {
+		t.Fatal("scheduled announcement hard deletion unexpectedly succeeded")
+	}
+
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO content.announcements (
+			kind, title, status, action_type, action_label, action_external_url,
+			created_by, updated_by
+		) VALUES ('MAIN', 'Invalid internal action', 'DRAFT', 'INTERNAL', 'Read',
+		          'https://example.com', $1, $1)
+	`, actorID); err == nil {
+		t.Fatal("internal action with external URL unexpectedly succeeded")
+	}
+
+	var draftID pgtype.UUID
+	if err := connection.QueryRow(ctx, `
+		INSERT INTO content.announcements (
+			kind, title, body_markdown, status, action_type, action_label,
+			action_external_url, created_by, updated_by
+		) VALUES ('MAIN', 'External action draft', 'Read [more](https://example.com)',
+		          'DRAFT', 'EXTERNAL', 'Open', 'https://example.com', $1, $1)
+		RETURNING id
+	`, actorID).Scan(&draftID); err != nil {
+		t.Fatalf("insert draft announcement with external action: %v", err)
+	}
+	deleteResult, err := connection.Exec(ctx, `DELETE FROM content.announcements WHERE id = $1`, draftID)
+	if err != nil {
+		t.Fatalf("delete draft announcement: %v", err)
+	}
+	if deleteResult.RowsAffected() != 1 {
+		t.Fatalf("deleted draft rows = %d, want 1", deleteResult.RowsAffected())
+	}
+
+	var updatedVersion int64
+	if err := connection.QueryRow(ctx, `
+		UPDATE content.announcements
+		   SET title = 'Corrected announcement',
+		       body_markdown = 'Read **the correction**.',
+		       action_type = 'INTERNAL',
+		       action_label = 'Details',
+		       action_path = '/announcements/correction',
+		       updated_by = $2
+		 WHERE id = $1 AND row_version = $3
+		RETURNING row_version
+	`, highPriorityID, actorID, highPriorityVersion).Scan(&updatedVersion); err != nil {
+		t.Fatalf("update public announcement: %v", err)
+	}
+	if updatedVersion != highPriorityVersion+1 {
+		t.Fatalf("updated row version = %d, want %d", updatedVersion, highPriorityVersion+1)
+	}
+
+	var revisionTitle string
+	var revision int64
+	if err := connection.QueryRow(ctx, `
+		SELECT title, revision
+		  FROM content.announcement_revisions
+		 WHERE announcement_id = $1
+	`, highPriorityID).Scan(&revisionTitle, &revision); err != nil {
+		t.Fatalf("query public announcement revision: %v", err)
+	}
+	if revisionTitle != "High priority announcement" || revision != highPriorityVersion {
+		t.Fatalf("public announcement revision = (%q, %d)", revisionTitle, revision)
+	}
+
+	if _, err := connection.Exec(ctx, `
+		UPDATE content.announcements SET status = 'DRAFT', updated_by = $2 WHERE id = $1
+	`, highPriorityID, actorID); err == nil {
+		t.Fatal("published announcement revert to draft unexpectedly succeeded")
+	}
+	if _, err := connection.Exec(ctx, `
+		UPDATE content.announcements SET kind = 'BANNER', priority = 0, updated_by = $2 WHERE id = $1
+	`, highPriorityID, actorID); err == nil {
+		t.Fatal("public announcement kind change unexpectedly succeeded")
+	}
+
+	if _, err := connection.Exec(ctx, `
+		UPDATE content.announcements
+		   SET status = 'ARCHIVED', archived_at = clock_timestamp(),
+		       archived_by = $2, updated_by = $2
+		 WHERE id = $1 AND row_version = $3
+	`, highPriorityID, actorID, updatedVersion); err != nil {
+		t.Fatalf("archive public announcement: %v", err)
+	}
+	var revisionCount int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*) FROM content.announcement_revisions WHERE announcement_id = $1
+	`, highPriorityID).Scan(&revisionCount); err != nil {
+		t.Fatalf("count archived announcement revisions: %v", err)
+	}
+	if revisionCount != 2 {
+		t.Fatalf("archived announcement revision count = %d, want 2", revisionCount)
+	}
+	if _, err := connection.Exec(ctx, `
+		UPDATE content.announcements SET title = 'Tampered archive', updated_by = $2 WHERE id = $1
+	`, highPriorityID, actorID); err == nil {
+		t.Fatal("archived announcement update unexpectedly succeeded")
+	}
+	if _, err := connection.Exec(ctx, `DELETE FROM content.announcements WHERE id = $1`, highPriorityID); err == nil {
+		t.Fatal("archived announcement hard deletion unexpectedly succeeded")
+	}
+	if _, err := connection.Exec(ctx, `
+		UPDATE content.announcement_revisions
+		   SET title = 'Tampered revision'
+		 WHERE announcement_id = $1
+	`, highPriorityID); err == nil {
+		t.Fatal("runtime revision update unexpectedly succeeded")
+	}
+	if _, err := connection.Exec(ctx, `
+		DELETE FROM content.announcement_revisions WHERE announcement_id = $1
+	`, highPriorityID); err == nil {
+		t.Fatal("runtime revision deletion unexpectedly succeeded")
+	}
+
+	concurrentStart := now.Add(3 * time.Hour)
+	concurrentEnd := now.Add(4 * time.Hour)
+	results := make(chan error, 2)
+	for _, title := range []string{"Concurrent banner A", "Concurrent banner B"} {
+		go func(title string) {
+			_, insertErr := connection.Exec(ctx, `
+				INSERT INTO content.announcements (
+					kind, title, status, starts_at, ends_at, published_at,
+					created_by, updated_by, published_by
+				) VALUES ('BANNER', $1, 'PUBLISHED', $2, $3, $4, $5, $5, $5)
+			`, title, concurrentStart, concurrentEnd, now, actorID)
+			results <- insertErr
+		}(title)
+	}
+	concurrentSuccesses := 0
+	for range 2 {
+		if insertErr := <-results; insertErr == nil {
+			concurrentSuccesses++
+		}
+	}
+	if concurrentSuccesses != 1 {
+		t.Fatalf("concurrent banner successes = %d, want 1", concurrentSuccesses)
+	}
+}
+
+func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+	queries := dbgen.New(connection)
+	actor, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+		Email:       "announcement-query@example.com",
+		Username:    "announcement_query_admin",
+		DisplayName: "Announcement Query Admin",
+	})
+	if err != nil {
+		t.Fatalf("create announcement query actor: %v", err)
+	}
+
+	body := "Read **the release notes**."
+	draft, err := queries.CreateAnnouncement(ctx, dbgen.CreateAnnouncementParams{
+		Kind:         "MAIN",
+		Title:        "Release announcement",
+		BodyMarkdown: &body,
+		Priority:     50,
+		ActionType:   "NONE",
+		ActorID:      actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("create announcement draft: %v", err)
+	}
+	if draft.Status != "DRAFT" || draft.RowVersion != 1 {
+		t.Fatalf("created announcement = %#v", draft)
+	}
+
+	now := time.Now().UTC()
+	published, err := queries.PublishAnnouncement(ctx, dbgen.PublishAnnouncementParams{
+		ID:                 draft.ID,
+		ExpectedRowVersion: draft.RowVersion,
+		StartsAt:           pgtype.Timestamptz{Time: now.Add(-time.Hour), Valid: true},
+		EndsAt:             pgtype.Timestamptz{Time: now.Add(time.Hour), Valid: true},
+		ActorID:            actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("publish announcement: %v", err)
+	}
+	if published.Status != "PUBLISHED" || published.RowVersion != 2 {
+		t.Fatalf("published announcement = %#v", published)
+	}
+
+	activeMain, err := queries.ListActiveMainAnnouncements(ctx)
+	if err != nil {
+		t.Fatalf("list active main announcements: %v", err)
+	}
+	if len(activeMain) != 1 || activeMain[0].ID != published.ID {
+		t.Fatalf("active main announcements = %#v", activeMain)
+	}
+
+	correctedTitle := "Corrected release announcement"
+	actionLabel := "Open release"
+	actionPath := "/releases/current"
+	updated, err := queries.UpdateAnnouncement(ctx, dbgen.UpdateAnnouncementParams{
+		ID:                 published.ID,
+		ExpectedRowVersion: published.RowVersion,
+		Kind:               published.Kind,
+		Title:              correctedTitle,
+		BodyMarkdown:       published.BodyMarkdown,
+		Priority:           published.Priority,
+		ActionType:         "INTERNAL",
+		ActionLabel:        &actionLabel,
+		ActionPath:         &actionPath,
+		StartsAt:           published.StartsAt,
+		EndsAt:             published.EndsAt,
+		ActorID:            actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("update announcement through sqlc: %v", err)
+	}
+	if updated.Title != correctedTitle || updated.RowVersion != 3 {
+		t.Fatalf("updated announcement = %#v", updated)
+	}
+
+	revisions, err := queries.ListAnnouncementRevisions(ctx, published.ID)
+	if err != nil {
+		t.Fatalf("list announcement revisions: %v", err)
+	}
+	if len(revisions) != 1 || revisions[0].Title != "Release announcement" || revisions[0].Revision != 2 {
+		t.Fatalf("announcement revisions = %#v", revisions)
+	}
+
+	bannerDraft, err := queries.CreateAnnouncement(ctx, dbgen.CreateAnnouncementParams{
+		Kind:       "BANNER",
+		Title:      "Current banner query",
+		Priority:   0,
+		ActionType: "NONE",
+		ActorID:    actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("create banner draft: %v", err)
+	}
+	banner, err := queries.PublishAnnouncement(ctx, dbgen.PublishAnnouncementParams{
+		ID:                 bannerDraft.ID,
+		ExpectedRowVersion: bannerDraft.RowVersion,
+		StartsAt:           pgtype.Timestamptz{Time: now.Add(-30 * time.Minute), Valid: true},
+		EndsAt:             pgtype.Timestamptz{Time: now.Add(30 * time.Minute), Valid: true},
+		ActorID:            actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("publish banner: %v", err)
+	}
+	activeBanner, err := queries.GetActiveBannerAnnouncement(ctx)
+	if err != nil {
+		t.Fatalf("get active banner: %v", err)
+	}
+	if activeBanner.ID != banner.ID {
+		t.Fatalf("active banner ID = %v, want %v", activeBanner.ID, banner.ID)
+	}
+	if _, err := queries.ArchiveAnnouncement(ctx, dbgen.ArchiveAnnouncementParams{
+		ID:                 banner.ID,
+		ExpectedRowVersion: banner.RowVersion,
+		ActorID:            actor.ID,
+	}); err != nil {
+		t.Fatalf("archive banner: %v", err)
+	}
+
+	archived, err := queries.ArchiveAnnouncement(ctx, dbgen.ArchiveAnnouncementParams{
+		ID:                 updated.ID,
+		ExpectedRowVersion: updated.RowVersion,
+		ActorID:            actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("archive main announcement: %v", err)
+	}
+	if archived.Status != "ARCHIVED" {
+		t.Fatalf("archived announcement status = %q", archived.Status)
+	}
+	publicArchive, err := queries.ListPublicAnnouncementArchive(ctx, dbgen.ListPublicAnnouncementArchiveParams{
+		PageSize:   20,
+		PageOffset: 0,
+	})
+	if err != nil {
+		t.Fatalf("list public announcement archive: %v", err)
+	}
+	if len(publicArchive) != 1 || publicArchive[0].ID != archived.ID {
+		t.Fatalf("public announcement archive = %#v", publicArchive)
+	}
+
+	deletableDraft, err := queries.CreateAnnouncement(ctx, dbgen.CreateAnnouncementParams{
+		Kind:       "MAIN",
+		Title:      "Delete this draft",
+		Priority:   0,
+		ActionType: "NONE",
+		ActorID:    actor.ID,
+	})
+	if err != nil {
+		t.Fatalf("create deletable announcement draft: %v", err)
+	}
+	deletedRows, err := queries.DeleteDraftAnnouncement(ctx, deletableDraft.ID)
+	if err != nil {
+		t.Fatalf("delete announcement draft through sqlc: %v", err)
+	}
+	if deletedRows != 1 {
+		t.Fatalf("deleted announcement rows = %d, want 1", deletedRows)
+	}
+}
+
+func insertAnnouncement(
+	ctx context.Context,
+	t *testing.T,
+	connection *pgxpool.Pool,
+	actorID pgtype.UUID,
+	kind string,
+	title string,
+	priority int32,
+	startsAt time.Time,
+	endsAt *time.Time,
+) (pgtype.UUID, int64) {
+	t.Helper()
+	var announcementID pgtype.UUID
+	var rowVersion int64
+	if err := connection.QueryRow(ctx, `
+		INSERT INTO content.announcements (
+			kind, title, status, priority, starts_at, ends_at, published_at,
+			created_by, updated_by, published_by
+		) VALUES ($1, $2, 'PUBLISHED', $3, $4, $5, $6, $7, $7, $7)
+		RETURNING id, row_version
+	`, kind, title, priority, startsAt, endsAt, time.Now().UTC(), actorID).Scan(
+		&announcementID,
+		&rowVersion,
+	); err != nil {
+		t.Fatalf("insert %s announcement %q: %v", kind, title, err)
+	}
+	return announcementID, rowVersion
+}
+
+func timePointer(value time.Time) *time.Time {
+	return &value
+}
+
+func verifySoftwareComponentDependencies(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+	queries := dbgen.New(connection)
+
+	softwareA := createSoftwareComponent(ctx, t, queries, "Software A", "software a")
+	astro := createSoftwareComponent(ctx, t, queries, "Astro", "astro")
+	nodejs := createSoftwareComponent(ctx, t, queries, "Node.js", "node.js")
+
+	for _, dependency := range []dbgen.AddSoftwareComponentDependencyParams{
+		{ComponentID: softwareA.ID, DependencyComponentID: astro.ID, Role: "FRAMEWORK"},
+		{ComponentID: softwareA.ID, DependencyComponentID: nodejs.ID, Role: "RUNTIME"},
+	} {
+		if _, err := queries.AddSoftwareComponentDependency(ctx, dependency); err != nil {
+			t.Fatalf("add software component dependency: %v", err)
+		}
+	}
+
+	dependencies, err := queries.ListSoftwareComponentDependencies(ctx, softwareA.ID)
+	if err != nil {
+		t.Fatalf("list software component dependencies: %v", err)
+	}
+	if len(dependencies) != 2 ||
+		dependencies[0].Name != "Astro" || dependencies[0].Role != "FRAMEWORK" ||
+		dependencies[1].Name != "Node.js" || dependencies[1].Role != "RUNTIME" {
+		t.Fatalf("software component dependencies = %#v", dependencies)
+	}
+
+	if _, err := queries.AddSoftwareComponentDependency(ctx, dbgen.AddSoftwareComponentDependencyParams{
+		ComponentID:           softwareA.ID,
+		DependencyComponentID: softwareA.ID,
+		Role:                  "OTHER",
+	}); err == nil {
+		t.Fatal("self software component dependency unexpectedly succeeded")
+	}
+
+	transaction, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin dependency cycle transaction: %v", err)
+	}
+	_, cycleErr := transaction.Exec(ctx, `
+		INSERT INTO directory.software_component_dependencies (
+			component_id, dependency_component_id, role
+		) VALUES ($1, $2, 'OTHER')
+	`, astro.ID, softwareA.ID)
+	if err := transaction.Rollback(ctx); err != nil {
+		t.Fatalf("rollback dependency cycle transaction: %v", err)
+	}
+	if cycleErr == nil {
+		t.Fatal("indirect software component dependency cycle unexpectedly succeeded")
+	}
+
+	if _, err := connection.Exec(ctx, "DELETE FROM directory.software_components WHERE id = $1", astro.ID); err == nil {
+		t.Fatal("referenced dependency component deletion unexpectedly succeeded")
+	}
+	if _, err := connection.Exec(ctx, "DELETE FROM directory.software_components WHERE id = $1", softwareA.ID); err != nil {
+		t.Fatalf("delete component owning dependency relations: %v", err)
+	}
+
+	var dependencyCount int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM directory.software_component_dependencies
+		 WHERE component_id = $1
+	`, softwareA.ID).Scan(&dependencyCount); err != nil {
+		t.Fatalf("count deleted component dependencies: %v", err)
+	}
+	if dependencyCount != 0 {
+		t.Fatalf("deleted component dependency count = %d, want 0", dependencyCount)
+	}
+}
+
+func createSoftwareComponent(
+	ctx context.Context,
+	t *testing.T,
+	queries *dbgen.Queries,
+	name string,
+	normalizedName string,
+) dbgen.DirectorySoftwareComponent {
+	t.Helper()
+	component, err := queries.CreateSoftwareComponent(ctx, dbgen.CreateSoftwareComponentParams{
+		Name:           name,
+		NormalizedName: normalizedName,
+		Description:    "",
+		IsOpenSource:   true,
+	})
+	if err != nil {
+		t.Fatalf("create software component %q: %v", name, err)
+	}
+	return component
+}
+
+func verifyAnnouncementActorDeletionSemantics(
+	ctx context.Context,
+	t *testing.T,
+	runtimeConnection *pgxpool.Pool,
+	migrationURL string,
+) {
+	t.Helper()
+	queries := dbgen.New(runtimeConnection)
+	actor, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+		Email:       "deleted-announcement-actor@example.com",
+		Username:    "deleted_announcement_actor",
+		DisplayName: "Deleted Announcement Actor",
+	})
+	if err != nil {
+		t.Fatalf("create deletable announcement actor: %v", err)
+	}
+
+	now := time.Now().UTC()
+	announcementID, initialVersion := insertAnnouncement(
+		ctx,
+		t,
+		runtimeConnection,
+		actor.ID,
+		"MAIN",
+		"Announcement with deletable actor",
+		0,
+		now.Add(-time.Hour),
+		timePointer(now.Add(time.Hour)),
+	)
+	var updatedVersion int64
+	if err := runtimeConnection.QueryRow(ctx, `
+		UPDATE content.announcements
+		   SET title = 'Announcement with deleted actor', updated_by = $2
+		 WHERE id = $1 AND row_version = $3
+		RETURNING row_version
+	`, announcementID, actor.ID, initialVersion).Scan(&updatedVersion); err != nil {
+		t.Fatalf("update announcement before actor deletion: %v", err)
+	}
+	var archivedVersion int64
+	if err := runtimeConnection.QueryRow(ctx, `
+		UPDATE content.announcements
+		   SET status = 'ARCHIVED', archived_at = clock_timestamp(),
+		       archived_by = $2, updated_by = $2
+		 WHERE id = $1 AND row_version = $3
+		RETURNING row_version
+	`, announcementID, actor.ID, updatedVersion).Scan(&archivedVersion); err != nil {
+		t.Fatalf("archive announcement before actor deletion: %v", err)
+	}
+
+	migrationConnection, err := pgx.Connect(ctx, migrationURL)
+	if err != nil {
+		t.Fatalf("connect as migrator for announcement actor deletion: %v", err)
+	}
+	defer func() { _ = migrationConnection.Close(context.Background()) }()
+	if _, err := migrationConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", actor.ID); err != nil {
+		t.Fatalf("hard delete announcement actor as migrator: %v", err)
+	}
+
+	var actorReferencesCleared bool
+	var currentVersion int64
+	if err := migrationConnection.QueryRow(ctx, `
+		SELECT created_by IS NULL
+		       AND updated_by IS NULL
+		       AND published_by IS NULL
+		       AND archived_by IS NULL,
+		       row_version
+		  FROM content.announcements
+		 WHERE id = $1
+	`, announcementID).Scan(&actorReferencesCleared, &currentVersion); err != nil {
+		t.Fatalf("query announcement after actor deletion: %v", err)
+	}
+	if !actorReferencesCleared {
+		t.Fatal("announcement retained actor references after actor deletion")
+	}
+	if currentVersion != archivedVersion {
+		t.Fatalf("announcement row version after actor deletion = %d, want %d", currentVersion, archivedVersion)
+	}
+
+	var revisionCount int
+	var revisionActorReferencesCleared bool
+	if err := migrationConnection.QueryRow(ctx, `
+		SELECT count(*), bool_and(published_by IS NULL AND changed_by IS NULL)
+		  FROM content.announcement_revisions
+		 WHERE announcement_id = $1
+	`, announcementID).Scan(&revisionCount, &revisionActorReferencesCleared); err != nil {
+		t.Fatalf("query announcement revisions after actor deletion: %v", err)
+	}
+	if revisionCount != 2 || !revisionActorReferencesCleared {
+		t.Fatalf(
+			"announcement revisions after actor deletion = count:%d actors-cleared:%t",
+			revisionCount,
+			revisionActorReferencesCleared,
+		)
+	}
+}
+
+func verifyUserDeletionSemantics(
+	ctx context.Context,
+	t *testing.T,
+	runtimeConnection *pgxpool.Pool,
+	migrationURL string,
+) {
+	t.Helper()
+	queries := dbgen.New(runtimeConnection)
+	user, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+		Email:       "deletion@example.com",
+		Username:    "deletion_user",
+		DisplayName: "Deletion User",
+	})
+	if err != nil {
+		t.Fatalf("create deletion semantics user: %v", err)
+	}
+	if _, err := queries.UpsertGitHubIdentity(ctx, dbgen.UpsertGitHubIdentityParams{
+		UserID:         user.ID,
+		ProviderUserID: "deletion-provider-user",
+		Profile:        []byte(`{}`),
+	}); err != nil {
+		t.Fatalf("create deletion semantics OAuth identity: %v", err)
+	}
+
+	if _, err := runtimeConnection.Exec(ctx, `
+		UPDATE identity.users SET status = 'REMOVED' WHERE id = $1
+	`, user.ID); err != nil {
+		t.Fatalf("soft remove user: %v", err)
+	}
+	var oauthIdentityCount int
+	if err := runtimeConnection.QueryRow(ctx, `
+		SELECT count(*) FROM identity.oauth_identities WHERE user_id = $1
+	`, user.ID).Scan(&oauthIdentityCount); err != nil {
+		t.Fatalf("count OAuth identities after soft removal: %v", err)
+	}
+	if oauthIdentityCount != 1 {
+		t.Fatalf("OAuth identity count after soft removal = %d, want 1", oauthIdentityCount)
+	}
+
+	if _, err := runtimeConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", user.ID); err == nil {
+		t.Fatal("runtime user hard deletion unexpectedly succeeded")
+	}
+
+	migrationConnection, err := pgx.Connect(ctx, migrationURL)
+	if err != nil {
+		t.Fatalf("connect as migrator for user deletion: %v", err)
+	}
+	defer func() { _ = migrationConnection.Close(context.Background()) }()
+	if _, err := migrationConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", user.ID); err != nil {
+		t.Fatalf("hard delete user as migrator: %v", err)
+	}
+	if err := migrationConnection.QueryRow(ctx, `
+		SELECT count(*) FROM identity.oauth_identities WHERE user_id = $1
+	`, user.ID).Scan(&oauthIdentityCount); err != nil {
+		t.Fatalf("count OAuth identities after hard deletion: %v", err)
+	}
+	if oauthIdentityCount != 0 {
+		t.Fatalf("OAuth identity count after hard deletion = %d, want 0", oauthIdentityCount)
+	}
+}
+
+func verifyMigrationRollback(
+	ctx context.Context,
+	t *testing.T,
+	adminConnection *pgx.Conn,
+	migrationURL string,
+) {
+	t.Helper()
+	migrationConfig, err := pgx.ParseConfig(migrationURL)
+	if err != nil {
+		t.Fatalf("parse migration URL for rollback: %v", err)
+	}
+	migrationDB := stdlib.OpenDB(*migrationConfig)
+	defer func() { _ = migrationDB.Close() }()
+	migrationFS, err := migrations.Filesystem()
+	if err != nil {
+		t.Fatalf("open migrations for rollback: %v", err)
+	}
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres,
+		migrationDB,
+		migrationFS,
+		goose.WithTableName("migration.goose_db_version"),
+	)
+	if err != nil {
+		t.Fatalf("create Goose rollback provider: %v", err)
+	}
+	if _, err := provider.DownTo(ctx, 0); err != nil {
+		t.Fatalf("roll migrations down to zero: %v", err)
+	}
+
+	var businessSchemaCount int
+	if err := adminConnection.QueryRow(ctx, `
+		SELECT count(*) FROM pg_namespace
+		WHERE nspname = ANY($1::text[])
+	`, []string{"identity", "directory", "content"}).Scan(&businessSchemaCount); err != nil {
+		t.Fatalf("query business schemas after rollback: %v", err)
+	}
+	if businessSchemaCount != 0 {
+		t.Fatalf("business schema count after rollback = %d, want 0", businessSchemaCount)
+	}
+
+	var graphExists bool
+	if err := adminConnection.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'heyblog_directory')
+	`).Scan(&graphExists); err != nil {
+		t.Fatalf("query AGE graph after rollback: %v", err)
+	}
+	if graphExists {
+		t.Fatal("heyblog_directory AGE graph remained after rollback")
+	}
+
+	if err := database.Migrate(ctx, migrationURL); err != nil {
+		t.Fatalf("reapply migrations after rollback: %v", err)
+	}
+	verifyDatabaseCatalog(ctx, t, adminConnection)
+}
+
+func verifyFriendLinkGraph(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+	queries := dbgen.New(connection)
+
+	sourceID := insertSite(ctx, t, connection, "4Aa5Bb6Cc", "Source", "source.example.com")
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.site_feeds (
+			site_id, name, location_type, url_ref, url_key, is_default
+		) VALUES ($1, 'Default', 'RELATIVE', '/feed.xml', '/feed.xml', true)
+	`, sourceID); err != nil {
+		t.Fatalf("insert source feed: %v", err)
+	}
+
+	externalURL := "https://target.example.com/friends?from=source"
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: sourceID,
+		PTargetUrl:    externalURL,
+		PTargetHost:   "target.example.com",
+		PStatus:       "ACTIVE",
+	}); err != nil {
+		t.Fatalf("upsert external friend link: %v", err)
+	}
+
+	links := listFriendLinks(ctx, t, queries, sourceID, false)
+	if len(links) != 1 || links[0].TargetSiteID.Valid || links[0].TargetUrl != externalURL {
+		t.Fatalf("external friend links = %#v", links)
+	}
+
+	targetID := insertSite(ctx, t, connection, "5Aa6Bb7Cc", "Target", "target.example.com")
+	links = listFriendLinks(ctx, t, queries, sourceID, false)
+	if len(links) != 1 || !links[0].TargetSiteID.Valid || links[0].TargetSiteID != targetID {
+		t.Fatalf("promoted friend links = %#v", links)
+	}
+
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: targetID,
+		PTargetUrl:    "https://source.example.com/friends",
+		PTargetHost:   "source.example.com",
+		PStatus:       "ACTIVE",
+	}); err != nil {
+		t.Fatalf("upsert reciprocal friend link: %v", err)
+	}
+	links = listFriendLinks(ctx, t, queries, sourceID, false)
+	if len(links) != 1 || !links[0].IsReciprocal {
+		t.Fatalf("reciprocal friend links = %#v", links)
+	}
+
+	if _, err := connection.Exec(ctx, `
+		UPDATE directory.sites
+		   SET visibility = 'HIDDEN', visibility_reason = 'private'
+		 WHERE id = $1
+	`, targetID); err != nil {
+		t.Fatalf("hide target site: %v", err)
+	}
+	if links = listFriendLinks(ctx, t, queries, sourceID, false); len(links) != 0 {
+		t.Fatalf("hidden registered target remained public: %#v", links)
+	}
+
+	if _, err := connection.Exec(ctx, `
+		UPDATE directory.sites
+		   SET visibility = 'VISIBLE', visibility_reason = NULL,
+		       scheme = 'http', normalized_host = 'moved.example.com'
+		 WHERE id = $1
+	`, targetID); err != nil {
+		t.Fatalf("move target site: %v", err)
+	}
+	links = listFriendLinks(ctx, t, queries, sourceID, false)
+	if len(links) != 1 || links[0].TargetHost != "moved.example.com" ||
+		links[0].TargetUrl != "http://moved.example.com/friends?from=source" {
+		t.Fatalf("moved friend links = %#v", links)
+	}
+
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: sourceID,
+		PTargetUrl:    "https://source.example.com/friends",
+		PTargetHost:   "source.example.com",
+		PStatus:       "ACTIVE",
+	}); err == nil {
+		t.Fatal("friend-link self edge unexpectedly succeeded")
+	}
+
+	if _, err := connection.Exec(ctx, "DELETE FROM directory.sites WHERE id = $1", targetID); err == nil {
+		t.Fatal("hard site deletion unexpectedly succeeded")
+	}
+
+	var relativeFeed string
+	if err := connection.QueryRow(ctx, `
+		SELECT url_ref FROM directory.site_feeds WHERE site_id = $1 AND is_default
+	`, sourceID).Scan(&relativeFeed); err != nil {
+		t.Fatalf("query relative feed: %v", err)
+	}
+	if relativeFeed != "/feed.xml" {
+		t.Fatalf("relative feed = %q, want /feed.xml", relativeFeed)
+	}
+}
+
+func listFriendLinks(
+	ctx context.Context,
+	t *testing.T,
+	queries *dbgen.Queries,
+	sourceID pgtype.UUID,
+	includeInactive bool,
+) []dbgen.ListFriendLinksRow {
+	t.Helper()
+	links, err := queries.ListFriendLinks(ctx, dbgen.ListFriendLinksParams{
+		PSourceSiteID:    sourceID,
+		PIncludeInactive: includeInactive,
+	})
+	if err != nil {
+		t.Fatalf("list friend links: %v", err)
+	}
+	return links
+}
+
+func insertSite(
+	ctx context.Context,
+	t *testing.T,
+	connection *pgxpool.Pool,
+	shortID string,
+	name string,
+	host string,
+) pgtype.UUID {
+	t.Helper()
+	var siteID pgtype.UUID
+	if err := connection.QueryRow(ctx, `
+		INSERT INTO directory.sites (short_id, name, normalized_host)
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`, shortID, name, host).Scan(&siteID); err != nil {
+		t.Fatalf("insert site %q: %v", host, err)
+	}
+	return siteID
+}
+
+func verifyRuntimePermissions(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+	if _, err := connection.Exec(ctx, "CREATE SCHEMA forbidden_runtime_schema"); err == nil {
+		t.Fatal("runtime role unexpectedly received schema DDL permission")
+	}
+	if _, err := connection.Exec(ctx, `SELECT * FROM heyblog_directory."SiteRef"`); err == nil {
+		t.Fatal("runtime role unexpectedly received direct graph table access")
+	}
+}
+
+func TestRedisInfrastructure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	container, err := tcredis.Run(ctx, "redis:8.4-alpine")
+	if err != nil {
+		t.Fatalf("start Redis container: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(container); err != nil {
+			t.Errorf("terminate Redis container: %v", err)
+		}
+	})
+
+	redisURL, err := container.ConnectionString(ctx)
+	if err != nil {
+		t.Fatalf("get Redis connection string: %v", err)
+	}
+	client, err := cache.OpenRedis(ctx, config.RedisConfig{
+		URL:          redisURL,
+		DialTimeout:  3 * time.Second,
+		ReadTimeout:  2 * time.Second,
+		WriteTimeout: 2 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("open Redis client: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	if err := client.Set(ctx, "integration:redis", "ready", time.Minute).Err(); err != nil {
+		t.Fatalf("write Redis key: %v", err)
+	}
+	if value, err := client.Get(ctx, "integration:redis").Result(); err != nil || value != "ready" {
+		t.Fatalf("read Redis key = (%q, %v), want (%q, nil)", value, err, "ready")
+	}
+
+	limiter := ratelimit.New(client)
+	concurrencyPolicy := ratelimit.Policy{
+		Name:           "integration-concurrency",
+		Capacity:       10,
+		RefillTokens:   1,
+		RefillInterval: time.Hour,
+	}
+	var allowed atomic.Int32
+	var waitGroup sync.WaitGroup
+	for range 20 {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			decision, err := limiter.Allow(ctx, "concurrent-client", concurrencyPolicy)
+			if err != nil {
+				t.Errorf("concurrent limiter Allow() error = %v", err)
+				return
+			}
+			if decision.Allowed {
+				allowed.Add(1)
+			}
+		}()
+	}
+	waitGroup.Wait()
+	if allowed.Load() != 10 {
+		t.Fatalf("concurrent allowed requests = %d, want 10", allowed.Load())
+	}
+
+	refillPolicy := ratelimit.Policy{
+		Name:           "integration-refill",
+		Capacity:       1,
+		RefillTokens:   1,
+		RefillInterval: 25 * time.Millisecond,
+	}
+	first, err := limiter.Allow(ctx, "refill-client", refillPolicy)
+	if err != nil || !first.Allowed {
+		t.Fatalf("first refill decision = (%#v, %v), want allowed", first, err)
+	}
+	second, err := limiter.Allow(ctx, "refill-client", refillPolicy)
+	if err != nil || second.Allowed {
+		t.Fatalf("second refill decision = (%#v, %v), want denied", second, err)
+	}
+	time.Sleep(40 * time.Millisecond)
+	third, err := limiter.Allow(ctx, "refill-client", refillPolicy)
+	if err != nil || !third.Allowed {
+		t.Fatalf("refilled decision = (%#v, %v), want allowed", third, err)
+	}
+}
+
+func databaseURLForRole(t *testing.T, rawURL, username, password string) string {
+	t.Helper()
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse database URL: %v", err)
+	}
+	parsed.User = url.UserPassword(username, password)
+	return parsed.String()
+}

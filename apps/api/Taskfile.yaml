@@ -10,6 +10,8 @@ tasks:
 
   dev:
     desc: Start API server
+    dotenv:
+      - ../../.env.development
     cmds:
       - go run .
 
@@ -23,10 +25,15 @@ tasks:
     cmds:
       - go test ./...
 
+  test:race:
+    desc: Test API with the race detector
+    cmds:
+      - go test -race ./...
+
   test:integration:
     desc: Test API infrastructure with PostgreSQL/AGE and Redis containers
     cmds:
-      - go test -tags=integration ./internal/integration
+      - go test -count=1 -tags=integration ./internal/integration
 
   sqlc:generate:
     desc: Generate pgx/v5 data access code
@@ -73,7 +80,7 @@ tasks:
   verify:
     desc: Run offline checks for API
     cmds:
-      - task: test
+      - task: test:race
       - task: sqlc:vet
       - task: sqlc:diff
       - task: format:check
