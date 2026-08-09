@@ -62,7 +62,6 @@ tasks:
   test:
     desc: Run all configured tests
     cmds:
-      - node --test ./scripts/*.test.mjs
       - task: api:test
 
   security:

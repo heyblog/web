@@ -75,7 +75,7 @@ tasks:
   vulncheck:
     desc: Check API Go vulnerabilities
     cmds:
-      - govulncheck ./...
+      - go tool govulncheck ./...
 
   verify:
     desc: Run offline checks for API
