@@ -1,0 +1,231 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":timezone(Asia/Shanghai)",
+    ":label(dependencies)",
+    ":configMigration",
+    ":approveMajorUpdates",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "依赖更新控制台",
+  "dependencyDashboardHeader": "主版本（x）更新必须在此审批；勾选条目后，Renovate 将创建并在此跟踪关联 PR。",
+  "dependencyDashboardLabels": ["dependencies"],
+  "enabledManagers": [
+    "npm",
+    "gomod",
+    "nvm",
+    "dockerfile",
+    "docker-compose",
+    "github-actions",
+    "custom.regex"
+  ],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "schedule": ["* 0-5 * * 1"],
+  "separateMajorMinor": true,
+  "separateMinorPatch": true,
+  "ignoreUnstable": true,
+  "respectLatest": true,
+  "automerge": false,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security"],
+    "automerge": false,
+    "dependencyDashboardApproval": false,
+    "vulnerabilityFixStrategy": "lowest"
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-5 * * 1"]
+  },
+  "github-actions": {
+    "managerFilePatterns": ["/^\\.github\\/(?:actions|workflows)\\/.+\\.yaml$/"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.golangci-lint-version$/"],
+      "matchStrings": ["(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "golangci/golangci-lint",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Go workspace toolchain pins",
+      "managerFilePatterns": ["/^go\\.work$/"],
+      "matchStrings": [
+        "(?:^|\\n)go\\s+(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)",
+        "(?:^|\\n)toolchain\\s+go(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version",
+      "versioningTemplate": "semver-coerced"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Wait seven days before proposing npm releases",
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "7 days",
+      "minimumReleaseAgeBehaviour": "timestamp-required"
+    },
+    {
+      "description": "Keep npm manifests and artifacts synchronized",
+      "matchManagers": ["npm"],
+      "rangeStrategy": "bump",
+      "skipArtifactsUpdate": false
+    },
+    {
+      "description": "Keep TypeScript on the latest stable version 6 release",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": ">=6 <7"
+    },
+    {
+      "description": "Preserve the reviewed nanoid security override",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["pnpm-workspace.overrides"],
+      "matchPackageNames": ["nanoid"],
+      "enabled": false
+    },
+    {
+      "description": "Ignore application images published by this repository",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": [
+        "heyblog/api",
+        "heyblog/web",
+        "heyblog/worker",
+        "ccr.ccs.tencentyun.com/heyblog/api",
+        "ccr.ccs.tencentyun.com/heyblog/web",
+        "ccr.ccs.tencentyun.com/heyblog/worker"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group Docker minor updates",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "docker-y",
+      "groupSlug": "docker-y",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Docker patch updates",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "docker-z",
+      "groupSlug": "docker-z",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Docker digest updates",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "groupName": "docker-digest",
+      "groupSlug": "docker-digest",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group GitHub Actions digest updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "groupName": "github-actions-digest",
+      "groupSlug": "github-actions-digest",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Keep Node.js runtime pins synchronized",
+      "matchManagers": ["nvm", "dockerfile"],
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "Node.js toolchain"
+    },
+    {
+      "description": "Keep Go toolchain pins synchronized",
+      "matchManagers": ["gomod", "dockerfile", "custom.regex"],
+      "matchPackageNames": ["go", "golang"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "Go toolchain"
+    },
+    {
+      "description": "Keep the Go compatibility directive current",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "matchPackageNames": ["go"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group Node.js ecosystem minor updates",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "node-y",
+      "groupSlug": "node-y",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Node.js runtime minor updates",
+      "matchManagers": ["nvm", "dockerfile"],
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "node-y",
+      "groupSlug": "node-y",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Node.js ecosystem patch updates",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "node-z",
+      "groupSlug": "node-z",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Node.js runtime patch updates",
+      "matchManagers": ["nvm", "dockerfile"],
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "node-z",
+      "groupSlug": "node-z",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Go ecosystem minor updates",
+      "matchManagers": ["gomod", "custom.regex"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "go-y",
+      "groupSlug": "go-y",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Go runtime minor updates",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["golang"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "go-y",
+      "groupSlug": "go-y",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Go ecosystem patch updates",
+      "matchManagers": ["gomod", "custom.regex"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "go-z",
+      "groupSlug": "go-z",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Go runtime patch updates",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["golang"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "go-z",
+      "groupSlug": "go-z",
+      "groupSingleUpdates": true
+    }
+  ],
+  "ignorePaths": ["**/node_modules/**", "**/dist/**"]
+}
