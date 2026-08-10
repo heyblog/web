@@ -1,0 +1,69 @@
+---
+import { IconExternalLink } from '@tabler/icons-svelte';
+
+import { siteConfig } from '@/site.config';
+
+const currentYear = new Date().getFullYear();
+const copyrightYears =
+  currentYear === siteConfig.footer.copyrightStartYear
+    ? `${currentYear}`
+    : `${siteConfig.footer.copyrightStartYear} - ${currentYear}`;
+---
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <section class="site-footer-section site-footer-overview" aria-labelledby="footer-site-info">
+      <h2 class="site-footer-heading" id="footer-site-info">站点信息</h2>
+      <div class="site-footer-copy">
+        <a
+          class="site-footer-link"
+          href={siteConfig.footer.registration.href}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span>{siteConfig.footer.registration.label}</span>
+          <IconExternalLink aria-hidden="true" size={13} stroke={1.75} />
+        </a>
+        <p>Copyright © {copyrightYears} {siteConfig.footer.copyrightOwner}</p>
+      </div>
+    </section>
+
+    <nav class="site-footer-section" aria-labelledby="footer-statements">
+      <h2 class="site-footer-heading" id="footer-statements">站点声明</h2>
+      <ul class="site-footer-list">
+        {
+          siteConfig.footer.statementLinks.map((item) => (
+            <li>
+              <a class="site-footer-link" href={item.href}>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <nav class="site-footer-section" aria-labelledby="footer-friend-links">
+      <h2 class="site-footer-heading" id="footer-friend-links">友情链接</h2>
+      <ul class="site-footer-list">
+        {
+          siteConfig.footer.friendLinks.map((item) => (
+            <li>
+              <a
+                class="site-footer-link"
+                href={item.href}
+                rel={item.external ? 'noreferrer' : undefined}
+                target={item.external ? '_blank' : undefined}
+              >
+                <span>{item.label}</span>
+                {item.external ? (
+                  <IconExternalLink aria-hidden="true" size={13} stroke={1.75} />
+                ) : null}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</footer>

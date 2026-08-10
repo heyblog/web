@@ -1,0 +1,94 @@
+---
+import PublicLayout from './PublicLayout.astro';
+
+interface MarkdownFrontmatter {
+  title?: string;
+  description?: string;
+  create_time?: string | Date;
+  update_time?: string | Date;
+}
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props extends MarkdownFrontmatter {
+  headings?: Heading[];
+  frontmatter?: MarkdownFrontmatter;
+}
+
+const frontmatter = Astro.props.frontmatter ?? {};
+const title = Astro.props.title ?? frontmatter.title ?? '未命名页面';
+const description = Astro.props.description ?? frontmatter.description;
+const createTime = Astro.props.create_time ?? frontmatter.create_time;
+const updateTime = Astro.props.update_time ?? frontmatter.update_time;
+const headings = (Astro.props.headings ?? []).filter(
+  (heading) => heading.depth === 2 || heading.depth === 3,
+);
+const formatDate = (value: string | Date | undefined) =>
+  value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(value)) : '';
+const createdLabel = formatDate(createTime);
+const updatedLabel = formatDate(updateTime);
+---
+
+<PublicLayout
+  {title}
+  {description}
+  ogType="article"
+  publishedTime={createTime}
+  modifiedTime={updateTime}
+>
+  <div class="content-layout">
+    <article class="content-article">
+      <header class="content-header">
+        <h1>{title}</h1>
+        {description ? <p>{description}</p> : null}
+        {
+          createdLabel || updatedLabel ? (
+            <dl class="content-dates">
+              {createdLabel ? (
+                <div>
+                  <dt>创建时间</dt>
+                  <dd>
+                    <time datetime={new Date(createTime!).toISOString()}>{createdLabel}</time>
+                  </dd>
+                </div>
+              ) : null}
+              {updatedLabel && updatedLabel !== createdLabel ? (
+                <div>
+                  <dt>最后更新</dt>
+                  <dd>
+                    <time datetime={new Date(updateTime!).toISOString()}>{updatedLabel}</time>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null
+        }
+        <slot name="meta" />
+      </header>
+      <div class="content-body">
+        <slot />
+      </div>
+    </article>
+
+    {
+      headings.length > 0 ? (
+        <aside class="content-toc">
+          <p class="content-toc-title">本页内容</p>
+          <nav aria-label="文章目录">
+            <ol>
+              {headings.map((heading) => (
+                <li class:list={{ 'content-toc-nested': heading.depth === 3 }}>
+                  <a href={`#${heading.slug}`}>{heading.text}</a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </aside>
+      ) : null
+    }
+  </div>
+</PublicLayout>

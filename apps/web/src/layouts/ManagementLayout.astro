@@ -1,0 +1,118 @@
+---
+import type { TransitionDirectionalAnimations } from 'astro';
+
+import { siteConfig } from '@/site.config';
+
+import BaseLayout from './BaseLayout.astro';
+
+export interface ManagementIdentityView {
+  displayName: string;
+  email: string;
+  roleLabel: string;
+  statusLabel?: string;
+}
+
+export interface ManagementNavigationItem {
+  label: string;
+  href: string;
+  description?: string;
+}
+
+interface Props {
+  title: string;
+  heading: string;
+  currentPath: string;
+  eyebrow?: string;
+  identity?: ManagementIdentityView;
+  navigation: ManagementNavigationItem[];
+}
+
+const { title, heading, currentPath, eyebrow = '管理中心', identity, navigation } = Astro.props;
+const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
+const pageTransition: TransitionDirectionalAnimations = {
+  forwards: {
+    old: { name: 'heyblog-page-out', duration: '150ms', easing: 'ease-out', fillMode: 'both' },
+    new: {
+      name: 'heyblog-page-in',
+      duration: '250ms',
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fillMode: 'both',
+    },
+  },
+  backwards: {
+    old: { name: 'heyblog-page-out', duration: '150ms', easing: 'ease-out', fillMode: 'both' },
+    new: {
+      name: 'heyblog-page-in',
+      duration: '250ms',
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fillMode: 'both',
+    },
+  },
+};
+---
+
+<BaseLayout {title} bodyClass="management-shell">
+  <header class="management-topbar">
+    <a class="site-brand" href="/" aria-label={`${siteConfig.name} 首页`}>
+      <img class="site-brand-logo" src="/favicon.svg" alt="" width="40" height="40" />
+      <span>{siteConfig.name}</span>
+    </a>
+  </header>
+
+  <div class="management-frame">
+    <aside class="management-sidebar">
+      <details class="management-navigation" open>
+        <summary>管理导航</summary>
+        <div class="management-navigation-body">
+          {
+            identity ? (
+              <section class="management-identity" aria-label="当前账号">
+                <strong>{identity.displayName}</strong>
+                <span>{identity.email}</span>
+                <dl>
+                  <div>
+                    <>
+                      <dt>角色</dt>
+                      <dd>{identity.roleLabel}</dd>
+                    </>
+                  </div>
+                  {identity.statusLabel ? (
+                    <div>
+                      <dt>状态</dt>
+                      <dd>{identity.statusLabel}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </section>
+            ) : null
+          }
+          <nav aria-label="管理模块">
+            {
+              navigation.map((item) => (
+                <a
+                  class:list={[
+                    'management-navigation-link',
+                    { 'management-navigation-link-active': isActive(item.href) },
+                  ]}
+                  href={item.href}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
+                >
+                  <strong>{item.label}</strong>
+                  {item.description ? <span>{item.description}</span> : null}
+                </a>
+              ))
+            }
+          </nav>
+        </div>
+      </details>
+    </aside>
+
+    <main class="management-content" transition:animate={pageTransition}>
+      <header class="management-heading">
+        <p>{eyebrow}</p>
+        <h1>{heading}</h1>
+      </header>
+      <slot />
+    </main>
+  </div>
+</BaseLayout>

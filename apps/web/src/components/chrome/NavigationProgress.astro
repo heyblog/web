@@ -1,0 +1,68 @@
+<div
+  class="navigation-progress"
+  data-navigation-progress
+  data-state="idle"
+  role="progressbar"
+  aria-label="页面加载中"
+  aria-hidden="true"
+>
+  <span class="navigation-progress-bar"></span>
+</div>
+
+<script>
+  declare global {
+    interface Window {
+      __heyblogNavigationProgressReady?: boolean;
+    }
+  }
+
+  if (!window.__heyblogNavigationProgressReady) {
+    window.__heyblogNavigationProgressReady = true;
+
+    let showTimer: number | undefined;
+    let hideTimer: number | undefined;
+    let visible = false;
+
+    const updateProgress = (state: 'idle' | 'loading' | 'complete') => {
+      const progress = document.querySelector<HTMLElement>('[data-navigation-progress]');
+
+      if (!progress) {
+        return;
+      }
+
+      progress.dataset.state = state;
+      progress.setAttribute('aria-hidden', state === 'idle' ? 'true' : 'false');
+    };
+
+    document.addEventListener('astro:before-preparation', () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(hideTimer);
+      visible = false;
+      updateProgress('idle');
+
+      showTimer = window.setTimeout(() => {
+        visible = true;
+        updateProgress('loading');
+      }, 120);
+    });
+
+    document.addEventListener('astro:after-swap', () => {
+      updateProgress(visible ? 'loading' : 'idle');
+    });
+
+    document.addEventListener('astro:page-load', () => {
+      window.clearTimeout(showTimer);
+
+      if (!visible) {
+        updateProgress('idle');
+        return;
+      }
+
+      updateProgress('complete');
+      hideTimer = window.setTimeout(() => {
+        visible = false;
+        updateProgress('idle');
+      }, 150);
+    });
+  }
+</script>

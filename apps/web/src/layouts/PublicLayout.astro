@@ -1,0 +1,51 @@
+---
+import type { TransitionDirectionalAnimations } from 'astro';
+
+import PublicHeader from '@/components/chrome/PublicHeader.astro';
+import SiteFooter from '@/components/chrome/SiteFooter.astro';
+
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonicalPath?: string;
+  ogType?: 'website' | 'article';
+  imagePath?: string;
+  imageAlt?: string;
+  robots?: string;
+  publishedTime?: string | Date;
+  modifiedTime?: string | Date;
+  showFooter?: boolean;
+}
+
+const { showFooter = true, ...metadata } = Astro.props;
+const pageTransition: TransitionDirectionalAnimations = {
+  forwards: {
+    old: { name: 'heyblog-page-out', duration: '150ms', easing: 'ease-out', fillMode: 'both' },
+    new: {
+      name: 'heyblog-page-in',
+      duration: '250ms',
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fillMode: 'both',
+    },
+  },
+  backwards: {
+    old: { name: 'heyblog-page-out', duration: '150ms', easing: 'ease-out', fillMode: 'both' },
+    new: {
+      name: 'heyblog-page-in',
+      duration: '250ms',
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fillMode: 'both',
+    },
+  },
+};
+---
+
+<BaseLayout {...metadata} bodyClass="public-shell">
+  <PublicHeader currentPath={Astro.url.pathname} />
+  <main class="public-shell-main" transition:animate={pageTransition}>
+    <slot />
+  </main>
+  {showFooter ? <SiteFooter /> : null}
+</BaseLayout>

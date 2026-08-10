@@ -7,7 +7,7 @@ import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 
-import { siteConfig } from './heyblog.config';
+import { siteConfig } from './src/site.config';
 
 // https://astro.build/config
 export default defineConfig({

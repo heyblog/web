@@ -1,0 +1,14 @@
+---
+import { IconMoon, IconSun } from '@tabler/icons-svelte';
+---
+
+<button
+  class="icon-button theme-toggle"
+  type="button"
+  data-theme-toggle
+  aria-label="切换为深色模式"
+  aria-pressed="false"
+>
+  <IconSun class="theme-toggle-sun" aria-hidden="true" size={18} stroke={1.75} />
+  <IconMoon class="theme-toggle-moon" aria-hidden="true" size={18} stroke={1.75} />
+</button>

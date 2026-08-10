@@ -28,6 +28,7 @@
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/svelte": "^9.0.1",
     "@heyblog/configs": "workspace:*",
+    "@tabler/icons-svelte": "^3.46.0",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.1.6",
     "svelte": "^5.56.8",

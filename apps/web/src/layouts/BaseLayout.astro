@@ -1,0 +1,151 @@
+---
+import { ClientRouter } from 'astro:transitions';
+
+import NavigationProgress from '@/components/chrome/NavigationProgress.astro';
+import { resolvePageMetadata } from '@/shared/seo';
+import { siteConfig } from '@/site.config';
+
+import '@/styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonicalPath?: string;
+  ogType?: 'website' | 'article';
+  imagePath?: string;
+  imageAlt?: string;
+  robots?: string;
+  publishedTime?: string | Date;
+  modifiedTime?: string | Date;
+  bodyClass?: string;
+}
+
+const {
+  title,
+  description,
+  canonicalPath,
+  ogType,
+  imagePath,
+  imageAlt,
+  robots,
+  publishedTime,
+  modifiedTime,
+  bodyClass,
+} = Astro.props;
+const metadata = resolvePageMetadata({
+  pathname: Astro.url.pathname,
+  title,
+  description,
+  canonicalPath,
+  ogType,
+  imagePath,
+  imageAlt,
+  robots,
+  publishedTime,
+  modifiedTime,
+});
+---
+
+<!doctype html>
+<html lang={siteConfig.language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <meta name="description" content={metadata.description} />
+    <meta name="robots" content={metadata.robots} />
+    <link rel="canonical" href={metadata.canonicalUrl} />
+    <meta property="og:locale" content={siteConfig.locale} />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:type" content={metadata.ogType} />
+    <meta property="og:title" content={metadata.title} />
+    <meta property="og:description" content={metadata.description} />
+    <meta property="og:url" content={metadata.canonicalUrl} />
+    <meta property="og:image" content={metadata.imageUrl} />
+    <meta property="og:image:alt" content={metadata.imageAlt} />
+    <meta name="twitter:card" content={siteConfig.twitterCard} />
+    <meta name="twitter:title" content={metadata.title} />
+    <meta name="twitter:description" content={metadata.description} />
+    <meta name="twitter:image" content={metadata.imageUrl} />
+    <meta name="twitter:image:alt" content={metadata.imageAlt} />
+    {
+      metadata.publishedTime ? (
+        <meta property="article:published_time" content={metadata.publishedTime} />
+      ) : null
+    }
+    {
+      metadata.modifiedTime ? (
+        <meta property="article:modified_time" content={metadata.modifiedTime} />
+      ) : null
+    }
+    <script is:inline define:vars={{ themeStorageKey: siteConfig.themeStorageKey }}>
+      (() => {
+        const root = document.documentElement;
+        const storedTheme = localStorage.getItem(themeStorageKey);
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+        const theme = storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : systemTheme;
+
+        root.dataset.theme = theme;
+        root.style.colorScheme = theme;
+      })();
+    </script>
+    <ClientRouter fallback="animate" />
+    <title>{metadata.title}</title>
+  </head>
+  <body class={bodyClass} data-theme-storage-key={siteConfig.themeStorageKey}>
+    <NavigationProgress />
+    <slot />
+    <script>
+      declare global {
+        interface Window {
+          __heyblogThemeControlsReady?: boolean;
+        }
+      }
+
+      const syncThemeControls = () => {
+        const dark = document.documentElement.dataset.theme === 'dark';
+
+        document.querySelectorAll<HTMLElement>('[data-theme-toggle]').forEach((button) => {
+          button.setAttribute('aria-pressed', String(dark));
+          button.setAttribute('aria-label', dark ? '切换为浅色模式' : '切换为深色模式');
+        });
+      };
+
+      if (!window.__heyblogThemeControlsReady) {
+        window.__heyblogThemeControlsReady = true;
+
+        document.addEventListener('astro:before-swap', (event) => {
+          const currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+
+          event.newDocument.documentElement.dataset.theme = currentTheme;
+          event.newDocument.documentElement.style.colorScheme = currentTheme;
+        });
+
+        document.addEventListener('click', (event) => {
+          const target = event.target;
+
+          if (!(target instanceof Element) || !target.closest('[data-theme-toggle]')) {
+            return;
+          }
+
+          const root = document.documentElement;
+          const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+          const storageKey = document.body.dataset.themeStorageKey ?? 'heyblog-theme';
+
+          root.dataset.theme = nextTheme;
+          root.style.colorScheme = nextTheme;
+          localStorage.setItem(storageKey, nextTheme);
+          syncThemeControls();
+        });
+
+        document.addEventListener('astro:page-load', syncThemeControls);
+      }
+
+      syncThemeControls();
+    </script>
+  </body>
+</html>
