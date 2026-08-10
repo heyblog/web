@@ -1,6 +1,4 @@
 ---
-import type { TransitionDirectionalAnimations } from 'astro';
-
 import { siteConfig } from '@/site.config';
 
 import BaseLayout from './BaseLayout.astro';
@@ -29,26 +27,6 @@ interface Props {
 
 const { title, heading, currentPath, eyebrow = '管理中心', identity, navigation } = Astro.props;
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
-const pageTransition: TransitionDirectionalAnimations = {
-  forwards: {
-    old: { name: 'heyblog-page-out', duration: '150ms', easing: 'ease-out', fillMode: 'both' },
-    new: {
-      name: 'heyblog-page-in',
-      duration: '250ms',
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-      fillMode: 'both',
-    },
-  },
-  backwards: {
-    old: { name: 'heyblog-page-out', duration: '150ms', easing: 'ease-out', fillMode: 'both' },
-    new: {
-      name: 'heyblog-page-in',
-      duration: '250ms',
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-      fillMode: 'both',
-    },
-  },
-};
 ---
 
 <BaseLayout {title} bodyClass="management-shell">
@@ -107,7 +85,7 @@ const pageTransition: TransitionDirectionalAnimations = {
       </details>
     </aside>
 
-    <main class="management-content" transition:animate={pageTransition}>
+    <main class="management-content">
       <header class="management-heading">
         <p>{eyebrow}</p>
         <h1>{heading}</h1>

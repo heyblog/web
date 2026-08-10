@@ -88,12 +88,6 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
 </header>
 
 <script>
-  declare global {
-    interface Window {
-      __heyblogPublicHeaderReady?: boolean;
-    }
-  }
-
   const closeMenu = (menu: HTMLDetailsElement, restoreFocus = false) => {
     if (!menu.open) {
       return;
@@ -115,43 +109,39 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
     trigger?.setAttribute('aria-label', menu.open ? '关闭导航' : '打开导航');
   };
 
-  if (!window.__heyblogPublicHeaderReady) {
-    window.__heyblogPublicHeaderReady = true;
+  document.addEventListener(
+    'toggle',
+    (event) => {
+      const menu = event.target;
 
-    document.addEventListener(
-      'toggle',
-      (event) => {
-        const menu = event.target;
-
-        if (menu instanceof HTMLDetailsElement && menu.matches('[data-public-menu]')) {
-          syncMenu(menu);
-        }
-      },
-      true,
-    );
-
-    document.addEventListener('click', (event) => {
-      const target = event.target;
-
-      if (!(target instanceof Element)) {
-        return;
+      if (menu instanceof HTMLDetailsElement && menu.matches('[data-public-menu]')) {
+        syncMenu(menu);
       }
+    },
+    true,
+  );
 
-      document.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
-        if (!menu.contains(target) || target.closest('a')) {
-          closeMenu(menu);
-        }
-      });
-    });
+  document.addEventListener('click', (event) => {
+    const target = event.target;
 
-    document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape') {
-        return;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    document.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
+      if (!menu.contains(target) || target.closest('a')) {
+        closeMenu(menu);
       }
-
-      document.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
-        closeMenu(menu, true);
-      });
     });
-  }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+      return;
+    }
+
+    document.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
+      closeMenu(menu, true);
+    });
+  });
 </script>

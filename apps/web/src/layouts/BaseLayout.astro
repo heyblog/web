@@ -1,7 +1,4 @@
 ---
-import { ClientRouter } from 'astro:transitions';
-
-import NavigationProgress from '@/components/chrome/NavigationProgress.astro';
 import { resolvePageMetadata } from '@/shared/seo';
 import { siteConfig } from '@/site.config';
 
@@ -47,7 +44,7 @@ const metadata = resolvePageMetadata({
 ---
 
 <!doctype html>
-<html lang={siteConfig.language}>
+<html lang={siteConfig.language} data-theme-storage-key={siteConfig.themeStorageKey}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -80,32 +77,12 @@ const metadata = resolvePageMetadata({
         <meta property="article:modified_time" content={metadata.modifiedTime} />
       ) : null
     }
-    <script is:inline define:vars={{ themeStorageKey: siteConfig.themeStorageKey }}>
-      (() => {
-        const root = document.documentElement;
-        const storedTheme = localStorage.getItem(themeStorageKey);
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-          ? 'dark'
-          : 'light';
-        const theme = storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : systemTheme;
-
-        root.dataset.theme = theme;
-        root.style.colorScheme = theme;
-      })();
-    </script>
-    <ClientRouter fallback="animate" />
+    <script is:inline src="/theme-init.js"></script>
     <title>{metadata.title}</title>
   </head>
-  <body class={bodyClass} data-theme-storage-key={siteConfig.themeStorageKey}>
-    <NavigationProgress />
+  <body class={bodyClass}>
     <slot />
     <script>
-      declare global {
-        interface Window {
-          __heyblogThemeControlsReady?: boolean;
-        }
-      }
-
       const syncThemeControls = () => {
         const dark = document.documentElement.dataset.theme === 'dark';
 
@@ -115,35 +92,28 @@ const metadata = resolvePageMetadata({
         });
       };
 
-      if (!window.__heyblogThemeControlsReady) {
-        window.__heyblogThemeControlsReady = true;
+      document.addEventListener('click', (event) => {
+        const target = event.target;
 
-        document.addEventListener('astro:before-swap', (event) => {
-          const currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+        if (!(target instanceof Element) || !target.closest('[data-theme-toggle]')) {
+          return;
+        }
 
-          event.newDocument.documentElement.dataset.theme = currentTheme;
-          event.newDocument.documentElement.style.colorScheme = currentTheme;
-        });
+        const root = document.documentElement;
+        const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        const storageKey = root.dataset.themeStorageKey ?? 'heyblog-theme';
 
-        document.addEventListener('click', (event) => {
-          const target = event.target;
+        root.dataset.theme = nextTheme;
+        root.style.colorScheme = nextTheme;
 
-          if (!(target instanceof Element) || !target.closest('[data-theme-toggle]')) {
-            return;
-          }
-
-          const root = document.documentElement;
-          const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-          const storageKey = document.body.dataset.themeStorageKey ?? 'heyblog-theme';
-
-          root.dataset.theme = nextTheme;
-          root.style.colorScheme = nextTheme;
+        try {
           localStorage.setItem(storageKey, nextTheme);
-          syncThemeControls();
-        });
+        } catch {
+          // The selected theme still applies when persistent storage is unavailable.
+        }
 
-        document.addEventListener('astro:page-load', syncThemeControls);
-      }
+        syncThemeControls();
+      });
 
       syncThemeControls();
     </script>

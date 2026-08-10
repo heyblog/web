@@ -1,7 +1,6 @@
 // @ts-check
 import mdx from '@astrojs/mdx';
 import node from '@astrojs/node';
-import partytown from '@astrojs/partytown';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
@@ -20,8 +19,32 @@ export default defineConfig({
   },
   output: 'server',
   site: siteConfig.url,
+  markdown: {
+    syntaxHighlight: 'prism',
+  },
+  prefetch: {
+    prefetchAll: true,
+    defaultStrategy: 'hover',
+  },
+  security: {
+    csp: {
+      directives: [
+        "default-src 'self'",
+        "base-uri 'none'",
+        "connect-src 'self'",
+        "font-src 'self' data:",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "frame-src 'none'",
+        "img-src 'self' data:",
+        "manifest-src 'self'",
+        "object-src 'none'",
+        'upgrade-insecure-requests',
+      ],
+    },
+  },
   vite: {
     plugins: [tailwindcss()],
   },
-  integrations: [svelte(), mdx(), sitemap(), partytown()],
+  integrations: [svelte(), mdx(), sitemap()],
 });
