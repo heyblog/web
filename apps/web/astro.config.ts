@@ -14,6 +14,10 @@ export default defineConfig({
   adapter: node({
     mode: 'standalone',
   }),
+  server: {
+    host: true,
+    port: 10101,
+  },
   output: 'server',
   site: siteConfig.url,
   vite: {
