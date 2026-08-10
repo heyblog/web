@@ -15,9 +15,6 @@ includes:
   hooks:
     taskfile: ./taskfiles/hooks.yaml
     flatten: true
-  container:
-    taskfile: ./taskfiles/container.yaml
-    flatten: true
 
 tasks:
   default:
