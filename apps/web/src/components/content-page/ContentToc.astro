@@ -1,0 +1,76 @@
+---
+interface TocHeading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings?: TocHeading[];
+  variant: 'mobile' | 'desktop';
+}
+
+const { headings = [], variant } = Astro.props;
+const tocHeadings = headings.filter(
+  (heading) => heading.depth >= 2 && heading.depth <= 4 && heading.slug && heading.text,
+);
+const isMobile = variant === 'mobile';
+const navLabel = isMobile ? '本页目录（移动端）' : '本页目录';
+---
+
+{
+  tocHeadings.length > 0 && isMobile ? (
+    <details class="content-toc-mobile" data-content-toc>
+      <summary>本页内容</summary>
+      <nav aria-label={navLabel}>
+        <ol class="content-toc-list">
+          {tocHeadings.map((heading) => (
+            <li>
+              <a
+                class:list={['content-toc-link', `content-toc-link-depth-${heading.depth}`]}
+                data-content-toc-link
+                href={`#${heading.slug}`}
+              >
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </details>
+  ) : null
+}
+
+{
+  tocHeadings.length > 0 && !isMobile ? (
+    <aside class="content-toc-desktop" data-content-toc>
+      <p class="content-toc-title">本页内容</p>
+      <div
+        aria-label="阅读进度"
+        aria-valuemax="100"
+        aria-valuemin="0"
+        aria-valuenow="0"
+        class="content-progress"
+        data-content-progress
+        role="progressbar"
+      >
+        <span data-content-progress-value />
+      </div>
+      <nav aria-label={navLabel}>
+        <ol class="content-toc-list">
+          {tocHeadings.map((heading) => (
+            <li>
+              <a
+                class:list={['content-toc-link', `content-toc-link-depth-${heading.depth}`]}
+                data-content-toc-link
+                href={`#${heading.slug}`}
+              >
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </aside>
+  ) : null
+}

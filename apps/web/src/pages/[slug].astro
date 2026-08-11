@@ -1,0 +1,29 @@
+---
+import type { GetStaticPaths } from 'astro';
+import type { CollectionEntry } from 'astro:content';
+import { getCollection, render } from 'astro:content';
+
+import MarkdownContentLayout from '@/layouts/MarkdownContentLayout.astro';
+
+interface Props {
+  entry: CollectionEntry<'pages'>;
+}
+
+export const prerender = true;
+
+export const getStaticPaths = (async () => {
+  const entries = await getCollection('pages');
+
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}) satisfies GetStaticPaths;
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+---
+
+<MarkdownContentLayout frontmatter={entry.data} headings={headings}>
+  <Content />
+</MarkdownContentLayout>

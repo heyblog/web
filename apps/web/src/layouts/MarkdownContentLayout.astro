@@ -1,5 +1,12 @@
 ---
+import ContentBody from '@/components/content-page/ContentBody.astro';
+import ContentToc from '@/components/content-page/ContentToc.astro';
+import ContentTocBehavior from '@/components/content-page/ContentTocBehavior.astro';
+import EntryHeader from '@/components/content-page/EntryHeader.astro';
+
 import PublicLayout from './PublicLayout.astro';
+
+import '@/styles/content.css';
 
 interface MarkdownFrontmatter {
   title?: string;
@@ -8,14 +15,14 @@ interface MarkdownFrontmatter {
   update_time?: string | Date;
 }
 
-interface Heading {
+interface TocHeading {
   depth: number;
   slug: string;
   text: string;
 }
 
 interface Props extends MarkdownFrontmatter {
-  headings?: Heading[];
+  headings?: TocHeading[];
   frontmatter?: MarkdownFrontmatter;
 }
 
@@ -24,13 +31,7 @@ const title = Astro.props.title ?? frontmatter.title ?? '未命名页面';
 const description = Astro.props.description ?? frontmatter.description;
 const createTime = Astro.props.create_time ?? frontmatter.create_time;
 const updateTime = Astro.props.update_time ?? frontmatter.update_time;
-const headings = (Astro.props.headings ?? []).filter(
-  (heading) => heading.depth === 2 || heading.depth === 3,
-);
-const formatDate = (value: string | Date | undefined) =>
-  value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(value)) : '';
-const createdLabel = formatDate(createTime);
-const updatedLabel = formatDate(updateTime);
+const headings = Astro.props.headings ?? [];
 ---
 
 <PublicLayout
@@ -40,55 +41,17 @@ const updatedLabel = formatDate(updateTime);
   publishedTime={createTime}
   modifiedTime={updateTime}
 >
-  <div class="content-layout">
-    <article class="content-article">
-      <header class="content-header">
-        <h1>{title}</h1>
-        {description ? <p>{description}</p> : null}
-        {
-          createdLabel || updatedLabel ? (
-            <dl class="content-dates">
-              {createdLabel ? (
-                <div>
-                  <dt>创建时间</dt>
-                  <dd>
-                    <time datetime={new Date(createTime!).toISOString()}>{createdLabel}</time>
-                  </dd>
-                </div>
-              ) : null}
-              {updatedLabel && updatedLabel !== createdLabel ? (
-                <div>
-                  <dt>最后更新</dt>
-                  <dd>
-                    <time datetime={new Date(updateTime!).toISOString()}>{updatedLabel}</time>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          ) : null
-        }
-        <slot name="meta" />
-      </header>
-      <div class="content-body">
+  <div class="content-layout" data-content-page>
+    <article class="content-article" data-content-article>
+      <EntryHeader {title} {description} {createTime} {updateTime}>
+        <slot name="meta" slot="meta" />
+      </EntryHeader>
+      <ContentToc {headings} variant="mobile" />
+      <ContentBody>
         <slot />
-      </div>
+      </ContentBody>
     </article>
-
-    {
-      headings.length > 0 ? (
-        <aside class="content-toc">
-          <p class="content-toc-title">本页内容</p>
-          <nav aria-label="文章目录">
-            <ol>
-              {headings.map((heading) => (
-                <li class:list={{ 'content-toc-nested': heading.depth === 3 }}>
-                  <a href={`#${heading.slug}`}>{heading.text}</a>
-                </li>
-              ))}
-            </ol>
-          </nav>
-        </aside>
-      ) : null
-    }
+    <ContentToc {headings} variant="desktop" />
+    <ContentTocBehavior />
   </div>
 </PublicLayout>

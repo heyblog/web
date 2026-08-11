@@ -1,0 +1,125 @@
+<script>
+  const page = document.querySelector<HTMLElement>('[data-content-page]');
+  const article = page?.querySelector<HTMLElement>('[data-content-article]');
+  const tocLinks = Array.from(
+    page?.querySelectorAll<HTMLAnchorElement>('[data-content-toc-link]') ?? [],
+  );
+  const progressBars = Array.from(
+    page?.querySelectorAll<HTMLElement>('[data-content-progress]') ?? [],
+  );
+
+  if (page && article && tocLinks.length > 0) {
+    const headingIds = [...new Set(tocLinks.map((link) => link.hash.slice(1)))];
+    const headings = headingIds
+      .map((id) => document.getElementById(decodeURIComponent(id)))
+      .filter((heading): heading is HTMLElement => heading instanceof HTMLElement);
+    const siteHeader = document.querySelector<HTMLElement>('.site-header');
+    let sections: Array<{ id: string; start: number; end: number }> = [];
+    let animationFrame = 0;
+
+    const collectSections = () => {
+      const headingEntries = headings.map((heading) => ({
+        id: heading.id,
+        start: heading.getBoundingClientRect().top + window.scrollY,
+      }));
+      const articleBottom =
+        article.getBoundingClientRect().top + window.scrollY + article.offsetHeight;
+
+      sections = headingEntries.map((heading, index) => ({
+        ...heading,
+        end: headingEntries[index + 1]?.start ?? articleBottom,
+      }));
+    };
+
+    const update = () => {
+      animationFrame = 0;
+      const anchorLine = window.scrollY + Math.min(112, window.innerHeight * 0.3);
+      const viewportTop =
+        window.scrollY + Math.max(0, siteHeader?.getBoundingClientRect().bottom ?? 0);
+      const viewportBottom = window.scrollY + window.innerHeight;
+      const activeIds = new Set(
+        sections
+          .filter((section) => section.end > viewportTop && section.start < viewportBottom)
+          .map((section) => section.id),
+      );
+      let fallbackId = '';
+
+      for (const section of sections) {
+        if (section.start > anchorLine) {
+          break;
+        }
+
+        fallbackId = section.id;
+      }
+
+      const currentId = activeIds.values().next().value ?? fallbackId;
+
+      for (const link of tocLinks) {
+        const linkId = decodeURIComponent(link.hash.slice(1));
+        const isActive = activeIds.size > 0 ? activeIds.has(linkId) : linkId === fallbackId;
+        link.classList.toggle('content-toc-link-active', isActive);
+
+        if (linkId === currentId) {
+          link.setAttribute('aria-current', 'location');
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      }
+
+      for (const toc of page.querySelectorAll<HTMLElement>('[data-content-toc]')) {
+        const links = Array.from(
+          toc.querySelectorAll<HTMLAnchorElement>('[data-content-toc-link]'),
+        );
+
+        links.forEach((link, index) => {
+          const isActive = link.classList.contains('content-toc-link-active');
+          const previousIsActive =
+            links[index - 1]?.classList.contains('content-toc-link-active') ?? false;
+          const nextIsActive =
+            links[index + 1]?.classList.contains('content-toc-link-active') ?? false;
+
+          link.classList.toggle('content-toc-link-range-start', isActive && !previousIsActive);
+          link.classList.toggle('content-toc-link-range-end', isActive && !nextIsActive);
+          link.classList.toggle(
+            'content-toc-link-range-continuation',
+            isActive && previousIsActive,
+          );
+        });
+      }
+
+      const articleRect = article.getBoundingClientRect();
+      const readingLine = Math.min(112, window.innerHeight * 0.3);
+      const progress = Math.min(
+        1,
+        Math.max(0, (readingLine - articleRect.top) / Math.max(articleRect.height, 1)),
+      );
+      const progressPercent = Math.round(progress * 100);
+
+      for (const progressBar of progressBars) {
+        progressBar.setAttribute('aria-valuenow', String(progressPercent));
+        const value = progressBar.querySelector<HTMLElement>('[data-content-progress-value]');
+
+        if (value) {
+          value.style.transform = `scaleX(${progress})`;
+        }
+      }
+    };
+
+    const scheduleUpdate = () => {
+      if (animationFrame === 0) {
+        animationFrame = window.requestAnimationFrame(update);
+      }
+    };
+
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+    const resizeObserver = new ResizeObserver(() => {
+      collectSections();
+      scheduleUpdate();
+    });
+
+    resizeObserver.observe(article);
+    collectSections();
+    update();
+  }
+</script>

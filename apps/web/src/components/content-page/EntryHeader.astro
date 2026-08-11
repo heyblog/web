@@ -1,0 +1,63 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+  createTime?: string | Date;
+  updateTime?: string | Date;
+}
+
+interface FormattedDate {
+  iso: string;
+  label: string;
+}
+
+const formatDate = (value: string | Date | undefined): FormattedDate | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  return {
+    iso: date.toISOString(),
+    label: new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(date),
+  };
+};
+
+const { title, description, createTime, updateTime } = Astro.props;
+const created = formatDate(createTime);
+const updated = formatDate(updateTime);
+const showUpdated = updated && updated.iso !== created?.iso;
+---
+
+<header class="content-header">
+  <h1>{title}</h1>
+  {description ? <p>{description}</p> : null}
+  {
+    created || showUpdated ? (
+      <dl class="content-dates" aria-label="页面时间信息">
+        {created ? (
+          <div>
+            <dt>创建时间</dt>
+            <dd>
+              <time datetime={created.iso}>{created.label}</time>
+            </dd>
+          </div>
+        ) : null}
+        {showUpdated ? (
+          <div>
+            <dt>最后更新</dt>
+            <dd>
+              <time datetime={updated.iso}>{updated.label}</time>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+    ) : null
+  }
+  <slot name="meta" />
+</header>
