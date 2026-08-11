@@ -63,6 +63,7 @@ tasks:
     desc: Run all configured tests
     cmds:
       - task: api:test
+      - task: web:test
 
   security:
     desc: Run checks that require vulnerability database access

@@ -40,6 +40,7 @@ type Config struct {
 	Mode                 Mode
 	MigrationDatabaseURL string
 	HealthcheckToken     string
+	WebToken             string
 	Server               ServerConfig
 	Database             DatabaseConfig
 	Redis                RedisConfig
@@ -383,6 +384,10 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	webToken, err := resolveBearerToken(getenv, "API_WEB_TOKEN")
+	if err != nil {
+		return Config{}, err
+	}
 
 	host, err := resolveHost(values.Mode, values.Server.Host)
 	if err != nil {
@@ -402,6 +407,7 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 		Mode:                 values.Mode,
 		MigrationDatabaseURL: migrationURL,
 		HealthcheckToken:     healthcheckToken,
+		WebToken:             webToken,
 		Server:               ServerConfig{Host: host, Port: values.Server.Port},
 		Database: DatabaseConfig{
 			URL:                   databaseURL,
@@ -608,11 +614,15 @@ func externalURL(getenv getenvFunc, key string, schemes ...string) (string, erro
 }
 
 func resolveHealthcheckToken(getenv getenvFunc) (string, error) {
+	return resolveBearerToken(getenv, "API_HEALTHCHECK_TOKEN")
+}
+
+func resolveBearerToken(getenv getenvFunc, key string) (string, error) {
 	const minimumLength = 32
 
-	value := getenv("API_HEALTHCHECK_TOKEN")
+	value := getenv(key)
 	if len(value) < minimumLength {
-		return "", fmt.Errorf("API_HEALTHCHECK_TOKEN must contain at least %d valid Bearer token characters", minimumLength)
+		return "", fmt.Errorf("%s must contain at least %d valid Bearer token characters", key, minimumLength)
 	}
 	padding := false
 	hasTokenCharacter := false
@@ -623,12 +633,12 @@ func resolveHealthcheckToken(getenv getenvFunc) (string, error) {
 			continue
 		}
 		if padding || !isBearerTokenCharacter(character) {
-			return "", fmt.Errorf("API_HEALTHCHECK_TOKEN must contain only valid Bearer token characters")
+			return "", fmt.Errorf("%s must contain only valid Bearer token characters", key)
 		}
 		hasTokenCharacter = true
 	}
 	if !hasTokenCharacter {
-		return "", fmt.Errorf("API_HEALTHCHECK_TOKEN must contain a non-padding Bearer token character")
+		return "", fmt.Errorf("%s must contain a non-padding Bearer token character", key)
 	}
 	return value, nil
 }

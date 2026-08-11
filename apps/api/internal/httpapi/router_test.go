@@ -20,6 +20,7 @@ import (
 )
 
 const testHealthcheckToken = "test-healthcheck-token-0123456789abcdef"
+const testWebToken = "test-web-service-token-0123456789abcdef"
 
 func TestRouterKeepsPingContractAndAddsHealthEndpoints(t *testing.T) {
 	t.Parallel()
@@ -41,6 +42,8 @@ func TestRouterKeepsPingContractAndAddsHealthEndpoints(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.path, nil)
 			if strings.HasPrefix(test.path, "/health/") {
 				request.Header.Set("Authorization", "Bearer "+testHealthcheckToken)
+			} else {
+				request.Header.Set(WebTokenHeader, testWebToken)
 			}
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
@@ -51,6 +54,52 @@ func TestRouterKeepsPingContractAndAddsHealthEndpoints(t *testing.T) {
 				t.Fatalf("Cache-Control = %q, want no-store", response.Header().Get("Cache-Control"))
 			}
 		})
+	}
+}
+
+func TestWebEndpointRequiresServiceToken(t *testing.T) {
+	t.Parallel()
+
+	router := newTestRouter(t, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second))
+	tests := []struct {
+		name       string
+		token      string
+		wantStatus int
+	}{
+		{name: "missing", wantStatus: http.StatusUnauthorized},
+		{name: "invalid", token: "invalid-web-service-token-0123456789", wantStatus: http.StatusUnauthorized},
+		{name: "valid", token: testWebToken, wantStatus: http.StatusOK},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			request.Header.Set(WebTokenHeader, test.token)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d", response.Code, test.wantStatus)
+			}
+		})
+	}
+}
+
+func TestPublicEndpointAudienceDoesNotRequireWebToken(t *testing.T) {
+	t.Parallel()
+
+	handler, err := adaptApplicationEndpoint(endpointAudiencePublic, testWebToken, func(*Context) (Response, error) {
+		return JSON(http.StatusOK, map[string]string{"message": "public"})
+	})
+	if err != nil {
+		t.Fatalf("adaptApplicationEndpoint() error = %v", err)
+	}
+	gine := gin.New()
+	gine.GET("/public", handler)
+	response := httptest.NewRecorder()
+	gine.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/public", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 	}
 }
 
@@ -321,6 +370,7 @@ func newRouterWithConfig(t *testing.T, configuration config.HTTPConfig, health *
 		Logger:           logger,
 		Health:           health,
 		HealthcheckToken: testHealthcheckToken,
+		WebToken:         testWebToken,
 	})
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)

@@ -5,6 +5,8 @@ version: '3'
 tasks:
   dev:
     desc: Start Astro dev server
+    dotenv:
+      - ../../.env.development
     cmds:
       - pnpm dev
 
@@ -15,8 +17,15 @@ tasks:
 
   preview:
     desc: Preview Astro build
+    dotenv:
+      - ../../.env.development
     cmds:
       - pnpm preview
+
+  test:
+    desc: Test Web server infrastructure
+    cmds:
+      - pnpm test
 
   check:
     desc: Run Astro check
@@ -48,6 +57,7 @@ tasks:
   verify:
     desc: Run offline checks for web app
     cmds:
+      - task: test
       - task: check
       - task: lint
       - task: format:check

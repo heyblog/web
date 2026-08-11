@@ -18,11 +18,22 @@ type Options struct {
 	Logger           *slog.Logger
 	Health           *Health
 	HealthcheckToken string
+	WebToken         string
 }
+
+type endpointAudience uint8
+
+const (
+	endpointAudienceWeb endpointAudience = iota + 1
+	endpointAudiencePublic
+)
 
 func NewRouter(options Options) (*gin.Engine, error) {
 	if options.HealthcheckToken == "" {
 		return nil, fmt.Errorf("healthcheck token is required")
+	}
+	if options.WebToken == "" {
+		return nil, fmt.Errorf("web token is required")
 	}
 	logger := options.Logger
 	if logger == nil {
@@ -49,9 +60,13 @@ func NewRouter(options Options) (*gin.Engine, error) {
 	if health == nil {
 		health = NewHealth(nil, 0)
 	}
-	router.GET("/ping", Adapt(func(*Context) (Response, error) {
+	ping, err := adaptApplicationEndpoint(endpointAudienceWeb, options.WebToken, func(*Context) (Response, error) {
 		return JSON(http.StatusOK, map[string]string{"message": "pong"})
-	}))
+	})
+	if err != nil {
+		return nil, err
+	}
+	router.GET("/ping", ping)
 	healthAuth := healthAuthorization(options.HealthcheckToken)
 	router.GET("/health/live", Adapt(Chain(func(*Context) (Response, error) {
 		return NoContent(http.StatusNoContent).WithHeader("Cache-Control", "no-store"), nil
@@ -76,4 +91,19 @@ func NewRouter(options Options) (*gin.Engine, error) {
 		return Response{}, apperror.New(apperror.KindMethodNotAllowed, apperror.CodeMethodNotAllowed, "the method is not allowed for this resource")
 	}))
 	return router, nil
+}
+
+func adaptApplicationEndpoint(
+	audience endpointAudience,
+	webToken string,
+	endpoint Endpoint,
+) (gin.HandlerFunc, error) {
+	switch audience {
+	case endpointAudienceWeb:
+		return Adapt(Chain(endpoint, webAuthorization(webToken))), nil
+	case endpointAudiencePublic:
+		return Adapt(endpoint), nil
+	default:
+		return nil, fmt.Errorf("unsupported endpoint audience: %d", audience)
+	}
 }

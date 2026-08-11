@@ -65,6 +65,7 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 		Logger:           logger,
 		Health:           health,
 		HealthcheckToken: configuration.HealthcheckToken,
+		WebToken:         configuration.WebToken,
 	})
 	if err != nil {
 		return withStage("router_build", err)

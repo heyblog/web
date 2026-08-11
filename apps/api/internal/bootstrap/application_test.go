@@ -88,12 +88,14 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	}}
 	var health *httpapi.Health
 	var healthcheckToken string
+	var webToken string
 	err := run(ctx, applicationTestConfig(), discardLogger(), applicationOperations{
 		listen:           func(string, string) (net.Listener, error) { return &stubListener{}, nil },
 		openDependencies: func(context.Context, config.Config) (runtimeDependencies, error) { return dependencies, nil },
 		newHandler: func(options httpapi.Options) (http.Handler, error) {
 			health = options.Health
 			healthcheckToken = options.HealthcheckToken
+			webToken = options.WebToken
 			return http.NewServeMux(), nil
 		},
 		newServer: func(http.Handler) managedHTTPServer { return server },
@@ -110,6 +112,9 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	}
 	if healthcheckToken != applicationTestConfig().HealthcheckToken {
 		t.Fatalf("healthcheck token = %q, want configured token", healthcheckToken)
+	}
+	if webToken != applicationTestConfig().WebToken {
+		t.Fatalf("web token = %q, want configured token", webToken)
 	}
 }
 
@@ -132,6 +137,7 @@ func applicationTestConfig() config.Config {
 	return config.Config{
 		Mode:             config.ModeDevelopment,
 		HealthcheckToken: "test-healthcheck-token-0123456789abcdef",
+		WebToken:         "test-web-service-token-0123456789abcdef",
 		Server:           config.ServerConfig{Host: "127.0.0.1", Port: 10201},
 		HTTP: config.HTTPConfig{
 			ReadHeaderTimeout: time.Second,
