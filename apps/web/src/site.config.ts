@@ -20,7 +20,7 @@ export const siteConfig: SiteConfig = {
     copyrightStartYear: 2022,
     copyrightOwner: 'HeyBlog',
     registration: {
-      label: '陇ICP备 2021003047号-5',
+      label: '陇ICP备 2021003047号-6',
       href: 'https://beian.miit.gov.cn/',
       external: true,
     },
