@@ -14,8 +14,10 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
   `.source-revision`.
 - Browser requests that require backend data enter through this application, which communicates
   with the Go API over HTTP.
-- Treat current task requirements, accepted HTTP contracts, committed routes, and tests as
+- Treat current task requirements, accepted HTTP contracts, current routes, and tests as
   migration behavior truth.
+- `apps/web/Dockerfile` builds from the workspace and uses `pnpm deploy --prod` to create the
+  portable runtime tree. The runner must not copy workspace-wide development dependencies.
 
 ## Ownership and Boundaries
 
@@ -26,11 +28,10 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 - Service communication uses HTTP exclusively.
 - Keep changes inside `apps/web` unless a public HTTP contract or shared Node configuration must
   change intentionally.
-- Web currently owns no application environment variables. Framework runtime variables are set by
-  the container adapter. Introduce one dedicated typed configuration source before any Web feature
-  reads an application-owned environment variable.
+- `src/config.server.ts` is the only Web application environment reader. It validates the private
+  `WEB_API_BASE_URL` and shared `API_WEB_TOKEN`; browser code must never import it.
 
-The target request path is:
+The request path is:
 
 ```text
 Browser -> Astro server route/page -> Go API -> database
@@ -65,9 +66,9 @@ Browser -> Astro server route/page -> Go API -> database
 
 ## Rendering and HTTP Data Flow
 
-- The target architecture requires an Astro server runtime for SSR and request interception. Check
-  `astro.config.ts` before relying on request-time behavior; enabling SSR requires a coherent
-  adapter, output mode, build, preview, and deployment change.
+- The application uses Astro server output with the Node standalone adapter for SSR and request
+  interception. Keep the adapter, output mode, build, preview, and deployment behavior coherent
+  when changing request-time rendering.
 - Decide rendering per route. Request-dependent pages use SSR; content that does not need request
   state may be prerendered.
 - Server-rendered pages may call the Go API through server-only application modules.
@@ -82,7 +83,11 @@ Browser -> Astro server route/page -> Go API -> database
 ## Proxy, Authentication, and Error Rules
 
 - Same-origin endpoints must be purpose-built; never create an unrestricted upstream proxy.
+- Declare each endpoint audience as `web-only` or `public`. Web-only endpoints require strict
+  same-origin Fetch Metadata; public endpoints require an explicit route-local CORS policy.
 - Allow only the required upstream path, method, headers, query fields, and body shape.
+- Authenticate every upstream application request with `X-HeyBlog-Web-Token`; never accept that
+  header from a browser request or expose its value in a response.
 - Forward cookies and authentication headers only when the endpoint requires them. Preserve
   relevant `Set-Cookie` headers from the API response.
 - Preserve meaningful upstream status codes and response bodies. Convert connection failures to a
@@ -97,7 +102,7 @@ Browser -> Astro server route/page -> Go API -> database
 ## Migration Guidance
 
 - Before rebuilding a route, inspect its current requirements, application boundary, API forwarding
-  contract, and focused committed tests together.
+  contract, and focused tests together.
 - Preserve accepted URLs, status handling, cookies, redirects, and user-visible behavior unless the
   current task or accepted HTTP contract changes them.
 - Implement direct or browser-facing backend calls through the current same-origin HTTP boundary.
@@ -109,18 +114,20 @@ Run commands from the repository root:
 
 - `task web:dev`: start the Astro development server.
 - `task web:check`: run Astro and TypeScript checks.
+- `task web:test`: run focused Node tests for Web server infrastructure.
 - `task web:lint`: run ESLint and Stylelint.
 - `task web:format:check`: check formatting.
 - `task web:build`: build the web application.
 - `task web:content`: sync generated content from the `heyblog/.github` `main` branch.
 - `task web:verify`: run all current offline web checks.
+- `task container:build`: build the production container image after Dockerfile changes.
 
 Run `task web:content` after initial checkout or when the remote content changes. Offline checks
 consume the existing generated snapshot and do not update it.
 
-The current module has no test task. When behavior changes, add focused tests for server adapters,
-authentication, proxying, rendering decisions, or critical browser logic as appropriate. Do not
-introduce a Vitest or Playwright setup without explaining why it is the right choice.
+Use the current Node test task for server adapters, authentication, proxying, rendering decisions,
+or critical browser logic. Do not introduce a Vitest or Playwright setup without explaining why it
+is the right choice.
 Use browser-based end-to-end tests only when requested or when a critical interaction cannot be
 verified reliably at a lower level.
 

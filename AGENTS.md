@@ -24,6 +24,8 @@ ambiguity before implementing behavior.
 - `apps/api`: backend API application.
 - `apps/web`: frontend web application.
 - `packages/node/configs`: shared Node.js quality-tool configuration.
+- `infra`: development dependencies and deployment infrastructure configuration.
+- `.github`: repository automation, reusable actions, and CI workflows.
 - `scripts`: repository automation and Git-hook support.
 - `skills`: project-owned source Skills installed for development agents.
 - `taskfiles`: repository-wide Task definitions included by `Taskfile.yaml`.
@@ -35,6 +37,8 @@ their nearest `AGENTS.md`.
 
 - Read `.nvmrc` for the Node.js version and `package.json#packageManager` for the pnpm version.
 - Read `go.work` and module `go.mod` files for the Go toolchain and dependencies.
+- Treat the root `go.mod` and `go.sum` as repository-wide Go tool manifests only. Application
+  dependencies belong to their owning module under `apps/`.
 - Treat module manifests and lockfiles as dependency truth.
 - Treat `Taskfile.yaml` and included module Taskfiles as command truth.
 - Use the `.yaml` extension for every repository-owned YAML file and reference. Do not add `.yml`
