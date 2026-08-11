@@ -9,8 +9,7 @@ export const apiWebTokenHeader = 'X-HeyBlog-Web-Token';
 type ForwardableRequestHeader =
   'accept' | 'accept-language' | 'authorization' | 'content-type' | 'cookie';
 
-type ForwardableResponseHeader =
-  'content-type' | 'etag' | 'last-modified' | 'location' | 'www-authenticate';
+type ForwardableResponseHeader = 'content-type' | 'etag' | 'last-modified' | 'www-authenticate';
 
 interface EndpointPolicyBase {
   method: 'GET';
@@ -128,7 +127,7 @@ export async function handleApiRequest(
         method: policy.method,
         headers: upstreamHeaders,
         redirect: 'manual',
-        signal: AbortSignal.timeout(policy.timeoutMs ?? 5_000),
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(policy.timeoutMs ?? 5_000)]),
       },
     );
   } catch {

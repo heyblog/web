@@ -99,6 +99,9 @@ Browser -> Astro server route/page -> Go API -> database
 ## Proxy, Authentication, and Error Rules
 
 - Same-origin endpoints must be purpose-built; never create an unrestricted upstream proxy.
+- Implement GET forwarding endpoints with `src/application/api/endpoint.server.ts` and keep their
+  `src/pages` route files declarative. The shared adapter is intentionally GET-only; add mutation
+  methods and body validation together only when an accepted route contract requires them.
 - Declare each endpoint audience as `web-only` or `public`. Web-only endpoints require strict
   same-origin Fetch Metadata; public endpoints require an explicit route-local CORS policy.
 - Allow only the required upstream path, method, headers, query fields, and body shape.
@@ -108,6 +111,10 @@ Browser -> Astro server route/page -> Go API -> database
   relevant `Set-Cookie` headers from the API response.
 - Preserve meaningful upstream status codes and response bodies. Convert connection failures to a
   stable `502` response without exposing internal addresses or stack traces.
+- Combine the incoming request cancellation signal with the endpoint timeout for every upstream
+  request.
+- Never forward an upstream `Location` header directly. Map accepted redirects to an explicit
+  same-origin Web destination at the route boundary.
 - Do not forward hop-by-hop headers or stale `content-length`, `transfer-encoding`, or
   `content-encoding` values when rebuilding a response.
 - Web middleware may provide redirects and user experience guards, but the Go API remains the

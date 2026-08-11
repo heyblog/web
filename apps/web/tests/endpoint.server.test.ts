@@ -32,6 +32,7 @@ test('forwards an allowed page fetch with only declared headers', async () => {
           headers: {
             'Content-Encoding': 'gzip',
             'Content-Length': '999',
+            Location: 'http://api.internal:10201/private',
             'X-Request-ID': 'upstream-request.123',
           },
         },
@@ -47,8 +48,47 @@ test('forwards an allowed page fetch with only declared headers', async () => {
   assert.equal(headers.get('Cookie'), null);
   assert.equal(response.headers.get('Content-Encoding'), null);
   assert.equal(response.headers.get('Content-Length'), null);
+  assert.equal(response.headers.get('Location'), null);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('X-Request-ID'), 'upstream-request.123');
+});
+
+test('forwards only explicitly declared authentication state', async () => {
+  let upstreamHeaders: Headers | undefined;
+  const response = await handleApiRequest(
+    pageRequest('https://web.example.test/api/ping', {
+      headers: {
+        Authorization: 'Bearer browser-session',
+        Cookie: 'session=browser-session',
+      },
+    }),
+    {
+      ...policy,
+      requestHeaders: ['authorization', 'cookie'],
+      forwardSetCookie: true,
+    },
+    {
+      loadConfig: () => configuration,
+      fetch: async (_input, init) => {
+        upstreamHeaders = new Headers(init?.headers);
+        return new Response('{"message":"pong"}', {
+          headers: [
+            ['Content-Type', 'application/json'],
+            ['Set-Cookie', 'session=renewed; Path=/; HttpOnly; SameSite=Lax'],
+            ['Set-Cookie', 'csrf=rotated; Path=/; Secure; SameSite=Strict'],
+          ],
+        });
+      },
+    },
+  );
+
+  assert.equal(upstreamHeaders?.get('Authorization'), 'Bearer browser-session');
+  assert.equal(upstreamHeaders?.get('Cookie'), 'session=browser-session');
+  assert.equal(upstreamHeaders?.get(apiWebTokenHeader), configuration.apiWebToken);
+  assert.deepEqual(response.headers.getSetCookie(), [
+    'session=renewed; Path=/; HttpOnly; SameSite=Lax',
+    'csrf=rotated; Path=/; Secure; SameSite=Strict',
+  ]);
 });
 
 test('rejects direct navigation and requests without Fetch Metadata', async () => {
@@ -96,6 +136,24 @@ test('rejects undeclared query fields before calling upstream', async () => {
   assert.equal(fetchCalled, false);
 });
 
+test('forwards declared query fields without changing their values', async () => {
+  let upstreamURL: string | undefined;
+  const response = await handleApiRequest(
+    pageRequest('https://web.example.test/api/ping?tag=first&tag=second'),
+    { ...policy, queryParameters: ['tag'] },
+    {
+      loadConfig: () => configuration,
+      fetch: async (input) => {
+        upstreamURL = input.toString();
+        return Response.json({ message: 'pong' });
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(upstreamURL, 'http://api.internal:10201/ping?tag=first&tag=second');
+});
+
 test('preserves upstream status and body', async () => {
   const response = await handleApiRequest(pageRequest(), policy, {
     loadConfig: () => configuration,
@@ -138,6 +196,31 @@ test('aborts an upstream request at the route timeout', async () => {
   assert.equal(response.status, 502);
 });
 
+test('propagates browser cancellation to the upstream request', async () => {
+  const controller = new AbortController();
+  let upstreamSignal: AbortSignal | undefined;
+  const responsePromise = handleApiRequest(
+    pageRequest('https://web.example.test/api/ping', { signal: controller.signal }),
+    policy,
+    {
+      loadConfig: () => configuration,
+      fetch: async (_input, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          upstreamSignal = init?.signal ?? undefined;
+          upstreamSignal?.addEventListener('abort', () => reject(upstreamSignal?.reason), {
+            once: true,
+          });
+        }),
+    },
+  );
+
+  controller.abort(new Error('browser disconnected'));
+  const response = await responsePromise;
+
+  assert.equal(upstreamSignal?.aborted, true);
+  assert.equal(response.status, 502);
+});
+
 test('public policy permits non-browser clients while retaining explicit CORS', async () => {
   const publicPolicy = {
     ...policy,
@@ -171,12 +254,52 @@ test('public policy permits non-browser clients while retaining explicit CORS', 
   assert.equal(preflight.headers.get('Access-Control-Allow-Methods'), 'GET');
 });
 
-function pageRequest(url = 'https://web.example.test/api/ping'): Request {
-  return new Request(url, {
-    headers: {
-      'Sec-Fetch-Site': 'same-origin',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Dest': 'empty',
+test('public policy rejects undeclared origins and preflight headers', async () => {
+  let fetchCalled = false;
+  const publicPolicy = {
+    ...policy,
+    audience: 'public',
+    cors: {
+      allowOrigins: ['https://client.example.test'],
+      allowHeaders: ['authorization'],
     },
+  } satisfies ApiEndpointPolicy;
+  const endpoint = createApiEndpoint(publicPolicy, {
+    loadConfig: () => configuration,
+    fetch: async () => {
+      fetchCalled = true;
+      return Response.json({ message: 'pong' });
+    },
+  });
+
+  const disallowedOrigin = await endpoint.GET({
+    request: new Request('https://web.example.test/api/ping', {
+      headers: { Origin: 'https://attacker.example.test' },
+    }),
+  } as Parameters<typeof endpoint.GET>[0]);
+  const disallowedHeader = await endpoint.OPTIONS({
+    request: new Request('https://web.example.test/api/ping', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://client.example.test',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'X-Internal-Token',
+      },
+    }),
+  } as Parameters<typeof endpoint.OPTIONS>[0]);
+
+  assert.equal(disallowedOrigin.status, 403);
+  assert.equal(disallowedHeader.status, 403);
+  assert.equal(fetchCalled, false);
+});
+
+function pageRequest(url = 'https://web.example.test/api/ping', init: RequestInit = {}): Request {
+  const headers = new Headers(init.headers);
+  headers.set('Sec-Fetch-Site', 'same-origin');
+  headers.set('Sec-Fetch-Mode', 'cors');
+  headers.set('Sec-Fetch-Dest', 'empty');
+  return new Request(url, {
+    ...init,
+    headers,
   });
 }
