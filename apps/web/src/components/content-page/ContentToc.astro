@@ -18,22 +18,49 @@ const tocHeadings = headings.filter(
 );
 const isMobile = variant === 'mobile';
 const navLabel = isMobile ? '本页目录（移动端）' : '本页目录';
+const tocLinkClass =
+  'flex min-h-11 items-center rounded-sm p-2 text-sm leading-snug text-fg-muted transition-[background-color,color] duration-(--motion-color) ease-standard hover:bg-tint hover:text-tint-fg data-[active]:rounded-none data-[active]:bg-tint data-[active]:font-medium data-[active]:text-tint-fg data-[range-start]:rounded-t-sm data-[range-end]:rounded-b-sm data-[range-continuation]:mt-0 sm:min-h-10';
+const tocLinkDepthClasses = {
+  2: '',
+  3: 'pl-5',
+  4: 'pl-8 text-xs',
+} as const;
+const getDepthClass = (depth: number) =>
+  depth === 3
+    ? tocLinkDepthClasses[3]
+    : depth === 4
+      ? tocLinkDepthClasses[4]
+      : tocLinkDepthClasses[2];
 ---
 
 {
   tocHeadings.length > 0 && isMobile ? (
-    <details class="content-toc-mobile" data-content-toc data-details-state="closed">
-      <summary>
+    <details
+      class="group border-b border-line md:hidden"
+      data-content-toc
+      data-content-toc-mobile
+      data-details-state="closed"
+    >
+      <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium text-fg sm:min-h-10 [&::-webkit-details-marker]:hidden">
         <span>本页内容</span>
-        <IconChevronDown class="content-toc-chevron" aria-hidden="true" size={18} stroke={1.75} />
+        <IconChevronDown
+          class="shrink-0 transition-transform duration-(--motion-base) ease-standard group-data-[details-state=open]:rotate-180 motion-reduce:transition-none motion-reduce:duration-0"
+          aria-hidden="true"
+          size={18}
+          stroke={1.75}
+        />
       </summary>
-      <nav aria-label={navLabel}>
-        <div class="content-toc-mobile-panel-inner">
-          <ol class="content-toc-list">
-            {tocHeadings.map((heading) => (
+      <nav
+        class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-(--motion-base) ease-standard group-data-[details-state=open]:grid-rows-[1fr] motion-reduce:transition-none motion-reduce:duration-0"
+        data-content-toc-panel
+        aria-label={navLabel}
+      >
+        <div class="min-h-0 overflow-hidden">
+          <ol class="m-0 grid list-none p-0 pb-4">
+            {tocHeadings.map((heading, index) => (
               <li>
                 <a
-                  class:list={['content-toc-link', `content-toc-link-depth-${heading.depth}`]}
+                  class:list={[tocLinkClass, getDepthClass(heading.depth), { 'mt-1': index > 0 }]}
                   data-content-toc-link
                   href={`#${heading.slug}`}
                 >
@@ -50,25 +77,31 @@ const navLabel = isMobile ? '本页目录（移动端）' : '本页目录';
 
 {
   tocHeadings.length > 0 && !isMobile ? (
-    <aside class="content-toc-desktop" data-content-toc>
-      <p class="content-toc-title">本页内容</p>
+    <aside
+      class="sticky top-24 hidden max-h-[calc(100vh-7.5rem)] self-start overflow-y-auto border-l border-line pl-4 md:block"
+      data-content-toc
+    >
+      <p class="m-0 text-sm font-semibold text-fg">本页内容</p>
       <div
         aria-label="阅读进度"
         aria-valuemax="100"
         aria-valuemin="0"
         aria-valuenow="0"
-        class="content-progress"
+        class="my-3 mb-4 h-1.5 overflow-hidden rounded-full bg-subtle"
         data-content-progress
         role="progressbar"
       >
-        <span data-content-progress-value />
+        <span
+          class="block size-full origin-left scale-x-0 rounded-[inherit] bg-primary"
+          data-content-progress-value
+        />
       </div>
       <nav aria-label={navLabel}>
-        <ol class="content-toc-list">
-          {tocHeadings.map((heading) => (
+        <ol class="m-0 grid list-none p-0">
+          {tocHeadings.map((heading, index) => (
             <li>
               <a
-                class:list={['content-toc-link', `content-toc-link-depth-${heading.depth}`]}
+                class:list={[tocLinkClass, getDepthClass(heading.depth), { 'mt-1': index > 0 }]}
                 data-content-toc-link
                 href={`#${heading.slug}`}
               >

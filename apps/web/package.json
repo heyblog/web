@@ -34,5 +34,17 @@
     "svelte": "^5.56.8",
     "tailwindcss": "^4.3.3",
     "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.65.0",
+    "astro-eslint-parser": "^3.0.0",
+    "eslint-plugin-astro": "^3.1.0",
+    "eslint-plugin-better-tailwindcss": "^4.7.0",
+    "eslint-plugin-svelte": "^3.22.0",
+    "postcss-html": "^2.0.0",
+    "prettier-plugin-astro": "^0.14.1",
+    "prettier-plugin-svelte": "^4.1.1",
+    "stylelint": "^17.14.1",
+    "stylelint-config-standard": "^40.0.0"
   }
 }

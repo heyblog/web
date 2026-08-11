@@ -1,0 +1,87 @@
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans: Inter, 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --breakpoint-*: initial;
+  --breakpoint-xs: 30rem;
+  --breakpoint-sm: 48rem;
+  --breakpoint-md: 64rem;
+  --breakpoint-lg: 80rem;
+  --breakpoint-xl: 90rem;
+  --breakpoint-2xl: 120rem;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+  --color-canvas: var(--sem-canvas);
+  --color-surface: var(--sem-surface);
+  --color-subtle: var(--sem-subtle);
+  --color-fg: var(--sem-fg);
+  --color-fg-muted: var(--sem-fg-muted);
+  --color-fg-subtle: var(--sem-fg-subtle);
+  --color-line: var(--sem-line);
+  --color-line-strong: var(--sem-line-strong);
+  --color-focus: var(--sem-focus);
+  --color-primary: var(--sem-primary);
+  --color-primary-hover: var(--sem-primary-hover);
+  --color-primary-active: var(--sem-primary-active);
+  --color-tint: var(--sem-tint);
+  --color-tint-hover: var(--sem-tint-hover);
+  --color-tint-fg: var(--sem-tint-fg);
+}
+
+:root {
+  color-scheme: light;
+  --sem-canvas: #f8fafc;
+  --sem-surface: #fff;
+  --sem-subtle: #f1f5f9;
+  --sem-fg: #0f172a;
+  --sem-fg-muted: #64748b;
+  --sem-fg-subtle: #94a3b8;
+  --sem-line: #e2e8f0;
+  --sem-line-strong: #64748b;
+  --sem-focus: #0f7b80;
+  --sem-primary: #0f7b80;
+  --sem-primary-hover: #0c666b;
+  --sem-primary-active: #0b5357;
+  --sem-tint: #eff8f8;
+  --sem-tint-hover: #d9eeef;
+  --sem-tint-fg: #0c666b;
+  --selection-bg: #b3dee0;
+  --selection-fg: #062d2f;
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-medium: 350ms;
+  --motion-slow: 400ms;
+  --motion-color: var(--motion-fast);
+}
+
+:root[data-theme-changing] {
+  --motion-color: 0ms;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --sem-canvas: #09090b;
+  --sem-surface: #18181b;
+  --sem-subtle: #27272a;
+  --sem-fg: #f4f4f5;
+  --sem-fg-muted: #a1a1aa;
+  --sem-fg-subtle: #71717a;
+  --sem-line: #27272a;
+  --sem-line-strong: #71717a;
+  --sem-focus: #3fa6ac;
+  --sem-primary: #158187;
+  --sem-primary-hover: #0f7b80;
+  --sem-primary-active: #0c666b;
+  --sem-tint: rgb(10 67 70 / 40%);
+  --sem-tint-hover: rgb(11 83 87 / 50%);
+  --sem-tint-fg: #7fc5c9;
+  --selection-bg: #0b5357;
+  --selection-fg: #d9eeef;
+}

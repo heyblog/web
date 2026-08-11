@@ -130,3 +130,49 @@ const metadata = resolvePageMetadata({
     </script>
   </body>
 </html>
+
+<style is:global>
+  @view-transition {
+    navigation: auto;
+  }
+
+  [data-page-header] {
+    view-transition-name: heyblog-header;
+  }
+
+  ::view-transition-group(heyblog-header),
+  ::view-transition-old(heyblog-header),
+  ::view-transition-new(heyblog-header) {
+    animation: none;
+  }
+
+  ::view-transition-old(root) {
+    animation: heyblog-page-out var(--motion-fast) var(--ease-out) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: heyblog-page-in var(--motion-base) var(--ease-out) both;
+  }
+
+  @keyframes heyblog-page-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @keyframes heyblog-page-out {
+    to {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(root),
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+    }
+  }
+</style>

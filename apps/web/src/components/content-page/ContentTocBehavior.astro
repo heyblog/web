@@ -1,14 +1,14 @@
 <script>
   import { setupAnimatedDetails } from '@/shared/animated-details.browser';
 
-  const mobileToc = document.querySelector<HTMLDetailsElement>('.content-toc-mobile');
-  const mobileTocPanel = mobileToc?.querySelector<HTMLElement>(':scope > nav');
+  const mobileToc = document.querySelector<HTMLDetailsElement>('[data-content-toc-mobile]');
+  const mobileTocPanel = mobileToc?.querySelector<HTMLElement>('[data-content-toc-panel]');
 
   if (mobileToc && mobileTocPanel) {
     const mobileTocController = setupAnimatedDetails(mobileToc, { panel: mobileTocPanel });
 
     mobileToc.addEventListener('click', (event) => {
-      if (event.target instanceof Element && event.target.closest('a')) {
+      if (event.target instanceof Element && event.target.closest('[data-content-toc-link]')) {
         mobileTocController.close();
       }
     });
@@ -28,7 +28,7 @@
     const headings = headingIds
       .map((id) => document.getElementById(decodeURIComponent(id)))
       .filter((heading): heading is HTMLElement => heading instanceof HTMLElement);
-    const siteHeader = document.querySelector<HTMLElement>('.site-header');
+    const siteHeader = document.querySelector<HTMLElement>('[data-public-header]');
     let sections: Array<{ id: string; start: number; end: number }> = [];
     let animationFrame = 0;
 
@@ -72,7 +72,7 @@
       for (const link of tocLinks) {
         const linkId = decodeURIComponent(link.hash.slice(1));
         const isActive = activeIds.size > 0 ? activeIds.has(linkId) : linkId === fallbackId;
-        link.classList.toggle('content-toc-link-active', isActive);
+        link.toggleAttribute('data-active', isActive);
 
         if (linkId === currentId) {
           link.setAttribute('aria-current', 'location');
@@ -87,18 +87,13 @@
         );
 
         links.forEach((link, index) => {
-          const isActive = link.classList.contains('content-toc-link-active');
-          const previousIsActive =
-            links[index - 1]?.classList.contains('content-toc-link-active') ?? false;
-          const nextIsActive =
-            links[index + 1]?.classList.contains('content-toc-link-active') ?? false;
+          const isActive = link.hasAttribute('data-active');
+          const previousIsActive = links[index - 1]?.hasAttribute('data-active') ?? false;
+          const nextIsActive = links[index + 1]?.hasAttribute('data-active') ?? false;
 
-          link.classList.toggle('content-toc-link-range-start', isActive && !previousIsActive);
-          link.classList.toggle('content-toc-link-range-end', isActive && !nextIsActive);
-          link.classList.toggle(
-            'content-toc-link-range-continuation',
-            isActive && previousIsActive,
-          );
+          link.toggleAttribute('data-range-start', isActive && !previousIsActive);
+          link.toggleAttribute('data-range-end', isActive && !nextIsActive);
+          link.toggleAttribute('data-range-continuation', isActive && previousIsActive);
         });
       }
 

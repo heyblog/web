@@ -6,8 +6,6 @@ import EntryHeader from '@/components/content-page/EntryHeader.astro';
 
 import PublicLayout from './PublicLayout.astro';
 
-import '@/styles/content.css';
-
 interface MarkdownFrontmatter {
   title?: string;
   description?: string;
@@ -32,6 +30,9 @@ const description = Astro.props.description ?? frontmatter.description;
 const createTime = Astro.props.create_time ?? frontmatter.create_time;
 const updateTime = Astro.props.update_time ?? frontmatter.update_time;
 const headings = Astro.props.headings ?? [];
+const hasToc = headings.some(
+  (heading) => heading.depth >= 2 && heading.depth <= 4 && heading.slug && heading.text,
+);
 ---
 
 <PublicLayout
@@ -41,8 +42,19 @@ const headings = Astro.props.headings ?? [];
   publishedTime={createTime}
   modifiedTime={updateTime}
 >
-  <div class="content-layout" data-content-page>
-    <article class="content-article" data-content-article>
+  <div
+    class="mx-auto grid w-[min(calc(100%-2rem),80rem)] gap-8 pt-8 pb-16 sm:w-[min(calc(100%-3rem),80rem)] sm:pt-12 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-12"
+    data-content-page
+  >
+    <article
+      class:list={[
+        'min-w-0',
+        {
+          '**:data-entry-header:border-b-0 md:**:data-entry-header:border-b': hasToc,
+        },
+      ]}
+      data-content-article
+    >
       <EntryHeader {title} {description} {createTime} {updateTime}>
         <slot name="meta" slot="meta" />
       </EntryHeader>

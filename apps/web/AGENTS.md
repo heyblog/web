@@ -43,6 +43,22 @@ Browser -> Astro server route/page -> Go API -> database
 - Use Svelte for components that require client-side state or interaction. Do not hydrate static
   content without a user-facing need.
 - Use the existing Tailwind and shared style setup before adding another styling system.
+- Own Astro/Svelte ESLint and Prettier integration and the complete Stylelint configuration inside
+  this module; consume only framework-neutral base configuration from `@heyblog/configs`.
+- Express component and page styling with complete Tailwind CSS v4 utility strings. Do not use
+  `@apply` or introduce semantic component selectors solely to reference them from `class`.
+- Use canonical Tailwind CSS v4 utilities before arbitrary values. Prefer the built-in scale and
+  custom-property shorthand, such as `size-4.5`, `bg-canvas/88`, and
+  `duration-(--motion-base)`; reserve bracket syntax for values or selectors with no native form.
+- Let `eslint-plugin-better-tailwindcss` enforce Tailwind correctness, canonical utilities, and the
+  official class order. Keep its internal line-wrapping rule disabled because it conflicts with the
+  Astro Prettier printer; Prettier owns source layout but not Tailwind class order.
+- Name reusable Tailwind class-string constants with a `Class` or `Classes` suffix so the ESLint
+  selector includes them.
+- Keep theme registration and global element defaults in `src/styles`. Place selectors that cannot
+  be expressed reliably as utilities next to their owning Astro component or layout.
+- Aim to keep every source CSS file at or below 250 lines as a review guideline. Split larger files
+  by ownership when practical; this limit is not an automated lint gate.
 - For UI, styling, layout, component, accessibility, transition, or animation work, load and follow
   the project `aria-design-system` Skill. Its bundled design sources are authoritative over generic
   UI, Tailwind, framework, and animation guidance.

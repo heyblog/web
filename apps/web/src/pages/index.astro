@@ -4,9 +4,14 @@ import { siteConfig } from '@/site.config';
 ---
 
 <PublicLayout>
-  <section class="home-intro" aria-labelledby="home-title">
-    <p class="eyebrow">独立博客网络</p>
-    <h1 id="home-title">{siteConfig.name}</h1>
-    <p class="home-intro-description">{siteConfig.description}</p>
+  <section
+    class="mx-auto flex min-h-[min(42rem,calc(100vh-9rem))] w-[min(calc(100%-2rem),80rem)] flex-1 flex-col justify-center py-16 sm:w-[min(calc(100%-3rem),80rem)]"
+    aria-labelledby="home-title"
+  >
+    <p class="mb-4 font-mono text-xs font-medium text-tint-fg">独立博客网络</p>
+    <h1 class="text-[2rem] leading-tight font-bold sm:text-4xl" id="home-title">
+      {siteConfig.name}
+    </h1>
+    <p class="mt-6 max-w-152 text-lg text-fg-muted">{siteConfig.description}</p>
   </section>
 </PublicLayout>

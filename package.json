@@ -21,22 +21,13 @@
     "@types/node": "^24.13.3",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
-    "astro-eslint-parser": "^3.0.0",
     "cross-spawn": "^7.0.6",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-astro": "^3.1.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
-    "eslint-plugin-svelte": "^3.22.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.9.0",
-    "postcss-html": "^2.0.0",
     "prettier": "^3.9.6",
-    "prettier-plugin-astro": "^0.14.1",
-    "prettier-plugin-svelte": "^4.1.1",
-    "prettier-plugin-tailwindcss": "^0.8.1",
-    "stylelint": "^17.14.1",
-    "stylelint-config-standard": "^40.0.0",
     "typescript": "^6.0.3"
   }
 }

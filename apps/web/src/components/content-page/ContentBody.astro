@@ -1,3 +1,32 @@
-<div class="content-body">
+---
+const contentBodyClasses = [
+  'min-w-0 pt-8 wrap-anywhere',
+  '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+  '[&_:where(h2,h3,h4)]:max-w-[72ch] [&_:where(h2,h3,h4)]:scroll-mt-20 [&_:where(h2,h3,h4)]:leading-tight [&_:where(h2,h3,h4)]:text-fg',
+  '[&_h2]:mt-12 [&_h2]:mb-4 [&_h2]:text-3xl [&_h2]:font-bold',
+  '[&_h3]:mt-8 [&_h3]:mb-4 [&_h3]:text-2xl [&_h3]:font-semibold',
+  '[&_h4]:mt-6 [&_h4]:mb-3 [&_h4]:text-xl/snug [&_h4]:font-semibold',
+  '[&_:where(p,li)]:leading-normal [&_:where(p,ul,ol,blockquote)]:max-w-[72ch]',
+  '[&_:where(ul,ol)]:my-4 [&_:where(ul,ol)]:pl-6 [&_p]:my-4',
+  '[&_:where(ul,ol)_:where(ul,ol)]:my-2 [&_li+li]:mt-2',
+  "[&_input[type='checkbox']]:-ms-5 [&_input[type='checkbox']]:me-2 [&_input[type='checkbox']]:accent-primary [&_li:has(>input[type='checkbox'])]:list-none",
+  '[&_a]:text-tint-fg [&_a]:underline [&_a]:decoration-primary/50 [&_a]:underline-offset-4 [&_a]:transition-[text-decoration-color] [&_a]:duration-(--motion-color) [&_a]:ease-standard [&_a:hover]:decoration-current',
+  '[&_blockquote]:my-6 [&_blockquote]:border-l-[3px] [&_blockquote]:border-primary [&_blockquote]:bg-tint [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-fg-muted',
+  '[&_blockquote>*:first-child]:mt-0 [&_blockquote>*:last-child]:mb-0',
+  '[&_:not(pre)>code]:rounded-sm [&_:not(pre)>code]:border [&_:not(pre)>code]:border-line [&_:not(pre)>code]:bg-subtle [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-[0.875em]',
+  '[&_pre]:my-6 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-line [&_pre]:bg-surface [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-sm/normal',
+  '[&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:font-[inherit]',
+  '[&_table]:my-8 [&_table]:block [&_table]:w-max [&_table]:max-w-full [&_table]:border-spacing-0 [&_table]:overflow-x-auto [&_table]:rounded-md [&_table]:border [&_table]:border-line [&_table]:text-sm [&_table]:whitespace-normal',
+  '[&_:where(th,td)]:h-12 [&_:where(th,td)]:min-w-36 [&_:where(th,td)]:border-r [&_:where(th,td)]:border-b [&_:where(th,td)]:border-line [&_:where(th,td)]:px-4 [&_:where(th,td)]:py-3 [&_:where(th,td)]:text-left [&_:where(th,td)]:align-top',
+  '[&_th]:bg-subtle [&_th]:text-xs [&_th]:font-medium [&_th]:text-fg-muted',
+  '[&_tbody_tr]:transition-colors [&_tbody_tr]:duration-(--motion-color) [&_tbody_tr]:ease-standard [&_tbody_tr:hover]:bg-subtle [&_tbody_tr:nth-child(even)]:bg-subtle/50',
+  '[&_:where(th,td):last-child]:border-r-0 [&_tr:last-child_td]:border-b-0',
+  '[&_img]:my-8 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-md',
+  '[&_hr]:my-12 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-line',
+  '[&_section.footnotes]:mt-12 [&_section.footnotes]:border-t [&_section.footnotes]:border-line [&_section.footnotes]:pt-6 [&_section.footnotes]:text-sm [&_section.footnotes]:text-fg-muted',
+];
+---
+
+<div class:list={contentBodyClasses}>
   <slot />
 </div>

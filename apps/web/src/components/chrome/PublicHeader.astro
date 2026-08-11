@@ -20,22 +20,43 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
     ? activePath === target
     : activePath === target || activePath.startsWith(`${target}/`);
 };
+const navigationLinkClass =
+  "relative inline-flex min-w-10 items-center justify-center px-3 text-sm font-medium text-fg-muted transition-[color,background-color] duration-(--motion-color) ease-standard after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:scale-x-50 after:bg-primary after:opacity-0 after:transition-[opacity,transform] after:duration-(--motion-base) after:ease-standard after:content-[''] after:motion-reduce:duration-0 hover:text-fg";
+const activeNavigationLinkClass = 'text-fg after:scale-x-100 after:opacity-100';
+const iconButtonClass =
+  'inline-flex size-11 cursor-pointer appearance-none items-center justify-center rounded-md border border-line-strong bg-surface p-0 text-fg-muted transition-[border-color,background-color,color,scale] ease-standard [transition-duration:var(--motion-color),var(--motion-color),var(--motion-color),var(--motion-fast)] hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 sm:size-10';
 ---
 
-<header class="site-header" data-public-header>
-  <div class="site-header-inner">
-    <a class="site-brand" href="/" aria-label={`${siteConfig.name} 首页`}>
-      <img class="site-brand-logo" src="/favicon.svg" alt="" width="40" height="40" />
+<header
+  class="sticky top-0 z-30 border-b border-line bg-canvas/88 backdrop-blur-md"
+  data-page-header
+  data-public-header
+>
+  <div
+    class="mx-auto flex min-h-16 w-[min(calc(100%-2rem),80rem)] items-center gap-6 sm:w-[min(calc(100%-3rem),80rem)]"
+  >
+    <a
+      class="inline-flex min-w-0 items-center gap-3 text-base font-semibold"
+      href="/"
+      aria-label={`${siteConfig.name} 首页`}
+    >
+      <img
+        class="size-10 shrink-0 rounded-md sm:size-9"
+        src="/favicon.svg"
+        alt=""
+        width="40"
+        height="40"
+      />
       <span>{siteConfig.name}</span>
     </a>
 
-    <nav class="desktop-navigation" aria-label="主导航">
+    <nav class="hidden self-stretch sm:flex" aria-label="主导航">
       {
         siteConfig.navigation.map((item) => (
           <a
             class:list={[
-              'navigation-link',
-              { 'navigation-link-active': isActive(item.href, item.match) },
+              navigationLinkClass,
+              { [activeNavigationLinkClass]: isActive(item.href, item.match) },
             ]}
             href={item.href}
             aria-current={isActive(item.href, item.match) ? 'page' : undefined}
@@ -48,29 +69,46 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
       }
     </nav>
 
-    <div class="site-header-actions">
+    <div class="ml-auto flex items-center gap-2">
       <ThemeToggle />
-      <details class="mobile-navigation" data-public-menu data-details-state="closed">
+      <details class="group relative sm:hidden" data-public-menu data-details-state="closed">
         <summary
-          class="icon-button mobile-navigation-trigger"
+          class:list={[
+            iconButtonClass,
+            'relative flex list-none [&::-webkit-details-marker]:hidden',
+          ]}
+          data-public-menu-trigger
           aria-label="打开导航"
           aria-expanded="false"
         >
           <IconMenu2
-            class="mobile-navigation-menu-icon"
+            class="absolute size-4.5 transition-[opacity,transform] duration-(--motion-base) ease-out group-open:scale-96 group-open:-rotate-45 group-open:opacity-0 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-150"
+            data-public-menu-icon="menu"
             aria-hidden="true"
             size={19}
             stroke={1.75}
           />
-          <IconX class="mobile-navigation-close-icon" aria-hidden="true" size={19} stroke={1.75} />
+          <IconX
+            class="absolute size-4.5 scale-96 -rotate-45 opacity-0 transition-[opacity,transform] duration-(--motion-base) ease-out group-open:scale-100 group-open:rotate-0 group-open:opacity-100 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-150"
+            data-public-menu-icon="close"
+            aria-hidden="true"
+            size={19}
+            stroke={1.75}
+          />
         </summary>
-        <nav class="mobile-navigation-panel" aria-label="移动端主导航">
+        <nav
+          class="pointer-events-none fixed inset-x-0 top-16 z-20 grid -translate-y-2 gap-1 border-b border-line bg-canvas px-4 pt-3 pb-4 opacity-0 blur-[2px] transition-[transform,opacity,filter] duration-(--motion-medium) ease-out group-open:will-change-[transform,opacity,filter] group-data-[details-state=open]:pointer-events-auto group-data-[details-state=open]:translate-y-0 group-data-[details-state=open]:opacity-100 group-data-[details-state=open]:blur-none group-data-[details-state=open]:duration-(--motion-slow) motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:blur-none motion-reduce:transition-none motion-reduce:duration-0!"
+          data-public-menu-panel
+          aria-label="移动端主导航"
+        >
           {
             siteConfig.navigation.map((item) => (
               <a
                 class:list={[
-                  'mobile-navigation-link',
-                  { 'mobile-navigation-link-active': isActive(item.href, item.match) },
+                  'flex min-h-11 items-center rounded-sm px-3 text-sm font-medium text-fg-muted transition-[background-color,color] duration-(--motion-color) ease-standard hover:bg-tint hover:text-tint-fg',
+                  {
+                    'bg-tint text-tint-fg': isActive(item.href, item.match),
+                  },
                 ]}
                 href={item.href}
                 aria-current={isActive(item.href, item.match) ? 'page' : undefined}
@@ -96,8 +134,8 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
   const menuControllers = new WeakMap<HTMLDetailsElement, AnimatedDetailsController>();
 
   document.querySelectorAll<HTMLDetailsElement>('[data-public-menu]').forEach((menu) => {
-    const panel = menu.querySelector<HTMLElement>('.mobile-navigation-panel');
-    const trigger = menu.querySelector<HTMLElement>(':scope > summary');
+    const panel = menu.querySelector<HTMLElement>('[data-public-menu-panel]');
+    const trigger = menu.querySelector<HTMLElement>('[data-public-menu-trigger]');
 
     if (!panel || !trigger) {
       return;
@@ -112,9 +150,21 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
     menuControllers.set(menu, controller);
   });
 
-  const closeMenu = (menu: HTMLDetailsElement, restoreFocus = false) => {
-    menuControllers.get(menu)?.close({ restoreFocus });
+  const closeMenu = (menu: HTMLDetailsElement, restoreFocus = false, immediate = false) => {
+    menuControllers.get(menu)?.close({ immediate, restoreFocus });
   };
+
+  const desktopNavigation = window.matchMedia('(min-width: 48rem)');
+  const closeMenusAtDesktop = () => {
+    if (desktopNavigation.matches) {
+      document.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
+        closeMenu(menu, false, true);
+      });
+    }
+  };
+
+  desktopNavigation.addEventListener('change', closeMenusAtDesktop);
+  closeMenusAtDesktop();
 
   document.addEventListener('click', (event) => {
     const target = event.target;

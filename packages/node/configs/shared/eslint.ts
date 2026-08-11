@@ -4,19 +4,17 @@ import js from '@eslint/js';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import eslintConfigPrettier from 'eslint-config-prettier';
-import astro from 'eslint-plugin-astro';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
-import svelte from 'eslint-plugin-svelte';
 import unusedImports from 'eslint-plugin-unused-imports';
 import globals from 'globals';
 
 type ModuleRuntime = 'node' | 'web' | 'worker';
 
-type CreateModuleEslintConfigOptions = {
+export type CreateModuleEslintConfigOptions = {
+  additionalConfigs?: unknown[];
+  additionalExtensions?: string[];
   moduleDir: string;
   runtime?: ModuleRuntime;
-  useAstro?: boolean;
-  useSvelte?: boolean;
   testPatterns?: string[];
 };
 
@@ -96,11 +94,9 @@ function getRuntimeGlobals(runtime: ModuleRuntime): Record<string, boolean> {
 export function createModuleEslintConfig(options: CreateModuleEslintConfigOptions): unknown[] {
   const runtime = options.runtime ?? 'node';
   const codeExtensions = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts', 'tsx'];
-  const templateExtensions = [
-    options.useAstro ? 'astro' : null,
-    options.useSvelte ? 'svelte' : null,
-  ].filter(Boolean);
-  const allLintExtensions = [...codeExtensions, ...templateExtensions].join(',');
+  const additionalExtensions = options.additionalExtensions ?? [];
+  const allLintExtensions = [...codeExtensions, ...additionalExtensions].join(',');
+  const typedLintExtensions = ['ts', 'mts', 'cts', 'tsx', ...additionalExtensions].join(',');
   const runtimeGlobals = getRuntimeGlobals(runtime);
   const configItems: unknown[] = [
     {
@@ -113,16 +109,7 @@ export function createModuleEslintConfig(options: CreateModuleEslintConfigOption
     ...toConfigArray(tsPlugin.configs['flat/recommended']),
   ];
 
-  if (options.useAstro) {
-    configItems.push(...toConfigArray(astro.configs['flat/recommended']));
-  }
-
-  if (options.useSvelte) {
-    configItems.push(
-      ...toConfigArray(svelte.configs['flat/recommended']),
-      ...toConfigArray(svelte.configs['flat/prettier']),
-    );
-  }
+  configItems.push(...(options.additionalConfigs ?? []));
 
   configItems.push(
     {
@@ -171,7 +158,7 @@ export function createModuleEslintConfig(options: CreateModuleEslintConfigOption
       },
     },
     {
-      files: ['**/*.{ts,mts,cts,tsx,astro,svelte}'],
+      files: [`**/*.{${typedLintExtensions}}`],
       rules: {
         'no-undef': 'off',
         'no-useless-assignment': 'warn',
@@ -190,31 +177,11 @@ export function createModuleEslintConfig(options: CreateModuleEslintConfigOption
     },
   );
 
-  if (templateExtensions.length > 0) {
+  if (additionalExtensions.length > 0) {
     configItems.push({
-      files: [`**/*.{${templateExtensions.join(',')}}`],
+      files: [`**/*.{${additionalExtensions.join(',')}}`],
       languageOptions: {
         globals: runtimeGlobals,
-      },
-    });
-  }
-
-  if (options.useSvelte) {
-    configItems.push({
-      files: ['**/*.svelte', '**/*.svelte.js', '**/*.svelte.ts'],
-      languageOptions: {
-        parserOptions: {
-          extraFileExtensions: ['.svelte'],
-          parser: tsParser,
-        },
-        globals: {
-          ...globals.browser,
-          ...globals.node,
-        },
-      },
-      rules: {
-        'svelte/prefer-svelte-reactivity': 'warn',
-        'svelte/require-each-key': 'warn',
       },
     });
   }

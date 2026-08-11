@@ -12,7 +12,6 @@
   },
   "exports": {
     "./shared/eslint": "./shared/eslint.ts",
-    "./shared/prettier": "./shared/prettier.ts",
-    "./shared/stylelint": "./shared/stylelint.ts"
+    "./shared/prettier": "./shared/prettier.ts"
   }
 }

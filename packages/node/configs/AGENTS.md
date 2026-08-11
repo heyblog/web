@@ -4,8 +4,8 @@ This file refines the repository-level `AGENTS.md` for `packages/node/configs`.
 
 ## Scope and Sources of Truth
 
-- `packages/node/configs` owns reusable ESLint, Prettier, and Stylelint configuration for Node
-  workspace modules.
+- `packages/node/configs` owns reusable ESLint and Prettier configuration for Node workspace
+  modules.
 - Treat `package.json`, `tsconfig.json`, root wrapper configurations, and files under `shared/` as
   the package contract and implementation truth.
 - Treat package exports as public workspace interfaces. Update affected consumers with any export
@@ -15,8 +15,12 @@ This file refines the repository-level `AGENTS.md` for `packages/node/configs`.
 
 - Keep application behavior and application-specific policy in the consuming module.
 - Prefer shared factories or presets only when at least two consumers need the same behavior.
-- Keep shared tool dependencies in the root `package.json` because the root and workspace modules
-  execute these configurations through the repository toolchain.
+- Keep the shared Prettier preset plugin-free. Consuming modules compose parser and domain plugins
+  from the exported base configuration according to their own file types and tooling.
+- Keep the shared ESLint factory framework-neutral. Consuming modules compose framework configs and
+  pass them and bare additional file extensions through its generic extension options.
+- Keep dependencies imported by shared configurations in the root `package.json`. Consuming modules
+  declare parsers and plugins imported only by their local configurations.
 - Extend existing factories and typed options before adding parallel configuration entry points.
 - Do not weaken lint, formatting, or type-checking rules solely to make a consumer pass.
 
