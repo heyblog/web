@@ -1,4 +1,6 @@
 ---
+import { IconChevronDown } from '@tabler/icons-svelte';
+
 interface TocHeading {
   depth: number;
   slug: string;
@@ -20,22 +22,27 @@ const navLabel = isMobile ? '本页目录（移动端）' : '本页目录';
 
 {
   tocHeadings.length > 0 && isMobile ? (
-    <details class="content-toc-mobile" data-content-toc>
-      <summary>本页内容</summary>
+    <details class="content-toc-mobile" data-content-toc data-details-state="closed">
+      <summary>
+        <span>本页内容</span>
+        <IconChevronDown class="content-toc-chevron" aria-hidden="true" size={18} stroke={1.75} />
+      </summary>
       <nav aria-label={navLabel}>
-        <ol class="content-toc-list">
-          {tocHeadings.map((heading) => (
-            <li>
-              <a
-                class:list={['content-toc-link', `content-toc-link-depth-${heading.depth}`]}
-                data-content-toc-link
-                href={`#${heading.slug}`}
-              >
-                {heading.text}
-              </a>
-            </li>
-          ))}
-        </ol>
+        <div class="content-toc-mobile-panel-inner">
+          <ol class="content-toc-list">
+            {tocHeadings.map((heading) => (
+              <li>
+                <a
+                  class:list={['content-toc-link', `content-toc-link-depth-${heading.depth}`]}
+                  data-content-toc-link
+                  href={`#${heading.slug}`}
+                >
+                  {heading.text}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
       </nav>
     </details>
   ) : null

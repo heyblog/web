@@ -1,4 +1,6 @@
 ---
+import { IconChevronDown } from '@tabler/icons-svelte';
+
 import { siteConfig } from '@/site.config';
 
 import BaseLayout from './BaseLayout.astro';
@@ -39,48 +41,60 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
 
   <div class="management-frame">
     <aside class="management-sidebar">
-      <details class="management-navigation" open>
-        <summary>管理导航</summary>
-        <div class="management-navigation-body">
-          {
-            identity ? (
-              <section class="management-identity" aria-label="当前账号">
-                <strong>{identity.displayName}</strong>
-                <span>{identity.email}</span>
-                <dl>
-                  <div>
-                    <>
-                      <dt>角色</dt>
-                      <dd>{identity.roleLabel}</dd>
-                    </>
-                  </div>
-                  {identity.statusLabel ? (
-                    <div>
-                      <dt>状态</dt>
-                      <dd>{identity.statusLabel}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </section>
-            ) : null
-          }
-          <nav aria-label="管理模块">
-            {
-              navigation.map((item) => (
-                <a
-                  class:list={[
-                    'management-navigation-link',
-                    { 'management-navigation-link-active': isActive(item.href) },
-                  ]}
-                  href={item.href}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
-                >
-                  <strong>{item.label}</strong>
-                  {item.description ? <span>{item.description}</span> : null}
-                </a>
-              ))
-            }
-          </nav>
+      <details class="management-navigation" open data-details-state="open">
+        <summary>
+          <span>管理导航</span>
+          <IconChevronDown
+            class="management-navigation-chevron"
+            aria-hidden="true"
+            size={18}
+            stroke={1.75}
+          />
+        </summary>
+        <div class="management-navigation-panel">
+          <div class="management-navigation-body">
+            <div class="management-navigation-content">
+              {
+                identity ? (
+                  <section class="management-identity" aria-label="当前账号">
+                    <strong>{identity.displayName}</strong>
+                    <span>{identity.email}</span>
+                    <dl>
+                      <div>
+                        <>
+                          <dt>角色</dt>
+                          <dd>{identity.roleLabel}</dd>
+                        </>
+                      </div>
+                      {identity.statusLabel ? (
+                        <div>
+                          <dt>状态</dt>
+                          <dd>{identity.statusLabel}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </section>
+                ) : null
+              }
+              <nav aria-label="管理模块">
+                {
+                  navigation.map((item) => (
+                    <a
+                      class:list={[
+                        'management-navigation-link',
+                        { 'management-navigation-link-active': isActive(item.href) },
+                      ]}
+                      href={item.href}
+                      aria-current={isActive(item.href) ? 'page' : undefined}
+                    >
+                      <strong>{item.label}</strong>
+                      {item.description ? <span>{item.description}</span> : null}
+                    </a>
+                  ))
+                }
+              </nav>
+            </div>
+          </div>
         </div>
       </details>
     </aside>
@@ -93,4 +107,16 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
       <slot />
     </main>
   </div>
+
+  <script>
+    import { setupAnimatedDetails } from '@/shared/animated-details.browser';
+
+    document.querySelectorAll<HTMLDetailsElement>('.management-navigation').forEach((details) => {
+      const panel = details.querySelector<HTMLElement>('.management-navigation-panel');
+
+      if (panel) {
+        setupAnimatedDetails(details, { panel });
+      }
+    });
+  </script>
 </BaseLayout>

@@ -1,4 +1,19 @@
 <script>
+  import { setupAnimatedDetails } from '@/shared/animated-details.browser';
+
+  const mobileToc = document.querySelector<HTMLDetailsElement>('.content-toc-mobile');
+  const mobileTocPanel = mobileToc?.querySelector<HTMLElement>(':scope > nav');
+
+  if (mobileToc && mobileTocPanel) {
+    const mobileTocController = setupAnimatedDetails(mobileToc, { panel: mobileTocPanel });
+
+    mobileToc.addEventListener('click', (event) => {
+      if (event.target instanceof Element && event.target.closest('a')) {
+        mobileTocController.close();
+      }
+    });
+  }
+
   const page = document.querySelector<HTMLElement>('[data-content-page]');
   const article = page?.querySelector<HTMLElement>('[data-content-article]');
   const tocLinks = Array.from(

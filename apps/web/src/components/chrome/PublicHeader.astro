@@ -50,7 +50,7 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
 
     <div class="site-header-actions">
       <ThemeToggle />
-      <details class="mobile-navigation" data-public-menu>
+      <details class="mobile-navigation" data-public-menu data-details-state="closed">
         <summary
           class="icon-button mobile-navigation-trigger"
           aria-label="打开导航"
@@ -88,38 +88,33 @@ const isActive = (href: string, match: 'exact' | 'prefix') => {
 </header>
 
 <script>
-  const closeMenu = (menu: HTMLDetailsElement, restoreFocus = false) => {
-    if (!menu.open) {
+  import {
+    type AnimatedDetailsController,
+    setupAnimatedDetails,
+  } from '@/shared/animated-details.browser';
+
+  const menuControllers = new WeakMap<HTMLDetailsElement, AnimatedDetailsController>();
+
+  document.querySelectorAll<HTMLDetailsElement>('[data-public-menu]').forEach((menu) => {
+    const panel = menu.querySelector<HTMLElement>('.mobile-navigation-panel');
+    const trigger = menu.querySelector<HTMLElement>(':scope > summary');
+
+    if (!panel || !trigger) {
       return;
     }
 
-    menu.open = false;
-    const trigger = menu.querySelector<HTMLElement>('summary');
-    trigger?.setAttribute('aria-expanded', 'false');
-    trigger?.setAttribute('aria-label', '打开导航');
+    const controller = setupAnimatedDetails(menu, {
+      panel,
+      onExpandedChange: (expanded) => {
+        trigger.setAttribute('aria-label', expanded ? '关闭导航' : '打开导航');
+      },
+    });
+    menuControllers.set(menu, controller);
+  });
 
-    if (restoreFocus) {
-      trigger?.focus();
-    }
+  const closeMenu = (menu: HTMLDetailsElement, restoreFocus = false) => {
+    menuControllers.get(menu)?.close({ restoreFocus });
   };
-
-  const syncMenu = (menu: HTMLDetailsElement) => {
-    const trigger = menu.querySelector<HTMLElement>('summary');
-    trigger?.setAttribute('aria-expanded', String(menu.open));
-    trigger?.setAttribute('aria-label', menu.open ? '关闭导航' : '打开导航');
-  };
-
-  document.addEventListener(
-    'toggle',
-    (event) => {
-      const menu = event.target;
-
-      if (menu instanceof HTMLDetailsElement && menu.matches('[data-public-menu]')) {
-        syncMenu(menu);
-      }
-    },
-    true,
-  );
 
   document.addEventListener('click', (event) => {
     const target = event.target;

@@ -92,6 +92,8 @@ const metadata = resolvePageMetadata({
         });
       };
 
+      let themeChange = 0;
+
       document.addEventListener('click', (event) => {
         const target = event.target;
 
@@ -102,7 +104,9 @@ const metadata = resolvePageMetadata({
         const root = document.documentElement;
         const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark';
         const storageKey = root.dataset.themeStorageKey ?? 'heyblog-theme';
+        const currentThemeChange = ++themeChange;
 
+        root.dataset.themeChanging = '';
         root.dataset.theme = nextTheme;
         root.style.colorScheme = nextTheme;
 
@@ -113,6 +117,13 @@ const metadata = resolvePageMetadata({
         }
 
         syncThemeControls();
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            if (currentThemeChange === themeChange) {
+              delete root.dataset.themeChanging;
+            }
+          });
+        });
       });
 
       syncThemeControls();

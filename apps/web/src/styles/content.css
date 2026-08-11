@@ -137,7 +137,7 @@
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
   text-underline-offset: 0.25rem;
-  transition: text-decoration-color var(--duration-fast) var(--ease-standard);
+  transition: text-decoration-color var(--duration-color) var(--ease-standard);
 }
 
 .content-body :where(a:hover) {
@@ -220,7 +220,7 @@
 }
 
 .content-body tbody tr {
-  transition: background-color var(--duration-fast) var(--ease-standard);
+  transition: background-color var(--duration-color) var(--ease-standard);
 }
 
 .content-body tbody tr:nth-child(even) {
@@ -265,16 +265,43 @@
 }
 
 .content-toc-mobile summary {
+  display: flex;
   min-height: 2.75rem;
   cursor: pointer;
-  align-content: center;
+  align-items: center;
+  justify-content: space-between;
   color: var(--color-fg);
   font-size: 0.875rem;
   font-weight: 500;
+  list-style: none;
+}
+
+.content-toc-mobile summary::-webkit-details-marker {
+  display: none;
+}
+
+.content-toc-chevron {
+  flex: 0 0 auto;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.content-toc-mobile[data-details-state='open'] .content-toc-chevron {
+  transform: rotate(180deg);
 }
 
 .content-toc-mobile nav {
-  padding-bottom: 1rem;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-base) var(--ease-standard);
+}
+
+.content-toc-mobile[data-details-state='open'] nav {
+  grid-template-rows: 1fr;
+}
+
+.content-toc-mobile-panel-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .content-toc-desktop {
@@ -304,7 +331,6 @@
   transform-origin: left;
   border-radius: inherit;
   background: var(--color-primary);
-  transition: transform var(--duration-slow) var(--ease-standard);
 }
 
 .content-toc-list {
@@ -312,6 +338,10 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.content-toc-mobile-panel-inner > .content-toc-list {
+  padding-bottom: 1rem;
 }
 
 .content-toc-link {
@@ -324,8 +354,8 @@
   font-size: 0.875rem;
   line-height: 1.4;
   transition:
-    background-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+    background-color var(--duration-color) var(--ease-standard),
+    color var(--duration-color) var(--ease-standard);
 }
 
 .content-toc-link-depth-3 {
@@ -409,7 +439,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .content-progress span {
-    transition-duration: 0ms;
+  .content-toc-mobile nav,
+  .content-toc-chevron {
+    transition: none;
   }
 }
