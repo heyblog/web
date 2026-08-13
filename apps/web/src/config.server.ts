@@ -1,6 +1,7 @@
 export interface WebServerConfig {
   apiBaseUrl: string;
   apiWebToken: string;
+  githubToken?: string;
 }
 
 export type WebServerEnvironment = Readonly<Record<string, string | undefined>>;
@@ -14,6 +15,7 @@ export function loadWebServerConfig(
   return {
     apiBaseUrl: resolveApiBaseUrl(environment.WEB_API_BASE_URL),
     apiWebToken: resolveApiWebToken(environment.API_WEB_TOKEN),
+    githubToken: resolveGithubToken(environment.GITHUB_TOKEN),
   };
 }
 
@@ -54,4 +56,18 @@ function resolveApiWebToken(value: string | undefined): string {
     );
   }
   return value;
+}
+
+function resolveGithubToken(value: string | undefined): string | undefined {
+  const token = value?.trim();
+
+  if (!token) {
+    return undefined;
+  }
+
+  if (/\s/u.test(token)) {
+    throw new Error('GITHUB_TOKEN must not contain whitespace');
+  }
+
+  return token;
 }

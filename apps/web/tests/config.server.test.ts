@@ -14,6 +14,7 @@ test('loads and normalizes the Web API configuration', () => {
     {
       apiBaseUrl: 'https://api.example.test',
       apiWebToken: validToken,
+      githubToken: undefined,
     },
   );
 });
@@ -35,5 +36,35 @@ test('rejects unsafe or incomplete Web API configuration without leaking values'
         API_WEB_TOKEN: 'short',
       }),
     /API_WEB_TOKEN/,
+  );
+});
+
+test('loads the optional GitHub token', () => {
+  const githubToken = 'github_pat_example_token';
+
+  assert.equal(
+    loadWebServerConfig({
+      WEB_API_BASE_URL: 'https://api.example.test',
+      API_WEB_TOKEN: validToken,
+      GITHUB_TOKEN: ` ${githubToken} `,
+    }).githubToken,
+    githubToken,
+  );
+  assert.equal(
+    loadWebServerConfig({
+      WEB_API_BASE_URL: 'https://api.example.test',
+      API_WEB_TOKEN: validToken,
+      GITHUB_TOKEN: '',
+    }).githubToken,
+    undefined,
+  );
+  assert.throws(
+    () =>
+      loadWebServerConfig({
+        WEB_API_BASE_URL: 'https://api.example.test',
+        API_WEB_TOKEN: validToken,
+        GITHUB_TOKEN: 'token with spaces',
+      }),
+    /GITHUB_TOKEN/,
   );
 });

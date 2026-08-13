@@ -1,0 +1,110 @@
+---
+import { IconBrandGithub } from '@tabler/icons-svelte';
+
+import { readGithubContributors } from '@/application/github-contributors/github-contributors.server';
+import { historicalContributors } from '@/application/static-content/historical-contributors';
+import { readMemberDirectory } from '@/application/static-content/static-content.server';
+import HistoricalContributorCard from '@/components/members/HistoricalContributorCard.astro';
+import MemberCard from '@/components/members/MemberCard.astro';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+
+export const prerender = false;
+
+const { current, alumni } = await readMemberDirectory();
+const githubSnapshot = await readGithubContributors();
+const knownLogins = new Set([
+  ...current.map((member) => member.id.toLocaleLowerCase('en-US')),
+  ...alumni.map((member) => member.id.toLocaleLowerCase('en-US')),
+  ...historicalContributors.map((contributor) => contributor.name.toLocaleLowerCase('en-US')),
+]);
+const githubContributors =
+  githubSnapshot?.contributors.filter((contributor) => {
+    const key = contributor.login.toLocaleLowerCase('en-US');
+    if (knownLogins.has(key)) return false;
+    knownLogins.add(key);
+    return true;
+  }) ?? [];
+const historyLinkClass =
+  'inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-tint-fg transition-colors duration-(--motion-color) ease-standard hover:text-fg hover:underline sm:min-h-10';
+const description = '查看 HeyBlog 当前成员、历史成员、历史致谢与外部贡献者。';
+---
+
+<PublicLayout title="项目成员" {description} canonicalPath="/members">
+  <div
+    class="mx-auto w-[min(calc(100%-2rem),80rem)] py-10 sm:w-[min(calc(100%-3rem),80rem)] sm:py-16"
+  >
+    <header class="max-w-176">
+      <p class="font-mono text-xs font-medium text-tint-fg">项目成员</p>
+      <h1 class="mt-3 text-[2rem] leading-tight font-bold sm:text-4xl">共同维护 HeyBlog</h1>
+      <p class="mt-4 text-lg/snug text-fg-muted">{description}</p>
+    </header>
+
+    <section class="mt-12" aria-labelledby="current-members-title">
+      <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-semibold text-fg" id="current-members-title">现有成员</h2>
+        </div>
+        <p class="font-mono text-xs font-medium text-fg-muted">{current.length} 人</p>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        {current.map((member) => <MemberCard {member} />)}
+      </div>
+    </section>
+
+    {
+      alumni.length > 0 ? (
+        <section class="mt-16 border-t border-line pt-10" aria-labelledby="alumni-title">
+          <h2 class="text-2xl font-semibold text-fg" id="alumni-title">
+            历史成员
+          </h2>
+          <div class="mt-5 grid gap-4 md:grid-cols-2">
+            {alumni.map((member) => (
+              <MemberCard member={member} />
+            ))}
+          </div>
+        </section>
+      ) : null
+    }
+
+    <section class="mt-16 border-t border-line pt-10" aria-labelledby="contributors-title">
+      <h2 class="text-2xl font-semibold text-fg" id="contributors-title">历史贡献者</h2>
+      <ul class="mt-5 flex list-none flex-wrap items-start gap-3 p-0">
+        {
+          historicalContributors.map((contributor) => (
+            <li>
+              <HistoricalContributorCard {contributor} />
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    {
+      githubContributors.length > 0 ? (
+        <section
+          class="mt-16 border-t border-line pt-10"
+          aria-labelledby="external-contributors-title"
+        >
+          <h2 class="text-2xl font-semibold text-fg" id="external-contributors-title">
+            外部贡献者
+          </h2>
+          <ul class="mt-5 flex list-none flex-wrap gap-x-6 gap-y-1 p-0">
+            {githubContributors.map((contributor) => (
+              <li>
+                <a
+                  class={historyLinkClass}
+                  href={contributor.htmlUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <IconBrandGithub aria-hidden="true" size={16} stroke={1.75} />
+                  <span>{contributor.login}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null
+    }
+  </div>
+</PublicLayout>

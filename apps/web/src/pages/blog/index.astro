@@ -1,0 +1,23 @@
+---
+import { readBlogSummaries } from '@/application/static-content/static-content.server';
+import BlogList from '@/components/blog/BlogList.astro';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+
+export const prerender = true;
+
+const blogs = await readBlogSummaries();
+const description = '查看 HeyBlog 项目公告、建设记录与协作动态。';
+---
+
+<PublicLayout title="项目博客" {description} canonicalPath="/blog">
+  <div
+    class="mx-auto w-[min(calc(100%-2rem),80rem)] py-10 sm:w-[min(calc(100%-3rem),80rem)] sm:py-16"
+  >
+    <header class="mb-10 max-w-176">
+      <p class="font-mono text-xs font-medium text-tint-fg">项目博客</p>
+      <h1 class="mt-3 text-[2rem] leading-tight font-bold sm:text-4xl">最近更新</h1>
+      <p class="mt-4 text-lg/snug text-fg-muted">{description}</p>
+    </header>
+    <BlogList {blogs} />
+  </div>
+</PublicLayout>

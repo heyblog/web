@@ -1,4 +1,7 @@
 ---
+import { IconArrowLeft } from '@tabler/icons-svelte';
+
+import { shouldSuppressLeadingContentTitle } from '@/application/static-content/static-content.models';
 import ContentBody from '@/components/content-page/ContentBody.astro';
 import ContentToc from '@/components/content-page/ContentToc.astro';
 import ContentTocBehavior from '@/components/content-page/ContentTocBehavior.astro';
@@ -19,7 +22,14 @@ interface TocHeading {
   text: string;
 }
 
+interface BackLink {
+  href: string;
+  label: string;
+}
+
 interface Props extends MarkdownFrontmatter {
+  backLink?: BackLink;
+  canonicalPath?: string;
   headings?: TocHeading[];
   frontmatter?: MarkdownFrontmatter;
 }
@@ -30,40 +40,59 @@ const description = Astro.props.description ?? frontmatter.description;
 const createTime = Astro.props.create_time ?? frontmatter.create_time;
 const updateTime = Astro.props.update_time ?? frontmatter.update_time;
 const headings = Astro.props.headings ?? [];
+const backLink = Astro.props.backLink;
+const canonicalPath = Astro.props.canonicalPath;
 const hasToc = headings.some(
   (heading) => heading.depth >= 2 && heading.depth <= 4 && heading.slug && heading.text,
 );
+const suppressLeadingHeading = shouldSuppressLeadingContentTitle(title, headings);
 ---
 
 <PublicLayout
   {title}
   {description}
+  {canonicalPath}
   ogType="article"
   publishedTime={createTime}
   modifiedTime={updateTime}
 >
   <div
-    class="mx-auto grid w-[min(calc(100%-2rem),80rem)] gap-8 pt-8 pb-16 sm:w-[min(calc(100%-3rem),80rem)] sm:pt-12 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-12"
+    class="mx-auto w-[min(calc(100%-2rem),80rem)] pt-6 pb-16 sm:w-[min(calc(100%-3rem),80rem)] sm:pt-8"
     data-content-page
   >
-    <article
-      class:list={[
-        'min-w-0',
-        {
-          '**:data-entry-header:border-b-0 md:**:data-entry-header:border-b': hasToc,
-        },
-      ]}
-      data-content-article
-    >
-      <EntryHeader {title} {description} {createTime} {updateTime}>
-        <slot name="meta" slot="meta" />
-      </EntryHeader>
-      <ContentToc {headings} variant="mobile" />
-      <ContentBody>
-        <slot />
-      </ContentBody>
-    </article>
-    <ContentToc {headings} variant="desktop" />
-    <ContentTocBehavior />
+    {
+      backLink ? (
+        <nav class="mb-6" aria-label="返回入口">
+          <a
+            class="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-fg-muted transition-colors duration-(--motion-color) ease-standard hover:text-tint-fg sm:min-h-10"
+            href={backLink.href}
+          >
+            <IconArrowLeft aria-hidden="true" size={17} stroke={1.75} />
+            <span>返回{backLink.label}</span>
+          </a>
+        </nav>
+      ) : null
+    }
+    <div class="grid gap-8 sm:pt-4 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-12">
+      <article
+        class:list={[
+          'min-w-0',
+          {
+            '**:data-entry-header:border-b-0 md:**:data-entry-header:border-b': hasToc,
+          },
+        ]}
+        data-content-article
+      >
+        <EntryHeader {title} {description} {createTime} {updateTime}>
+          <slot name="meta" slot="meta" />
+        </EntryHeader>
+        <ContentToc {headings} variant="mobile" />
+        <ContentBody {suppressLeadingHeading}>
+          <slot />
+        </ContentBody>
+      </article>
+      <ContentToc {headings} variant="desktop" />
+      <ContentTocBehavior />
+    </div>
   </div>
 </PublicLayout>

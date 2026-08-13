@@ -1,0 +1,57 @@
+---
+import { getGithubAvatarPath } from '@/application/github-avatar/github-avatar';
+import type { HistoricalContributor } from '@/application/static-content/historical-contributors';
+
+interface Props {
+  contributor: HistoricalContributor;
+}
+
+const { contributor } = Astro.props;
+const initial = Array.from(contributor.name.trim())[0]?.toLocaleUpperCase('zh-CN') || '?';
+const avatarPath = getGithubAvatarPath(contributor.name);
+---
+
+<a
+  class="inline-flex w-fit flex-col items-center rounded-md border border-line bg-surface p-3 text-center shadow-2xs transition-colors duration-(--motion-color) ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+  href={contributor.github}
+  rel="noreferrer"
+  target="_blank"
+>
+  <span
+    class="relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-tint text-lg font-semibold text-tint-fg"
+    aria-hidden="true"
+  >
+    {initial}
+    <img
+      class="absolute inset-0 size-full rounded-full object-cover opacity-0 data-loaded:opacity-100"
+      data-historical-contributor-avatar
+      src={avatarPath}
+      alt=""
+      width="48"
+      height="48"
+      loading="lazy"
+      decoding="async"
+    />
+  </span>
+  <span class="mt-2 text-sm/snug font-medium whitespace-nowrap text-fg">{contributor.name}</span>
+</a>
+
+<script>
+  document
+    .querySelectorAll<HTMLImageElement>('[data-historical-contributor-avatar]')
+    .forEach((avatar) => {
+      const showAvatar = () => {
+        avatar.dataset.loaded = '';
+      };
+      const removeAvatar = () => avatar.remove();
+
+      if (avatar.complete) {
+        if (avatar.naturalWidth > 0) showAvatar();
+        else removeAvatar();
+        return;
+      }
+
+      avatar.addEventListener('load', showAvatar, { once: true });
+      avatar.addEventListener('error', removeAvatar, { once: true });
+    });
+</script>

@@ -2,15 +2,8 @@ import { file, glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { defineCollection, reference } from 'astro:content';
 
+import { memberStatusKeys } from './shared/content/member-status';
 import { contentSources } from './content-sources.mjs';
-
-export enum MemberStatus {
-  ACTIVE = '在职',
-  INACTIVE = '暂离',
-  ALUMNI = '离开',
-}
-
-export const MemberStatusKeys = Object.keys(MemberStatus) as (keyof typeof MemberStatus)[];
 
 const members = defineCollection({
   loader: file(`./contents/${contentSources.members.path}`),
@@ -23,7 +16,7 @@ const members = defineCollection({
     title: z.string(), // 贡献职责称谓，为空时使用默认值
     description: z.string(), // 贡献边界说明
     tags: z.array(z.string()).default([]), // 贡献边界标签
-    status: z.enum(MemberStatusKeys).default('ACTIVE'), //贡献状态
+    status: z.enum(memberStatusKeys).default('ACTIVE'), // 贡献状态
     join_time: z.iso.date().optional(), // 加入时间
     leave_time: z.iso.date().optional(), // 离开时间
     sort: z.number().int().optional(), // 排序值，越小越靠前，为空时使用 id 排序
@@ -41,6 +34,8 @@ const blogs = defineCollection({
     create_time: z.date(),
     category: z.string(),
     editors: z.array(reference('members')),
+    tags: z.array(z.string()).default([]),
+    sort: z.number().int().optional(),
     top: z.boolean().default(false),
   }),
 });

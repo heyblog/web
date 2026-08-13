@@ -3,7 +3,7 @@ import type { SiteConfig } from './site-config.types';
 export const siteConfig: SiteConfig = {
   name: 'HeyBlog',
   title: 'HeyBlog',
-  description: '收集并链接所有的个人博客站点',
+  description: '尝试发现、整理并链接公开的个人博客站点。',
   url: 'https://www.heyblog.net',
   language: 'zh-CN',
   locale: 'zh_CN',
@@ -15,7 +15,12 @@ export const siteConfig: SiteConfig = {
     imageAlt: 'HeyBlog 分享卡片',
   },
   twitterCard: 'summary_large_image',
-  navigation: [{ label: '首页', href: '/', match: 'exact' }],
+  navigation: [
+    { label: '首页', href: '/', match: 'exact' },
+    { label: '博客', href: '/blog', match: 'prefix' },
+    { label: '文档', href: '/docs', match: 'prefix' },
+    { label: '成员', href: '/members', match: 'prefix' },
+  ],
   footer: {
     copyrightStartYear: 2022,
     copyrightOwner: 'HeyBlog',

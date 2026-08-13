@@ -1,0 +1,44 @@
+---
+import type { ContentEditorLink } from '@/application/static-content/static-content.models';
+
+interface Props {
+  editors: ContentEditorLink[];
+  category?: string;
+  tags?: string[];
+  pinned?: boolean;
+}
+
+const { editors, category, tags = [], pinned = false } = Astro.props;
+const badgeClass =
+  'inline-flex h-5 items-center rounded-sm bg-subtle px-2 text-xs font-medium text-fg-muted';
+---
+
+<div class="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-fg-muted">
+  {
+    pinned ? (
+      <span class="inline-flex h-5 items-center rounded-sm bg-tint px-2 font-medium text-tint-fg">
+        置顶
+      </span>
+    ) : null
+  }
+  {category ? <span class={badgeClass}>{category}</span> : null}
+  {tags.map((tag) => <span class={badgeClass}>#{tag}</span>)}
+  {
+    editors.length > 0 ? (
+      <span class="inline-flex flex-wrap items-center gap-1">
+        <span>编辑：</span>
+        {editors.map((editor, index) => (
+          <>
+            {index > 0 ? <span aria-hidden="true">、</span> : null}
+            <a
+              class="inline-flex min-h-11 items-center font-medium text-tint-fg underline-offset-4 hover:underline sm:min-h-10"
+              href={editor.href}
+            >
+              {editor.label}
+            </a>
+          </>
+        ))}
+      </span>
+    ) : null
+  }
+</div>

@@ -1,0 +1,82 @@
+---
+import { IconArrowRight } from '@tabler/icons-svelte';
+
+import type { BlogSummary } from '@/application/static-content/static-content.models';
+import { formatContentDate } from '@/application/static-content/static-content.models';
+
+interface Props {
+  blogs: BlogSummary[];
+  headingLevel?: 2 | 3;
+  compact?: boolean;
+}
+
+const { blogs, headingLevel = 2, compact = false } = Astro.props;
+const Heading = `h${headingLevel}` as 'h2' | 'h3';
+const badgeClass =
+  'inline-flex h-5 items-center rounded-sm bg-subtle px-2 text-xs font-medium text-fg-muted';
+---
+
+<ol class="m-0 list-none border-y border-line p-0">
+  {
+    blogs.map((blog) => (
+      <li class="border-b border-line last:border-b-0">
+        <article class:list={['min-w-0', compact ? 'py-5' : 'py-6 sm:py-8']}>
+          <div class="flex flex-wrap items-center gap-2">
+            {blog.top ? (
+              <span class="inline-flex h-5 items-center rounded-sm bg-tint px-2 text-xs font-medium text-tint-fg">
+                置顶
+              </span>
+            ) : null}
+            <span class={badgeClass}>{blog.category}</span>
+            {blog.tags.map((tag) => (
+              <span class={badgeClass}>#{tag}</span>
+            ))}
+          </div>
+
+          <Heading
+            class:list={['mt-3 font-semibold text-fg', compact ? 'text-xl/snug' : 'text-2xl']}
+          >
+            <a
+              class="group inline-flex min-h-11 max-w-full items-center gap-2 rounded-sm transition-colors duration-(--motion-color) ease-standard hover:text-tint-fg sm:min-h-10"
+              href={`/blog/${blog.id}`}
+            >
+              <span>{blog.title}</span>
+              <IconArrowRight
+                class="shrink-0 transition-transform duration-(--motion-base) ease-standard group-hover:translate-x-1 motion-reduce:transition-none"
+                aria-hidden="true"
+                size={18}
+                stroke={1.75}
+              />
+            </a>
+          </Heading>
+
+          <p class:list={['max-w-176 text-fg-muted', compact ? 'mt-2 text-sm' : 'mt-3']}>
+            {blog.description}
+          </p>
+
+          <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-fg-muted">
+            <time datetime={blog.createTime.toISOString()}>
+              {formatContentDate(blog.createTime)}
+            </time>
+            {blog.editors.length > 0 ? (
+              <span class="inline-flex flex-wrap items-center gap-1">
+                <span>编辑：</span>
+                {blog.editors.map((editor, index) => (
+                  <>
+                    {index > 0 ? <span aria-hidden="true">、</span> : null}
+                    <a
+                      class="inline-flex min-h-11 items-center font-medium text-tint-fg underline-offset-4 hover:underline sm:min-h-10"
+                      href={editor.href}
+                    >
+                      {editor.label}
+                    </a>
+                  </>
+                ))}
+              </span>
+            ) : null}
+          </div>
+        </article>
+      </li>
+    ))
+  }
+</ol>

@@ -1,0 +1,131 @@
+---
+import { IconBrandGithub, IconExternalLink } from '@tabler/icons-svelte';
+
+import { getGithubAvatarPath } from '@/application/github-avatar/github-avatar';
+import type { MemberSummary } from '@/application/static-content/static-content.models';
+import { formatContentDate } from '@/application/static-content/static-content.models';
+import { memberStatusLabels } from '@/shared/content/member-status';
+
+interface Props {
+  member: MemberSummary;
+}
+
+const { member } = Astro.props;
+const initial = Array.from(member.displayName.trim())[0]?.toLocaleUpperCase('zh-CN') || '?';
+const avatarPath = getGithubAvatarPath(member.id);
+const showHomepage = member.homepageUrl !== member.githubUrl;
+const statusClass = member.status === 'ACTIVE' ? 'bg-tint text-tint-fg' : 'bg-subtle text-fg-muted';
+const linkClass =
+  'inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-tint-fg transition-colors duration-(--motion-color) ease-standard hover:text-fg sm:min-h-10';
+---
+
+<article
+  class="scroll-mt-24 rounded-md border border-line bg-surface p-6 shadow-2xs"
+  id={member.id}
+>
+  <header class="flex items-start gap-4">
+    <span
+      class="relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-tint text-lg font-semibold text-tint-fg"
+      aria-hidden="true"
+    >
+      {initial}
+      <img
+        class="absolute inset-0 size-full rounded-full object-cover opacity-0 data-loaded:opacity-100"
+        data-member-avatar
+        src={avatarPath}
+        alt=""
+        width="48"
+        height="48"
+        loading="lazy"
+        decoding="async"
+      />
+    </span>
+    <div class="min-w-0 flex-1">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="text-xl/snug font-semibold text-fg">{member.displayName}</h2>
+        <span
+          class:list={[
+            'inline-flex h-5 items-center rounded-sm px-2 text-xs font-medium',
+            statusClass,
+          ]}
+        >
+          {memberStatusLabels[member.status]}
+        </span>
+      </div>
+      <p class="mt-1 text-sm font-medium text-fg-muted">{member.title}</p>
+    </div>
+  </header>
+
+  <p class="mt-5 text-sm/normal text-fg-muted">{member.description}</p>
+
+  {
+    member.tags.length > 0 ? (
+      <ul class="mt-4 flex list-none flex-wrap gap-2 p-0" aria-label="贡献方向">
+        {member.tags.map((tag) => (
+          <li class="inline-flex h-5 items-center rounded-sm bg-subtle px-2 text-xs font-medium text-fg-muted">
+            {tag}
+          </li>
+        ))}
+      </ul>
+    ) : null
+  }
+
+  {
+    member.joinTime || member.leaveTime ? (
+      <dl class="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs text-fg-muted">
+        {member.joinTime ? (
+          <div class="flex gap-2">
+            <dt class="font-medium">加入</dt>
+            <dd>
+              <time datetime={member.joinTime}>{formatContentDate(member.joinTime)}</time>
+            </dd>
+          </div>
+        ) : null}
+        {member.leaveTime ? (
+          <div class="flex gap-2">
+            <dt class="font-medium">离开</dt>
+            <dd>
+              <time datetime={member.leaveTime}>{formatContentDate(member.leaveTime)}</time>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+    ) : null
+  }
+
+  <div class="mt-5 flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-3">
+    {
+      showHomepage ? (
+        <a class={linkClass} href={member.homepageUrl} rel="noreferrer" target="_blank">
+          <span>个人主页</span>
+          <IconExternalLink aria-hidden="true" size={15} stroke={1.75} />
+        </a>
+      ) : null
+    }
+    <a class={linkClass} href={member.githubUrl} rel="noreferrer" target="_blank">
+      <IconBrandGithub aria-hidden="true" size={16} stroke={1.75} />
+      <span>GitHub</span>
+    </a>
+  </div>
+</article>
+
+<script>
+  document.querySelectorAll<HTMLImageElement>('[data-member-avatar]').forEach((avatar) => {
+    const showAvatar = () => {
+      avatar.dataset.loaded = '';
+    };
+    const removeAvatar = () => avatar.remove();
+
+    if (avatar.complete) {
+      if (avatar.naturalWidth > 0) {
+        showAvatar();
+      } else {
+        removeAvatar();
+      }
+      return;
+    }
+
+    avatar.addEventListener('load', showAvatar, { once: true });
+    avatar.addEventListener('error', removeAvatar, { once: true });
+  });
+</script>
