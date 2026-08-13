@@ -250,7 +250,7 @@ func load(paths configPaths, getenv getenvFunc) (Config, error) {
 }
 
 func readYAML(path string) (*yaml.Node, error) {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) // #nosec G304 -- configuration paths are derived from the executable or working directory.
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +364,8 @@ func decodeFileConfig(root *yaml.Node) (fileConfig, error) {
 }
 
 func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
-	if values.Database.MaxConnections > math.MaxInt32 || values.Database.MinConnections > math.MaxInt32 {
+	if values.Database.MaxConnections < math.MinInt32 || values.Database.MaxConnections > math.MaxInt32 ||
+		values.Database.MinConnections < math.MinInt32 || values.Database.MinConnections > math.MaxInt32 {
 		return Config{}, fmt.Errorf("database connection bounds exceed int32")
 	}
 

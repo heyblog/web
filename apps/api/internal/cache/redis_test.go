@@ -11,7 +11,7 @@ func TestRedisOptionsAppliesRuntimePolicy(t *testing.T) {
 	t.Parallel()
 
 	input := config.RedisConfig{
-		URL:          "rediss://user:secret@example.test:6380/2",
+		URL:          "rediss://user:secret@example.test:6380/2", // #nosec G101 -- this is a non-functional test fixture.
 		DialTimeout:  4 * time.Second,
 		ReadTimeout:  3 * time.Second,
 		WriteTimeout: 2 * time.Second,

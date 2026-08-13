@@ -7,7 +7,7 @@ import (
 	"heyblog-api/internal/apperror"
 )
 
-const WebTokenHeader = "X-HeyBlog-Web-Token"
+const WebTokenHeader = "X-HeyBlog-Web-Token" // #nosec G101 -- this is a header name, not a credential.
 
 func webAuthorization(expectedToken string) Middleware {
 	expectedDigest := sha256.Sum256([]byte(expectedToken))

@@ -56,7 +56,7 @@ func TestNewWritesProductionJSONToConsoleAndFile(t *testing.T) {
 	if err := runtime.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
-	fileOutput, err := os.ReadFile(logPath)
+	fileOutput, err := os.ReadFile(logPath) // #nosec G304 -- logPath is a temporary test directory path.
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", logPath, err)
 	}

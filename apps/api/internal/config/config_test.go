@@ -290,7 +290,7 @@ func TestLoadRejectsUnsafeProxyAndMalformedCORSOrigin(t *testing.T) {
 func TestLoadDoesNotLeakMalformedExternalURL(t *testing.T) {
 	t.Parallel()
 
-	secret := "postgres://user:super-secret%zz@example.test/heyblog"
+	secret := "postgres://user:super-secret%zz@example.test/heyblog" // #nosec G101 -- this fixture verifies that errors do not leak credentials.
 	getenv := func(key string) string {
 		if key == "API_MIGRATION_DATABASE_URL" {
 			return secret

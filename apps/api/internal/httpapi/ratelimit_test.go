@@ -71,7 +71,9 @@ func rateLimitTestRouter(t *testing.T, limiter RateLimiter, endpoint Endpoint) *
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.SetTrustedProxies(nil) //nolint:errcheck // nil is a valid, static proxy policy in this isolated test.
+	if err := router.SetTrustedProxies(nil); err != nil {
+		t.Fatalf("SetTrustedProxies() error = %v", err)
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	router.Use(errorBoundary(logger), requestIDMiddleware())
 	policy := ratelimit.Policy{Name: "test", Capacity: 10, RefillTokens: 1, RefillInterval: time.Second}

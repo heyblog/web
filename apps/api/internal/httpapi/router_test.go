@@ -67,7 +67,7 @@ func TestWebEndpointRequiresServiceToken(t *testing.T) {
 		wantStatus int
 	}{
 		{name: "missing", wantStatus: http.StatusUnauthorized},
-		{name: "invalid", token: "invalid-web-service-token-0123456789", wantStatus: http.StatusUnauthorized},
+		{name: "invalid", token: "invalid-web-service-token-0123456789", wantStatus: http.StatusUnauthorized}, // #nosec G101 -- this is a non-functional test token.
 		{name: "valid", token: testWebToken, wantStatus: http.StatusOK},
 	}
 	for _, test := range tests {
