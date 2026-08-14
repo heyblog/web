@@ -1,0 +1,45 @@
+# dependencies
+**/node_modules
+
+# build outputs and caches
+**/dist
+**/.cache
+**/bin
+**/*.tsbuildinfo
+**/.astro
+
+# logs
+**/logs
+**/*.log
+**/pnpm-debug.log*
+
+# environment files
+**/.env
+**/.env.*
+!**/.env.*.example
+
+# local application configuration
+**/config/conf.yaml
+
+# test artifacts
+**/coverage
+**/coverage.out
+**/test-results
+**/playwright-report
+**/blob-report
+
+# OS and IDE files
+**/.DS_Store
+**/.idea
+**/.vscode
+
+# repository and agent metadata
+.agents
+.claude
+.codex
+.git
+.github
+.githooks
+infra
+skills
+skills-lock.json

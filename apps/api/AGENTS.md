@@ -4,7 +4,8 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 
 ## Scope and Sources of Truth
 
-- `apps/api` is the repository's unified Go HTTP backend.
+- `apps/api` is the repository's unified Go HTTP backend. Invoke its tasks from the repository root;
+  commands in this Taskfile execute relative to `apps/api`.
 - Treat `go.mod`, `go.sum`, source code, and `Taskfile.yaml` as the current dependency, toolchain, and
   command truth.
 - Declare API-specific Go CLI dependencies in this module's `go.mod` `tool` block. Repository-wide
@@ -190,7 +191,8 @@ Run commands from the repository root:
 - `task api:test:integration`: run PostgreSQL/AGE and Redis container integration tests.
 - `task api:format:check`: check Go formatting and imports.
 - `task api:lint`: run golangci-lint.
-- `task api:build`: build the API.
+- `task api:build`: invoke the API build from the repository root; the module command runs in
+  `apps/api`.
 - `task api:verify`: run all current offline API checks.
 - `task api:vulncheck`: run the network-backed vulnerability check when dependencies or security
   behavior change and network access is available.

@@ -18,7 +18,6 @@ tasks:
     cmds:
       - pnpm install
       - go mod download
-      - task: api:install
       - task: hooks:install
       - task: web:content
 

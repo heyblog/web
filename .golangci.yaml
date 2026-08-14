@@ -8,6 +8,7 @@ linters:
   enable:
     - bodyclose
     - errorlint
+    - gosec
     - misspell
     - nolintlint
 

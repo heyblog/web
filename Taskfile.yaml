@@ -9,6 +9,9 @@ includes:
   web:
     taskfile: ./apps/web/Taskfile.yaml
     dir: ./apps/web
+  container:
+    taskfile: ./taskfiles/container.yaml
+    flatten: true
   project:
     taskfile: ./taskfiles/project.yaml
     flatten: true

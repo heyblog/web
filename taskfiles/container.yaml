@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  container:base:
+    desc: Build the shared HeyBlog builder image
+    cmds:
+      - docker build --platform linux/amd64 -f infra/docker/Dockerfile.builder -t heyblog-builder:local .
+
+  container:api-build:
+    desc: Build the API in its module directory inside a root-context builder
+    cmds:
+      - task: api:build
+
+  container:web-build:
+    desc: Install the root workspace and build Web in its module directory
+    cmds:
+      - corepack install
+      - pnpm install --frozen-lockfile
+      - task: web:build
+
+  container:build:
+    desc: Build local API and Web container images
+    cmds:
+      - task: web:content
+      - task: container:base
+      - docker build --platform linux/amd64 -f apps/api/Dockerfile -t heyblog-api:local .
+      - docker build --platform linux/amd64 -f apps/web/Dockerfile -t heyblog-web:local .
+
+  container:publish:
+    desc: Build and optionally publish API and Web images
+    cmds:
+      - task: container:build
+      - |
+        if [ "${PUSH:-false}" = "true" ]; then
+          : "${REGISTRY:?REGISTRY is required when PUSH=true}"
+          : "${NAMESPACE:?NAMESPACE is required when PUSH=true}"
+          for TAG in ${IMAGE_TAGS:-latest}; do
+            docker tag heyblog-api:local "${REGISTRY}/${NAMESPACE}/heyblog-api:${TAG}"
+            docker tag heyblog-web:local "${REGISTRY}/${NAMESPACE}/heyblog-web:${TAG}"
+            docker push "${REGISTRY}/${NAMESPACE}/heyblog-api:${TAG}"
+            docker push "${REGISTRY}/${NAMESPACE}/heyblog-web:${TAG}"
+          done
+        fi
+
+  compose:check:
+    desc: Validate the development dependency Compose configuration
+    cmds:
+      - docker compose -f infra/docker/docker-compose.env.yaml config --quiet
+
+  compose:dev:up:
+    desc: Start development PostgreSQL/AGE and Redis
+    cmds:
+      - docker compose -f infra/docker/docker-compose.env.yaml up -d --wait
+
+  compose:dev:down:
+    desc: Stop development PostgreSQL/AGE and Redis
+    cmds:
+      - docker compose -f infra/docker/docker-compose.env.yaml down
+
+  container:verify:
+    desc: Validate the development Compose configuration and build local images
+    cmds:
+      - task: compose:check
+      - task: container:build

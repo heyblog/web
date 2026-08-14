@@ -16,8 +16,9 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
   with the Go API over HTTP.
 - Treat current task requirements, accepted HTTP contracts, current routes, and tests as
   migration behavior truth.
-- `apps/web/Dockerfile` builds from the workspace and uses `pnpm deploy --prod` to create the
-  portable runtime tree. The runner must not copy workspace-wide development dependencies.
+- `apps/web/Dockerfile` uses the repository root as its Docker build context and invokes the root
+  Taskfile; the Web task commands execute relative to `apps/web`. The production image copies the
+  default Astro `dist` output without workspace-wide development dependencies.
 
 ## Ownership and Boundaries
 
@@ -140,7 +141,8 @@ Run commands from the repository root:
 - `task web:test`: run focused Node tests for Web server infrastructure.
 - `task web:lint`: run ESLint and Stylelint.
 - `task web:format:check`: check formatting.
-- `task web:build`: build the web application.
+- `task web:build`: invoke the Web build from the repository root; the module command runs in
+  `apps/web`.
 - `task web:content`: sync generated content from the `heyblog/.github` `main` branch.
 - `task web:verify`: run all current offline web checks.
 - `task container:build`: build the production container image after Dockerfile changes.

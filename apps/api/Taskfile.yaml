@@ -18,7 +18,8 @@ tasks:
   build:
     desc: Build API
     cmds:
-      - go build -o ./dist/ ./...
+      - mkdir -p dist
+      - go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/heyblog-api .
 
   test:
     desc: Test API
