@@ -51,6 +51,7 @@ health:
 
 const testHealthcheckToken = "test-healthcheck-token-0123456789abcdef"
 const testWebToken = "test-web-service-token-0123456789abcdef"
+const testTempImportToken = "test-temp-import-token-0123456789abcdef"
 
 func TestLoadMergesRequiredOverrideAndExternalBindings(t *testing.T) {
 	t.Parallel()
@@ -83,7 +84,8 @@ http:
 		got.Database.URL != serviceEnvironment("API_DATABASE_URL") ||
 		got.Redis.URL != serviceEnvironment("API_REDIS_URL") ||
 		got.HealthcheckToken != serviceEnvironment("API_HEALTHCHECK_TOKEN") ||
-		got.WebToken != serviceEnvironment("API_WEB_TOKEN") {
+		got.WebToken != serviceEnvironment("API_WEB_TOKEN") ||
+		got.TempImportToken != serviceEnvironment("API_TEMP_IMPORT_TOKEN") {
 		t.Fatal("external service bindings were not loaded from the process environment source")
 	}
 }
@@ -261,6 +263,21 @@ func TestLoadRejectsInvalidWebToken(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInvalidTempImportToken(t *testing.T) {
+	t.Parallel()
+
+	getenv := func(key string) string {
+		if key == "API_TEMP_IMPORT_TOKEN" {
+			return "short-token"
+		}
+		return serviceEnvironment(key)
+	}
+	_, err := load(writeConfigPair(t, testDefaultYAML, "mode: development\n"), getenv)
+	if err == nil || !strings.Contains(err.Error(), "API_TEMP_IMPORT_TOKEN") {
+		t.Fatalf("load() error = %v, want API_TEMP_IMPORT_TOKEN validation error", err)
+	}
+}
+
 func TestLoadRejectsInvalidPolicyBounds(t *testing.T) {
 	t.Parallel()
 
@@ -344,6 +361,7 @@ func serviceEnvironment(key string) string {
 		"API_REDIS_URL":              "redis://example.test:6379/0",
 		"API_HEALTHCHECK_TOKEN":      testHealthcheckToken,
 		"API_WEB_TOKEN":              testWebToken,
+		"API_TEMP_IMPORT_TOKEN":      testTempImportToken,
 	}
 	return values[key]
 }

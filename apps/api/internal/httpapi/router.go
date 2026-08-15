@@ -13,12 +13,18 @@ import (
 )
 
 type Options struct {
-	Mode             config.Mode
-	HTTP             config.HTTPConfig
-	Logger           *slog.Logger
-	Health           *Health
-	HealthcheckToken string
-	WebToken         string
+	Mode               config.Mode
+	HTTP               config.HTTPConfig
+	Logger             *slog.Logger
+	Health             *Health
+	HealthcheckToken   string
+	WebToken           string
+	BodyLimitOverrides map[Route]int64
+}
+
+type Route struct {
+	Method string
+	Path   string
 }
 
 type endpointAudience uint8
@@ -53,7 +59,7 @@ func NewRouter(options Options) (*gin.Engine, error) {
 		requestIDMiddleware(),
 		securityHeadersMiddleware(),
 		corsMiddleware(options.HTTP.CORS),
-		bodyLimitMiddleware(options.HTTP.MaxBodyBytes),
+		bodyLimitMiddleware(options.HTTP.MaxBodyBytes, options.BodyLimitOverrides),
 	)
 
 	health := options.Health

@@ -9,12 +9,17 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"heyblog-api/internal/config"
+	"heyblog-api/internal/domain/site"
 	"heyblog-api/internal/httpapi"
+	"heyblog-api/internal/temp/dataimport"
 )
 
 type runtimeDependencies interface {
 	httpapi.Readiness
+	DatabasePool() *pgxpool.Pool
 	Close() error
 }
 
@@ -27,7 +32,7 @@ type managedHTTPServer interface {
 type applicationOperations struct {
 	listen           func(string, string) (net.Listener, error)
 	openDependencies func(context.Context, config.Config) (runtimeDependencies, error)
-	newHandler       func(httpapi.Options) (http.Handler, error)
+	newHandler       func(httpapi.Options, *pgxpool.Pool, string) (http.Handler, error)
 	newServer        func(http.Handler) managedHTTPServer
 }
 
@@ -37,8 +42,8 @@ func Run(ctx context.Context, configuration config.Config, logger *slog.Logger) 
 		openDependencies: func(ctx context.Context, configuration config.Config) (runtimeDependencies, error) {
 			return Open(ctx, configuration)
 		},
-		newHandler: func(options httpapi.Options) (http.Handler, error) {
-			return httpapi.NewRouter(options)
+		newHandler: func(options httpapi.Options, pool *pgxpool.Pool, importToken string) (http.Handler, error) {
+			return newApplicationHandler(options, pool, importToken)
 		},
 		newServer: func(handler http.Handler) managedHTTPServer {
 			return newHTTPServer(ctx, configuration, handler, logger)
@@ -66,7 +71,7 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 		Health:           health,
 		HealthcheckToken: configuration.HealthcheckToken,
 		WebToken:         configuration.WebToken,
-	})
+	}, dependencies.DatabasePool(), configuration.TempImportToken)
 	if err != nil {
 		return withStage("router_build", err)
 	}
@@ -142,6 +147,17 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 	}
 	logger.Info("API server stopped", "event", "server_stopped")
 	return resultErr
+}
+
+func newApplicationHandler(options httpapi.Options, pool *pgxpool.Pool, importToken string) (http.Handler, error) {
+	options.BodyLimitOverrides = dataimport.BodyLimitOverrides()
+	router, err := httpapi.NewRouter(options)
+	if err != nil {
+		return nil, err
+	}
+	service := dataimport.NewService(dataimport.NewRepository(pool), site.NewShortID)
+	dataimport.RegisterRoutes(router, service, importToken, options.Logger)
+	return router, nil
 }
 
 func newHTTPServer(processContext context.Context, configuration config.Config, handler http.Handler, logger *slog.Logger) *http.Server {

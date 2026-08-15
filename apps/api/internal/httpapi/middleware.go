@@ -127,9 +127,20 @@ func corsMiddleware(configuration config.CORSConfig) gin.HandlerFunc {
 	}
 }
 
-func bodyLimitMiddleware(limit int64) gin.HandlerFunc {
+func bodyLimitMiddleware(defaultLimit int64, overrides ...map[Route]int64) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if ctx.Request.ContentLength > limit {
+		limit := defaultLimit
+		overridden := false
+		if len(overrides) > 0 {
+			if override, exists := overrides[0][Route{Method: ctx.Request.Method, Path: ctx.FullPath()}]; exists {
+				limit = override
+				overridden = true
+			}
+		}
+		// Route-specific limits are commonly used by authenticated upload
+		// endpoints. Defer their declared-length failure until the handler reads
+		// the wrapped body so route authorization always runs first.
+		if !overridden && ctx.Request.ContentLength > limit {
 			_ = ctx.Error(&http.MaxBytesError{Limit: limit})
 			ctx.Abort()
 			return

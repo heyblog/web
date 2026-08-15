@@ -34,7 +34,7 @@ tasks:
   test:integration:
     desc: Test API infrastructure with PostgreSQL/AGE and Redis containers
     cmds:
-      - go test -count=1 -tags=integration ./internal/integration
+      - go test -count=1 -tags=integration ./internal/integration ./internal/temp/dataimport
 
   sqlc:generate:
     desc: Generate pgx/v5 data access code

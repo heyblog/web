@@ -26,7 +26,7 @@ ENV PATH="${NVM_DIR}/versions/node/v24.19.0/bin:${PATH}"
 
 RUN corepack enable
 
-RUN go_filename="go1.26.5.linux-amd64.tar.gz" \
+RUN go_filename="go1.26.6.linux-amd64.tar.gz" \
     && go_sha256="$(curl --fail --silent --show-error --location \
       --retry 5 --retry-all-errors --retry-delay 3 \
       'https://go.dev/dl/?mode=json' \

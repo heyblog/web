@@ -111,6 +111,10 @@ func (dependencies *Dependencies) Ready(ctx context.Context) error {
 	return errors.Join(readinessErrors...)
 }
 
+func (dependencies *Dependencies) DatabasePool() *pgxpool.Pool {
+	return dependencies.Database
+}
+
 func (dependencies *Dependencies) Close() error {
 	dependencies.closeOnce.Do(func() {
 		var closeErrors []error

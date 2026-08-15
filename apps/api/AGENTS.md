@@ -26,7 +26,8 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   required. Never read real secret files during development or tests.
 - API development tasks load the repository-root `.env.development`; tests use isolated fixtures
   and require no environment file. Production orchestrators inject the three external service URLs
-  plus `API_HEALTHCHECK_TOKEN` and `API_WEB_TOKEN` with Docker `--env-file` or Compose `env_file`;
+  plus `API_HEALTHCHECK_TOKEN`, `API_TEMP_IMPORT_TOKEN`, and `API_WEB_TOKEN` with Docker
+  `--env-file` or Compose `env_file`;
   the image does not load dotenv files.
   `internal/config/config.go` is the API's only process-environment reader and exports validated
   typed configuration.
@@ -103,6 +104,12 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   dependencies.
 - Propagate request cancellation and deadlines through application, database, cache, and outbound
   HTTP calls.
+- `POST /internal/temp/data-import` is a temporary authenticated migration endpoint. It requires
+  `Authorization: Bearer <API_TEMP_IMPORT_TOKEN>`, accepts only the two cleaned migration bundles,
+  and owns a ninety-minute request deadline and route-specific upload limit. Its single transaction
+  requires PostgreSQL `max_locks_per_transaction >= 512` because existing site and friend-link
+  graph wrappers hold transaction-level advisory locks until commit. Keep all removable
+  feature logic, queries, generated access code, and tests under `internal/temp/dataimport`.
 
 ## Database and Data Access
 
@@ -188,7 +195,8 @@ Run commands from the repository root:
 - `task api:dev`: run the API locally.
 - `task api:test`: run Go tests.
 - `task api:test:race`: run Go tests with the race detector.
-- `task api:test:integration`: run PostgreSQL/AGE and Redis container integration tests.
+- `task api:test:integration`: run PostgreSQL/AGE and Redis container integration tests, including
+  the temporary import transaction and graph boundary.
 - `task api:format:check`: check Go formatting and imports.
 - `task api:lint`: run golangci-lint.
 - `task api:build`: invoke the API build from the repository root; the module command runs in

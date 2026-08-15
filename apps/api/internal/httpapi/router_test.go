@@ -299,6 +299,44 @@ func TestBodyLimitRejectsDeclaredOversizedBodyBeforeHandler(t *testing.T) {
 	}
 }
 
+func TestBodyLimitUsesMethodAndRouteOverride(t *testing.T) {
+	t.Parallel()
+
+	configuration := testHTTPConfig()
+	configuration.MaxBodyBytes = 4
+	router, err := NewRouter(Options{
+		Mode:             config.ModeDevelopment,
+		HTTP:             configuration,
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		HealthcheckToken: testHealthcheckToken,
+		WebToken:         testWebToken,
+		BodyLimitOverrides: map[Route]int64{
+			{Method: http.MethodPost, Path: "/large"}: 8,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRouter() error = %v", err)
+	}
+	router.POST("/large", Adapt(func(ctx *Context) (Response, error) {
+		if _, err := io.ReadAll(ctx.Request.Body); err != nil {
+			return Response{}, err
+		}
+		return NoContent(http.StatusNoContent), nil
+	}))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/large", strings.NewReader("12345678")))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("override status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPut, "/large", strings.NewReader("12345")))
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("default status = %d, want %d", response.Code, http.StatusRequestEntityTooLarge)
+	}
+}
+
 func TestCORSAndSecurityHeaders(t *testing.T) {
 	t.Parallel()
 

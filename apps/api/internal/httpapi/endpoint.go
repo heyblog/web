@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -78,6 +79,14 @@ func (ctx *Context) ClientIP() string {
 
 func (ctx *Context) Header(key, value string) {
 	ctx.native.Header(key, value)
+}
+
+func (ctx *Context) SetReadDeadline(deadline time.Time) error {
+	return http.NewResponseController(ctx.native.Writer).SetReadDeadline(deadline)
+}
+
+func (ctx *Context) SetWriteDeadline(deadline time.Time) error {
+	return http.NewResponseController(ctx.native.Writer).SetWriteDeadline(deadline)
 }
 
 func (response Response) write(ctx *gin.Context) {

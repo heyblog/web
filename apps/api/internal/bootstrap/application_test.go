@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/httpapi"
 )
@@ -28,7 +30,7 @@ func TestRunClosesDependenciesWhenListenFails(t *testing.T) {
 				return nil
 			}}, nil
 		},
-		newHandler: func(httpapi.Options) (http.Handler, error) { return http.NewServeMux(), nil },
+		newHandler: func(httpapi.Options, *pgxpool.Pool, string) (http.Handler, error) { return http.NewServeMux(), nil },
 		newServer:  func(http.Handler) managedHTTPServer { return &stubHTTPServer{} },
 	})
 	if !errors.Is(err, wantErr) {
@@ -89,13 +91,20 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	var health *httpapi.Health
 	var healthcheckToken string
 	var webToken string
+	var tempImportToken string
+	wantPool := &pgxpool.Pool{}
+	dependencies.pool = wantPool
 	err := run(ctx, applicationTestConfig(), discardLogger(), applicationOperations{
 		listen:           func(string, string) (net.Listener, error) { return &stubListener{}, nil },
 		openDependencies: func(context.Context, config.Config) (runtimeDependencies, error) { return dependencies, nil },
-		newHandler: func(options httpapi.Options) (http.Handler, error) {
+		newHandler: func(options httpapi.Options, pool *pgxpool.Pool, importToken string) (http.Handler, error) {
 			health = options.Health
 			healthcheckToken = options.HealthcheckToken
 			webToken = options.WebToken
+			if pool != wantPool {
+				t.Fatalf("database pool = %p, want %p", pool, wantPool)
+			}
+			tempImportToken = importToken
 			return http.NewServeMux(), nil
 		},
 		newServer: func(http.Handler) managedHTTPServer { return server },
@@ -115,6 +124,9 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	}
 	if webToken != applicationTestConfig().WebToken {
 		t.Fatalf("web token = %q, want configured token", webToken)
+	}
+	if tempImportToken != applicationTestConfig().TempImportToken {
+		t.Fatalf("temp import token = %q, want configured token", tempImportToken)
 	}
 }
 
@@ -138,6 +150,7 @@ func applicationTestConfig() config.Config {
 		Mode:             config.ModeDevelopment,
 		HealthcheckToken: "test-healthcheck-token-0123456789abcdef",
 		WebToken:         "test-web-service-token-0123456789abcdef",
+		TempImportToken:  "test-temp-import-token-0123456789abcdef",
 		Server:           config.ServerConfig{Host: "127.0.0.1", Port: 10201},
 		HTTP: config.HTTPConfig{
 			ReadHeaderTimeout: time.Second,
@@ -174,10 +187,12 @@ func (address stubAddress) String() string  { return string(address) }
 
 type stubRuntimeDependencies struct {
 	close func() error
+	pool  *pgxpool.Pool
 }
 
-func (*stubRuntimeDependencies) Ready(context.Context) error { return nil }
-func (dependencies *stubRuntimeDependencies) Close() error   { return dependencies.close() }
+func (*stubRuntimeDependencies) Ready(context.Context) error              { return nil }
+func (dependencies *stubRuntimeDependencies) Close() error                { return dependencies.close() }
+func (dependencies *stubRuntimeDependencies) DatabasePool() *pgxpool.Pool { return dependencies.pool }
 
 type stubHTTPServer struct {
 	serveDone chan struct{}
