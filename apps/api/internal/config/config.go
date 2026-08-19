@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net"
+	netmail "net/mail"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -45,6 +46,7 @@ type Config struct {
 	Server               ServerConfig
 	Database             DatabaseConfig
 	Redis                RedisConfig
+	Mail                 MailConfig
 	Logging              LoggingConfig
 	HTTP                 HTTPConfig
 	Health               HealthConfig
@@ -69,6 +71,23 @@ type RedisConfig struct {
 	DialTimeout  time.Duration
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
+}
+
+type MailConfig struct {
+	SES     SESConfig
+	Senders MailSendersConfig
+}
+
+type SESConfig struct {
+	Region string
+}
+
+type MailSendersConfig struct {
+	Verification MailSenderConfig
+}
+
+type MailSenderConfig struct {
+	Address string
 }
 
 type LoggingConfig struct {
@@ -114,6 +133,7 @@ type fileConfig struct {
 	Server   fileServerConfig   `yaml:"server"`
 	Database fileDatabaseConfig `yaml:"database"`
 	Redis    fileRedisConfig    `yaml:"redis"`
+	Mail     fileMailConfig     `yaml:"mail"`
 	Logging  fileLoggingConfig  `yaml:"logging"`
 	HTTP     fileHTTPConfig     `yaml:"http"`
 	Health   fileHealthConfig   `yaml:"health"`
@@ -136,6 +156,23 @@ type fileRedisConfig struct {
 	DialTimeout  durationValue `yaml:"dial_timeout"`
 	ReadTimeout  durationValue `yaml:"read_timeout"`
 	WriteTimeout durationValue `yaml:"write_timeout"`
+}
+
+type fileMailConfig struct {
+	SES     fileSESConfig         `yaml:"ses"`
+	Senders fileMailSendersConfig `yaml:"senders"`
+}
+
+type fileSESConfig struct {
+	Region string `yaml:"region"`
+}
+
+type fileMailSendersConfig struct {
+	Verification fileMailSenderConfig `yaml:"verification"`
+}
+
+type fileMailSenderConfig struct {
+	Address string `yaml:"address"`
 }
 
 type fileLoggingConfig struct {
@@ -430,6 +467,14 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 			ReadTimeout:  time.Duration(values.Redis.ReadTimeout),
 			WriteTimeout: time.Duration(values.Redis.WriteTimeout),
 		},
+		Mail: MailConfig{
+			SES: SESConfig{Region: strings.TrimSpace(values.Mail.SES.Region)},
+			Senders: MailSendersConfig{
+				Verification: MailSenderConfig{
+					Address: strings.TrimSpace(values.Mail.Senders.Verification.Address),
+				},
+			},
+		},
 		Logging: LoggingConfig{
 			Level:         strings.ToLower(strings.TrimSpace(values.Logging.Level)),
 			ConsoleFormat: consoleFormat,
@@ -489,6 +534,12 @@ func (configuration Config) validate() error {
 	if configuration.Redis.DialTimeout <= 0 || configuration.Redis.ReadTimeout <= 0 || configuration.Redis.WriteTimeout <= 0 {
 		return fmt.Errorf("redis durations must be positive")
 	}
+	if err := validateAWSRegion(configuration.Mail.SES.Region); err != nil {
+		return err
+	}
+	if err := validateMailbox("mail.senders.verification.address", configuration.Mail.Senders.Verification.Address); err != nil {
+		return err
+	}
 	if !slices.Contains([]string{"debug", "info", "warn", "error"}, configuration.Logging.Level) {
 		return fmt.Errorf("logging.level must be debug, info, warn, or error")
 	}
@@ -514,6 +565,48 @@ func (configuration Config) validate() error {
 		return err
 	}
 	return validateCORS(configuration.HTTP.CORS)
+}
+
+func validateMailbox(path, value string) error {
+	address, err := netmail.ParseAddress(value)
+	if err != nil || address.Name != "" || address.Address != value || !isASCII(value) {
+		return fmt.Errorf("%s must be a mailbox address without a display name", path)
+	}
+	return nil
+}
+
+func validateAWSRegion(value string) error {
+	parts := strings.Split(value, "-")
+	if len(parts) < 3 || parts[0] == "" || parts[0][0] < 'a' || parts[0][0] > 'z' {
+		return fmt.Errorf("mail.ses.region must use AWS region syntax")
+	}
+	for _, part := range parts {
+		if part == "" {
+			return fmt.Errorf("mail.ses.region must use AWS region syntax")
+		}
+		for _, character := range part {
+			if character < 'a' || character > 'z' {
+				if character < '0' || character > '9' {
+					return fmt.Errorf("mail.ses.region must use AWS region syntax")
+				}
+			}
+		}
+	}
+	for _, character := range parts[len(parts)-1] {
+		if character < '0' || character > '9' {
+			return fmt.Errorf("mail.ses.region must use AWS region syntax")
+		}
+	}
+	return nil
+}
+
+func isASCII(value string) bool {
+	for index := range len(value) {
+		if value[index] > 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func validateTrustedProxies(proxies []string) error {

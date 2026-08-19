@@ -49,12 +49,18 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Environment variables own secrets, credentials, and deployment-injected external resource
   bindings. Non-sensitive server, logging, timeout, pool, CORS, proxy, and health policy belongs in
   YAML.
+- `mail.ses.region` and purpose-specific sender addresses belong in YAML. AWS SES credentials are
+  resolved through the AWS SDK default credential chain so deployments can use workload roles;
+  never add long-lived AWS access keys to YAML or repository environment templates.
 - Production containers use internal port `10201`; host exposure changes through container port
   mapping rather than production YAML overrides.
 
 ## Stack and Growth Path
 
 - Use the Go toolchain and Gin versions declared by `go.mod`; do not hardcode versions elsewhere.
+- Outbound email uses the official AWS SDK v2 SES v2 client. `internal/mail` owns the transport,
+  message validation, and purpose-specific templates; callers provide content through its typed
+  interfaces instead of constructing SES requests directly.
 - Treat the current root `main.go` as a minimal composition root, not a pattern for placing the
   whole application in one file.
 - Keep `main.go` as the only Go source file in the module root. Place all other Go implementation
@@ -181,6 +187,8 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Use `net/http/httptest` or the narrowest appropriate test boundary for HTTP behavior.
 - Handler tests cover routing, validation, authentication, authorization, status codes, headers,
   and response DTOs.
+- Test outbound email with injected clients or senders. Automated tests must not require AWS
+  credentials or send real email.
 - Application and domain tests cover business rules without starting a real HTTP server.
 - Repository and migration behavior that depends on database semantics requires focused integration
   tests against an isolated test database.

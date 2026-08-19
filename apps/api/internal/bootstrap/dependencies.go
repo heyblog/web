@@ -12,11 +12,14 @@ import (
 	"heyblog-api/internal/cache"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/database"
+	"heyblog-api/internal/mail"
 )
 
 type Dependencies struct {
-	Database *pgxpool.Pool
-	Redis    *redis.Client
+	Database           *pgxpool.Pool
+	Redis              *redis.Client
+	MailSender         mail.Sender
+	VerificationMailer *mail.VerificationMailer
 
 	pingDatabase  func(context.Context) error
 	pingRedis     func(context.Context) error
@@ -31,6 +34,8 @@ type dependencyOperations struct {
 	openDatabase  func(context.Context, config.DatabaseConfig) (*pgxpool.Pool, error)
 	closeDatabase func(*pgxpool.Pool)
 	openRedis     func(context.Context, config.RedisConfig) (*redis.Client, error)
+	closeRedis    func(*redis.Client) error
+	openMail      func(context.Context, config.MailConfig) (mail.Sender, error)
 }
 
 type ReadinessError struct {
@@ -44,6 +49,10 @@ func Open(ctx context.Context, configuration config.Config) (*Dependencies, erro
 		openDatabase:  database.OpenPool,
 		closeDatabase: func(pool *pgxpool.Pool) { pool.Close() },
 		openRedis:     cache.OpenRedis,
+		closeRedis:    func(client *redis.Client) error { return client.Close() },
+		openMail: func(ctx context.Context, configuration config.MailConfig) (mail.Sender, error) {
+			return mail.OpenSES(ctx, configuration.SES.Region)
+		},
 	})
 }
 
@@ -63,9 +72,21 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		return nil, withStage("redis_open", err)
 	}
 
+	mailSender, err := operations.openMail(ctx, configuration.Mail)
+	if err != nil {
+		closeErr := operations.closeRedis(redisClient)
+		operations.closeDatabase(pool)
+		return nil, errors.Join(
+			withStage("mail_open", err),
+			withStage("redis_close", closeErr),
+		)
+	}
+
 	return &Dependencies{
-		Database: pool,
-		Redis:    redisClient,
+		Database:           pool,
+		Redis:              redisClient,
+		MailSender:         mailSender,
+		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address),
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},
@@ -75,7 +96,7 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		closeDatabase: func() {
 			operations.closeDatabase(pool)
 		},
-		closeRedis: redisClient.Close,
+		closeRedis: func() error { return operations.closeRedis(redisClient) },
 	}, nil
 }
 

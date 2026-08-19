@@ -10,7 +10,12 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"heyblog-api/internal/config"
+	"heyblog-api/internal/mail"
 )
+
+type stubMailSender struct{}
+
+func (stubMailSender) Send(context.Context, mail.Message) error { return nil }
 
 func TestOpenRollsBackDatabaseWhenRedisFails(t *testing.T) {
 	t.Parallel()
@@ -40,6 +45,88 @@ func TestOpenRollsBackDatabaseWhenRedisFails(t *testing.T) {
 	wantEvents := []string{"migrate", "open-database", "open-redis", "close-database"}
 	if !reflect.DeepEqual(events, wantEvents) {
 		t.Fatalf("events = %v, want %v", events, wantEvents)
+	}
+}
+
+func TestOpenRollsBackRedisAndDatabaseWhenMailFails(t *testing.T) {
+	t.Parallel()
+
+	wantOpenErr := errors.New("SES configuration unavailable")
+	wantCloseErr := errors.New("Redis close failed")
+	var events []string
+	_, err := open(context.Background(), config.Config{}, dependencyOperations{
+		migrate: func(context.Context, string) error {
+			events = append(events, "migrate")
+			return nil
+		},
+		openDatabase: func(context.Context, config.DatabaseConfig) (*pgxpool.Pool, error) {
+			events = append(events, "open-database")
+			return nil, nil
+		},
+		closeDatabase: func(*pgxpool.Pool) {
+			events = append(events, "close-database")
+		},
+		openRedis: func(context.Context, config.RedisConfig) (*redis.Client, error) {
+			events = append(events, "open-redis")
+			return nil, nil
+		},
+		closeRedis: func(*redis.Client) error {
+			events = append(events, "close-redis")
+			return wantCloseErr
+		},
+		openMail: func(context.Context, config.MailConfig) (mail.Sender, error) {
+			events = append(events, "open-mail")
+			return nil, wantOpenErr
+		},
+	})
+	if !errors.Is(err, wantOpenErr) || !errors.Is(err, wantCloseErr) {
+		t.Fatalf("open() error = %v, want mail open and Redis close failures", err)
+	}
+	wantEvents := []string{
+		"migrate",
+		"open-database",
+		"open-redis",
+		"open-mail",
+		"close-redis",
+		"close-database",
+	}
+	if !reflect.DeepEqual(events, wantEvents) {
+		t.Fatalf("events = %v, want %v", events, wantEvents)
+	}
+}
+
+func TestOpenExposesMailDependencies(t *testing.T) {
+	t.Parallel()
+
+	sender := stubMailSender{}
+	dependencies, err := open(context.Background(), config.Config{
+		Mail: config.MailConfig{
+			Senders: config.MailSendersConfig{
+				Verification: config.MailSenderConfig{Address: "no-reply@verify.mail.heyblog.net"},
+			},
+		},
+	}, dependencyOperations{
+		migrate: func(context.Context, string) error { return nil },
+		openDatabase: func(context.Context, config.DatabaseConfig) (*pgxpool.Pool, error) {
+			return nil, nil
+		},
+		closeDatabase: func(*pgxpool.Pool) {},
+		openRedis: func(context.Context, config.RedisConfig) (*redis.Client, error) {
+			return nil, nil
+		},
+		closeRedis: func(*redis.Client) error { return nil },
+		openMail: func(context.Context, config.MailConfig) (mail.Sender, error) {
+			return sender, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("open() error = %v", err)
+	}
+	if dependencies.MailSender == nil || dependencies.VerificationMailer == nil {
+		t.Fatal("mail dependencies were not exposed")
+	}
+	if err := dependencies.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
 	}
 }
 

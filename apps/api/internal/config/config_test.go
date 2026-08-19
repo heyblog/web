@@ -22,6 +22,12 @@ redis:
   dial_timeout: 3s
   read_timeout: 2s
   write_timeout: 2s
+mail:
+  ses:
+    region: ap-southeast-1
+  senders:
+    verification:
+      address: no-reply@verify.mail.heyblog.net
 logging:
   level: info
   console_format: auto
@@ -107,6 +113,9 @@ func TestLoadUsesDevelopmentModeAndAllowsPortOverride(t *testing.T) {
 	}
 	if got.Database.MaxConnectionLifetime != 30*time.Minute || got.HTTP.ShutdownTimeout != 10*time.Second {
 		t.Fatalf("durations were not parsed: database=%s shutdown=%s", got.Database.MaxConnectionLifetime, got.HTTP.ShutdownTimeout)
+	}
+	if got.Mail.SES.Region != "ap-southeast-1" || got.Mail.Senders.Verification.Address != "no-reply@verify.mail.heyblog.net" {
+		t.Fatalf("mail configuration = %#v, want Singapore SES verification sender", got.Mail)
 	}
 }
 
@@ -284,6 +293,64 @@ func TestLoadRejectsInvalidPolicyBounds(t *testing.T) {
 	invalidDefault := strings.Replace(testDefaultYAML, "min_connections: 2", "min_connections: 21", 1)
 	if _, err := load(writeConfigPair(t, invalidDefault, "mode: development\n"), serviceEnvironment); err == nil {
 		t.Fatal("load() error = nil, want invalid pool bounds error")
+	}
+}
+
+func TestLoadRejectsInvalidMailConfiguration(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct{ old, new string }{
+		"missing region": {
+			old: "region: ap-southeast-1",
+			new: "region: ''",
+		},
+		"region with whitespace": {
+			old: "region: ap-southeast-1",
+			new: "region: ap southeast 1",
+		},
+		"region with uppercase": {
+			old: "region: ap-southeast-1",
+			new: "region: AP-SOUTHEAST-1",
+		},
+		"region with underscores": {
+			old: "region: ap-southeast-1",
+			new: "region: ap_southeast_1",
+		},
+		"region without numeric suffix": {
+			old: "region: ap-southeast-1",
+			new: "region: not-a-region",
+		},
+		"region with control character": {
+			old: "region: ap-southeast-1",
+			new: "region: \"ap-southeast-1\\u0007\"",
+		},
+		"invalid verification sender": {
+			old: "address: no-reply@verify.mail.heyblog.net",
+			new: "address: not-an-email",
+		},
+		"verification sender display name": {
+			old: "address: no-reply@verify.mail.heyblog.net",
+			new: "address: 'HeyBlog <no-reply@verify.mail.heyblog.net>'",
+		},
+	}
+	for name, replacement := range tests {
+		t.Run(name, func(t *testing.T) {
+			invalidDefault := strings.Replace(testDefaultYAML, replacement.old, replacement.new, 1)
+			_, err := load(writeConfigPair(t, invalidDefault, "mode: development\n"), serviceEnvironment)
+			if err == nil {
+				t.Fatal("load() error = nil, want invalid mail configuration error")
+			}
+		})
+	}
+}
+
+func TestValidateAWSRegionAllowsCurrentPartitionShapes(t *testing.T) {
+	t.Parallel()
+
+	for _, region := range []string{"ap-southeast-1", "us-gov-west-1", "eusc-de-east-1"} {
+		if err := validateAWSRegion(region); err != nil {
+			t.Errorf("validateAWSRegion(%q) error = %v", region, err)
+		}
 	}
 }
 
