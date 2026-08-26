@@ -6,11 +6,13 @@ run:
 linters:
   default: standard
   enable:
+    - bidichk
     - bodyclose
     - errorlint
     - gosec
     - misspell
     - nolintlint
+    - sqlclosecheck
 
 formatters:
   enable:

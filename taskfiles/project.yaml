@@ -67,6 +67,7 @@ tasks:
   security:
     desc: Run checks that require vulnerability database access
     cmds:
+      - pnpm audit --audit-level high
       - task: api:vulncheck
 
   verify:

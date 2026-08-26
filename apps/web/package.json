@@ -15,8 +15,8 @@
     "format:check": "prettier --config ./prettier.config.ts --check \"package.json\" \"*.{ts,mjs}\" \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte,css}\" \"tests/**/*.ts\"",
     "lint": "pnpm run lint:eslint && pnpm run stylelint",
     "lint:fix": "pnpm run lint:eslint:fix && pnpm run stylelint:fix",
-    "lint:eslint": "eslint --config ./eslint.config.ts \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte}\" \"tests/**/*.ts\" \"*.{ts,mjs}\"",
-    "lint:eslint:fix": "eslint --config ./eslint.config.ts \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte}\" \"tests/**/*.ts\" \"*.{ts,mjs}\" --fix",
+    "lint:eslint": "astro sync && eslint --config ./eslint.config.ts \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte}\" \"tests/**/*.ts\" \"*.{ts,mjs}\"",
+    "lint:eslint:fix": "astro sync && eslint --config ./eslint.config.ts \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte}\" \"tests/**/*.ts\" \"*.{ts,mjs}\" --fix",
     "stylelint": "stylelint --config ./stylelint.config.ts \"src/**/*.{css,astro,svelte}\"",
     "stylelint:fix": "stylelint --config ./stylelint.config.ts --fix \"src/**/*.{css,astro,svelte}\"",
     "typecheck": "astro check"
@@ -40,6 +40,7 @@
     "astro-eslint-parser": "^3.0.0",
     "eslint-plugin-astro": "^3.1.0",
     "eslint-plugin-better-tailwindcss": "^4.7.0",
+    "eslint-plugin-no-unsanitized": "^4.1.5",
     "eslint-plugin-svelte": "^3.22.0",
     "postcss-html": "^2.0.0",
     "prettier-plugin-astro": "^0.14.1",

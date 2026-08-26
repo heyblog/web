@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
 
-FROM debian:13-slim@sha256:3a39a0592364683e6bab97937b72cad5a8fa6dcbbee90edb3bb48c7f8e94f258
+FROM debian:13-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -29,7 +29,7 @@ RUN corepack enable
 RUN go_filename="go1.26.6.linux-amd64.tar.gz" \
     && go_sha256="$(curl --fail --silent --show-error --location \
       --retry 5 --retry-all-errors --retry-delay 3 \
-      'https://go.dev/dl/?mode=json' \
+      'https://go.dev/dl/?mode=json&include=all' \
       | jq -r --arg filename "${go_filename}" \
         '.[].files[] | select(.filename == $filename) | .sha256')" \
     && test -n "${go_sha256}" \

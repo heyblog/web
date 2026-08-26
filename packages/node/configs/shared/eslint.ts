@@ -16,6 +16,7 @@ export type CreateModuleEslintConfigOptions = {
   moduleDir: string;
   runtime?: ModuleRuntime;
   testPatterns?: string[];
+  typeAware?: boolean;
 };
 
 function toConfigArray<T>(value: T | T[] | undefined): T[] {
@@ -120,6 +121,10 @@ export function createModuleEslintConfig(options: CreateModuleEslintConfigOption
       },
       rules: {
         ...importSortRules,
+        'no-eval': 'error',
+        'no-implied-eval': 'error',
+        'no-new-func': 'error',
+        'no-script-url': 'error',
         'no-unused-vars': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
         'unused-imports/no-unused-imports': 'error',
@@ -177,6 +182,28 @@ export function createModuleEslintConfig(options: CreateModuleEslintConfigOption
     },
   );
 
+  if (options.typeAware) {
+    configItems.push({
+      files: ['**/*.{ts,mts,cts,tsx}'],
+      languageOptions: {
+        parserOptions: {
+          projectService: true,
+          tsconfigRootDir: options.moduleDir,
+        },
+      },
+      rules: {
+        '@typescript-eslint/await-thenable': 'error',
+        '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-misused-promises': 'error',
+        '@typescript-eslint/no-unsafe-argument': 'error',
+        '@typescript-eslint/no-unsafe-assignment': 'error',
+        '@typescript-eslint/no-unsafe-call': 'error',
+        '@typescript-eslint/no-unsafe-member-access': 'error',
+        '@typescript-eslint/no-unsafe-return': 'error',
+      },
+    });
+  }
+
   if (additionalExtensions.length > 0) {
     configItems.push({
       files: [`**/*.{${additionalExtensions.join(',')}}`],
@@ -191,6 +218,7 @@ export function createModuleEslintConfig(options: CreateModuleEslintConfigOption
       files: options.testPatterns ?? defaultTestPatterns,
       rules: {
         '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-floating-promises': 'off',
         'unused-imports/no-unused-vars': 'off',
       },
     },

@@ -11,7 +11,7 @@ const members = defineCollection({
     // 个人信息
     id: z.string(), // Github 用户名，即个人主页中的 URL 中的最后一段
     nickname: z.string().optional(), // 昵称，为空时使用 id 作为昵称
-    url: z.url().optional(), // 个人主页的 URL，为空时使用 Github 主页作为个人主页
+    url: z.url({ protocol: /^https?$/u }).optional(), // 个人主页的 URL，为空时使用 Github 主页作为个人主页
 
     title: z.string(), // 贡献职责称谓，为空时使用默认值
     description: z.string(), // 贡献边界说明

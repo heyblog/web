@@ -9,13 +9,15 @@ COPY . .
 RUN --mount=type=cache,id=heyblog-pnpm-store,target=/root/.local/share/pnpm/store \
     task container:web-build
 
-FROM node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d AS runner
+FROM node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930bdfa482de99fcdfa3b3de AS runner
 
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tini \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends openssl tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /opt/yarn-v1.22.22 /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

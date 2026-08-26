@@ -3,20 +3,13 @@ packages:
   - packages/node/*
 
 overrides:
-  'nanoid@<3.3.17': 3.3.17
+  'nanoid@<3.3.18': 3.3.18
 
 enableGlobalVirtualStore: false
 
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
-minimumReleaseAgeExclude:
-  # Latest direct versions; remove after their seven-day window closes on 2026-08-09 UTC.
-  - eslint-plugin-astro@3.1.0
-  - globals@17.9.0
-  # GHSA-2v37-7h3g-55p8 fix; remove after its window closes on 2026-08-10 UTC.
-  - nanoid@3.3.17
-
 trustPolicy: no-downgrade
 trustPolicyExclude:
   # Exact locked version reviewed after pnpm reported a registry trust downgrade.

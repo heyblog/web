@@ -64,6 +64,15 @@
       "depNameTemplate": "go",
       "datasourceTemplate": "golang-version",
       "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the pinned Trivy container scanner",
+      "managerFilePatterns": ["/^taskfiles\\/container\\.yaml$/"],
+      "matchStrings": [
+        "TRIVY_IMAGE:\\s+(?<depName>[^\\s:]+):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[a-f0-9]+)"
+      ],
+      "datasourceTemplate": "docker"
     }
   ],
   "packageRules": [
@@ -84,13 +93,6 @@
       "matchManagers": ["npm"],
       "matchPackageNames": ["typescript"],
       "allowedVersions": ">=6 <7"
-    },
-    {
-      "description": "Preserve the reviewed nanoid security override",
-      "matchManagers": ["npm"],
-      "matchDepTypes": ["pnpm-workspace.overrides"],
-      "matchPackageNames": ["nanoid"],
-      "enabled": false
     },
     {
       "description": "Ignore application images published by this repository",

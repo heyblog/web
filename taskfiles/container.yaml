@@ -2,6 +2,9 @@
 
 version: '3'
 
+vars:
+  TRIVY_IMAGE: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+
 tasks:
   container:base:
     desc: Build the shared HeyBlog builder image
@@ -28,10 +31,31 @@ tasks:
       - docker build --platform linux/amd64 -f apps/api/Dockerfile -t heyblog-api:local .
       - docker build --platform linux/amd64 -f apps/web/Dockerfile -t heyblog-web:local .
 
+  container:scan:
+    desc: Scan local API and Web images for fixable high-severity vulnerabilities
+    cmds:
+      - |
+        docker run --rm \
+          --entrypoint /bin/sh \
+          --volume /var/run/docker.sock:/var/run/docker.sock \
+          "{{.TRIVY_IMAGE}}" \
+          -ec '
+            for image in heyblog-api:local heyblog-web:local; do
+              trivy image \
+                --exit-code 1 \
+                --ignore-unfixed \
+                --no-progress \
+                --scanners vuln \
+                --severity HIGH,CRITICAL \
+                "${image}"
+            done
+          '
+
   container:publish:
     desc: Build and optionally publish API and Web images
     cmds:
       - task: container:build
+      - task: container:scan
       - |
         if [ "${PUSH:-false}" = "true" ]; then
           : "${REGISTRY:?REGISTRY is required when PUSH=true}"
