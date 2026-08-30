@@ -240,8 +240,8 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 		}
 		graphHosts[source.Source] = struct{}{}
 		for destinationIndex, raw := range source.Destinations {
-			target, err := site.NormalizeFriendTarget(raw)
-			if err != nil || target.URL != raw {
+			target, err := site.NormalizeAddress(raw)
+			if err != nil || target.CanonicalURL() != raw {
 				return Plan{}, fmt.Errorf("graph.links[%d].destinations[%d] is not normalized", sourceIndex, destinationIndex)
 			}
 			if _, targetExists := siteIDByHost[target.NormalizedHost]; !targetExists {
@@ -249,7 +249,7 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 			}
 			graphHosts[target.NormalizedHost] = struct{}{}
 			plan.FriendLinks = append(plan.FriendLinks, FriendLinkRow{
-				SourceSiteID: siteID, TargetURL: target.URL, TargetHost: target.NormalizedHost,
+				SourceSiteID: siteID, TargetURL: target.CanonicalURL(), TargetHost: target.NormalizedHost,
 			})
 		}
 	}
@@ -336,7 +336,7 @@ func addTag(plan *Plan, tags map[string]TagRow, siteID string, legacy LegacyTag,
 		return fmt.Errorf("tag %s has inconsistent definitions", legacy.ID)
 	}
 	tags[legacy.ID] = row
-	plan.SiteTags = append(plan.SiteTags, SiteTagRow{SiteID: siteID, TagID: legacy.ID, TopicRole: role})
+	plan.SiteTags = append(plan.SiteTags, SiteTagRow{SiteID: siteID, TagID: legacy.ID, Role: role})
 	return nil
 }
 
@@ -397,7 +397,7 @@ func sortPlan(plan *Plan) {
 	})
 	sort.Slice(plan.Tags, func(i, j int) bool { return plan.Tags[i].ID < plan.Tags[j].ID })
 	sort.Slice(plan.SiteTags, func(i, j int) bool {
-		return plan.SiteTags[i].SiteID+plan.SiteTags[i].TopicRole+plan.SiteTags[i].TagID < plan.SiteTags[j].SiteID+plan.SiteTags[j].TopicRole+plan.SiteTags[j].TagID
+		return plan.SiteTags[i].SiteID+plan.SiteTags[i].Role+plan.SiteTags[i].TagID < plan.SiteTags[j].SiteID+plan.SiteTags[j].Role+plan.SiteTags[j].TagID
 	})
 	sort.Slice(plan.Dependencies, func(i, j int) bool {
 		left := plan.Dependencies[i]

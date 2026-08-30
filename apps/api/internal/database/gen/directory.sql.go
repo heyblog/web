@@ -133,27 +133,22 @@ const assignSiteTag = `-- name: AssignSiteTag :one
 INSERT INTO directory.site_tags (
     site_id,
     tag_id,
-    tag_kind,
-    topic_role,
+    role,
     assignment_source,
-    assigned_by,
     note
-) VALUES ($1, $2, $3, $4, $5, $6, $7)
+) VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (site_id, tag_id) DO UPDATE
-   SET topic_role = EXCLUDED.topic_role,
+   SET role = EXCLUDED.role,
        assignment_source = EXCLUDED.assignment_source,
-       assigned_by = EXCLUDED.assigned_by,
        note = EXCLUDED.note
-RETURNING site_id, tag_id, tag_kind, topic_role, assignment_source, assigned_by, note, created_at
+RETURNING site_id, tag_id, role, assignment_source, note, created_at
 `
 
 type AssignSiteTagParams struct {
 	SiteID           pgtype.UUID
 	TagID            pgtype.UUID
-	TagKind          string
-	TopicRole        *string
+	Role             string
 	AssignmentSource string
-	AssignedBy       pgtype.UUID
 	Note             *string
 }
 
@@ -161,20 +156,16 @@ func (q *Queries) AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (D
 	row := q.db.QueryRow(ctx, assignSiteTag,
 		arg.SiteID,
 		arg.TagID,
-		arg.TagKind,
-		arg.TopicRole,
+		arg.Role,
 		arg.AssignmentSource,
-		arg.AssignedBy,
 		arg.Note,
 	)
 	var i DirectorySiteTag
 	err := row.Scan(
 		&i.SiteID,
 		&i.TagID,
-		&i.TagKind,
-		&i.TopicRole,
+		&i.Role,
 		&i.AssignmentSource,
-		&i.AssignedBy,
 		&i.Note,
 		&i.CreatedAt,
 	)
@@ -285,13 +276,12 @@ func (q *Queries) CreateSoftwareComponent(ctx context.Context, arg CreateSoftwar
 }
 
 const createTag = `-- name: CreateTag :one
-INSERT INTO directory.tags (kind, name, normalized_name, slug, description)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, kind, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at
+INSERT INTO directory.tags (name, normalized_name, slug, description)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at
 `
 
 type CreateTagParams struct {
-	Kind           string
 	Name           string
 	NormalizedName string
 	Slug           string
@@ -300,7 +290,6 @@ type CreateTagParams struct {
 
 func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (DirectoryTag, error) {
 	row := q.db.QueryRow(ctx, createTag,
-		arg.Kind,
 		arg.Name,
 		arg.NormalizedName,
 		arg.Slug,
@@ -309,7 +298,6 @@ func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Directory
 	var i DirectoryTag
 	err := row.Scan(
 		&i.ID,
-		&i.Kind,
 		&i.Name,
 		&i.NormalizedName,
 		&i.Slug,
@@ -540,13 +528,13 @@ func (q *Queries) ListEnabledSoftwareComponents(ctx context.Context) ([]Director
 }
 
 const listEnabledTags = `-- name: ListEnabledTags :many
-SELECT id, kind, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at FROM directory.tags
- WHERE kind = $1 AND is_enabled AND merged_into_id IS NULL
+SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at FROM directory.tags
+ WHERE is_enabled AND merged_into_id IS NULL
  ORDER BY name, id
 `
 
-func (q *Queries) ListEnabledTags(ctx context.Context, kind string) ([]DirectoryTag, error) {
-	rows, err := q.db.Query(ctx, listEnabledTags, kind)
+func (q *Queries) ListEnabledTags(ctx context.Context) ([]DirectoryTag, error) {
+	rows, err := q.db.Query(ctx, listEnabledTags)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +544,6 @@ func (q *Queries) ListEnabledTags(ctx context.Context, kind string) ([]Directory
 		var i DirectoryTag
 		if err := rows.Scan(
 			&i.ID,
-			&i.Kind,
 			&i.Name,
 			&i.NormalizedName,
 			&i.Slug,
@@ -757,20 +744,18 @@ func (q *Queries) ListSiteSoftwareComponents(ctx context.Context, siteID pgtype.
 }
 
 const listSiteTags = `-- name: ListSiteTags :many
-SELECT assignment.site_id, assignment.tag_id, assignment.tag_kind, assignment.topic_role, assignment.assignment_source, assignment.assigned_by, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
+SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
   FROM directory.site_tags AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
  WHERE assignment.site_id = $1
- ORDER BY assignment.tag_kind, assignment.topic_role NULLS LAST, tag.name
+ ORDER BY assignment.role, tag.name
 `
 
 type ListSiteTagsRow struct {
 	SiteID           pgtype.UUID
 	TagID            pgtype.UUID
-	TagKind          string
-	TopicRole        *string
+	Role             string
 	AssignmentSource string
-	AssignedBy       pgtype.UUID
 	Note             *string
 	CreatedAt        pgtype.Timestamptz
 	Name             string
@@ -790,10 +775,8 @@ func (q *Queries) ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListS
 		if err := rows.Scan(
 			&i.SiteID,
 			&i.TagID,
-			&i.TagKind,
-			&i.TopicRole,
+			&i.Role,
 			&i.AssignmentSource,
-			&i.AssignedBy,
 			&i.Note,
 			&i.CreatedAt,
 			&i.Name,

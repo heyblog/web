@@ -1,8 +1,8 @@
 -- +goose Up
 SET search_path = ag_catalog, "$user", public;
-SELECT ag_catalog.create_graph('heyblog_directory');
-SELECT ag_catalog.create_vlabel('heyblog_directory', 'SiteRef');
-SELECT ag_catalog.create_elabel('heyblog_directory', 'FRIEND_LINK');
+SELECT ag_catalog.create_graph('directory_graph');
+SELECT ag_catalog.create_vlabel('directory_graph', 'SiteRef');
+SELECT ag_catalog.create_elabel('directory_graph', 'FRIEND_LINK');
 
 -- +goose StatementBegin
 CREATE FUNCTION directory.graph_incoming_links(p_target_host text)
@@ -25,7 +25,7 @@ BEGIN
                trim(both '"' FROM edge_status::text),
                edge_created::text::bigint,
                edge_updated::text::bigint
-          FROM ag_catalog.cypher('heyblog_directory', $cypher$
+          FROM ag_catalog.cypher('directory_graph', $cypher$
               MATCH (source:SiteRef)-[edge:FRIEND_LINK]->(target:SiteRef {normalized_host: %s})
               RETURN source.site_id, edge.target_url, edge.status,
                      edge.created_at_ms, edge.updated_at_ms
@@ -44,6 +44,32 @@ $function$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
+CREATE FUNCTION directory.is_canonical_site_url(p_url text, p_host text)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+STRICT
+SET search_path = pg_catalog
+AS $$
+    WITH parsed AS (
+        SELECT substring(p_url FROM '^https?://([^/?#]+)') AS url_host,
+               regexp_replace(p_url, '^https?://[^/]+', '') AS url_path
+    )
+    SELECT p_host ~ '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$'
+       AND p_host !~ '^[0-9.]+$'
+       AND url_host = p_host
+       AND url_path <> ''
+       AND left(url_path, 1) = '/'
+       AND url_path !~ '//'
+       AND url_path !~ '[?#[:space:]]'
+       AND (url_path = '/' OR right(url_path, 1) <> '/')
+       AND url_path !~* '(^|/)(\.|%2e){1,2}(/|$)'
+       AND url_path !~ '%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+      FROM parsed;
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
 CREATE FUNCTION directory.merge_friend_link_graph(
     p_source_site_id uuid,
     p_target_host text,
@@ -57,17 +83,36 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, ag_catalog, directory
 AS $function$
+DECLARE
+    registered_url text;
 BEGIN
+    IF NOT directory.is_canonical_site_url(p_target_url, p_target_host) THEN
+        RAISE EXCEPTION 'friend-link URL must be a canonical site registration address';
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || p_target_host, 0));
+    SELECT scheme || '://' || normalized_host || base_path
+      INTO registered_url
+      FROM directory.sites
+     WHERE normalized_host = p_target_host;
+    IF registered_url IS NOT NULL AND p_target_url IS DISTINCT FROM registered_url THEN
+        RAISE EXCEPTION 'registered friend-link target URL must match its directory site address';
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(hashtextextended('friend-link:' || p_source_site_id::text || ':' || p_target_host, 0));
     EXECUTE format(
         $query$
-        SELECT * FROM ag_catalog.cypher('heyblog_directory', $cypher$
+        SELECT * FROM ag_catalog.cypher('directory_graph', $cypher$
             MATCH (source:SiteRef {site_id: %s})
             MATCH (target:SiteRef {normalized_host: %s})
             MERGE (source)-[edge:FRIEND_LINK]->(target)
-            SET edge.target_url = %s,
+            SET edge.target_url = CASE
+                    WHEN edge.updated_at_ms IS NULL OR edge.updated_at_ms <= %s THEN %s
+                    ELSE edge.target_url
+                END,
                 edge.status = CASE
-                    WHEN edge.status = "ACTIVE" OR %s = "ACTIVE" THEN "ACTIVE"
-                    ELSE "INACTIVE"
+                    WHEN edge.updated_at_ms IS NULL OR edge.updated_at_ms <= %s THEN %s
+                    ELSE edge.status
                 END,
                 edge.created_at_ms = CASE
                     WHEN edge.created_at_ms IS NULL OR edge.created_at_ms > %s THEN %s
@@ -82,7 +127,9 @@ BEGIN
         $query$,
         to_json(p_source_site_id::text)::text,
         to_json(p_target_host)::text,
+        p_updated_at_ms,
         to_json(p_target_url)::text,
+        p_updated_at_ms,
         to_json(p_status)::text,
         p_created_at_ms,
         p_created_at_ms,
@@ -100,18 +147,35 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, ag_catalog, directory
 AS $function$
+DECLARE
+    canonical_url text;
+    incoming record;
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM directory.sites
-         WHERE id = p_site_id AND normalized_host = p_normalized_host
-    ) THEN
+    SELECT scheme || '://' || normalized_host || base_path
+      INTO canonical_url
+      FROM directory.sites
+     WHERE id = p_site_id AND normalized_host = p_normalized_host;
+    IF canonical_url IS NULL THEN
         RAISE EXCEPTION 'site reference does not match a directory site';
     END IF;
 
     PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || p_normalized_host, 0));
+
+    FOR incoming IN SELECT * FROM directory.graph_incoming_links(p_normalized_host)
+    LOOP
+        PERFORM directory.merge_friend_link_graph(
+            incoming.source_site_id,
+            p_normalized_host,
+            canonical_url,
+            incoming.link_status,
+            incoming.created_at_ms,
+            incoming.updated_at_ms
+        );
+    END LOOP;
+
     EXECUTE format(
         $query$
-        SELECT * FROM ag_catalog.cypher('heyblog_directory', $cypher$
+        SELECT * FROM ag_catalog.cypher('directory_graph', $cypher$
             MERGE (site:SiteRef {normalized_host: %s})
             SET site.site_id = %s
             RETURN site
@@ -125,14 +189,14 @@ $function$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
-CREATE FUNCTION directory.rewrite_friend_url(p_url text, p_scheme text, p_host text)
+CREATE FUNCTION directory.canonical_site_url(p_scheme text, p_host text, p_base_path text)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
 STRICT
 SET search_path = pg_catalog
 AS $$
-    SELECT regexp_replace(p_url, '^https?://[^/?#]+', p_scheme || '://' || p_host);
+    SELECT p_scheme || '://' || p_host || p_base_path;
 $$;
 -- +goose StatementEnd
 
@@ -141,7 +205,8 @@ CREATE FUNCTION directory.move_site_ref(
     p_site_id uuid,
     p_old_host text,
     p_new_host text,
-    p_new_scheme text
+    p_new_scheme text,
+    p_new_base_path text
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -153,7 +218,8 @@ DECLARE
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM directory.sites
-         WHERE id = p_site_id AND normalized_host = p_new_host AND scheme = p_new_scheme
+         WHERE id = p_site_id AND normalized_host = p_new_host
+           AND scheme = p_new_scheme AND base_path = p_new_base_path
     ) THEN
         RAISE EXCEPTION 'site move does not match the current directory site';
     END IF;
@@ -164,10 +230,13 @@ BEGIN
     IF p_old_host <> p_new_host THEN
         FOR incoming IN SELECT * FROM directory.graph_incoming_links(p_new_host)
         LOOP
+            PERFORM pg_advisory_xact_lock(hashtextextended(
+                'friend-link:' || incoming.source_site_id::text || ':' || p_new_host, 0
+            ));
             PERFORM directory.merge_friend_link_graph(
                 incoming.source_site_id,
                 p_old_host,
-                directory.rewrite_friend_url(incoming.target_url, p_new_scheme, p_new_host),
+                directory.canonical_site_url(p_new_scheme, p_old_host, p_new_base_path),
                 incoming.link_status,
                 incoming.created_at_ms,
                 incoming.updated_at_ms
@@ -176,7 +245,7 @@ BEGIN
 
         EXECUTE format(
             $query$
-            SELECT * FROM ag_catalog.cypher('heyblog_directory', $cypher$
+            SELECT * FROM ag_catalog.cypher('directory_graph', $cypher$
                 MATCH (external:SiteRef {normalized_host: %s})
                 WHERE external.site_id IS NULL
                 DETACH DELETE external
@@ -188,7 +257,7 @@ BEGIN
 
         EXECUTE format(
             $query$
-            SELECT * FROM ag_catalog.cypher('heyblog_directory', $cypher$
+            SELECT * FROM ag_catalog.cypher('directory_graph', $cypher$
                 MATCH (site:SiteRef {site_id: %s})
                 SET site.normalized_host = %s
                 RETURN site
@@ -204,7 +273,7 @@ BEGIN
         PERFORM directory.merge_friend_link_graph(
             incoming.source_site_id,
             p_new_host,
-            directory.rewrite_friend_url(incoming.target_url, p_new_scheme, p_new_host),
+            directory.canonical_site_url(p_new_scheme, p_new_host, p_new_base_path),
             incoming.link_status,
             incoming.created_at_ms,
             incoming.updated_at_ms
@@ -236,9 +305,8 @@ BEGIN
     IF p_target_host <> lower(btrim(p_target_host)) OR p_target_host = '' THEN
         RAISE EXCEPTION 'friend-link target host must be normalized';
     END IF;
-    IF substring(p_target_url FROM '^https?://([^/?#]+)') IS DISTINCT FROM p_target_host
-       OR p_target_url ~ '#' THEN
-        RAISE EXCEPTION 'friend-link URL must be an absolute normalized URL without a fragment';
+    IF NOT directory.is_canonical_site_url(p_target_url, p_target_host) THEN
+        RAISE EXCEPTION 'friend-link URL must be a canonical site registration address';
     END IF;
 
     SELECT normalized_host INTO source_host FROM directory.sites WHERE id = p_source_site_id;
@@ -249,10 +317,11 @@ BEGIN
         RAISE EXCEPTION 'friend-link self edges are not allowed';
     END IF;
 
+    PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || p_target_host, 0));
     PERFORM pg_advisory_xact_lock(hashtextextended('friend-link:' || p_source_site_id::text || ':' || p_target_host, 0));
     EXECUTE format(
         $query$
-        SELECT * FROM ag_catalog.cypher('heyblog_directory', $cypher$
+        SELECT * FROM ag_catalog.cypher('directory_graph', $cypher$
             MERGE (target:SiteRef {normalized_host: %s})
             RETURN target
         $cypher$) AS (target ag_catalog.agtype)
@@ -293,6 +362,13 @@ SECURITY DEFINER
 SET search_path = pg_catalog, ag_catalog, directory
 AS $function$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM directory.sites
+         WHERE id = p_source_site_id AND visibility = 'VISIBLE'
+    ) THEN
+        RETURN;
+    END IF;
+
     RETURN QUERY EXECUTE format(
         $query$
         WITH graph_links AS (
@@ -303,7 +379,7 @@ BEGIN
                    graph_reciprocal::text::boolean AS resolved_reciprocal,
                    graph_created::text::bigint AS resolved_created,
                    graph_updated::text::bigint AS resolved_updated
-              FROM ag_catalog.cypher('heyblog_directory', $cypher$
+              FROM ag_catalog.cypher('directory_graph', $cypher$
                   MATCH (source:SiteRef {site_id: %s})-[edge:FRIEND_LINK]->(target:SiteRef)
                   OPTIONAL MATCH (target)-[reverse:FRIEND_LINK]->(source)
                   WHERE reverse.status = "ACTIVE"
@@ -342,13 +418,30 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, ag_catalog, directory
 AS $function$
+DECLARE
+    graph_host text;
 BEGIN
     IF EXISTS (SELECT 1 FROM directory.sites WHERE id = p_site_id) THEN
         RAISE EXCEPTION 'cannot delete the graph reference of an existing site';
     END IF;
     EXECUTE format(
         $query$
-        SELECT * FROM ag_catalog.cypher('heyblog_directory', $cypher$
+        SELECT NULLIF(trim(both '"' FROM normalized_host::text), 'null')
+          FROM ag_catalog.cypher('directory_graph', $cypher$
+              MATCH (site:SiteRef {site_id: %s})
+              RETURN site.normalized_host
+          $cypher$) AS (normalized_host ag_catalog.agtype)
+        $query$,
+        to_json(p_site_id::text)::text
+    ) INTO graph_host;
+    IF graph_host IS NULL THEN
+        RETURN;
+    END IF;
+    PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || graph_host, 0));
+
+    EXECUTE format(
+        $query$
+        SELECT * FROM ag_catalog.cypher('directory_graph', $cypher$
             MATCH (site:SiteRef {site_id: %s})
             DETACH DELETE site
             RETURN count(site)
@@ -382,7 +475,9 @@ SECURITY DEFINER
 SET search_path = pg_catalog, ag_catalog, directory
 AS $function$
 BEGIN
-    PERFORM directory.move_site_ref(NEW.id, OLD.normalized_host, NEW.normalized_host, NEW.scheme);
+    PERFORM directory.move_site_ref(
+        NEW.id, OLD.normalized_host, NEW.normalized_host, NEW.scheme, NEW.base_path
+    );
     RETURN NEW;
 END;
 $function$;
@@ -401,18 +496,21 @@ $function$;
 
 CREATE TRIGGER sites_sync_graph_insert AFTER INSERT ON directory.sites
 FOR EACH ROW EXECUTE FUNCTION directory.sync_site_ref_insert();
-CREATE TRIGGER sites_sync_graph_move AFTER UPDATE OF scheme, normalized_host ON directory.sites
+CREATE TRIGGER sites_sync_graph_move AFTER UPDATE OF scheme, normalized_host, base_path ON directory.sites
 FOR EACH ROW
-WHEN (OLD.scheme IS DISTINCT FROM NEW.scheme OR OLD.normalized_host IS DISTINCT FROM NEW.normalized_host)
+WHEN (OLD.scheme IS DISTINCT FROM NEW.scheme
+      OR OLD.normalized_host IS DISTINCT FROM NEW.normalized_host
+      OR OLD.base_path IS DISTINCT FROM NEW.base_path)
 EXECUTE FUNCTION directory.sync_site_ref_move();
 CREATE TRIGGER sites_prevent_delete BEFORE DELETE ON directory.sites
 FOR EACH ROW EXECUTE FUNCTION directory.prevent_site_delete();
 
 COMMENT ON FUNCTION directory.graph_incoming_links(text) IS 'Internal typed reader for FRIEND_LINK edges targeting one normalized host.';
-COMMENT ON FUNCTION directory.merge_friend_link_graph(uuid, text, text, text, bigint, bigint) IS 'Internal AGE edge merge preserving active status and timestamp conflict rules.';
+COMMENT ON FUNCTION directory.is_canonical_site_url(text, text) IS 'Validates a canonical HTTP or HTTPS site registration URL for one normalized host.';
+COMMENT ON FUNCTION directory.merge_friend_link_graph(uuid, text, text, text, bigint, bigint) IS 'Internal AGE edge merge using latest-write-wins status and target URL semantics.';
 COMMENT ON FUNCTION directory.upsert_site_ref(uuid, text) IS 'Creates or promotes one SiteRef vertex for an authoritative directory site.';
-COMMENT ON FUNCTION directory.rewrite_friend_url(text, text, text) IS 'Rewrites only the scheme and host of a normalized absolute friend-link URL.';
-COMMENT ON FUNCTION directory.move_site_ref(uuid, text, text, text) IS 'Moves a registered SiteRef, merges a matching external vertex, and rewrites incoming URLs.';
+COMMENT ON FUNCTION directory.canonical_site_url(text, text, text) IS 'Builds the canonical registration URL from a normalized directory site address.';
+COMMENT ON FUNCTION directory.move_site_ref(uuid, text, text, text, text) IS 'Moves a registered SiteRef, merges a matching external vertex, and canonicalizes incoming URLs.';
 COMMENT ON FUNCTION directory.upsert_friend_link(uuid, text, text, text) IS 'Creates or updates one directed FRIEND_LINK edge through the typed AGE boundary.';
 COMMENT ON FUNCTION directory.list_friend_links(uuid, boolean) IS 'Lists typed friend links and derives reciprocity from a reverse active edge.';
 COMMENT ON FUNCTION directory.delete_site_ref(uuid) IS 'Deletes an orphan registered SiteRef during privileged maintenance only.';
@@ -433,9 +531,10 @@ DROP FUNCTION directory.sync_site_ref_insert();
 DROP FUNCTION directory.delete_site_ref(uuid);
 DROP FUNCTION directory.list_friend_links(uuid, boolean);
 DROP FUNCTION directory.upsert_friend_link(uuid, text, text, text);
-DROP FUNCTION directory.move_site_ref(uuid, text, text, text);
-DROP FUNCTION directory.rewrite_friend_url(text, text, text);
+DROP FUNCTION directory.move_site_ref(uuid, text, text, text, text);
+DROP FUNCTION directory.canonical_site_url(text, text, text);
 DROP FUNCTION directory.upsert_site_ref(uuid, text);
 DROP FUNCTION directory.merge_friend_link_graph(uuid, text, text, text, bigint, bigint);
+DROP FUNCTION directory.is_canonical_site_url(text, text);
 DROP FUNCTION directory.graph_incoming_links(text);
-SELECT ag_catalog.drop_graph('heyblog_directory', true);
+SELECT ag_catalog.drop_graph('directory_graph', true);

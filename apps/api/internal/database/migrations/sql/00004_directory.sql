@@ -156,7 +156,7 @@ FOR EACH ROW EXECUTE FUNCTION directory.touch_updated_at();
 
 CREATE TABLE directory.site_icons (
     site_id uuid PRIMARY KEY REFERENCES directory.sites(id) ON DELETE CASCADE, -- Site owning this one-to-one cached icon.
-    content bytea NOT NULL, -- Cached icon bytes limited to 256 KiB.
+    content bytea NOT NULL, -- Cached icon bytes limited to 1 MiB.
     media_type text NOT NULL, -- Validated raster or icon MIME type.
     sha256 bytea NOT NULL, -- Raw 32-byte SHA-256 content digest used for entity tags.
     source_location_type text, -- Optional source location mode: RELATIVE or EXTERNAL.
@@ -165,7 +165,7 @@ CREATE TABLE directory.site_icons (
     fetched_at timestamptz, -- Time the source icon was last fetched successfully.
     created_at timestamptz NOT NULL DEFAULT now(), -- Cached icon creation time.
     updated_at timestamptz NOT NULL DEFAULT now(), -- Last icon content or source update time maintained by trigger.
-    CONSTRAINT site_icons_content_check CHECK (octet_length(content) BETWEEN 1 AND 262144),
+    CONSTRAINT site_icons_content_check CHECK (octet_length(content) BETWEEN 1 AND 1048576),
     CONSTRAINT site_icons_media_type_check CHECK (media_type IN ('image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/x-icon', 'image/vnd.microsoft.icon')),
     CONSTRAINT site_icons_sha256_check CHECK (octet_length(sha256) = 32),
     CONSTRAINT site_icons_source_check CHECK (
@@ -180,33 +180,29 @@ CREATE TRIGGER site_icons_touch_updated_at BEFORE UPDATE ON directory.site_icons
 FOR EACH ROW EXECUTE FUNCTION directory.touch_updated_at();
 
 CREATE TABLE directory.tags (
-    id uuid PRIMARY KEY DEFAULT uuidv7(), -- UUIDv7 unified tag primary key.
-    kind text NOT NULL, -- Intrinsic semantics: TOPIC categorizes and WARNING displays a notice.
+    id uuid PRIMARY KEY DEFAULT uuidv7(), -- UUIDv7 global tag dictionary primary key.
     name text NOT NULL, -- Human-readable tag label.
-    normalized_name text NOT NULL, -- Lowercase trimmed name used for semantic deduplication.
+    normalized_name text NOT NULL, -- Lowercase trimmed global semantic deduplication name.
     slug text NOT NULL, -- Stable lowercase machine key used by clients and integrations.
-    description text NOT NULL DEFAULT '', -- Public topic description or warning explanation.
+    description text NOT NULL DEFAULT '', -- Public tag description.
     is_enabled boolean NOT NULL DEFAULT true, -- Whether the canonical tag may be assigned or displayed.
-    merged_into_id uuid, -- Canonical same-kind tag receiving this duplicate tag.
+    merged_into_id uuid REFERENCES directory.tags(id) ON DELETE RESTRICT, -- Canonical tag receiving this duplicate tag.
     merged_by uuid REFERENCES identity.users(id) ON DELETE SET NULL, -- Administrator that approved the tag merge.
     merged_at timestamptz, -- Time the tag became an alias of another tag.
     created_at timestamptz NOT NULL DEFAULT now(), -- Tag creation time.
     updated_at timestamptz NOT NULL DEFAULT now(), -- Last tag metadata or merge update time maintained by trigger.
-    CONSTRAINT tags_kind_check CHECK (kind IN ('TOPIC', 'WARNING')),
     CONSTRAINT tags_name_check CHECK (btrim(name) <> ''),
     CONSTRAINT tags_normalized_name_check CHECK (normalized_name = lower(btrim(normalized_name)) AND normalized_name <> ''),
     CONSTRAINT tags_slug_check CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
-    CONSTRAINT tags_id_kind_unique UNIQUE (id, kind),
-    CONSTRAINT tags_kind_name_unique UNIQUE (kind, normalized_name),
-    CONSTRAINT tags_kind_slug_unique UNIQUE (kind, slug),
-    CONSTRAINT tags_merge_target_fk FOREIGN KEY (merged_into_id, kind) REFERENCES directory.tags(id, kind) ON DELETE RESTRICT,
+    CONSTRAINT tags_normalized_name_unique UNIQUE (normalized_name),
+    CONSTRAINT tags_slug_unique UNIQUE (slug),
     CONSTRAINT tags_merge_state_check CHECK (
         (merged_into_id IS NULL AND merged_by IS NULL AND merged_at IS NULL)
         OR (merged_into_id IS NOT NULL AND merged_at IS NOT NULL AND merged_into_id <> id)
     )
 );
 
-CREATE INDEX tags_kind_enabled_idx ON directory.tags (kind, is_enabled, name);
+CREATE INDEX tags_enabled_idx ON directory.tags (is_enabled, name);
 CREATE INDEX tags_merge_target_idx ON directory.tags (merged_into_id) WHERE merged_into_id IS NOT NULL;
 CREATE TRIGGER tags_touch_updated_at BEFORE UPDATE ON directory.tags
 FOR EACH ROW EXECUTE FUNCTION directory.touch_updated_at();
@@ -243,24 +239,18 @@ FOR EACH ROW EXECUTE FUNCTION directory.prevent_tag_merge_cycle();
 
 CREATE TABLE directory.site_tags (
     site_id uuid NOT NULL REFERENCES directory.sites(id) ON DELETE CASCADE, -- Site receiving the tag assignment.
-    tag_id uuid NOT NULL, -- Assigned unified tag.
-    tag_kind text NOT NULL, -- Copied tag kind used by composite foreign keys and role checks.
-    topic_role text, -- PRIMARY or SECONDARY for TOPIC and NULL for WARNING.
+    tag_id uuid NOT NULL REFERENCES directory.tags(id) ON DELETE RESTRICT, -- Assigned global tag.
+    role text NOT NULL, -- Assignment role: PRIMARY, SECONDARY, or WARNING.
     assignment_source text NOT NULL DEFAULT 'MANUAL', -- Evidence source: MANUAL, IMPORTED, or SYSTEM.
-    assigned_by uuid REFERENCES identity.users(id) ON DELETE SET NULL, -- User or administrator responsible for the assignment.
     note text, -- Optional target-specific warning or assignment note.
     created_at timestamptz NOT NULL DEFAULT now(), -- Assignment creation time.
     PRIMARY KEY (site_id, tag_id),
-    CONSTRAINT site_tags_tag_fk FOREIGN KEY (tag_id, tag_kind) REFERENCES directory.tags(id, kind) ON DELETE RESTRICT,
-    CONSTRAINT site_tags_role_check CHECK (
-        (tag_kind = 'TOPIC' AND topic_role IN ('PRIMARY', 'SECONDARY'))
-        OR (tag_kind = 'WARNING' AND topic_role IS NULL)
-    ),
+    CONSTRAINT site_tags_role_check CHECK (role IN ('PRIMARY', 'SECONDARY', 'WARNING')),
     CONSTRAINT site_tags_source_check CHECK (assignment_source IN ('MANUAL', 'IMPORTED', 'SYSTEM')),
     CONSTRAINT site_tags_note_check CHECK (note IS NULL OR btrim(note) <> '')
 );
 
-CREATE UNIQUE INDEX site_tags_primary_topic_unique_idx ON directory.site_tags (site_id) WHERE tag_kind = 'TOPIC' AND topic_role = 'PRIMARY';
+CREATE UNIQUE INDEX site_tags_primary_unique_idx ON directory.site_tags (site_id) WHERE role = 'PRIMARY';
 CREATE INDEX site_tags_tag_idx ON directory.site_tags (tag_id, site_id);
 
 CREATE TABLE directory.software_components (
@@ -389,8 +379,8 @@ COMMENT ON TABLE directory.sites IS 'Canonical site identity, address, routing i
 COMMENT ON TABLE directory.site_feeds IS 'Zero or more candidate feeds with one default whenever enabled feeds exist.';
 COMMENT ON TABLE directory.site_resources IS 'Single-valued sitemap and friend-link-page resource locations.';
 COMMENT ON TABLE directory.site_icons IS 'Cached one-to-one site icon bytes and source metadata.';
-COMMENT ON TABLE directory.tags IS 'Unified topic and frontend warning tag catalog.';
-COMMENT ON TABLE directory.site_tags IS 'Contextual site tag assignments with one primary topic per site.';
+COMMENT ON TABLE directory.tags IS 'Global tag dictionary independent of assignment role.';
+COMMENT ON TABLE directory.site_tags IS 'Contextual site tag assignments with one primary assignment per site.';
 COMMENT ON TABLE directory.software_components IS 'Unified catalog for site programs and technology components.';
 COMMENT ON TABLE directory.software_component_dependencies IS 'Direct implementation dependencies between reusable software components.';
 COMMENT ON TABLE directory.site_software_components IS 'Multi-role software evidence with one site program per site.';
@@ -444,7 +434,7 @@ COMMENT ON COLUMN directory.site_resources.url_key IS 'Normalized per-site resou
 COMMENT ON COLUMN directory.site_resources.created_at IS 'Resource creation time.';
 COMMENT ON COLUMN directory.site_resources.updated_at IS 'Last resource update time maintained by trigger.';
 COMMENT ON COLUMN directory.site_icons.site_id IS 'Site owning this one-to-one cached icon.';
-COMMENT ON COLUMN directory.site_icons.content IS 'Cached icon bytes limited to 256 KiB.';
+COMMENT ON COLUMN directory.site_icons.content IS 'Cached icon bytes limited to 1 MiB.';
 COMMENT ON COLUMN directory.site_icons.media_type IS 'Validated raster or icon MIME type.';
 COMMENT ON COLUMN directory.site_icons.sha256 IS 'Raw 32-byte SHA-256 content digest used for entity tags.';
 COMMENT ON COLUMN directory.site_icons.source_location_type IS 'Optional source location mode: RELATIVE or EXTERNAL.';
@@ -453,24 +443,21 @@ COMMENT ON COLUMN directory.site_icons.source_external_url IS 'Optional absolute
 COMMENT ON COLUMN directory.site_icons.fetched_at IS 'Time the source icon was last fetched successfully.';
 COMMENT ON COLUMN directory.site_icons.created_at IS 'Cached icon creation time.';
 COMMENT ON COLUMN directory.site_icons.updated_at IS 'Last icon content or source update time maintained by trigger.';
-COMMENT ON COLUMN directory.tags.id IS 'UUIDv7 unified tag primary key.';
-COMMENT ON COLUMN directory.tags.kind IS 'Intrinsic semantics: TOPIC categorizes and WARNING displays a notice.';
+COMMENT ON COLUMN directory.tags.id IS 'UUIDv7 global tag dictionary primary key.';
 COMMENT ON COLUMN directory.tags.name IS 'Human-readable tag label.';
-COMMENT ON COLUMN directory.tags.normalized_name IS 'Lowercase trimmed name used for semantic deduplication.';
+COMMENT ON COLUMN directory.tags.normalized_name IS 'Lowercase trimmed global semantic deduplication name.';
 COMMENT ON COLUMN directory.tags.slug IS 'Stable lowercase machine key used by clients and integrations.';
-COMMENT ON COLUMN directory.tags.description IS 'Public topic description or warning explanation.';
+COMMENT ON COLUMN directory.tags.description IS 'Public tag description.';
 COMMENT ON COLUMN directory.tags.is_enabled IS 'Whether the canonical tag may be assigned or displayed.';
-COMMENT ON COLUMN directory.tags.merged_into_id IS 'Canonical same-kind tag receiving this duplicate tag.';
+COMMENT ON COLUMN directory.tags.merged_into_id IS 'Canonical tag receiving this duplicate tag.';
 COMMENT ON COLUMN directory.tags.merged_by IS 'Administrator that approved the tag merge.';
 COMMENT ON COLUMN directory.tags.merged_at IS 'Time the tag became an alias of another tag.';
 COMMENT ON COLUMN directory.tags.created_at IS 'Tag creation time.';
 COMMENT ON COLUMN directory.tags.updated_at IS 'Last tag metadata or merge update time maintained by trigger.';
 COMMENT ON COLUMN directory.site_tags.site_id IS 'Site receiving the tag assignment.';
-COMMENT ON COLUMN directory.site_tags.tag_id IS 'Assigned unified tag.';
-COMMENT ON COLUMN directory.site_tags.tag_kind IS 'Copied tag kind used by composite foreign keys and role checks.';
-COMMENT ON COLUMN directory.site_tags.topic_role IS 'PRIMARY or SECONDARY for TOPIC and NULL for WARNING.';
+COMMENT ON COLUMN directory.site_tags.tag_id IS 'Assigned global tag.';
+COMMENT ON COLUMN directory.site_tags.role IS 'Assignment role: PRIMARY, SECONDARY, or WARNING.';
 COMMENT ON COLUMN directory.site_tags.assignment_source IS 'Evidence source: MANUAL, IMPORTED, or SYSTEM.';
-COMMENT ON COLUMN directory.site_tags.assigned_by IS 'User or administrator responsible for the assignment.';
 COMMENT ON COLUMN directory.site_tags.note IS 'Optional target-specific warning or assignment note.';
 COMMENT ON COLUMN directory.site_tags.created_at IS 'Assignment creation time.';
 COMMENT ON COLUMN directory.software_components.id IS 'UUIDv7 software catalog primary key.';

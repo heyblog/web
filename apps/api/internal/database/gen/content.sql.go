@@ -302,7 +302,7 @@ func (q *Queries) ListActiveMainAnnouncements(ctx context.Context) ([]ContentAnn
 }
 
 const listAnnouncementRevisions = `-- name: ListAnnouncementRevisions :many
-SELECT announcement_id, revision, kind, title, body_markdown, status, priority, action_type, action_label, action_path, action_external_url, starts_at, ends_at, published_at, published_by, changed_by, changed_at
+SELECT announcement_id, revision, kind, title, body_markdown, priority, action_type, action_label, action_path, action_external_url, starts_at, ends_at, published_at, published_by, changed_by, changed_at
   FROM content.announcement_revisions
  WHERE announcement_id = $1
  ORDER BY revision DESC
@@ -323,7 +323,6 @@ func (q *Queries) ListAnnouncementRevisions(ctx context.Context, announcementID 
 			&i.Kind,
 			&i.Title,
 			&i.BodyMarkdown,
-			&i.Status,
 			&i.Priority,
 			&i.ActionType,
 			&i.ActionLabel,

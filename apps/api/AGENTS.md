@@ -127,6 +127,9 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   by `migrator` without superuser, database-creation, or role-management privileges.
 - The greenfield v1 business schema contains `identity`, `directory`, and `content`. Do not restore
   deleted legacy schemas or compatibility tables.
+- `identity` keeps reversible access status and email verification separate from account deletion.
+  User-requested deletion has a thirty-day cancellation window; completion anonymizes account data,
+  removes OAuth identities, releases the email, and permanently reserves the public username.
 - Resolve path-relative site resources against the site's `base_path` before storing a host-root
   `url_ref`. Reconstruct same-host URLs from Scheme, Host, and `url_ref` without appending
   `base_path` again.
@@ -139,7 +142,7 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   runtime code may read but never mutate announcement revisions.
 - Store compact Markdown source for announcements. Its syntax and link-safety validation belong to
   the HTTP/application boundary rather than database migrations.
-- Apache AGE graph `heyblog_directory` is the authoritative store for directed site friend links.
+- Apache AGE graph `directory_graph` is the authoritative store for directed site friend links.
   Do not add a relational friend-link mirror or directly modify AGE-generated label tables.
 - Access AGE only through typed `directory` functions. Runtime code may execute the public friend
   link wrappers but must not receive direct graph-table access.

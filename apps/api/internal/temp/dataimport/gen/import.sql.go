@@ -295,26 +295,32 @@ const insertSiteTag = `-- name: InsertSiteTag :exec
 INSERT INTO directory.site_tags (
     site_id,
     tag_id,
-    tag_kind,
-    topic_role,
-    assignment_source
+    role,
+    assignment_source,
+    note
 ) VALUES (
     $1::uuid,
     $2::uuid,
-    'TOPIC',
     $3,
-    'IMPORTED'
+    'IMPORTED',
+    $4
 )
 `
 
 type InsertSiteTagParams struct {
-	SiteID    pgtype.UUID
-	TagID     pgtype.UUID
-	TopicRole *string
+	SiteID pgtype.UUID
+	TagID  pgtype.UUID
+	Role   string
+	Note   *string
 }
 
 func (q *Queries) InsertSiteTag(ctx context.Context, arg InsertSiteTagParams) error {
-	_, err := q.db.Exec(ctx, insertSiteTag, arg.SiteID, arg.TagID, arg.TopicRole)
+	_, err := q.db.Exec(ctx, insertSiteTag,
+		arg.SiteID,
+		arg.TagID,
+		arg.Role,
+		arg.Note,
+	)
 	return err
 }
 
@@ -409,7 +415,6 @@ func (q *Queries) InsertSource(ctx context.Context, arg InsertSourceParams) (pgt
 const insertTag = `-- name: InsertTag :exec
 INSERT INTO directory.tags (
     id,
-    kind,
     name,
     normalized_name,
     slug,
@@ -417,7 +422,6 @@ INSERT INTO directory.tags (
     is_enabled
 ) VALUES (
     $1::uuid,
-    'TOPIC',
     $2,
     $3,
     $4,

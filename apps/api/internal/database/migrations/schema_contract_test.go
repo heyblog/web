@@ -115,6 +115,37 @@ func TestMigrationColumnsHaveMatchingInlineAndCatalogComments(t *testing.T) {
 	}
 }
 
+func TestDirectoryTagsAndIconsUseReviewedConstraints(t *testing.T) {
+	t.Parallel()
+
+	migrationFS, err := Filesystem()
+	if err != nil {
+		t.Fatalf("Filesystem() error = %v", err)
+	}
+	content, err := fs.ReadFile(migrationFS, "00004_directory.sql")
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	schema := string(content)
+
+	for _, required := range []string{
+		"CONSTRAINT tags_normalized_name_unique UNIQUE (normalized_name)",
+		"CONSTRAINT tags_slug_unique UNIQUE (slug)",
+		"role text NOT NULL, -- Assignment role: PRIMARY, SECONDARY, or WARNING.",
+		"CHECK (role IN ('PRIMARY', 'SECONDARY', 'WARNING'))",
+		"octet_length(content) BETWEEN 1 AND 1048576",
+	} {
+		if !strings.Contains(schema, required) {
+			t.Errorf("directory schema is missing %q", required)
+		}
+	}
+	for _, removed := range []string{"tag_kind", "topic_role", "assigned_by", "tags_kind_check"} {
+		if strings.Contains(schema, removed) {
+			t.Errorf("directory schema still contains removed tag concept %q", removed)
+		}
+	}
+}
+
 func collectCreatedTables(t *testing.T, migrationFS fs.FS) []string {
 	t.Helper()
 

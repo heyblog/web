@@ -258,7 +258,7 @@ func TestBuildPlanMapsDirectoryRelationsAndRetriesShortIDCollision(t *testing.T)
 	if len(plan.Tags) != 2 || plan.Tags[1].Slug != "legacy-"+testTagIDSub {
 		t.Fatalf("tags = %#v, want machine-key and deterministic legacy slug", plan.Tags)
 	}
-	if len(plan.SiteTags) != 2 || plan.SiteTags[0].TopicRole != "PRIMARY" || plan.SiteTags[1].TopicRole != "SECONDARY" {
+	if len(plan.SiteTags) != 2 || plan.SiteTags[0].Role != "PRIMARY" || plan.SiteTags[1].Role != "SECONDARY" {
 		t.Fatalf("site tags = %#v, want imported primary and secondary roles", plan.SiteTags)
 	}
 	if len(plan.Components) != 2 || plan.Components[0].ID != testProgramID || plan.Components[1].ID != testStackID {

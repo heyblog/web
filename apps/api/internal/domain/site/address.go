@@ -12,9 +12,8 @@ import (
 )
 
 var (
-	ErrInvalidSiteAddress  = errors.New("invalid site address")
-	ErrInvalidCustomID     = errors.New("invalid custom ID")
-	ErrInvalidFriendTarget = errors.New("invalid friend-link target")
+	ErrInvalidSiteAddress = errors.New("invalid site address")
+	ErrInvalidCustomID    = errors.New("invalid custom ID")
 )
 
 type Address struct {
@@ -28,11 +27,6 @@ type Location struct {
 	URLRef      string
 	ExternalURL string
 	URLKey      string
-}
-
-type FriendTarget struct {
-	URL            string
-	NormalizedHost string
 }
 
 // NormalizeAddress separates a canonical site URL into scheme, IDNA hostname,
@@ -63,6 +57,11 @@ func NormalizeAddress(raw string) (Address, error) {
 		NormalizedHost: host,
 		BasePath:       basePath,
 	}, nil
+}
+
+// CanonicalURL reconstructs the normalized registration address.
+func (address Address) CanonicalURL() string {
+	return address.Scheme + "://" + address.NormalizedHost + address.BasePath
 }
 
 // NormalizeLocation converts same-host URLs to a root-relative reference and
@@ -182,30 +181,6 @@ func ValidateCustomID(value string) error {
 		previousSeparator = true
 	}
 	return nil
-}
-
-// NormalizeFriendTarget validates an absolute friend-link URL and removes its fragment.
-func NormalizeFriendTarget(raw string) (FriendTarget, error) {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil {
-		return FriendTarget{}, fmt.Errorf("%w: parse URL: %w", ErrInvalidFriendTarget, err)
-	}
-	if !parsed.IsAbs() || parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return FriendTarget{}, fmt.Errorf("%w: URL must be absolute HTTP or HTTPS", ErrInvalidFriendTarget)
-	}
-	if parsed.User != nil || parsed.Port() != "" {
-		return FriendTarget{}, fmt.Errorf("%w: credentials and ports are not allowed", ErrInvalidFriendTarget)
-	}
-	host, err := normalizeHost(parsed.Hostname())
-	if err != nil {
-		return FriendTarget{}, fmt.Errorf("%w: %w", ErrInvalidFriendTarget, err)
-	}
-	parsed.Host = host
-	if err := setEscapedPath(parsed, cleanRootRelativePath(parsed.EscapedPath())); err != nil {
-		return FriendTarget{}, fmt.Errorf("%w: normalize URL path: %w", ErrInvalidFriendTarget, err)
-	}
-	parsed.Fragment = ""
-	return FriendTarget{URL: parsed.String(), NormalizedHost: host}, nil
 }
 
 func isASCIIAlphanumeric(character byte) bool {

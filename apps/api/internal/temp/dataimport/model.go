@@ -68,9 +68,10 @@ type TagRow struct {
 }
 
 type SiteTagRow struct {
-	SiteID    string
-	TagID     string
-	TopicRole string
+	SiteID string
+	TagID  string
+	Role   string
+	Note   string
 }
 
 type ComponentRow struct {

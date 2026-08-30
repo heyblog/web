@@ -11,11 +11,14 @@ import (
 )
 
 type Querier interface {
+	ActivateUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	AddSiteOrigin(ctx context.Context, arg AddSiteOriginParams) (DirectorySiteOrigin, error)
 	AddSoftwareComponentDependency(ctx context.Context, arg AddSoftwareComponentDependencyParams) (DirectorySoftwareComponentDependency, error)
 	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (ContentAnnouncement, error)
 	AssignSiteSoftwareComponent(ctx context.Context, arg AssignSiteSoftwareComponentParams) (DirectorySiteSoftwareComponent, error)
 	AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (DirectorySiteTag, error)
+	CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
 	CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error)
@@ -41,7 +44,7 @@ type Querier interface {
 	ListAnnouncementRevisions(ctx context.Context, announcementID pgtype.UUID) ([]ContentAnnouncementRevision, error)
 	ListAnnouncementsForManagement(ctx context.Context, arg ListAnnouncementsForManagementParams) ([]ListAnnouncementsForManagementRow, error)
 	ListEnabledSoftwareComponents(ctx context.Context) ([]DirectorySoftwareComponent, error)
-	ListEnabledTags(ctx context.Context, kind string) ([]DirectoryTag, error)
+	ListEnabledTags(ctx context.Context) ([]DirectoryTag, error)
 	ListFriendLinks(ctx context.Context, arg ListFriendLinksParams) ([]ListFriendLinksRow, error)
 	ListPublicAnnouncementArchive(ctx context.Context, arg ListPublicAnnouncementArchiveParams) ([]ContentAnnouncement, error)
 	ListSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
@@ -56,7 +59,9 @@ type Querier interface {
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error
+	RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
+	SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	UnassignSiteSoftwareComponent(ctx context.Context, arg UnassignSiteSoftwareComponentParams) error
 	UnassignSiteTag(ctx context.Context, arg UnassignSiteTagParams) error
 	UnlinkOAuthIdentity(ctx context.Context, arg UnlinkOAuthIdentityParams) error

@@ -21,9 +21,8 @@ BEGIN
     IF p_target_host <> lower(btrim(p_target_host)) OR p_target_host = '' THEN
         RAISE EXCEPTION 'friend-link target host must be normalized';
     END IF;
-    IF substring(p_target_url FROM '^https?://([^/?#]+)') IS DISTINCT FROM p_target_host
-       OR p_target_url ~ '#' THEN
-        RAISE EXCEPTION 'friend-link URL must be an absolute normalized URL without a fragment';
+    IF NOT directory.is_canonical_site_url(p_target_url, p_target_host) THEN
+        RAISE EXCEPTION 'friend-link URL must be a canonical site registration address';
     END IF;
 
     SELECT normalized_host INTO source_host FROM directory.sites WHERE id = p_source_site_id;
@@ -33,7 +32,12 @@ BEGIN
     IF source_host = p_target_host THEN
         RAISE EXCEPTION 'friend-link self edges are not allowed';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM directory.sites WHERE normalized_host = p_target_host) THEN
+    PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || p_target_host, 0));
+    IF NOT EXISTS (
+        SELECT 1 FROM directory.sites
+         WHERE normalized_host = p_target_host
+           AND scheme || '://' || normalized_host || base_path = p_target_url
+    ) THEN
         RAISE EXCEPTION 'registered friend-link target site does not exist';
     END IF;
 

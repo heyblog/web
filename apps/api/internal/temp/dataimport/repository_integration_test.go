@@ -143,7 +143,7 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 		t.Fatalf("origins with metadata = %d, want 4", metadataOrigins)
 	}
 	var storedGraphEdges int
-	if err := admin.QueryRow(ctx, `SELECT count(*) FROM heyblog_directory."FRIEND_LINK"`).Scan(&storedGraphEdges); err != nil {
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM directory_graph."FRIEND_LINK"`).Scan(&storedGraphEdges); err != nil {
 		t.Fatalf("query stored graph edges: %v", err)
 	}
 	if storedGraphEdges != 1 {

@@ -93,7 +93,6 @@ INSERT INTO directory.site_resources (
 -- name: InsertTag :exec
 INSERT INTO directory.tags (
     id,
-    kind,
     name,
     normalized_name,
     slug,
@@ -101,7 +100,6 @@ INSERT INTO directory.tags (
     is_enabled
 ) VALUES (
     sqlc.arg(id)::uuid,
-    'TOPIC',
     sqlc.arg(name),
     sqlc.arg(normalized_name),
     sqlc.arg(slug),
@@ -113,15 +111,15 @@ INSERT INTO directory.tags (
 INSERT INTO directory.site_tags (
     site_id,
     tag_id,
-    tag_kind,
-    topic_role,
-    assignment_source
+    role,
+    assignment_source,
+    note
 ) VALUES (
     sqlc.arg(site_id)::uuid,
     sqlc.arg(tag_id)::uuid,
-    'TOPIC',
-    sqlc.arg(topic_role),
-    'IMPORTED'
+    sqlc.arg(role),
+    'IMPORTED',
+    sqlc.narg(note)
 );
 
 -- name: InsertSoftwareComponent :exec

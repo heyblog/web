@@ -87,7 +87,6 @@ CREATE TABLE content.announcement_revisions (
     kind text NOT NULL, -- Presentation kind captured in the snapshot.
     title text NOT NULL, -- Plain-text title captured in the snapshot.
     body_markdown text, -- Compact Markdown source captured in the snapshot.
-    status text NOT NULL, -- Publication lifecycle state captured in the snapshot.
     priority integer NOT NULL, -- Main announcement ordering priority captured in the snapshot.
     action_type text NOT NULL, -- Primary action kind captured in the snapshot.
     action_label text, -- Primary action button label captured in the snapshot.
@@ -104,9 +103,22 @@ CREATE TABLE content.announcement_revisions (
     CONSTRAINT announcement_revisions_kind_check CHECK (kind IN ('MAIN', 'BANNER')),
     CONSTRAINT announcement_revisions_title_check CHECK (btrim(title) <> '' AND char_length(title) <= 256),
     CONSTRAINT announcement_revisions_body_markdown_check CHECK (body_markdown IS NULL OR btrim(body_markdown) <> ''),
-    CONSTRAINT announcement_revisions_status_check CHECK (status = 'PUBLISHED'),
     CONSTRAINT announcement_revisions_banner_priority_check CHECK (kind = 'MAIN' OR priority = 0),
     CONSTRAINT announcement_revisions_action_type_check CHECK (action_type IN ('NONE', 'INTERNAL', 'EXTERNAL')),
+    CONSTRAINT announcement_revisions_action_label_check CHECK (action_label IS NULL OR btrim(action_label) <> ''),
+    CONSTRAINT announcement_revisions_action_path_check CHECK (
+        action_path IS NULL OR (
+            action_path = btrim(action_path)
+            AND left(action_path, 1) = '/'
+            AND left(action_path, 2) <> '//'
+        )
+    ),
+    CONSTRAINT announcement_revisions_action_external_url_check CHECK (
+        action_external_url IS NULL OR (
+            action_external_url = btrim(action_external_url)
+            AND action_external_url ~ '^https?://[^[:space:]]+$'
+        )
+    ),
     CONSTRAINT announcement_revisions_action_shape_check CHECK (
         (action_type = 'NONE' AND action_label IS NULL AND action_path IS NULL AND action_external_url IS NULL)
         OR
@@ -203,7 +215,6 @@ BEGIN
             kind,
             title,
             body_markdown,
-            status,
             priority,
             action_type,
             action_label,
@@ -221,7 +232,6 @@ BEGIN
             OLD.kind,
             OLD.title,
             OLD.body_markdown,
-            OLD.status,
             OLD.priority,
             OLD.action_type,
             OLD.action_label,
@@ -301,7 +311,6 @@ COMMENT ON COLUMN content.announcement_revisions.revision IS 'Announcement row v
 COMMENT ON COLUMN content.announcement_revisions.kind IS 'Presentation kind captured in the snapshot.';
 COMMENT ON COLUMN content.announcement_revisions.title IS 'Plain-text title captured in the snapshot.';
 COMMENT ON COLUMN content.announcement_revisions.body_markdown IS 'Compact Markdown source captured in the snapshot.';
-COMMENT ON COLUMN content.announcement_revisions.status IS 'Publication lifecycle state captured in the snapshot.';
 COMMENT ON COLUMN content.announcement_revisions.priority IS 'Main announcement ordering priority captured in the snapshot.';
 COMMENT ON COLUMN content.announcement_revisions.action_type IS 'Primary action kind captured in the snapshot.';
 COMMENT ON COLUMN content.announcement_revisions.action_label IS 'Primary action button label captured in the snapshot.';

@@ -56,6 +56,36 @@ func TestNormalizeAddress(t *testing.T) {
 	}
 }
 
+func TestNormalizeAddressBuildsCanonicalURL(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeAddress("http://example.com/blog")
+	if err != nil {
+		t.Fatalf("NormalizeAddress() error = %v", err)
+	}
+	if got.Scheme != "http" || got.NormalizedHost != "example.com" || got.BasePath != "/blog" {
+		t.Fatalf("NormalizeAddress() = %#v", got)
+	}
+	if got.CanonicalURL() != "http://example.com/blog" {
+		t.Fatalf("CanonicalURL() = %q, want http://example.com/blog", got.CanonicalURL())
+	}
+}
+
+func TestNormalizeAddressRejectsNonCanonicalSiteURLParts(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{
+		"https://user@example.com/blog",
+		"https://example.com/blog?from=directory",
+		"https://example.com/blog#friends",
+		"https://example.com/%2e%2e/admin",
+	} {
+		if _, err := NormalizeAddress(value); !errors.Is(err, ErrInvalidSiteAddress) {
+			t.Errorf("NormalizeAddress(%q) error = %v, want ErrInvalidSiteAddress", value, err)
+		}
+	}
+}
+
 func TestNormalizeAddressRejectsIP(t *testing.T) {
 	t.Parallel()
 
@@ -220,51 +250,6 @@ func TestNormalizeLocationRejectsEncodedDotSegmentsFromCanonicalInputs(t *testin
 		_, err := NormalizeLocation(location, address, false)
 		if !errors.Is(err, ErrInvalidSiteAddress) {
 			t.Errorf("NormalizeLocation(%q) error = %v, want ErrInvalidSiteAddress", location, err)
-		}
-	}
-}
-
-func TestNormalizeFriendTargetKeepsAbsoluteURLAndNormalizedHost(t *testing.T) {
-	t.Parallel()
-
-	got, err := NormalizeFriendTarget("https://例子.中国/friends?from=a#directory")
-	if err != nil {
-		t.Fatalf("NormalizeFriendTarget() error = %v", err)
-	}
-	if got.NormalizedHost != "xn--fsqu00a.xn--fiqs8s" {
-		t.Fatalf("NormalizeFriendTarget().NormalizedHost = %q", got.NormalizedHost)
-	}
-	if got.URL != "https://xn--fsqu00a.xn--fiqs8s/friends?from=a" {
-		t.Fatalf("NormalizeFriendTarget().URL = %q", got.URL)
-	}
-}
-
-func TestNormalizeFriendTargetPreservesEscapedPath(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]string{
-		"escaped delimiters": "https://example.com/a%2Fb/feed%20file.xml",
-		"unicode":            "https://example.com/%E5%8D%9A%E5%AE%A2",
-	}
-	for name, target := range tests {
-		t.Run(name, func(t *testing.T) {
-			got, err := NormalizeFriendTarget(target)
-			if err != nil {
-				t.Fatalf("NormalizeFriendTarget() error = %v", err)
-			}
-			if got.URL != target {
-				t.Fatalf("URL = %q, want %q", got.URL, target)
-			}
-		})
-	}
-}
-
-func TestNormalizeFriendTargetRejectsRelativeAndPortURLs(t *testing.T) {
-	t.Parallel()
-
-	for _, value := range []string{"/friends", "https://example.com:8443/friends"} {
-		if _, err := NormalizeFriendTarget(value); !errors.Is(err, ErrInvalidFriendTarget) {
-			t.Errorf("NormalizeFriendTarget(%q) error = %v, want ErrInvalidFriendTarget", value, err)
 		}
 	}
 }

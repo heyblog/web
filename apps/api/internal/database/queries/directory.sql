@@ -129,29 +129,26 @@ RETURNING *;
 SELECT * FROM directory.site_icons WHERE site_id = $1;
 
 -- name: CreateTag :one
-INSERT INTO directory.tags (kind, name, normalized_name, slug, description)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO directory.tags (name, normalized_name, slug, description)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: ListEnabledTags :many
 SELECT * FROM directory.tags
- WHERE kind = $1 AND is_enabled AND merged_into_id IS NULL
+ WHERE is_enabled AND merged_into_id IS NULL
  ORDER BY name, id;
 
 -- name: AssignSiteTag :one
 INSERT INTO directory.site_tags (
     site_id,
     tag_id,
-    tag_kind,
-    topic_role,
+    role,
     assignment_source,
-    assigned_by,
     note
-) VALUES ($1, $2, $3, $4, $5, $6, $7)
+) VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (site_id, tag_id) DO UPDATE
-   SET topic_role = EXCLUDED.topic_role,
+   SET role = EXCLUDED.role,
        assignment_source = EXCLUDED.assignment_source,
-       assigned_by = EXCLUDED.assigned_by,
        note = EXCLUDED.note
 RETURNING *;
 
@@ -160,7 +157,7 @@ SELECT assignment.*, tag.name, tag.slug, tag.description
   FROM directory.site_tags AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
  WHERE assignment.site_id = $1
- ORDER BY assignment.tag_kind, assignment.topic_role NULLS LAST, tag.name;
+ ORDER BY assignment.role, tag.name;
 
 -- name: UnassignSiteTag :exec
 DELETE FROM directory.site_tags WHERE site_id = $1 AND tag_id = $2;

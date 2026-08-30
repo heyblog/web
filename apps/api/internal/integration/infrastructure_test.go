@@ -91,10 +91,11 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	}
 
 	verifyDirectoryConstraints(ctx, t, pool)
+	verifyTagAndIconConstraints(ctx, t, pool)
 	verifyAnnouncementQueries(ctx, t, pool)
-	verifyAnnouncementConstraints(ctx, t, pool)
+	verifyAnnouncementConstraints(ctx, t, pool, migrationURL)
 	verifySoftwareComponentDependencies(ctx, t, pool)
-	verifyFriendLinkGraph(ctx, t, pool)
+	verifyFriendLinkGraph(ctx, t, pool, adminConnection)
 	verifyRuntimePermissions(ctx, t, pool)
 	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)
 	verifyUserDeletionSemantics(ctx, t, pool, migrationURL)
@@ -213,16 +214,59 @@ func verifyDatabaseCatalog(ctx context.Context, t *testing.T, connection *pgx.Co
 
 	var graphExists bool
 	if err := connection.QueryRow(ctx, `
-		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'heyblog_directory')
+		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'directory_graph')
 	`).Scan(&graphExists); err != nil {
 		t.Fatalf("query AGE graph: %v", err)
 	}
 	if !graphExists {
-		t.Fatal("heyblog_directory AGE graph does not exist")
+		t.Fatal("directory_graph AGE graph does not exist")
 	}
 
 	verifyCatalogComments(ctx, t, connection)
 	verifyIdentitySchema(ctx, t, connection)
+	verifyContentSchema(ctx, t, connection)
+}
+
+func verifyContentSchema(ctx context.Context, t *testing.T, connection *pgx.Conn) {
+	t.Helper()
+
+	var revisionStatusColumns int
+	if err := connection.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM information_schema.columns
+		 WHERE table_schema = 'content'
+		   AND table_name = 'announcement_revisions'
+		   AND column_name = 'status'
+	`).Scan(&revisionStatusColumns); err != nil {
+		t.Fatalf("query announcement revision status column: %v", err)
+	}
+	if revisionStatusColumns != 0 {
+		t.Fatalf("announcement revision status column count = %d, want 0", revisionStatusColumns)
+	}
+
+	wantConstraints := []string{
+		"announcement_revisions_action_external_url_check",
+		"announcement_revisions_action_label_check",
+		"announcement_revisions_action_path_check",
+	}
+	rows, err := connection.Query(ctx, `
+		SELECT constraint_name
+		  FROM information_schema.table_constraints
+		 WHERE table_schema = 'content'
+		   AND table_name = 'announcement_revisions'
+		   AND constraint_name = ANY($1::text[])
+		 ORDER BY constraint_name
+	`, wantConstraints)
+	if err != nil {
+		t.Fatalf("query announcement revision action constraints: %v", err)
+	}
+	constraints, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatalf("collect announcement revision action constraints: %v", err)
+	}
+	if !slices.Equal(constraints, wantConstraints) {
+		t.Fatalf("announcement revision action constraints = %v, want %v", constraints, wantConstraints)
+	}
 }
 
 func verifyIdentitySchema(ctx context.Context, t *testing.T, connection *pgx.Conn) {
@@ -245,17 +289,20 @@ func verifyIdentitySchema(ctx context.Context, t *testing.T, connection *pgx.Con
 
 	want := []string{
 		"id:uuid:NO",
-		"email:text:NO",
+		"email:text:YES",
 		"username:text:NO",
 		"display_name:text:NO",
 		"password_hash:text:YES",
 		"role:text:NO",
-		"status:text:NO",
+		"access_status:text:NO",
 		"email_verified_at:timestamp with time zone:YES",
 		"auth_version:integer:NO",
 		"profile:jsonb:NO",
 		"settings:jsonb:NO",
 		"last_login_at:timestamp with time zone:YES",
+		"deletion_requested_at:timestamp with time zone:YES",
+		"deletion_scheduled_for:timestamp with time zone:YES",
+		"deleted_at:timestamp with time zone:YES",
 		"created_at:timestamp with time zone:NO",
 		"updated_at:timestamp with time zone:NO",
 	}
@@ -371,9 +418,15 @@ func verifyDirectoryConstraints(ctx context.Context, t *testing.T, connection *p
 	`); err == nil {
 		t.Fatal("duplicate normalized host unexpectedly succeeded")
 	}
+
 }
 
-func verifyAnnouncementConstraints(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+func verifyAnnouncementConstraints(
+	ctx context.Context,
+	t *testing.T,
+	connection *pgxpool.Pool,
+	migrationURL string,
+) {
 	t.Helper()
 
 	var actorID pgtype.UUID
@@ -494,6 +547,7 @@ func verifyAnnouncementConstraints(ctx context.Context, t *testing.T, connection
 	`, actorID); err == nil {
 		t.Fatal("internal action with external URL unexpectedly succeeded")
 	}
+	verifyAnnouncementRevisionActionConstraints(ctx, t, migrationURL, highPriorityID, actorID)
 
 	var draftID pgtype.UUID
 	if err := connection.QueryRow(ctx, `
@@ -616,6 +670,55 @@ func verifyAnnouncementConstraints(ctx context.Context, t *testing.T, connection
 	}
 	if concurrentSuccesses != 1 {
 		t.Fatalf("concurrent banner successes = %d, want 1", concurrentSuccesses)
+	}
+}
+
+func verifyAnnouncementRevisionActionConstraints(
+	ctx context.Context,
+	t *testing.T,
+	migrationURL string,
+	announcementID pgtype.UUID,
+	actorID pgtype.UUID,
+) {
+	t.Helper()
+	connection, err := pgx.Connect(ctx, migrationURL)
+	if err != nil {
+		t.Fatalf("connect as migrator for announcement revision constraints: %v", err)
+	}
+	defer func() { _ = connection.Close(context.Background()) }()
+
+	tests := []struct {
+		name        string
+		revision    int64
+		actionType  string
+		label       *string
+		path        *string
+		externalURL *string
+	}{
+		{
+			name: "blank label", revision: 1001, actionType: "INTERNAL",
+			label: stringPointer(" "), path: stringPointer("/valid"),
+		},
+		{
+			name: "invalid internal path", revision: 1002, actionType: "INTERNAL",
+			label: stringPointer("Open"), path: stringPointer("//example.com"),
+		},
+		{
+			name: "invalid external URL", revision: 1003, actionType: "EXTERNAL",
+			label: stringPointer("Open"), externalURL: stringPointer("ftp://example.com"),
+		},
+	}
+	for _, testCase := range tests {
+		if _, err := connection.Exec(ctx, `
+			INSERT INTO content.announcement_revisions (
+				announcement_id, revision, kind, title, priority,
+				action_type, action_label, action_path, action_external_url,
+				starts_at, published_at, published_by, changed_by
+			) VALUES ($1, $2, 'MAIN', 'Invalid action revision', 0,
+			          $3, $4, $5, $6, clock_timestamp(), clock_timestamp(), $7, $7)
+		`, announcementID, testCase.revision, testCase.actionType, testCase.label, testCase.path, testCase.externalURL, actorID); err == nil {
+			t.Errorf("%s revision unexpectedly succeeded", testCase.name)
+		}
 	}
 }
 
@@ -808,6 +911,10 @@ func insertAnnouncement(
 }
 
 func timePointer(value time.Time) *time.Time {
+	return &value
+}
+
+func stringPointer(value string) *string {
 	return &value
 }
 
@@ -1009,11 +1116,30 @@ func verifyUserDeletionSemantics(
 	user, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
 		Email:       "deletion@example.com",
 		Username:    "deletion_user",
-		DisplayName: "Deletion User",
+		DisplayName: "\u6635\u79f0 @ # []",
 	})
 	if err != nil {
 		t.Fatalf("create deletion semantics user: %v", err)
 	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		INSERT INTO identity.users (email, username, display_name)
+		VALUES ('trimmed-name@example.com', 'trimmed_name', ' padded ')
+	`); err == nil {
+		t.Fatal("display name with surrounding whitespace unexpectedly succeeded")
+	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		INSERT INTO identity.users (email, username, display_name)
+		VALUES ('long-name@example.com', 'long_name', repeat('x', 129))
+	`); err == nil {
+		t.Fatal("display name longer than 128 characters unexpectedly succeeded")
+	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		INSERT INTO identity.users (email, username, display_name, access_status)
+		VALUES ('removed-state@example.com', 'removed_state', 'Removed State', 'REMOVED')
+	`); err == nil {
+		t.Fatal("REMOVED access status unexpectedly succeeded")
+	}
+
 	if _, err := queries.UpsertGitHubIdentity(ctx, dbgen.UpsertGitHubIdentityParams{
 		UserID:         user.ID,
 		ProviderUserID: "deletion-provider-user",
@@ -1022,23 +1148,243 @@ func verifyUserDeletionSemantics(
 		t.Fatalf("create deletion semantics OAuth identity: %v", err)
 	}
 
-	if _, err := runtimeConnection.Exec(ctx, `
-		UPDATE identity.users SET status = 'REMOVED' WHERE id = $1
-	`, user.ID); err != nil {
-		t.Fatalf("soft remove user: %v", err)
+	suspended, err := queries.SuspendUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("suspend user: %v", err)
 	}
+	if suspended.AccessStatus != "SUSPENDED" || suspended.AuthVersion != user.AuthVersion+1 {
+		t.Fatalf(
+			"suspended user state = (%q, %d), want (SUSPENDED, %d)",
+			suspended.AccessStatus,
+			suspended.AuthVersion,
+			user.AuthVersion+1,
+		)
+	}
+	if _, err := queries.RecordUserLogin(ctx, user.ID); err == nil {
+		t.Fatal("record login for suspended user unexpectedly succeeded")
+	}
+
+	active, err := queries.ActivateUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("activate user: %v", err)
+	}
+	if active.AccessStatus != "ACTIVE" || active.AuthVersion != suspended.AuthVersion+1 {
+		t.Fatalf(
+			"activated user state = (%q, %d), want (ACTIVE, %d)",
+			active.AccessStatus,
+			active.AuthVersion,
+			suspended.AuthVersion+1,
+		)
+	}
+
+	var verifiedVersion int32
+	if err := runtimeConnection.QueryRow(ctx, `
+		UPDATE identity.users
+		   SET email_verified_at = clock_timestamp()
+		 WHERE id = $1
+		 RETURNING auth_version
+	`, user.ID).Scan(&verifiedVersion); err != nil {
+		t.Fatalf("verify user email: %v", err)
+	}
+	if verifiedVersion != active.AuthVersion+1 {
+		t.Fatalf("verified auth version = %d, want %d", verifiedVersion, active.AuthVersion+1)
+	}
+
+	changedEmail := "deletion-updated@example.com"
+	var changedEmailVerifiedAt pgtype.Timestamptz
+	var changedEmailVersion int32
+	if err := runtimeConnection.QueryRow(ctx, `
+		UPDATE identity.users
+		   SET email = $2
+		 WHERE id = $1
+		 RETURNING email_verified_at, auth_version
+	`, user.ID, changedEmail).Scan(&changedEmailVerifiedAt, &changedEmailVersion); err != nil {
+		t.Fatalf("change user email: %v", err)
+	}
+	if changedEmailVerifiedAt.Valid || changedEmailVersion != verifiedVersion+1 {
+		t.Fatalf(
+			"changed email state = (verified:%t, version:%d), want (false, %d)",
+			changedEmailVerifiedAt.Valid,
+			changedEmailVersion,
+			verifiedVersion+1,
+		)
+	}
+
+	var roleVersion int32
+	if err := runtimeConnection.QueryRow(ctx, `
+		UPDATE identity.users SET role = 'ADMIN' WHERE id = $1 RETURNING auth_version
+	`, user.ID).Scan(&roleVersion); err != nil {
+		t.Fatalf("change user role: %v", err)
+	}
+	if roleVersion != changedEmailVersion+1 {
+		t.Fatalf("role auth version = %d, want %d", roleVersion, changedEmailVersion+1)
+	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		UPDATE identity.users SET auth_version = auth_version - 1 WHERE id = $1
+	`, user.ID); err == nil {
+		t.Fatal("decreasing auth version unexpectedly succeeded")
+	}
+
+	requested, err := queries.RequestUserDeletion(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("request user deletion: %v", err)
+	}
+	if requested.AccessStatus != "SUSPENDED" ||
+		!requested.DeletionRequestedAt.Valid ||
+		!requested.DeletionScheduledFor.Valid ||
+		requested.DeletionScheduledFor.Time.Sub(requested.DeletionRequestedAt.Time) != 30*24*time.Hour ||
+		requested.AuthVersion != roleVersion+1 {
+		t.Fatalf(
+			"requested deletion state = (status:%q, request:%t, schedule:%t, version:%d)",
+			requested.AccessStatus,
+			requested.DeletionRequestedAt.Valid,
+			requested.DeletionScheduledFor.Valid,
+			requested.AuthVersion,
+		)
+	}
+	if _, err := queries.RecordUserLogin(ctx, user.ID); err == nil {
+		t.Fatal("record login for user pending deletion unexpectedly succeeded")
+	}
+	if _, err := queries.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{
+		ID:          user.ID,
+		DisplayName: "Blocked Update",
+		Profile:     []byte(`{}`),
+		Settings:    []byte(`{}`),
+	}); err == nil {
+		t.Fatal("profile update for user pending deletion unexpectedly succeeded")
+	}
+
 	var oauthIdentityCount int
 	if err := runtimeConnection.QueryRow(ctx, `
 		SELECT count(*) FROM identity.oauth_identities WHERE user_id = $1
 	`, user.ID).Scan(&oauthIdentityCount); err != nil {
-		t.Fatalf("count OAuth identities after soft removal: %v", err)
+		t.Fatalf("count OAuth identities while deletion is pending: %v", err)
 	}
 	if oauthIdentityCount != 1 {
-		t.Fatalf("OAuth identity count after soft removal = %d, want 1", oauthIdentityCount)
+		t.Fatalf("OAuth identity count while deletion is pending = %d, want 1", oauthIdentityCount)
 	}
 
-	if _, err := runtimeConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", user.ID); err == nil {
+	cancelled, err := queries.CancelUserDeletion(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("cancel user deletion: %v", err)
+	}
+	if cancelled.AccessStatus != "ACTIVE" ||
+		cancelled.DeletionRequestedAt.Valid ||
+		cancelled.DeletionScheduledFor.Valid ||
+		cancelled.AuthVersion != requested.AuthVersion+1 {
+		t.Fatalf(
+			"cancelled deletion state = (status:%q, request:%t, schedule:%t, version:%d)",
+			cancelled.AccessStatus,
+			cancelled.DeletionRequestedAt.Valid,
+			cancelled.DeletionScheduledFor.Valid,
+			cancelled.AuthVersion,
+		)
+	}
+	loggedIn, err := queries.RecordUserLogin(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("record login after cancellation: %v", err)
+	}
+	if loggedIn.AuthVersion != cancelled.AuthVersion {
+		t.Fatalf("login auth version = %d, want %d", loggedIn.AuthVersion, cancelled.AuthVersion)
+	}
+
+	deletedEmail := "due-deletion@example.com"
+	var dueUserID pgtype.UUID
+	if err := runtimeConnection.QueryRow(ctx, `
+		INSERT INTO identity.users (
+			email, username, display_name, password_hash, role, access_status,
+			email_verified_at, profile, settings, last_login_at,
+			deletion_requested_at, deletion_scheduled_for, created_at
+		) VALUES (
+			$1, 'due_deletion_user', 'Due Deletion User', 'password-hash', 'ADMIN', 'SUSPENDED',
+			statement_timestamp() - interval '31 days', '{"bio":"private"}', '{"theme":"private"}',
+			statement_timestamp() - interval '31 days',
+			statement_timestamp() - interval '31 days', statement_timestamp() - interval '1 day',
+			statement_timestamp() - interval '32 days'
+		)
+		RETURNING id
+	`, deletedEmail).Scan(&dueUserID); err != nil {
+		t.Fatalf("create user with due deletion: %v", err)
+	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		INSERT INTO identity.oauth_identities (user_id, provider, provider_user_id, profile)
+		VALUES ($1, 'GITHUB', 'due-deletion-provider-user', '{"login":"private"}')
+	`, dueUserID); err != nil {
+		t.Fatalf("create OAuth identity for due deletion: %v", err)
+	}
+	if _, err := queries.CancelUserDeletion(ctx, dueUserID); err == nil {
+		t.Fatal("cancelling deletion after its deadline unexpectedly succeeded")
+	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		UPDATE identity.users
+		   SET username = 'released_username', deleted_at = clock_timestamp()
+		 WHERE id = $1
+	`, dueUserID); err == nil {
+		t.Fatal("changing a username while completing deletion unexpectedly succeeded")
+	}
+
+	deleted, err := queries.CompleteUserDeletion(ctx, dueUserID)
+	if err != nil {
+		t.Fatalf("complete user deletion: %v", err)
+	}
+	if deleted.Email != nil ||
+		deleted.DisplayName != deleted.Username ||
+		deleted.PasswordHash != nil ||
+		deleted.Role != "USER" ||
+		deleted.AccessStatus != "SUSPENDED" ||
+		deleted.EmailVerifiedAt.Valid ||
+		string(deleted.Profile) != `{}` ||
+		string(deleted.Settings) != `{}` ||
+		deleted.LastLoginAt.Valid ||
+		!deleted.DeletedAt.Valid ||
+		deleted.AuthVersion != 2 {
+		t.Fatalf(
+			"completed deletion was not anonymized: email:%v display:%q role:%q status:%q version:%d",
+			deleted.Email,
+			deleted.DisplayName,
+			deleted.Role,
+			deleted.AccessStatus,
+			deleted.AuthVersion,
+		)
+	}
+	if err := runtimeConnection.QueryRow(ctx, `
+		SELECT count(*) FROM identity.oauth_identities WHERE user_id = $1
+	`, dueUserID).Scan(&oauthIdentityCount); err != nil {
+		t.Fatalf("count OAuth identities after completed deletion: %v", err)
+	}
+	if oauthIdentityCount != 0 {
+		t.Fatalf("OAuth identity count after completed deletion = %d, want 0", oauthIdentityCount)
+	}
+	if _, err := runtimeConnection.Exec(ctx, `
+		UPDATE identity.users SET display_name = 'Restored User' WHERE id = $1
+	`, dueUserID); err == nil {
+		t.Fatal("updating a deleted user unexpectedly succeeded")
+	}
+
+	if _, err := runtimeConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", dueUserID); err == nil {
 		t.Fatal("runtime user hard deletion unexpectedly succeeded")
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+		Email:       "replacement@example.com",
+		Username:    "due_deletion_user",
+		DisplayName: "Replacement User",
+	}); err == nil {
+		t.Fatal("reusing a deleted username unexpectedly succeeded")
+	}
+	replacement, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+		Email:       deletedEmail,
+		Username:    "replacement_user",
+		DisplayName: "Replacement @ User",
+	})
+	if err != nil {
+		t.Fatalf("reuse deleted user email: %v", err)
+	}
+	if _, err := queries.UpsertGitHubIdentity(ctx, dbgen.UpsertGitHubIdentityParams{
+		UserID:         replacement.ID,
+		ProviderUserID: "due-deletion-provider-user",
+		Profile:        []byte(`{}`),
+	}); err != nil {
+		t.Fatalf("reuse deleted user OAuth identity: %v", err)
 	}
 
 	migrationConnection, err := pgx.Connect(ctx, migrationURL)
@@ -1046,12 +1392,12 @@ func verifyUserDeletionSemantics(
 		t.Fatalf("connect as migrator for user deletion: %v", err)
 	}
 	defer func() { _ = migrationConnection.Close(context.Background()) }()
-	if _, err := migrationConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", user.ID); err != nil {
+	if _, err := migrationConnection.Exec(ctx, "DELETE FROM identity.users WHERE id = $1", replacement.ID); err != nil {
 		t.Fatalf("hard delete user as migrator: %v", err)
 	}
 	if err := migrationConnection.QueryRow(ctx, `
 		SELECT count(*) FROM identity.oauth_identities WHERE user_id = $1
-	`, user.ID).Scan(&oauthIdentityCount); err != nil {
+	`, replacement.ID).Scan(&oauthIdentityCount); err != nil {
 		t.Fatalf("count OAuth identities after hard deletion: %v", err)
 	}
 	if oauthIdentityCount != 0 {
@@ -1102,12 +1448,12 @@ func verifyMigrationRollback(
 
 	var graphExists bool
 	if err := adminConnection.QueryRow(ctx, `
-		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'heyblog_directory')
+		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'directory_graph')
 	`).Scan(&graphExists); err != nil {
 		t.Fatalf("query AGE graph after rollback: %v", err)
 	}
 	if graphExists {
-		t.Fatal("heyblog_directory AGE graph remained after rollback")
+		t.Fatal("directory_graph AGE graph remained after rollback")
 	}
 
 	if err := database.Migrate(ctx, migrationURL); err != nil {
@@ -1116,7 +1462,12 @@ func verifyMigrationRollback(
 	verifyDatabaseCatalog(ctx, t, adminConnection)
 }
 
-func verifyFriendLinkGraph(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+func verifyFriendLinkGraph(
+	ctx context.Context,
+	t *testing.T,
+	connection *pgxpool.Pool,
+	adminConnection *pgx.Conn,
+) {
 	t.Helper()
 	queries := dbgen.New(connection)
 
@@ -1129,7 +1480,7 @@ func verifyFriendLinkGraph(ctx context.Context, t *testing.T, connection *pgxpoo
 		t.Fatalf("insert source feed: %v", err)
 	}
 
-	externalURL := "https://target.example.com/friends?from=source"
+	externalURL := "https://target.example.com/friends"
 	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
 		PSourceSiteID: sourceID,
 		PTargetUrl:    externalURL,
@@ -1143,16 +1494,105 @@ func verifyFriendLinkGraph(ctx context.Context, t *testing.T, connection *pgxpoo
 	if len(links) != 1 || links[0].TargetSiteID.Valid || links[0].TargetUrl != externalURL {
 		t.Fatalf("external friend links = %#v", links)
 	}
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: sourceID,
+		PTargetUrl:    externalURL + "?from=source",
+		PTargetHost:   "target.example.com",
+		PStatus:       "ACTIVE",
+	}); err == nil {
+		t.Fatal("friend-link URL with query unexpectedly succeeded")
+	}
+	if _, err := connection.Exec(ctx, `
+		UPDATE directory.sites
+		   SET visibility = 'HIDDEN', visibility_reason = 'private'
+		 WHERE id = $1
+	`, sourceID); err != nil {
+		t.Fatalf("hide source site: %v", err)
+	}
+	if links = listFriendLinks(ctx, t, queries, sourceID, true); len(links) != 0 {
+		t.Fatalf("hidden source friend links remained public: %#v", links)
+	}
+	if _, err := connection.Exec(ctx, `
+		UPDATE directory.sites
+		   SET visibility = 'VISIBLE', visibility_reason = NULL
+		 WHERE id = $1
+	`, sourceID); err != nil {
+		t.Fatalf("show source site: %v", err)
+	}
 
 	targetID := insertSite(ctx, t, connection, "5Aa6Bb7Cc", "Target", "target.example.com")
 	links = listFriendLinks(ctx, t, queries, sourceID, false)
-	if len(links) != 1 || !links[0].TargetSiteID.Valid || links[0].TargetSiteID != targetID {
+	if len(links) != 1 || !links[0].TargetSiteID.Valid || links[0].TargetSiteID != targetID ||
+		links[0].TargetUrl != "https://target.example.com/" {
 		t.Fatalf("promoted friend links = %#v", links)
+	}
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: sourceID,
+		PTargetUrl:    "https://target.example.com/friends",
+		PTargetHost:   "target.example.com",
+		PStatus:       "ACTIVE",
+	}); err == nil {
+		t.Fatal("registered friend-link URL differing from the site address unexpectedly succeeded")
+	}
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: sourceID,
+		PTargetUrl:    "https://target.example.com/",
+		PTargetHost:   "target.example.com",
+		PStatus:       "INACTIVE",
+	}); err != nil {
+		t.Fatalf("deactivate friend link: %v", err)
+	}
+	if links = listFriendLinks(ctx, t, queries, sourceID, false); len(links) != 0 {
+		t.Fatalf("inactive friend links remained active: %#v", links)
+	}
+	links = listFriendLinks(ctx, t, queries, sourceID, true)
+	if len(links) != 1 || links[0].LinkStatus != "INACTIVE" {
+		t.Fatalf("inactive friend links = %#v", links)
+	}
+	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
+		PSourceSiteID: sourceID,
+		PTargetUrl:    "https://target.example.com/",
+		PTargetHost:   "target.example.com",
+		PStatus:       "ACTIVE",
+	}); err != nil {
+		t.Fatalf("reactivate friend link: %v", err)
+	}
+	if _, err := adminConnection.Exec(ctx, "LOAD 'age'"); err != nil {
+		t.Fatalf("load AGE in admin session: %v", err)
+	}
+	futureEvent := time.Now().Add(time.Hour).UnixMilli()
+	for _, event := range []struct {
+		status      string
+		updatedAtMS int64
+	}{
+		{status: "INACTIVE", updatedAtMS: futureEvent},
+		{status: "ACTIVE", updatedAtMS: futureEvent - 1},
+	} {
+		if _, err := adminConnection.Exec(ctx, `
+			SELECT directory.merge_friend_link_graph($1, $2, $3, $4, $5, $6)
+		`, sourceID, "target.example.com", "https://target.example.com/", event.status, int64(1), event.updatedAtMS); err != nil {
+			t.Fatalf("merge timestamped friend link: %v", err)
+		}
+	}
+	links = listFriendLinks(ctx, t, queries, sourceID, true)
+	if len(links) != 1 || links[0].LinkStatus != "INACTIVE" || links[0].CreatedAtMs != 1 ||
+		links[0].UpdatedAtMs != futureEvent {
+		t.Fatalf("latest timestamp friend links = %#v", links)
+	}
+	if _, err := adminConnection.Exec(ctx, `
+		SELECT directory.merge_friend_link_graph($1, $2, $3, 'ACTIVE', $4, $5)
+	`, sourceID, "target.example.com", "https://target.example.com/", int64(2), futureEvent); err != nil {
+		t.Fatalf("merge equal timestamp friend link: %v", err)
+	}
+	links = listFriendLinks(ctx, t, queries, sourceID, false)
+	if len(links) != 1 || links[0].LinkStatus != "ACTIVE" || links[0].CreatedAtMs != 1 ||
+		links[0].UpdatedAtMs != futureEvent {
+		t.Fatalf("equal timestamp friend links = %#v", links)
 	}
 
 	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
 		PSourceSiteID: targetID,
-		PTargetUrl:    "https://source.example.com/friends",
+		PTargetUrl:    "https://source.example.com/",
 		PTargetHost:   "source.example.com",
 		PStatus:       "ACTIVE",
 	}); err != nil {
@@ -1177,20 +1617,20 @@ func verifyFriendLinkGraph(ctx context.Context, t *testing.T, connection *pgxpoo
 	if _, err := connection.Exec(ctx, `
 		UPDATE directory.sites
 		   SET visibility = 'VISIBLE', visibility_reason = NULL,
-		       scheme = 'http', normalized_host = 'moved.example.com'
+		       scheme = 'http', normalized_host = 'moved.example.com', base_path = '/blog'
 		 WHERE id = $1
 	`, targetID); err != nil {
 		t.Fatalf("move target site: %v", err)
 	}
 	links = listFriendLinks(ctx, t, queries, sourceID, false)
 	if len(links) != 1 || links[0].TargetHost != "moved.example.com" ||
-		links[0].TargetUrl != "http://moved.example.com/friends?from=source" {
+		links[0].TargetUrl != "http://moved.example.com/blog" {
 		t.Fatalf("moved friend links = %#v", links)
 	}
 
 	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
 		PSourceSiteID: sourceID,
-		PTargetUrl:    "https://source.example.com/friends",
+		PTargetUrl:    "https://source.example.com/",
 		PTargetHost:   "source.example.com",
 		PStatus:       "ACTIVE",
 	}); err == nil {
@@ -1255,7 +1695,7 @@ func verifyRuntimePermissions(ctx context.Context, t *testing.T, connection *pgx
 	if _, err := connection.Exec(ctx, "CREATE SCHEMA forbidden_runtime_schema"); err == nil {
 		t.Fatal("runtime role unexpectedly received schema DDL permission")
 	}
-	if _, err := connection.Exec(ctx, `SELECT * FROM heyblog_directory."SiteRef"`); err == nil {
+	if _, err := connection.Exec(ctx, `SELECT * FROM directory_graph."SiteRef"`); err == nil {
 		t.Fatal("runtime role unexpectedly received direct graph table access")
 	}
 }

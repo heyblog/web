@@ -116,10 +116,13 @@ func validatePlan(plan Plan) error {
 		if _, exists := siteTagKeys[key]; exists {
 			return fmt.Errorf("duplicate site tag assignment %q", key)
 		}
-		if !slices.Contains([]string{"PRIMARY", "SECONDARY"}, row.TopicRole) {
-			return fmt.Errorf("site tag has invalid role %q", row.TopicRole)
+		if !slices.Contains([]string{"PRIMARY", "SECONDARY", "WARNING"}, row.Role) {
+			return fmt.Errorf("site tag has invalid role %q", row.Role)
 		}
-		if row.TopicRole == "PRIMARY" {
+		if row.Note != "" && strings.TrimSpace(row.Note) == "" {
+			return fmt.Errorf("site tag note must not contain only whitespace")
+		}
+		if row.Role == "PRIMARY" {
 			primaryTags[row.SiteID]++
 			if primaryTags[row.SiteID] > 1 {
 				return fmt.Errorf("site %q has multiple primary tags", row.SiteID)

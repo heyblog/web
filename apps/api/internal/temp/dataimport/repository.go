@@ -127,9 +127,9 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		}
 	}
 	for _, row := range plan.SiteTags {
-		role := row.TopicRole
 		if err := queries.InsertSiteTag(ctx, tempdb.InsertSiteTagParams{
-			SiteID: mustUUID(row.SiteID), TagID: mustUUID(row.TagID), TopicRole: &role,
+			SiteID: mustUUID(row.SiteID), TagID: mustUUID(row.TagID), Role: row.Role,
+			Note: nullableText(row.Note),
 		}); err != nil {
 			return fmt.Errorf("insert site tags: %w", err)
 		}

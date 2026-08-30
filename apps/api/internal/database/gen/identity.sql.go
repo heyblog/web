@@ -11,14 +11,134 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateUser = `-- name: ActivateUser :one
+UPDATE identity.users
+   SET access_status = 'ACTIVE'
+ WHERE id = $1
+   AND access_status = 'SUSPENDED'
+   AND deletion_requested_at IS NULL
+   AND deleted_at IS NULL
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+`
+
+func (q *Queries) ActivateUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, activateUser, id)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const cancelUserDeletion = `-- name: CancelUserDeletion :one
+UPDATE identity.users
+   SET access_status = 'ACTIVE',
+       deletion_requested_at = NULL,
+       deletion_scheduled_for = NULL
+ WHERE id = $1
+   AND deletion_requested_at IS NOT NULL
+   AND deletion_scheduled_for > clock_timestamp()
+   AND deleted_at IS NULL
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+`
+
+func (q *Queries) CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, cancelUserDeletion, id)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const completeUserDeletion = `-- name: CompleteUserDeletion :one
+UPDATE identity.users
+   SET deleted_at = clock_timestamp()
+ WHERE id = $1
+   AND deletion_requested_at IS NOT NULL
+   AND deletion_scheduled_for <= clock_timestamp()
+   AND deleted_at IS NULL
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+`
+
+func (q *Queries) CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, completeUserDeletion, id)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO identity.users (
     email,
     username,
     display_name,
     password_hash
-) VALUES ($1, $2, $3, $4)
-RETURNING id, email, username, display_name, password_hash, role, status, email_verified_at, auth_version, profile, settings, last_login_at, created_at, updated_at
+) VALUES (
+    $1::text,
+    $2::text,
+    $3::text,
+    $4::text
+)
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -43,12 +163,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Identit
 		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
-		&i.Status,
+		&i.AccessStatus,
 		&i.EmailVerifiedAt,
 		&i.AuthVersion,
 		&i.Profile,
 		&i.Settings,
 		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -78,7 +201,11 @@ func (q *Queries) GetGitHubIdentity(ctx context.Context, providerUserID string) 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, username, display_name, password_hash, role, status, email_verified_at, auth_version, profile, settings, last_login_at, created_at, updated_at FROM identity.users WHERE email = $1
+SELECT id, email, username, display_name, password_hash, role, access_status,
+       email_verified_at, auth_version, profile, settings, last_login_at,
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+  FROM identity.users
+ WHERE email = $1::text
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (IdentityUser, error) {
@@ -91,12 +218,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (IdentityUse
 		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
-		&i.Status,
+		&i.AccessStatus,
 		&i.EmailVerifiedAt,
 		&i.AuthVersion,
 		&i.Profile,
 		&i.Settings,
 		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -104,7 +234,11 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (IdentityUse
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, username, display_name, password_hash, role, status, email_verified_at, auth_version, profile, settings, last_login_at, created_at, updated_at FROM identity.users WHERE id = $1
+SELECT id, email, username, display_name, password_hash, role, access_status,
+       email_verified_at, auth_version, profile, settings, last_login_at,
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+  FROM identity.users
+ WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -117,12 +251,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser
 		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
-		&i.Status,
+		&i.AccessStatus,
 		&i.EmailVerifiedAt,
 		&i.AuthVersion,
 		&i.Profile,
 		&i.Settings,
 		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -130,7 +267,11 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, email, username, display_name, password_hash, role, status, email_verified_at, auth_version, profile, settings, last_login_at, created_at, updated_at FROM identity.users WHERE username = $1
+SELECT id, email, username, display_name, password_hash, role, access_status,
+       email_verified_at, auth_version, profile, settings, last_login_at,
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+  FROM identity.users
+ WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (IdentityUser, error) {
@@ -143,12 +284,15 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (Ident
 		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
-		&i.Status,
+		&i.AccessStatus,
 		&i.EmailVerifiedAt,
 		&i.AuthVersion,
 		&i.Profile,
 		&i.Settings,
 		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -195,7 +339,12 @@ const recordUserLogin = `-- name: RecordUserLogin :one
 UPDATE identity.users
    SET last_login_at = clock_timestamp()
  WHERE id = $1
-RETURNING id, email, username, display_name, password_hash, role, status, email_verified_at, auth_version, profile, settings, last_login_at, created_at, updated_at
+   AND access_status = 'ACTIVE'
+   AND deletion_requested_at IS NULL
+   AND deleted_at IS NULL
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
 `
 
 func (q *Queries) RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -208,12 +357,99 @@ func (q *Queries) RecordUserLogin(ctx context.Context, id pgtype.UUID) (Identity
 		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
-		&i.Status,
+		&i.AccessStatus,
 		&i.EmailVerifiedAt,
 		&i.AuthVersion,
 		&i.Profile,
 		&i.Settings,
 		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const requestUserDeletion = `-- name: RequestUserDeletion :one
+WITH request_time AS (
+    SELECT clock_timestamp() AS requested_at
+)
+UPDATE identity.users
+   SET access_status = 'SUSPENDED',
+       deletion_requested_at = request_time.requested_at,
+       deletion_scheduled_for = request_time.requested_at + interval '30 days'
+  FROM request_time
+ WHERE id = $1
+   AND access_status = 'ACTIVE'
+   AND deletion_requested_at IS NULL
+   AND deleted_at IS NULL
+RETURNING identity.users.id, identity.users.email, identity.users.username,
+          identity.users.display_name, identity.users.password_hash, identity.users.role,
+          identity.users.access_status, identity.users.email_verified_at,
+          identity.users.auth_version, identity.users.profile, identity.users.settings,
+          identity.users.last_login_at, identity.users.deletion_requested_at,
+          identity.users.deletion_scheduled_for, identity.users.deleted_at,
+          identity.users.created_at, identity.users.updated_at
+`
+
+func (q *Queries) RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, requestUserDeletion, id)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const suspendUser = `-- name: SuspendUser :one
+UPDATE identity.users
+   SET access_status = 'SUSPENDED'
+ WHERE id = $1
+   AND access_status = 'ACTIVE'
+   AND deletion_requested_at IS NULL
+   AND deleted_at IS NULL
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+`
+
+func (q *Queries) SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, suspendUser, id)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -221,8 +457,22 @@ func (q *Queries) RecordUserLogin(ctx context.Context, id pgtype.UUID) (Identity
 }
 
 const unlinkOAuthIdentity = `-- name: UnlinkOAuthIdentity :exec
-DELETE FROM identity.oauth_identities
- WHERE user_id = $1 AND provider = $2
+WITH removed_identity AS (
+    DELETE FROM identity.oauth_identities AS oauth_identity
+     USING identity.users AS user_account
+     WHERE oauth_identity.user_id = $1
+       AND oauth_identity.provider = $2
+       AND user_account.id = oauth_identity.user_id
+       AND user_account.access_status = 'ACTIVE'
+       AND user_account.deletion_requested_at IS NULL
+       AND user_account.deleted_at IS NULL
+     RETURNING oauth_identity.user_id
+)
+UPDATE identity.users
+   SET auth_version = auth_version + 1
+ WHERE id IN (SELECT user_id FROM removed_identity)
+   AND deletion_requested_at IS NULL
+   AND deleted_at IS NULL
 `
 
 type UnlinkOAuthIdentityParams struct {
@@ -241,7 +491,12 @@ UPDATE identity.users
        profile = $3,
        settings = $4
  WHERE id = $1
-RETURNING id, email, username, display_name, password_hash, role, status, email_verified_at, auth_version, profile, settings, last_login_at, created_at, updated_at
+   AND access_status = 'ACTIVE'
+   AND deletion_requested_at IS NULL
+   AND deleted_at IS NULL
+RETURNING id, email, username, display_name, password_hash, role, access_status,
+          email_verified_at, auth_version, profile, settings, last_login_at,
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
 `
 
 type UpdateUserProfileParams struct {
@@ -266,12 +521,15 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
-		&i.Status,
+		&i.AccessStatus,
 		&i.EmailVerifiedAt,
 		&i.AuthVersion,
 		&i.Profile,
 		&i.Settings,
 		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -285,7 +543,13 @@ INSERT INTO identity.oauth_identities (
     provider_user_id,
     provider_login,
     profile
-) VALUES ($1, 'GITHUB', $2, $3, $4)
+) SELECT user_account.id, 'GITHUB', $1::text,
+         $2::text, $3::jsonb
+    FROM identity.users AS user_account
+   WHERE user_account.id = $4::uuid
+     AND user_account.access_status = 'ACTIVE'
+     AND user_account.deletion_requested_at IS NULL
+     AND user_account.deleted_at IS NULL
 ON CONFLICT (provider, provider_user_id) DO UPDATE
    SET provider_login = EXCLUDED.provider_login,
        profile = EXCLUDED.profile
@@ -294,18 +558,18 @@ RETURNING id, user_id, provider, provider_user_id, provider_login, profile, crea
 `
 
 type UpsertGitHubIdentityParams struct {
-	UserID         pgtype.UUID
 	ProviderUserID string
 	ProviderLogin  *string
 	Profile        []byte
+	UserID         pgtype.UUID
 }
 
 func (q *Queries) UpsertGitHubIdentity(ctx context.Context, arg UpsertGitHubIdentityParams) (IdentityOauthIdentity, error) {
 	row := q.db.QueryRow(ctx, upsertGitHubIdentity,
-		arg.UserID,
 		arg.ProviderUserID,
 		arg.ProviderLogin,
 		arg.Profile,
+		arg.UserID,
 	)
 	var i IdentityOauthIdentity
 	err := row.Scan(
