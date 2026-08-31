@@ -28,7 +28,9 @@ This file refines the repository-level `AGENTS.md` for `packages/node/configs`.
 
 Run commands from the repository root:
 
-- `pnpm --filter @heyblog/configs run format:check`: check package formatting.
-- `pnpm --filter @heyblog/configs run lint`: lint package sources.
-- `pnpm --filter @heyblog/configs run typecheck`: type-check package sources.
+- `task configs:format:check`: check package formatting.
+- `task configs:lint`: lint package sources.
+- `task configs:typecheck`: type-check package sources.
+- `task configs:check`: run all package checks.
+- `task configs:verify`: run the package formatting, lint, and type checks.
 - `task verify`: validate all consumers after changing an exported configuration or shared rule.

@@ -27,10 +27,17 @@ tasks:
     cmds:
       - pnpm test
 
-  check:
+  typecheck:
     desc: Run Astro check
     cmds:
       - pnpm run typecheck
+
+  check:
+    desc: Run Web static checks
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: typecheck
 
   lint:
     desc: Lint web app
@@ -59,11 +66,9 @@ tasks:
     cmds:
       - task: test
       - task: check
-      - task: lint
-      - task: format:check
       - task: build
 
-  content:
+  prepare:
     desc: Sync web content from heyblog/.github main
     cmds:
       - node ../../scripts/sync-web-content.mjs

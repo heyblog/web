@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ccr.ccs.tencentyun.com
+  NAMESPACE: heyblog
+
+jobs:
+  content:
+    name: Prepare content
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up repository
+        uses: ./.github/actions/setup
+        with:
+          go: 'false'
+      - name: Prepare Web content
+        run: task prepare
+      - name: Upload Web content
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-content
+          path: apps/web/contents
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+  check:
+    name: Check
+    needs: content
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download Web content
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-content
+          path: apps/web/contents
+      - name: Set up repository
+        uses: ./.github/actions/setup
+        with:
+          golangci-lint: 'true'
+      - name: Check repository
+        run: task check
+  api-race:
+    name: API race test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up repository
+        uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          root-go-dependencies: 'false'
+      - name: Test API with race detector
+        run: task test:race
+  api-integration:
+    name: API integration test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up repository
+        uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          root-go-dependencies: 'false'
+      - name: Test API integrations
+        run: task test:integration
+  web-test:
+    name: Web test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up repository
+        uses: ./.github/actions/setup
+        with:
+          go: 'false'
+      - name: Test Web
+        run: task web:test
+  dependency-security:
+    name: Dependency security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up repository
+        uses: ./.github/actions/setup
+      - name: Scan dependencies
+        run: task security
+  container:
+    name: Container
+    needs: [content, check, api-race, api-integration, web-test, dependency-security]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: container-publish-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download Web content
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-content
+          path: apps/web/contents
+      - name: Set up repository
+        uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          go: 'false'
+          node-dependencies: 'false'
+          root-go-dependencies: 'false'
+          api-go-dependencies: 'false'
+      - name: Build container images
+        run: task container:build
+      - name: Scan container images
+        run: task container:scan
+      - name: Log in to Tencent CCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Publish immutable images
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE_TAGS: ${{ github.sha }}
+        run: task container:publish
+      - name: Publish latest images when main is current
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_TAGS: latest
+        run: |
+          remote_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          if [ "${remote_sha}" = "${GITHUB_SHA}" ]; then
+            task container:publish
+          fi

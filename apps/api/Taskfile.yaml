@@ -78,12 +78,22 @@ tasks:
     cmds:
       - go tool govulncheck ./...
 
-  verify:
-    desc: Run offline checks for API
+  check:
+    desc: Run API static checks
     cmds:
-      - task: test:race
       - task: sqlc:vet
       - task: sqlc:diff
       - task: format:check
       - task: lint
+
+  security:
+    desc: Run API vulnerability checks
+    cmds:
+      - task: vulncheck
+
+  verify:
+    desc: Run API checks, race tests, and build
+    cmds:
+      - task: check
+      - task: test:race
       - task: build

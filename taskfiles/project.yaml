@@ -14,18 +14,31 @@ tasks:
         EOF
 
   install:
-    desc: Install repo dependencies and hooks
+    desc: Install repository dependencies
     cmds:
       - pnpm install
       - go mod download
+      - task: api:install
+
+  prepare:
+    desc: Prepare generated project inputs
+    cmds:
+      - task: web:prepare
+
+  setup:
+    desc: Install dependencies, Git hooks, and generated inputs
+    cmds:
+      - task: install
       - task: hooks:install
-      - task: web:content
+      - task: prepare
 
   format:
     desc: Format all active modules
     aliases: [fmt]
     cmds:
       - pnpm run format
+      - task: configs:format
+      - task: web:format
       - task: api:format
 
   format:check:
@@ -33,18 +46,24 @@ tasks:
     aliases: [fmt:check]
     cmds:
       - pnpm run format:check
+      - task: configs:format:check
+      - task: web:format:check
       - task: api:format:check
 
   lint:
     desc: Lint all active modules
     cmds:
       - pnpm run lint
+      - task: configs:lint
+      - task: web:lint
       - task: api:lint
 
   lint:fix:
     desc: Lint and fix all active modules
     cmds:
       - pnpm run lint:fix
+      - task: configs:lint:fix
+      - task: web:lint:fix
       - task: api:lint:fix
 
   build:
@@ -57,12 +76,34 @@ tasks:
     desc: Type-check all Node workspace modules
     cmds:
       - pnpm run typecheck
+      - task: configs:typecheck
+      - task: web:typecheck
+
+  check:
+    desc: Run repository static checks
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: typecheck
+      - task: api:sqlc:vet
+      - task: api:sqlc:diff
+      - go tool actionlint
 
   test:
     desc: Run all configured tests
     cmds:
       - task: api:test
       - task: web:test
+
+  test:race:
+    desc: Run race-enabled tests
+    cmds:
+      - task: api:test:race
+
+  test:integration:
+    desc: Run integration tests
+    cmds:
+      - task: api:test:integration
 
   security:
     desc: Run checks that require vulnerability database access
@@ -73,16 +114,17 @@ tasks:
   verify:
     desc: Run all offline checks
     cmds:
-      - task: format:check
-      - task: lint
-      - task: typecheck
+      - task: check
       - task: test
-      - task: api:sqlc:vet
-      - task: api:sqlc:diff
       - task: build
 
   verify:full:
-    desc: Run offline checks and vulnerability scanning
+    desc: Run all checks, extended tests, builds, and scans
     cmds:
-      - task: verify
+      - task: check
+      - task: test:race
+      - task: test:integration
+      - task: web:test
+      - task: build
       - task: security
+      - task: container:verify

@@ -45,12 +45,16 @@ RUN go_filename="go1.26.6.linux-amd64.tar.gz" \
 ENV GOPATH=/go \
     PATH="/usr/local/nvm/versions/node/v24.19.0/bin:/usr/local/go/bin:/go/bin:${PATH}"
 
-RUN curl --fail --silent --show-error --location \
+COPY .task-version /tmp/task-version
+
+RUN task_version="$(cat /tmp/task-version)" \
+    && curl --fail --silent --show-error --location \
       --retry 5 --retry-all-errors --retry-delay 3 \
       https://taskfile.dev/install.sh \
       --output /tmp/task-install.sh \
-    && bash /tmp/task-install.sh -d -b /usr/local/bin v3.52.0 \
+    && bash /tmp/task-install.sh -d -b /usr/local/bin "v${task_version}" \
     && rm /tmp/task-install.sh \
+    && rm /tmp/task-version \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

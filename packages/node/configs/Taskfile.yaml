@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  format:
+    desc: Format shared Node configuration
+    cmds:
+      - pnpm run format
+
+  format:check:
+    desc: Check shared Node configuration formatting
+    cmds:
+      - pnpm run format:check
+
+  lint:
+    desc: Lint shared Node configuration
+    cmds:
+      - pnpm run lint
+
+  lint:fix:
+    desc: Lint and fix shared Node configuration
+    cmds:
+      - pnpm run lint:fix
+
+  typecheck:
+    desc: Type-check shared Node configuration
+    cmds:
+      - pnpm run typecheck
+
+  check:
+    desc: Run shared Node configuration checks
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: typecheck
+
+  verify:
+    desc: Verify shared Node configuration
+    cmds:
+      - task: check

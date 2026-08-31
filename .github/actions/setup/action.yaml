@@ -1,22 +1,51 @@
 name: Set up repository
-description: Install repository toolchains and dependencies
+description: Install selected repository toolchains and dependencies
+
+inputs:
+  node:
+    description: Set up Node.js and pnpm
+    default: 'true'
+  go:
+    description: Set up Go
+    default: 'true'
+  node-dependencies:
+    description: Install Node.js workspace dependencies
+    default: 'true'
+  root-go-dependencies:
+    description: Install root Go tool dependencies
+    default: 'true'
+  api-go-dependencies:
+    description: Install API Go dependencies
+    default: 'true'
+  golangci-lint:
+    description: Install golangci-lint
+    default: 'false'
 
 runs:
   using: composite
   steps:
+    - name: Read Task version
+      id: task-version
+      shell: bash
+      run: echo "version=$(<.task-version)" >>"${GITHUB_OUTPUT}"
+    - name: Set up Task
+      uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2
+      with:
+        version: ${{ steps.task-version.outputs.version }}
     - name: Set up pnpm
+      if: inputs.node == 'true'
       uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-
     - name: Set up Node.js
+      if: inputs.node == 'true'
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version-file: .nvmrc
         cache: pnpm
-
     - name: Set up Go
+      if: inputs.go == 'true'
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version-file: go.work
+        go-version-file: .go-version
         cache-dependency-path: |
           go.work
           go.work.sum
@@ -24,16 +53,22 @@ runs:
           go.sum
           apps/api/go.mod
           apps/api/go.sum
-
-    - name: Set up Task
-      uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2
-
     - name: Set up golangci-lint
+      if: inputs.go == 'true' && inputs.golangci-lint == 'true'
       uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
       with:
         version-file: .golangci-lint-version
         install-only: true
-
-    - name: Install repository
+    - name: Install Node.js dependencies
+      if: inputs.node == 'true' && inputs.node-dependencies == 'true'
       shell: bash
-      run: task install
+      run: pnpm install --frozen-lockfile
+    - name: Install repository Go dependencies
+      if: inputs.go == 'true' && inputs.root-go-dependencies == 'true'
+      shell: bash
+      run: GOWORK=off go mod download
+    - name: Install API Go dependencies
+      if: inputs.go == 'true' && inputs.api-go-dependencies == 'true'
+      shell: bash
+      working-directory: apps/api
+      run: GOWORK=off go mod download

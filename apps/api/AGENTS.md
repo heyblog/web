@@ -212,9 +212,14 @@ Run commands from the repository root:
 - `task api:lint`: run golangci-lint.
 - `task api:build`: invoke the API build from the repository root; the module command runs in
   `apps/api`.
-- `task api:verify`: run all current offline API checks.
+- `task api:check`: run API static checks.
+- `task api:security`: run the network-backed API vulnerability check.
+- `task api:verify`: run API checks, race-enabled tests, and the build.
 - `task api:vulncheck`: run the network-backed vulnerability check when dependencies or security
   behavior change and network access is available.
+
+Integration tests own the Testcontainers resources they create and clean them up at test completion;
+Task does not start or stop developer-owned Compose services.
 
 ## Completion Checks
 

@@ -9,6 +9,9 @@ includes:
   web:
     taskfile: ./apps/web/Taskfile.yaml
     dir: ./apps/web
+  configs:
+    taskfile: ./packages/node/configs/Taskfile.yaml
+    dir: ./packages/node/configs
   container:
     taskfile: ./taskfiles/container.yaml
     flatten: true

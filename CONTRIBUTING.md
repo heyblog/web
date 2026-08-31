@@ -6,7 +6,7 @@
 
 - Node.js：版本以 `.nvmrc` 为准。
 - pnpm：版本以根目录 `package.json#packageManager` 为准。
-- Go：版本以 `go.work` 为准。
+- Go：工具链版本以 `.go-version` 为准，`go.work` 定义工作区模块。
 - Task：仓库和模块命令入口。
 - Docker Compose：启动 PostgreSQL/AGE 和 Redis。
 - golangci-lint：版本以 `.golangci-lint-version` 为准。
@@ -16,11 +16,12 @@
 首次检出后执行：
 
 ```bash
-task install
+task setup
 ```
 
-该命令安装 Node.js 和 Go 依赖（包括根模块声明的 govulncheck）、Git hooks，并同步 Web
-内容。工具链本身需要提前安装。完成后可直接运行 `task verify:full`；该命令使用 pnpm audit
+`task setup` 安装 Node.js 和 Go 依赖（包括根模块声明的 Go 工具）、Git hooks，并同步 Web
+内容。需要单独控制副作用时，`task install` 只安装依赖，`task prepare` 只同步内容。工具链
+本身需要提前安装。完成后可直接运行 `task verify:full`；该命令使用 pnpm audit
 和 govulncheck 扫描 Node.js、Go 依赖，漏洞数据库扫描需要网络连接。
 
 ## 开发环境
@@ -76,7 +77,7 @@ API 会主动读取固定名称的 `config/default.yaml` 和 `config/conf.yaml`�
 启动 PostgreSQL 18 + AGE 1.7.0 和 Redis 8：
 
 ```bash
-task compose:dev:up
+docker compose -f infra/docker/docker-compose.env.yaml up -d --wait
 ```
 
 分别在两个终端启动应用：
@@ -89,18 +90,22 @@ task web:dev
 停止开发依赖但保留数据卷：
 
 ```bash
-task compose:dev:down
+docker compose -f infra/docker/docker-compose.env.yaml down
 ```
 
 如确认本地 PostgreSQL 数据可以全部删除，可只重建 PostgreSQL 卷并保留 Redis：
 
 ```bash
-task compose:dev:down
+docker compose -f infra/docker/docker-compose.env.yaml down
 docker volume rm heyblog-dev-env_postgres_data
-task compose:dev:up
+docker compose -f infra/docker/docker-compose.env.yaml up -d --wait
 ```
 
 删除 `heyblog-dev-env_postgres_data` 会永久删除本地 PostgreSQL 数据库；Redis 数据卷不受影响。
+Task 只提供 `task compose:check` 配置校验，不管理这些服务的生命周期。Docker 需要提权时，
+对人工 Docker/Compose 命令使用 `sudo -- docker ...`；对容器 Task 使用
+`task container:verify DOCKER_COMMAND='sudo -- docker'`。rootless Docker 可通过 Unix socket 形式的
+`DOCKER_HOST` 选择 daemon；容器扫描会将该 socket 映射给 Trivy。禁止使用 `sudo task`。
 
 ## 生产容器
 
@@ -109,7 +114,10 @@ task compose:dev:up
 API 和 Web 必须位于同一私有容器网络，只发布 Web 的 `9101` 端口。API 的 `10201` 仅在内部网络开放，不配置主机端口映射。入口代理也只能转发到 Web，不能为 API 创建公网路由。
 
 运行 `task container:scan` 可检查已经构建的 `heyblog-api:local` 和 `heyblog-web:local` 镜像；
-`task container:publish` 会在推送前自动执行同一检查，并阻止存在可修复 HIGH 或 CRITICAL 漏洞的镜像。
+`task container:publish REGISTRY=... NAMESPACE=... IMAGE_TAGS='sha,latest'` 只标记并推送已经由
+`task container:verify` 验证的本地镜像，不会隐式构建或扫描；这是远程写操作，三个参数均为
+必填。CI 总是先推送不可变的提交 SHA；仅当远端 main 仍指向当前提交时才更新 `latest`。
+两个镜像及两个标签的更新不是镜像仓库级原子操作。
 
 API 默认无参数启动。`--healthcheck` 是唯一支持的参数，供 Docker 使用配置中的 Bearer 令牌请求 `/health/ready`；其他参数均会被拒绝。API `/ping` 是 web-internal 端点，缺少有效 `X-HeyBlog-Web-Token` 时返回 401。Web `/api/ping` 仅接受同源页面 fetch，地址栏导航、跨站请求或缺少 Fetch Metadata 的请求返回 403。`/health/live` 和 `/health/ready` 是 internal 端点。
 
@@ -120,7 +128,7 @@ API 默认无参数启动。`--healthcheck` 是唯一支持的参数，供 Docke
 - `apps/api` 拥有业务规则、认证授权、数据库 Schema、迁移、查询和连接生命周期。
 - `apps/web` 通过 HTTP 使用 API，不直接访问数据库，也不暴露内部服务地址。
 - 共享代码只有在存在真实跨模块需求时才进入 `packages`。
-- `apps/web/contents` 是同步生成内容，不要直接编辑；需要更新时执行 `task web:content`。
+- `apps/web/contents` 是同步生成的提交固定快照，不要直接编辑；需要更新时执行 `task web:prepare`。
 
 修改模块前应先阅读仓库根目录和目标模块最近的 `AGENTS.md`。
 
@@ -170,7 +178,10 @@ task verify:full
 
 ## Git 与提交
 
-`task install` 会安装仓库 Git hooks。Pre-commit hook 会格式化暂存的受支持文件，commit-msg hook 会校验提交信息。
+`task setup` 会安装仓库 Git hooks。Pre-commit hook 会格式化暂存的受支持文件，commit-msg hook 会校验提交信息。
+
+GitHub 分支保护应使用统一 CI 的 `Check`、`API race test`、`API integration test`、`Web test`、
+`Dependency security` 和 `Container` 检查名称；仓库管理员需在工作流切换后手动更新 required checks。
 
 提交信息使用 Conventional Commits，标题不超过 72 个字符，例如：
 

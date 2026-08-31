@@ -3,41 +3,48 @@
 version: '3'
 
 vars:
+  DOCKER_COMMAND: '{{default "docker" .DOCKER_COMMAND}}'
   TRIVY_IMAGE: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
 
 tasks:
+  container:command:check:
+    internal: true
+    silent: true
+    cmds:
+      - |
+        case {{shellQuote .DOCKER_COMMAND}} in
+          docker|'sudo -- docker') ;;
+          *) printf '%s\n' 'DOCKER_COMMAND must be exactly "docker" or "sudo -- docker"' >&2; exit 1 ;;
+        esac
+
   container:base:
     desc: Build the shared HeyBlog builder image
     cmds:
-      - docker build --platform linux/amd64 -f infra/docker/Dockerfile.builder -t heyblog-builder:local .
-
-  container:api-build:
-    desc: Build the API in its module directory inside a root-context builder
-    cmds:
-      - task: api:build
-
-  container:web-build:
-    desc: Install the root workspace and build Web in its module directory
-    cmds:
-      - corepack install
-      - pnpm install --frozen-lockfile
-      - task: web:build
+      - task: container:command:check
+      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f infra/docker/Dockerfile.builder -t heyblog-builder:local .'
 
   container:build:
-    desc: Build local API and Web container images
+    desc: Build local API and Web container images from prepared inputs
     cmds:
-      - task: web:content
+      - task: container:command:check
       - task: container:base
-      - docker build --platform linux/amd64 -f apps/api/Dockerfile -t heyblog-api:local .
-      - docker build --platform linux/amd64 -f apps/web/Dockerfile -t heyblog-web:local .
+      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/api/Dockerfile -t heyblog-api:local .'
+      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/web/Dockerfile -t heyblog-web:local .'
 
   container:scan:
     desc: Scan local API and Web images for fixable high-severity vulnerabilities
     cmds:
+      - task: container:command:check
       - |
-        docker run --rm \
+        docker_host=${DOCKER_HOST:-unix:///var/run/docker.sock}
+        case "${docker_host}" in
+          unix://*) docker_socket=${docker_host#unix://} ;;
+          *) printf '%s\n' 'container:scan requires a Unix-socket DOCKER_HOST' >&2; exit 1 ;;
+        esac
+        {{.DOCKER_COMMAND}} run --rm \
           --entrypoint /bin/sh \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
+          --env DOCKER_HOST=unix:///var/run/docker.sock \
+          --volume "${docker_socket}:/var/run/docker.sock" \
           "{{.TRIVY_IMAGE}}" \
           -ec '
             for image in heyblog-api:local heyblog-web:local; do
@@ -52,39 +59,85 @@ tasks:
           '
 
   container:publish:
-    desc: Build and optionally publish API and Web images
+    desc: Tag and publish previously verified local images
+    requires:
+      vars: [REGISTRY, NAMESPACE, IMAGE_TAGS]
     cmds:
-      - task: container:build
-      - task: container:scan
+      - task: container:command:check
       - |
-        if [ "${PUSH:-false}" = "true" ]; then
-          : "${REGISTRY:?REGISTRY is required when PUSH=true}"
-          : "${NAMESPACE:?NAMESPACE is required when PUSH=true}"
-          for TAG in ${IMAGE_TAGS:-latest}; do
-            docker tag heyblog-api:local "${REGISTRY}/${NAMESPACE}/heyblog-api:${TAG}"
-            docker tag heyblog-web:local "${REGISTRY}/${NAMESPACE}/heyblog-web:${TAG}"
-            docker push "${REGISTRY}/${NAMESPACE}/heyblog-api:${TAG}"
-            docker push "${REGISTRY}/${NAMESPACE}/heyblog-web:${TAG}"
+        registry={{shellQuote .REGISTRY}}
+        namespace={{shellQuote .NAMESPACE}}
+        image_tags={{shellQuote .IMAGE_TAGS}}
+        registry_invalid() {
+          printf '%s\n' 'REGISTRY must be a lowercase Docker registry host with an optional valid port' >&2
+          exit 1
+        }
+        case "${registry}" in ''|*[!a-z0-9.:-]*|:*|*:|.*|*.|*..*) registry_invalid ;; esac
+        registry_host=${registry}
+        case "${registry}" in
+          *:*)
+            case "${registry}" in *:*:*) registry_invalid ;; esac
+            registry_host=${registry%:*}
+            registry_port=${registry##*:}
+            case "${registry_port}" in ''|*[!0-9]*) registry_invalid ;; esac
+            [ "${registry_port}" -ge 1 ] 2>/dev/null || registry_invalid
+            [ "${registry_port}" -le 65535 ] 2>/dev/null || registry_invalid
+            ;;
+        esac
+        [ "${#registry_host}" -le 253 ] || registry_invalid
+        old_ifs=${IFS}
+        IFS=.
+        set -- ${registry_host}
+        IFS=${old_ifs}
+        for registry_label in "$@"; do
+          case "${registry_label}" in ''|-*|*-|*[!a-z0-9-]*) registry_invalid ;; esac
+          [ "${#registry_label}" -le 63 ] || registry_invalid
+        done
+        printf '%s\n' "${namespace}" | grep -Eq '^[a-z0-9]+([._][a-z0-9]+|__[a-z0-9]+|-+[a-z0-9]+)*(\/[a-z0-9]+([._][a-z0-9]+|__[a-z0-9]+|-+[a-z0-9]+)*)*$' || {
+          printf '%s\n' 'NAMESPACE must be a slash-separated lowercase Docker repository path' >&2
+          exit 1
+        }
+        case "${image_tags}" in *[!A-Za-z0-9_.,-]*|'') printf '%s\n' 'IMAGE_TAGS must be a comma-separated tag list' >&2; exit 1;; esac
+        case ",${image_tags}," in *,,*) printf '%s\n' 'IMAGE_TAGS contains an empty tag' >&2; exit 1;; esac
+        old_ifs=${IFS}
+        IFS=,
+        set -- ${image_tags}
+        IFS=${old_ifs}
+        for tag in "$@"; do
+          case "${tag}" in
+            [A-Za-z0-9_]*) ;;
+            *) printf 'invalid image tag: %s\n' "${tag}" >&2; exit 1 ;;
+          esac
+          case "${tag}" in
+            *[!A-Za-z0-9_.-]*) printf 'invalid image tag: %s\n' "${tag}" >&2; exit 1 ;;
+          esac
+          [ "${#tag}" -le 128 ] || { printf 'image tag is too long: %s\n' "${tag}" >&2; exit 1; }
+        done
+        for image in heyblog-api:local heyblog-web:local; do
+          {{.DOCKER_COMMAND}} image inspect "${image}" >/dev/null
+        done
+        for tag in "$@"; do
+          for image in heyblog-api heyblog-web; do
+            target=${registry}/${namespace}/${image}:${tag}
+            {{.DOCKER_COMMAND}} tag "${image}:local" "${target}"
+            {{.DOCKER_COMMAND}} push "${target}"
           done
-        fi
+        done
 
   compose:check:
     desc: Validate the development dependency Compose configuration
     cmds:
-      - docker compose -f infra/docker/docker-compose.env.yaml config --quiet
+      - task: container:command:check
+      - '{{.DOCKER_COMMAND}} compose -f infra/docker/docker-compose.env.yaml config --quiet'
 
-  compose:dev:up:
-    desc: Start development PostgreSQL/AGE and Redis
-    cmds:
-      - docker compose -f infra/docker/docker-compose.env.yaml up -d --wait
-
-  compose:dev:down:
-    desc: Stop development PostgreSQL/AGE and Redis
-    cmds:
-      - docker compose -f infra/docker/docker-compose.env.yaml down
-
-  container:verify:
-    desc: Validate the development Compose configuration and build local images
+  container:check:
+    desc: Validate container configuration
     cmds:
       - task: compose:check
+
+  container:verify:
+    desc: Validate Compose, build images, and scan them
+    cmds:
+      - task: container:check
       - task: container:build
+      - task: container:scan

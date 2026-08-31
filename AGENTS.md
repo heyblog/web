@@ -70,11 +70,13 @@ their nearest `AGENTS.md`.
 ## Commands
 
 - `task --list-all`: discover available repository and module tasks.
-- `task install`: install repository dependencies and Git hooks when setup is required.
+- `task install`: install repository dependencies only.
+- `task prepare`: sync generated Web content; `task setup` additionally installs dependencies and Git hooks.
 - `task <module>:<task>`: run a focused module task, such as `task api:verify` or
   `task web:verify`.
-- `task verify`: run all offline repository checks.
-- `task verify:full`: run offline checks and network-backed vulnerability scanning.
+- `task check`: run repository formatting, lint, type, SQL, Task, and workflow checks.
+- `task verify`: run checks, ordinary tests, and application builds.
+- `task verify:full`: run extended tests, builds, dependency and container security validation.
 - `task security`: run only the network-backed vulnerability checks.
 
 Prefer the narrowest relevant module command while iterating, then run repository-wide validation.

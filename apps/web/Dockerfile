@@ -7,7 +7,9 @@ WORKDIR /workspace
 COPY . .
 
 RUN --mount=type=cache,id=heyblog-pnpm-store,target=/root/.local/share/pnpm/store \
-    task container:web-build
+    corepack install \
+    && pnpm install --frozen-lockfile \
+    && task web:build
 
 FROM node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930bdfa482de99fcdfa3b3de AS runner
 

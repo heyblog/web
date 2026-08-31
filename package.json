@@ -4,15 +4,11 @@
   "type": "module",
   "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee",
   "scripts": {
-    "format": "pnpm run format:root && pnpm -r --if-present run format",
-    "format:root": "prettier --config ./packages/node/configs/prettier.config.ts --write \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"commitlint.config.cjs\" \"package.json\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
-    "format:check": "pnpm run format:check:root && pnpm -r --if-present run format:check",
-    "format:check:root": "prettier --config ./packages/node/configs/prettier.config.ts --check \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"commitlint.config.cjs\" \"package.json\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
-    "lint": "pnpm run lint:root && pnpm -r --if-present run lint",
-    "lint:root": "eslint --config ./packages/node/configs/eslint.config.ts \"commitlint.config.cjs\" \"scripts/**/*.mjs\"",
-    "lint:fix": "pnpm run lint:fix:root && pnpm -r --if-present run lint:fix",
-    "lint:fix:root": "eslint --config ./packages/node/configs/eslint.config.ts \"commitlint.config.cjs\" \"scripts/**/*.mjs\" --fix",
-    "typecheck": "pnpm -r --if-present run typecheck"
+    "format": "prettier --config ./packages/node/configs/prettier.config.ts --write \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"packages/node/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --config ./packages/node/configs/prettier.config.ts --check \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"packages/node/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
+    "lint": "eslint --config ./eslint.config.ts \"*.{cjs,ts}\" \"scripts/**/*.mjs\"",
+    "lint:fix": "eslint --config ./eslint.config.ts \"*.{cjs,ts}\" \"scripts/**/*.mjs\" --fix",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",

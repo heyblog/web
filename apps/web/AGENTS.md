@@ -8,7 +8,7 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 - Treat `package.json`, `astro.config.ts`, `src/site.config.ts`, `svelte.config.ts`, and
   `Taskfile.yaml` as the current dependency, runtime, site metadata, and command truth.
 - Treat `apps/web/contents` as a generated snapshot of the `contents/` directory from the
-  `heyblog/.github` repository. `task web:content` resolves the remote `main` branch to a commit,
+  `heyblog/.github` repository. `task web:prepare` resolves the remote `main` branch to a commit,
   requires every source declared in `content-sources.mjs` and consumed by `content.config.ts` to be
   non-empty, downloads the files from that immutable commit, and records the resolved source in
   `.source-revision`.
@@ -137,17 +137,18 @@ Browser -> Astro server route/page -> Go API -> database
 Run commands from the repository root:
 
 - `task web:dev`: start the Astro development server.
-- `task web:check`: run Astro and TypeScript checks.
+- `task web:typecheck`: run Astro and TypeScript checks.
+- `task web:check`: run Web formatting, lint, and type checks.
 - `task web:test`: run focused Node tests for Web server infrastructure.
 - `task web:lint`: run ESLint and Stylelint.
 - `task web:format:check`: check formatting.
 - `task web:build`: invoke the Web build from the repository root; the module command runs in
   `apps/web`.
-- `task web:content`: sync generated content from the `heyblog/.github` `main` branch.
+- `task web:prepare`: sync generated content from the `heyblog/.github` `main` branch.
 - `task web:verify`: run all current offline web checks.
 - `task container:build`: build the production container image after Dockerfile changes.
 
-Run `task web:content` after initial checkout or when the remote content changes. Offline checks
+Run `task web:prepare` after initial checkout or when the remote content changes. Offline checks
 consume the existing generated snapshot and do not update it.
 
 Use the current Node test task for server adapters, authentication, proxying, rendering decisions,
