@@ -202,7 +202,6 @@ INSERT INTO directory.sites (
     visibility,
     visibility_reason,
     joined_at,
-    created_at,
     updated_at
 ) VALUES (
     $1::uuid,
@@ -216,8 +215,7 @@ INSERT INTO directory.sites (
     $9,
     $10::text,
     $11::timestamptz,
-    $12::timestamptz,
-    $13::timestamptz
+    $12::timestamptz
 )
 `
 
@@ -233,7 +231,6 @@ type InsertSiteParams struct {
 	Visibility       string
 	VisibilityReason *string
 	JoinedAt         pgtype.Timestamptz
-	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
 }
 
@@ -250,7 +247,6 @@ func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
 		arg.Visibility,
 		arg.VisibilityReason,
 		arg.JoinedAt,
-		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
 	return err

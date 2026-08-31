@@ -38,7 +38,6 @@ CREATE TABLE directory.sites (
     visibility_reason text, -- Required explanation when the site is HIDDEN or REMOVED.
     revision bigint NOT NULL DEFAULT 1, -- Optimistic concurrency revision incremented on every update.
     joined_at timestamptz NOT NULL DEFAULT now(), -- Time the site joined the directory.
-    created_at timestamptz NOT NULL DEFAULT now(), -- Database record creation time.
     updated_at timestamptz NOT NULL DEFAULT now(), -- Last site update time maintained with revision by trigger.
     CONSTRAINT sites_short_id_check CHECK (short_id ~ '^[0-9A-Za-z]{9}$'),
     CONSTRAINT sites_custom_id_check CHECK (
@@ -64,8 +63,7 @@ CREATE TABLE directory.sites (
         (visibility = 'VISIBLE' AND visibility_reason IS NULL)
         OR (visibility <> 'VISIBLE' AND btrim(visibility_reason) <> '')
     ),
-    CONSTRAINT sites_revision_check CHECK (revision >= 1),
-    CONSTRAINT sites_joined_at_check CHECK (joined_at >= created_at)
+    CONSTRAINT sites_revision_check CHECK (revision >= 1)
 );
 
 CREATE UNIQUE INDEX sites_short_id_unique_idx ON directory.sites (short_id);
@@ -410,7 +408,6 @@ COMMENT ON COLUMN directory.sites.visibility IS 'Directory lifecycle state: VISI
 COMMENT ON COLUMN directory.sites.visibility_reason IS 'Required explanation when the site is HIDDEN or REMOVED.';
 COMMENT ON COLUMN directory.sites.revision IS 'Optimistic concurrency revision incremented on every update.';
 COMMENT ON COLUMN directory.sites.joined_at IS 'Time the site joined the directory.';
-COMMENT ON COLUMN directory.sites.created_at IS 'Database record creation time.';
 COMMENT ON COLUMN directory.sites.updated_at IS 'Last site update time maintained with revision by trigger.';
 COMMENT ON COLUMN directory.site_feeds.id IS 'UUIDv7 feed candidate primary key.';
 COMMENT ON COLUMN directory.site_feeds.site_id IS 'Site that publishes the feed.';

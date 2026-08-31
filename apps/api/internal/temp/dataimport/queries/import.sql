@@ -32,7 +32,6 @@ INSERT INTO directory.sites (
     visibility,
     visibility_reason,
     joined_at,
-    created_at,
     updated_at
 ) VALUES (
     sqlc.arg(id)::uuid,
@@ -46,7 +45,6 @@ INSERT INTO directory.sites (
     sqlc.arg(visibility),
     sqlc.narg(visibility_reason)::text,
     sqlc.arg(joined_at)::timestamptz,
-    sqlc.arg(created_at)::timestamptz,
     sqlc.arg(updated_at)::timestamptz
 );
 

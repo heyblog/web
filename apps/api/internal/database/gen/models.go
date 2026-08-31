@@ -118,8 +118,6 @@ type DirectorySite struct {
 	Revision int64
 	// Time the site joined the directory.
 	JoinedAt pgtype.Timestamptz
-	// Database record creation time.
-	CreatedAt pgtype.Timestamptz
 	// Last site update time maintained with revision by trigger.
 	UpdatedAt pgtype.Timestamptz
 }

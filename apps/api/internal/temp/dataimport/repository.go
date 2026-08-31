@@ -93,7 +93,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 			Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath,
 			Summary: row.Summary, AccessScope: row.AccessScope, Visibility: row.Visibility,
 			VisibilityReason: nullableText(row.VisibilityReason),
-			JoinedAt:         timestamp(row.JoinedAt), CreatedAt: timestamp(row.CreatedAt), UpdatedAt: timestamp(row.UpdatedAt),
+			JoinedAt:         timestamp(row.JoinedAt), UpdatedAt: timestamp(row.UpdatedAt),
 		}); err != nil {
 			return fmt.Errorf("insert sites: %w", err)
 		}

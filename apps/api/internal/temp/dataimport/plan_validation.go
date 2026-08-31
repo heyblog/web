@@ -28,7 +28,7 @@ func validatePlan(plan Plan) error {
 			row.Visibility == "HIDDEN" && strings.TrimSpace(row.VisibilityReason) == "" {
 			return fmt.Errorf("site %q contains invalid profile data", row.ID)
 		}
-		if row.JoinedAt.Before(row.CreatedAt) || row.UpdatedAt.Before(row.JoinedAt) || row.UpdatedAt.Before(row.CreatedAt) {
+		if row.UpdatedAt.Before(row.JoinedAt) {
 			return fmt.Errorf("site %q contains invalid timestamps", row.ID)
 		}
 		siteIDs[row.ID] = row

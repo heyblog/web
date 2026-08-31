@@ -33,7 +33,6 @@ type SiteRow struct {
 	Visibility       string
 	VisibilityReason string
 	JoinedAt         time.Time
-	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
 

@@ -86,7 +86,7 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 			Scheme: address.Scheme, NormalizedHost: address.NormalizedHost, BasePath: address.BasePath,
 			Summary: strings.TrimSpace(blog.Summary), AccessScope: blog.AccessScope,
 			Visibility: blog.Visibility, VisibilityReason: valueOrEmpty(blog.VisibilityReason),
-			JoinedAt: joinedAt, CreatedAt: createdAt, UpdatedAt: updatedAt,
+			JoinedAt: joinedAt, UpdatedAt: updatedAt,
 		})
 		siteIDByHost[address.NormalizedHost] = blog.ID
 		for feedIndex, feed := range blog.Feeds {

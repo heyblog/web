@@ -246,8 +246,8 @@ func TestBuildPlanMapsDirectoryRelationsAndRetriesShortIDCollision(t *testing.T)
 	if first.AccessScope != "GLOBAL_ONLY" || first.Visibility != "VISIBLE" || first.Summary != "Example summary" {
 		t.Fatalf("first site profile = %#v, want mapped legacy profile", first)
 	}
-	if !first.JoinedAt.Equal(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)) || !first.CreatedAt.Equal(first.JoinedAt) {
-		t.Fatalf("site times = (%s, %s), want join time preserved as created time", first.JoinedAt, first.CreatedAt)
+	if !first.JoinedAt.Equal(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("site joined_at = %s, want preserved legacy join time", first.JoinedAt)
 	}
 	if len(plan.Feeds) != 1 || plan.Feeds[0].LocationType != "RELATIVE" || plan.Feeds[0].URLRef != "/blog/feed.xml" || plan.Feeds[0].Format != "ATOM" {
 		t.Fatalf("feeds = %#v, want normalized relative Atom feed", plan.Feeds)

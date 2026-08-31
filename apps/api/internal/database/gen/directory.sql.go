@@ -183,7 +183,7 @@ INSERT INTO directory.sites (
     summary,
     access_scope
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
 `
 
 type CreateSiteParams struct {
@@ -223,7 +223,6 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Directo
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -341,7 +340,7 @@ func (q *Queries) DeleteSiteResource(ctx context.Context, arg DeleteSiteResource
 }
 
 const getSiteByCustomID = `-- name: GetSiteByCustomID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at FROM directory.sites WHERE custom_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE custom_id = $1
 `
 
 func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error) {
@@ -361,14 +360,13 @@ func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (Dire
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getSiteByHost = `-- name: GetSiteByHost :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at FROM directory.sites WHERE normalized_host = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE normalized_host = $1
 `
 
 func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (DirectorySite, error) {
@@ -388,14 +386,13 @@ func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (Dir
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getSiteByID = `-- name: GetSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at FROM directory.sites WHERE id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE id = $1
 `
 
 func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -415,14 +412,13 @@ func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySit
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getSiteByShortID = `-- name: GetSiteByShortID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at FROM directory.sites WHERE short_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE short_id = $1
 `
 
 func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error) {
@@ -442,7 +438,6 @@ func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (Directo
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -851,7 +846,7 @@ func (q *Queries) ListSoftwareComponentDependencies(ctx context.Context, compone
 }
 
 const listVisibleSites = `-- name: ListVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
   FROM directory.sites
  WHERE visibility = 'VISIBLE'
  ORDER BY joined_at DESC, id DESC
@@ -886,7 +881,6 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 			&i.VisibilityReason,
 			&i.Revision,
 			&i.JoinedAt,
-			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -920,7 +914,7 @@ UPDATE directory.sites
    SET visibility = $2,
        visibility_reason = $3
  WHERE id = $1 AND revision = $4
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
 `
 
 type SetSiteVisibilityParams struct {
@@ -952,7 +946,6 @@ func (q *Queries) SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityPa
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -994,7 +987,7 @@ UPDATE directory.sites
        normalized_host = $3,
        base_path = $4
  WHERE id = $1 AND revision = $5
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
 `
 
 type UpdateSiteAddressParams struct {
@@ -1028,7 +1021,6 @@ func (q *Queries) UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressPa
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -1041,7 +1033,7 @@ UPDATE directory.sites
        summary = $4,
        access_scope = $5
  WHERE id = $1 AND revision = $6
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, created_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
 `
 
 type UpdateSiteDirectoryProfileParams struct {
@@ -1077,7 +1069,6 @@ func (q *Queries) UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSite
 		&i.VisibilityReason,
 		&i.Revision,
 		&i.JoinedAt,
-		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err

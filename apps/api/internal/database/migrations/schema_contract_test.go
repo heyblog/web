@@ -146,6 +146,33 @@ func TestDirectoryTagsAndIconsUseReviewedConstraints(t *testing.T) {
 	}
 }
 
+func TestDirectorySitesUsesJoinedAtAsItsOnlyCreationTimestamp(t *testing.T) {
+	t.Parallel()
+
+	// Given
+	migrationFS, err := Filesystem()
+	if err != nil {
+		t.Fatalf("Filesystem() error = %v", err)
+	}
+	content, err := fs.ReadFile(migrationFS, "00004_directory.sql")
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	sitesDefinition := strings.Split(strings.Split(string(content), "CREATE TABLE directory.sites (")[1], ");")[0]
+
+	// When
+	hasJoinedAt := strings.Contains(sitesDefinition, "joined_at timestamptz NOT NULL DEFAULT now()")
+	hasCreatedAt := strings.Contains(sitesDefinition, "created_at")
+
+	// Then
+	if !hasJoinedAt {
+		t.Error("directory.sites is missing its joined_at creation timestamp")
+	}
+	if hasCreatedAt {
+		t.Error("directory.sites still contains the redundant created_at timestamp")
+	}
+}
+
 func collectCreatedTables(t *testing.T, migrationFS fs.FS) []string {
 	t.Helper()
 
