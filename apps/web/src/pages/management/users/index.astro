@@ -1,0 +1,141 @@
+---
+import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
+import { managementPermissions, type SessionUser } from '@/application/auth/auth.types';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import UserAuthorizationCard from '@/components/auth/UserAuthorizationCard.astro';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fusers');
+const allowed =
+  actor.role === 'SYS_ADMIN' ||
+  (actor.role === 'ADMIN' && actor.permissions.includes('user.manage'));
+if (!allowed) return Astro.redirect('/forbidden');
+const response = await requestAuthAPI(Astro.request, '/management/users');
+if (!response.ok)
+  return Astro.redirect(`/forbidden?error=${encodeURIComponent(await readProblemCode(response))}`);
+const payload = (await response.json()) as { readonly users: readonly SessionUser[] };
+const permissionLabels: Readonly<Record<(typeof managementPermissions)[number], string>> = {
+  'user.manage': '用户授权',
+  'site_audit.review': '站点审核',
+  'feedback.review': '反馈处理',
+  'announcement.manage': '公告管理',
+  'taxonomy.manage': '分类维护',
+  'site.manage': '站点维护',
+  'task.manage': '任务管理',
+  'log.read': '日志查看',
+};
+---
+
+<ManagementLayout
+  title="用户与授权 | HeyBlog"
+  heading="用户与授权"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[
+    { label: '用户与授权', href: '/management/users', description: '管理角色与模块权限' },
+  ]}
+>
+  <AuthNotice
+    message={Astro.url.searchParams.get('status') === 'updated' ? '授权已更新。' : null}
+    kind="success"
+  />
+  <div class="grid gap-4 md:hidden">
+    {
+      payload.users.map((user) => (
+        <UserAuthorizationCard actor={actor} user={user} permissionLabels={permissionLabels} />
+      ))
+    }
+  </div>
+  <div class="hidden overflow-x-auto border-y border-line md:block">
+    <table class="w-full min-w-220 border-collapse text-left text-sm">
+      <thead
+        ><tr class="bg-subtle text-xs text-fg-muted"
+          ><th class="p-3 font-medium">用户</th><th class="p-3 font-medium">状态</th><th
+            class="p-3 font-medium">角色</th
+          ><th class="p-3 font-medium">模块权限</th></tr
+        ></thead
+      >
+      <tbody class="divide-y divide-line">
+        {
+          payload.users.map((user) => (
+            <tr class="align-top">
+              <td class="px-3 py-4">
+                <>
+                  <strong class="block font-medium">{user.display_name}</strong>
+                  <span class="text-xs text-fg-muted">{user.email}</span>
+                </>
+              </td>
+              <td class="px-3 py-4 text-xs">
+                {user.active ? '可用' : '停用'} · {user.email_verified ? '已验证' : '未验证'}
+              </td>
+              <td class="px-3 py-4">
+                <form
+                  class="flex items-center gap-2"
+                  method="post"
+                  action={`/management/users/${user.id}/role`}
+                >
+                  <select
+                    class="min-h-10 rounded-sm border border-line-strong bg-surface px-2"
+                    name="role"
+                    disabled={actor.role !== 'SYS_ADMIN' || actor.id === user.id}
+                  >
+                    <>
+                      <option value="USER" selected={user.role === 'USER'}>
+                        USER
+                      </option>
+                      <option value="ADMIN" selected={user.role === 'ADMIN'}>
+                        ADMIN
+                      </option>
+                    </>
+                  </select>
+                  <button
+                    class="min-h-10 rounded-sm border border-line-strong px-3 font-medium hover:bg-subtle disabled:opacity-50"
+                    disabled={actor.role !== 'SYS_ADMIN' || actor.id === user.id}
+                    type="submit"
+                  >
+                    保存
+                  </button>
+                </form>
+              </td>
+              <td class="px-3 py-4">
+                <form
+                  class="grid gap-3"
+                  method="post"
+                  action={`/management/users/${user.id}/permissions`}
+                >
+                  <fieldset
+                    class="grid grid-cols-2 gap-x-4 gap-y-2"
+                    disabled={user.role !== 'ADMIN' || actor.id === user.id}
+                  >
+                    <legend class="sr-only">{user.display_name} 的模块权限</legend>
+                    {managementPermissions.map((permission) => (
+                      <label class="flex min-h-8 items-center gap-2">
+                        <input
+                          class="size-4 accent-primary"
+                          type="checkbox"
+                          name="permissions"
+                          value={permission}
+                          checked={user.permissions.includes(permission)}
+                        />
+                        <span class="text-xs">{permissionLabels[permission]}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <button
+                    class="min-h-10 w-fit rounded-sm border border-line-strong px-3 font-medium hover:bg-subtle disabled:opacity-50"
+                    disabled={user.role !== 'ADMIN' || actor.id === user.id}
+                    type="submit"
+                  >
+                    保存权限
+                  </button>
+                </form>
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</ManagementLayout>

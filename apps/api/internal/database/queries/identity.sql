@@ -174,3 +174,103 @@ UPDATE identity.users
  WHERE id IN (SELECT user_id FROM removed_identity)
    AND deletion_requested_at IS NULL
    AND deleted_at IS NULL;
+
+-- name: SetUserEmailVerified :exec
+UPDATE identity.users
+   SET email_verified_at = clock_timestamp()
+ WHERE id = sqlc.arg(id)::uuid
+   AND deleted_at IS NULL;
+
+-- name: SetUserPassword :exec
+UPDATE identity.users
+   SET password_hash = sqlc.arg(password_hash)::text,
+       auth_version = auth_version + 1
+ WHERE id = sqlc.arg(id)::uuid
+   AND access_status = 'ACTIVE'
+   AND deleted_at IS NULL;
+
+-- name: DeleteEmailVerificationCodes :exec
+DELETE FROM identity.email_verification_codes
+ WHERE user_id = sqlc.arg(user_id)::uuid;
+
+-- name: CreateEmailVerificationCode :exec
+INSERT INTO identity.email_verification_codes (user_id, email, code_hash, expires_at)
+VALUES (sqlc.arg(user_id)::uuid, sqlc.arg(email)::text, sqlc.arg(code_hash)::text, sqlc.arg(expires_at)::timestamptz);
+
+-- name: GetLatestEmailVerificationCode :one
+SELECT id, user_id, email, code_hash, attempt_count, expires_at, consumed_at, created_at
+  FROM identity.email_verification_codes
+ WHERE email = sqlc.arg(email)::text AND consumed_at IS NULL
+ ORDER BY created_at DESC
+ LIMIT 1
+ FOR UPDATE;
+
+-- name: IncrementEmailVerificationAttempts :exec
+UPDATE identity.email_verification_codes
+   SET attempt_count = attempt_count + 1
+ WHERE id = sqlc.arg(id)::uuid;
+
+-- name: ConsumeEmailVerificationCode :exec
+UPDATE identity.email_verification_codes
+   SET consumed_at = clock_timestamp()
+ WHERE id = sqlc.arg(id)::uuid AND consumed_at IS NULL;
+
+-- name: DeletePasswordResetTokens :exec
+DELETE FROM identity.password_reset_tokens
+ WHERE user_id = sqlc.arg(user_id)::uuid;
+
+-- name: CreatePasswordResetToken :exec
+INSERT INTO identity.password_reset_tokens (user_id, email, token_hash, expires_at)
+VALUES (sqlc.arg(user_id)::uuid, sqlc.arg(email)::text, sqlc.arg(token_hash)::text, sqlc.arg(expires_at)::timestamptz);
+
+-- name: GetPasswordResetToken :one
+SELECT id, user_id, email, token_hash, expires_at, consumed_at, created_at
+  FROM identity.password_reset_tokens
+ WHERE token_hash = sqlc.arg(token_hash)::text AND consumed_at IS NULL
+ FOR UPDATE;
+
+-- name: ConsumePasswordResetToken :exec
+UPDATE identity.password_reset_tokens
+   SET consumed_at = clock_timestamp()
+ WHERE id = sqlc.arg(id)::uuid AND consumed_at IS NULL;
+
+-- name: ListUserManagementPermissions :many
+SELECT permission_key
+  FROM identity.user_management_permissions
+ WHERE user_id = sqlc.arg(user_id)::uuid
+ ORDER BY permission_key;
+
+-- name: ListUsersForManagement :many
+SELECT id, email, username, display_name, password_hash, role, access_status,
+       email_verified_at, auth_version, profile, settings, last_login_at,
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+  FROM identity.users
+ WHERE deleted_at IS NULL
+ ORDER BY created_at DESC;
+
+-- name: SetUserRole :exec
+UPDATE identity.users
+   SET role = sqlc.arg(role)::text
+ WHERE id = sqlc.arg(id)::uuid AND deleted_at IS NULL;
+
+-- name: BumpUserAuthVersion :exec
+UPDATE identity.users
+   SET auth_version = auth_version + 1
+ WHERE id = sqlc.arg(id)::uuid AND deleted_at IS NULL;
+
+-- name: DeleteUserManagementPermissions :exec
+DELETE FROM identity.user_management_permissions
+ WHERE user_id = sqlc.arg(user_id)::uuid;
+
+-- name: CreateUserManagementPermission :exec
+INSERT INTO identity.user_management_permissions (user_id, permission_key, granted_by)
+VALUES (sqlc.arg(user_id)::uuid, sqlc.arg(permission_key)::text, sqlc.arg(granted_by)::uuid);
+
+-- name: GetUserGitHubIdentity :one
+SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
+  FROM identity.oauth_identities
+ WHERE provider = 'GITHUB' AND user_id = sqlc.arg(user_id)::uuid;
+
+-- name: DeleteUserGitHubIdentity :exec
+DELETE FROM identity.oauth_identities
+ WHERE provider = 'GITHUB' AND user_id = sqlc.arg(user_id)::uuid;

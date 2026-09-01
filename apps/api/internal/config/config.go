@@ -50,6 +50,7 @@ type Config struct {
 	Logging              LoggingConfig
 	HTTP                 HTTPConfig
 	Health               HealthConfig
+	Auth                 AuthConfig
 }
 
 type ServerConfig struct {
@@ -137,6 +138,7 @@ type fileConfig struct {
 	Logging  fileLoggingConfig  `yaml:"logging"`
 	HTTP     fileHTTPConfig     `yaml:"http"`
 	Health   fileHealthConfig   `yaml:"health"`
+	Auth     fileAuthConfig     `yaml:"auth"`
 }
 
 type fileServerConfig struct {
@@ -272,13 +274,19 @@ func load(paths configPaths, getenv getenvFunc) (Config, error) {
 		return Config{}, fmt.Errorf("default configuration must not define mode")
 	}
 	override, err := readYAML(paths.Override)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		base.Content = append(base.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "mode"},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: string(ModeDevelopment)},
+		)
+	} else if err != nil {
 		return Config{}, fmt.Errorf("read configuration override: %w", err)
+	} else {
+		if mappingValueIndex(override, "mode") < 0 {
+			return Config{}, fmt.Errorf("configuration override must define mode")
+		}
+		mergeYAML(base, override)
 	}
-	if mappingValueIndex(override, "mode") < 0 {
-		return Config{}, fmt.Errorf("configuration override must define mode")
-	}
-	mergeYAML(base, override)
 
 	fileValues, err := decodeFileConfig(base)
 	if err != nil {
@@ -505,6 +513,7 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 			ReadinessTimeout: time.Duration(values.Health.ReadinessTimeout),
 			DrainDelay:       time.Duration(values.Health.DrainDelay),
 		},
+		Auth: resolveAuthConfig(values.Mode, values.Auth, getenv),
 	}
 	if err := config.validate(); err != nil {
 		return Config{}, err
@@ -560,6 +569,9 @@ func (configuration Config) validate() error {
 	}
 	if configuration.Health.DrainDelay < 0 {
 		return fmt.Errorf("health.drain_delay must not be negative")
+	}
+	if err := validateAuthConfig(configuration.Mode, configuration.Auth); err != nil {
+		return err
 	}
 	if err := validateTrustedProxies(configuration.HTTP.TrustedProxies); err != nil {
 		return err

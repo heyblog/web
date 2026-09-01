@@ -17,22 +17,34 @@ type Querier interface {
 	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (ContentAnnouncement, error)
 	AssignSiteSoftwareComponent(ctx context.Context, arg AssignSiteSoftwareComponentParams) (DirectorySiteSoftwareComponent, error)
 	AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (DirectorySiteTag, error)
+	BumpUserAuthVersion(ctx context.Context, id pgtype.UUID) error
 	CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error
+	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
+	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
+	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error
 	CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error)
 	CreateSoftwareComponent(ctx context.Context, arg CreateSoftwareComponentParams) (DirectorySoftwareComponent, error)
 	CreateTag(ctx context.Context, arg CreateTagParams) (DirectoryTag, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (IdentityUser, error)
+	CreateUserManagementPermission(ctx context.Context, arg CreateUserManagementPermissionParams) error
 	DeleteDraftAnnouncement(ctx context.Context, id pgtype.UUID) (int64, error)
+	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
+	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error
 	DeleteSiteResource(ctx context.Context, arg DeleteSiteResourceParams) error
+	DeleteUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) error
+	DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error
 	GetActiveBannerAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
+	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
+	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
 	GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error)
 	GetSiteByHost(ctx context.Context, normalizedHost string) (DirectorySite, error)
 	GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
@@ -42,6 +54,8 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (IdentityUser, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserByUsername(ctx context.Context, username string) (IdentityUser, error)
+	GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error)
+	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	ListActiveMainAnnouncements(ctx context.Context) ([]ContentAnnouncement, error)
 	ListAnnouncementRevisions(ctx context.Context, announcementID pgtype.UUID) ([]ContentAnnouncementRevision, error)
 	ListAnnouncementsForManagement(ctx context.Context, arg ListAnnouncementsForManagementParams) ([]ListAnnouncementsForManagementRow, error)
@@ -58,7 +72,9 @@ type Querier interface {
 	ListSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListSiteSoftwareComponentsRow, error)
 	ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListSiteTagsRow, error)
 	ListSoftwareComponentDependencies(ctx context.Context, componentID pgtype.UUID) ([]ListSoftwareComponentDependenciesRow, error)
+	ListUserManagementPermissions(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
+	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
@@ -66,6 +82,9 @@ type Querier interface {
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error
 	RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
+	SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error
+	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
+	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
 	SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	UnassignSiteSoftwareComponent(ctx context.Context, arg UnassignSiteSoftwareComponentParams) error
 	UnassignSiteTag(ctx context.Context, arg UnassignSiteTagParams) error

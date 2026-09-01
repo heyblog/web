@@ -144,6 +144,14 @@ func (dependencies *Dependencies) DatabasePool() *pgxpool.Pool {
 	return dependencies.Database
 }
 
+func (dependencies *Dependencies) RedisClient() *redis.Client { return dependencies.Redis }
+
+func (dependencies *Dependencies) Mail() mail.Sender { return dependencies.MailSender }
+
+func (dependencies *Dependencies) Verification() *mail.VerificationMailer {
+	return dependencies.VerificationMailer
+}
+
 func (dependencies *Dependencies) Close() error {
 	dependencies.closeOnce.Do(func() {
 		var closeErrors []error

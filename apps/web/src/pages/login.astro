@@ -1,0 +1,67 @@
+---
+import { IconBrandGithub, IconLogin2 } from '@tabler/icons-svelte';
+
+import { readSessionUser, safeNext } from '@/application/auth/auth.server';
+import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import AuthLayout from '@/layouts/AuthLayout.astro';
+
+export const prerender = false;
+const next = safeNext(Astro.url.searchParams.get('next'));
+const user = await readSessionUser(Astro.request);
+if (user) return Astro.redirect(next);
+const error = authErrorMessage(Astro.url.searchParams.get('error'));
+const status = authStatusMessage(Astro.url.searchParams.get('status'));
+---
+
+<AuthLayout title="登录 | HeyBlog" heading="登录" description="使用 HeyBlog 账号或 GitHub 继续。">
+  <AuthNotice message={error} />
+  <AuthNotice message={status} kind="success" />
+  <form class="grid gap-4" method="post" action="/auth/login">
+    <input type="hidden" name="next" value={next} />
+    <label class="grid gap-1.5 text-sm font-medium text-fg">
+      用户名或邮箱
+      <input
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base transition-colors outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+        name="identifier"
+        autocomplete="username"
+        required
+      />
+    </label>
+    <label class="grid gap-1.5 text-sm font-medium text-fg">
+      密码
+      <input
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base transition-colors outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        minlength="8"
+        maxlength="128"
+        required
+      />
+    </label>
+    <button
+      class="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-primary px-4 text-sm font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
+      type="submit"
+    >
+      <IconLogin2 size={18} stroke={1.8} aria-hidden="true" /> 登录
+    </button>
+  </form>
+  <div
+    class="my-5 flex items-center gap-3 text-xs text-fg-subtle before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line"
+  >
+    或
+  </div>
+  <a
+    class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm border border-line-strong bg-surface px-4 text-sm font-semibold text-fg transition-colors hover:bg-subtle"
+    href={`/auth/github/start?next=${encodeURIComponent(next)}`}
+  >
+    <IconBrandGithub size={18} stroke={1.8} aria-hidden="true" /> 使用 GitHub 登录
+  </a>
+  <nav class="mt-6 flex flex-wrap justify-between gap-3 text-sm" aria-label="账号帮助">
+    <a class="text-tint-fg hover:underline" href={`/register?next=${encodeURIComponent(next)}`}
+      >创建账号</a
+    >
+    <a class="text-tint-fg hover:underline" href="/forgot-password">忘记密码</a>
+  </nav>
+</AuthLayout>

@@ -25,10 +25,17 @@ type sesSendError struct {
 	cause error
 }
 
+type sesCredentialError struct {
+	cause error
+}
+
 func OpenSES(ctx context.Context, region string) (Sender, error) {
 	configuration, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 	if err != nil {
-		return nil, fmt.Errorf("load AWS configuration for SES: %w", err)
+		return nil, &sesCredentialError{cause: err}
+	}
+	if _, err := configuration.Credentials.Retrieve(ctx); err != nil {
+		return nil, &sesCredentialError{cause: err}
 	}
 	return newSESSender(sesv2.NewFromConfig(configuration)), nil
 }
@@ -73,6 +80,26 @@ func (err *sesSendError) Error() string {
 
 func (err *sesSendError) Unwrap() error {
 	return err.cause
+}
+
+func (err *sesSendError) Is(target error) bool {
+	return target == ErrDeliveryUnavailable
+}
+
+func (err *sesSendError) Component() string {
+	return "ses"
+}
+
+func (err *sesCredentialError) Error() string {
+	return "load AWS credentials for SES"
+}
+
+func (err *sesCredentialError) Unwrap() error {
+	return err.cause
+}
+
+func (err *sesCredentialError) Component() string {
+	return "ses"
 }
 
 func content(value string) *types.Content {

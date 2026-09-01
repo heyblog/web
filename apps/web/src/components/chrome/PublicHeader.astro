@@ -25,6 +25,7 @@ const navigationLinkClass =
 const activeNavigationLinkClass = 'text-fg after:scale-x-100 after:opacity-100';
 const iconButtonClass =
   'inline-flex size-11 cursor-pointer appearance-none items-center justify-center rounded-md border border-line-strong bg-surface p-0 text-fg-muted transition-[border-color,background-color,color,scale] ease-standard [transition-duration:var(--motion-color),var(--motion-color),var(--motion-color),var(--motion-fast)] hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 sm:size-10';
+const hasSession = Boolean(Astro.request.headers.get('cookie')?.includes('heyblog_access_token='));
 ---
 
 <header
@@ -70,6 +71,12 @@ const iconButtonClass =
     </nav>
 
     <div class="ml-auto flex items-center gap-2">
+      <a
+        class="hidden min-h-10 items-center rounded-sm px-3 text-sm font-medium text-fg-muted transition-colors hover:bg-tint hover:text-tint-fg sm:inline-flex"
+        href={hasSession ? '/dashboard' : '/login'}
+      >
+        {hasSession ? '账号' : '登录'}
+      </a>
       <ThemeToggle />
       <details class="group relative sm:hidden" data-public-menu data-details-state="closed">
         <summary
@@ -119,6 +126,10 @@ const iconButtonClass =
               </a>
             ))
           }
+          <a
+            class="flex min-h-11 items-center rounded-sm px-3 text-sm font-medium text-fg-muted hover:bg-tint hover:text-tint-fg"
+            href={hasSession ? '/dashboard' : '/login'}>{hasSession ? '账号' : '登录'}</a
+          >
         </nav>
       </details>
     </div>

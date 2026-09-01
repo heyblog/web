@@ -1,0 +1,14 @@
+---
+import AuthLayout from '@/layouts/AuthLayout.astro';
+export const prerender = false;
+---
+
+<AuthLayout
+  title="无权访问 | HeyBlog"
+  heading="无权访问"
+  description="当前账号没有访问该页面的权限。"
+  ><a
+    class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 text-sm font-medium hover:bg-subtle"
+    href="/dashboard">返回账号页</a
+  ></AuthLayout
+>

@@ -38,6 +38,12 @@ The request path is:
 Browser -> Astro server route/page -> Go API -> database
 ```
 
+Authentication forms and OAuth callbacks enter through the same-origin `/auth/[...path]` Astro
+gateway. Forward only the shared Web token, the incoming Cookie header, and API Set-Cookie headers;
+never expose API secrets or authentication tokens to browser JavaScript. Protected pages read
+`/auth/me` during SSR and redirect unauthenticated users to `/login` with a sanitized local `next`
+path. Management pages additionally enforce the API-provided role and permission snapshot.
+
 ## Stack and Code Placement
 
 - Use Astro for filesystem routing, layouts, content, server rendering, and page composition.

@@ -2,10 +2,13 @@ package mail
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	netmail "net/mail"
 	"strings"
 )
+
+var ErrDeliveryUnavailable = errors.New("email delivery unavailable")
 
 type Message struct {
 	From    string

@@ -326,6 +326,26 @@ type DirectoryTag struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+// Short-lived hashed email verification codes for local accounts.
+type IdentityEmailVerificationCode struct {
+	// UUIDv7 email verification code primary key.
+	ID pgtype.UUID
+	// User receiving the verification code.
+	UserID pgtype.UUID
+	// Normalized email address the code was issued for.
+	Email string
+	// HMAC digest of the six-digit verification code.
+	CodeHash string
+	// Number of failed verification attempts.
+	AttemptCount int32
+	// Time after which the code cannot be accepted.
+	ExpiresAt pgtype.Timestamptz
+	// Time the code was successfully consumed.
+	ConsumedAt pgtype.Timestamptz
+	// Time the verification code was issued.
+	CreatedAt pgtype.Timestamptz
+}
+
 // GitHub OAuth login identities without provider access or refresh tokens.
 type IdentityOauthIdentity struct {
 	// UUIDv7 OAuth identity primary key.
@@ -344,6 +364,24 @@ type IdentityOauthIdentity struct {
 	CreatedAt pgtype.Timestamptz
 	// Last provider identity refresh time.
 	UpdatedAt pgtype.Timestamptz
+}
+
+// Short-lived one-time password reset tokens.
+type IdentityPasswordResetToken struct {
+	// UUIDv7 password reset token primary key.
+	ID pgtype.UUID
+	// User allowed to reset the password.
+	UserID pgtype.UUID
+	// Normalized email address the token was issued for.
+	Email string
+	// Hash of the one-time password reset token.
+	TokenHash string
+	// Time after which the token cannot be accepted.
+	ExpiresAt pgtype.Timestamptz
+	// Time the token was successfully consumed.
+	ConsumedAt pgtype.Timestamptz
+	// Time the password reset token was issued.
+	CreatedAt pgtype.Timestamptz
 }
 
 // User account and profile root with separate access, verification, and deletion state.

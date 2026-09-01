@@ -42,6 +42,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00006_permissions.sql",
 		"00007_content_announcements.sql",
 		"00008_directory_registered_friend_links.sql",
+		"00009_authentication.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -61,7 +62,10 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"directory.software_component_dependencies",
 		"directory.software_components",
 		"directory.tags",
+		"identity.email_verification_codes",
 		"identity.oauth_identities",
+		"identity.password_reset_tokens",
+		"identity.user_management_permissions",
 		"identity.users",
 	}
 	gotTables := collectCreatedTables(t, migrationFS)

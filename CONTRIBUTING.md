@@ -30,7 +30,6 @@ task setup
 
 ```bash
 cp .env.development.example .env.development
-cp apps/api/config/conf.development.example.yaml apps/api/config/conf.yaml
 ```
 
 该文件同时供 API 和 Web 开发任务使用，只包含应用必需的服务连接和内部令牌：
@@ -46,9 +45,11 @@ cp apps/api/config/conf.development.example.yaml apps/api/config/conf.yaml
 
 不要提交 `.env.development`、真实凭据或生产数据。默认密码仅用于本机开发。
 
-API 会主动读取固定名称的 `config/default.yaml` 和 `config/conf.yaml`。默认文件保存公共非敏感配置；被忽略的 `conf.yaml` 必须显式声明 `mode: development` 或 `mode: production`。开发任务从 `apps/api` 运行，因此使用该模块下的 `config/`。
+API 会主动读取固定名称的 `config/default.yaml`，并在存在时合并 `config/conf.yaml`。缺少 `conf.yaml` 时使用默认的 development 模式；存在时必须显式声明 `mode: development` 或 `mode: production`。开发任务从 `apps/api` 运行，因此使用该模块下的 `config/`。`auth.web_base_url` 是浏览器访问的公开 Web origin，开发默认值为 `http://127.0.0.1:10101`；GitHub callback 固定从该 origin 派生为 `/auth/github/callback`。
 
 三个外部服务 URL、健康检查令牌和 Web 服务令牌由环境变量提供；监听地址、端口、连接池、超时、日志、CORS、代理和健康检查策略由 YAML 管理，不接受对应环境变量或命令行覆盖。开发默认端口为 `10201`。Web 通过 `WEB_API_BASE_URL` 读取 API 地址，所有浏览器数据请求必须进入 Web 同源端点。
+
+注册验证和密码重置邮件通过 AWS SES 发送。API 使用 AWS SDK 标准环境变量：`AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`，以及使用 STS 临时凭证时的 `AWS_SESSION_TOKEN`。没有有效凭证时，API 会在启动阶段失败；运行期间凭证过期或 SES 拒绝发送时，邮件操作返回 `503 mail_unavailable`，不会显示 AWS 内部错误。
 
 开发 Compose 还允许从当前 shell 覆盖以下值：
 
@@ -109,7 +110,7 @@ Task 只提供 `task compose:check` 配置校验，不管理这些服务的生�
 
 ## 生产容器
 
-生产镜像内的 API 位于 `/app/heyblog-api`，配置目录为 `/app/config`。部署时复制 `.env.production.example` 为 `.env.production` 并替换全部占位值，同时提供 `/app/config/conf.yaml`，可从 `apps/api/config/conf.production.example.yaml` 开始。通过 `docker --env-file .env.production` 或 Compose `env_file` 注入外部服务 URL、健康检查令牌和 Web 服务令牌。Web 容器使用同一 `API_WEB_TOKEN`，并通过 `WEB_API_BASE_URL` 中配置的私有 API 服务地址访问 API；模板不假定具体的生产服务 DNS。
+生产镜像内的 API 位于 `/app/heyblog-api`，配置目录为 `/app/config`。部署时复制 `.env.production.example` 为 `.env.production` 并替换全部占位值，同时提供 `/app/config/conf.yaml`，可从 `apps/api/config/conf.production.example.yaml` 开始。通过 Compose 的 API 专属 `env_file` 注入外部服务 URL、健康检查令牌、Web 服务令牌和 AWS SES 环境变量；不要把 AWS 凭证注入 Web 容器。个人服务器可将该文件放在项目目录之外，例如 `/etc/heyblog/api.env`，设置为 `root:root` 和 `0600`，并在备份中排除或加密。Web 容器使用同一 `API_WEB_TOKEN`，并通过 `WEB_API_BASE_URL` 中配置的私有 API 服务地址访问 API；`auth.web_base_url` 必须是浏览器使用的公开 HTTPS origin，而不是容器地址。
 
 API 和 Web 必须位于同一私有容器网络，只发布 Web 的 `9101` 端口。API 的 `10201` 仅在内部网络开放，不配置主机端口映射。入口代理也只能转发到 Web，不能为 API 创建公网路由。
 

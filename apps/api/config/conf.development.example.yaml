@@ -1,2 +1,2 @@
-# Copy to config/conf.yaml for local development.
+# Optional development overrides. Copy to config/conf.yaml only when needed.
 mode: development

@@ -1,0 +1,23 @@
+---
+interface Props {
+  message?: string | null;
+  kind?: 'error' | 'success';
+}
+const { message, kind = 'error' } = Astro.props;
+---
+
+{
+  message ? (
+    <p
+      class:list={[
+        'mb-5 rounded-sm border px-3 py-2.5 text-sm/normal',
+        kind === 'error'
+          ? 'border-danger bg-danger-bg text-danger-fg'
+          : 'border-success bg-success-bg text-success-fg',
+      ]}
+      role={kind === 'error' ? 'alert' : 'status'}
+    >
+      {message}
+    </p>
+  ) : null
+}

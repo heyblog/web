@@ -34,5 +34,7 @@ Web 默认访问 `http://127.0.0.1:10101`。浏览器数据请求通过 Web 同�
 不直接访问 Go API。API 就绪检查为
 `http://127.0.0.1:10201/health/ready`，请求必须携带
 `Authorization: Bearer <API_HEALTHCHECK_TOKEN>`。
+本地 GitHub OAuth App 的 callback URL 应配置为
+`http://127.0.0.1:10101/auth/github/callback`；Web 收到回调后转发给私有 API。
 
 完整的环境变量、开发流程、数据库变更和提交要求参见 [贡献指南](./CONTRIBUTING.md)。

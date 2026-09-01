@@ -53,11 +53,21 @@ http:
 health:
   readiness_timeout: 2s
   drain_delay: 5s
+auth:
+  web_base_url: http://127.0.0.1:10101
+  cookie_domain: ""
+  access_ttl: 6h
+  refresh_ttl: 168h
+  verification_ttl: 15m
+  password_reset_ttl: 1h
+  github:
+    scope: read:user,user:email
 `
 
 const testHealthcheckToken = "test-healthcheck-token-0123456789abcdef"
 const testWebToken = "test-web-service-token-0123456789abcdef"
 const testTempImportToken = "test-temp-import-token-0123456789abcdef"
+const testDevelopmentOverrideYAML = "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101\n"
 
 func TestLoadMergesRequiredOverrideAndExternalBindings(t *testing.T) {
 	t.Parallel()
@@ -71,6 +81,8 @@ http:
   cors:
     allow_origins:
       - https://example.test
+auth:
+  web_base_url: https://www.heyblog.net
 `)
 	got, err := load(paths, serviceEnvironment)
 	if err != nil {
@@ -94,12 +106,15 @@ http:
 		got.TempImportToken != serviceEnvironment("API_TEMP_IMPORT_TOKEN") {
 		t.Fatal("external service bindings were not loaded from the process environment source")
 	}
+	if got.Auth.WebBaseURL != "https://www.heyblog.net" {
+		t.Fatalf("Auth.WebBaseURL = %q, want production public Web origin", got.Auth.WebBaseURL)
+	}
 }
 
 func TestLoadUsesDevelopmentModeAndAllowsPortOverride(t *testing.T) {
 	t.Parallel()
 
-	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nserver:\n  port: 10300\n")
+	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nserver:\n  port: 10300\nauth:\n  web_base_url: http://127.0.0.1:10101\n")
 	got, err := load(paths, serviceEnvironment)
 	if err != nil {
 		t.Fatalf("load() error = %v", err)
@@ -107,6 +122,9 @@ func TestLoadUsesDevelopmentModeAndAllowsPortOverride(t *testing.T) {
 
 	if got.ListenAddress() != "127.0.0.1:10300" {
 		t.Fatalf("ListenAddress() = %q, want 127.0.0.1:10300", got.ListenAddress())
+	}
+	if got.Auth.WebBaseURL != "http://127.0.0.1:10101" {
+		t.Fatalf("Auth.WebBaseURL = %q, want local Astro origin", got.Auth.WebBaseURL)
 	}
 	if got.Logging.ConsoleFormat != LogFormatText || got.Logging.File.Enabled {
 		t.Fatalf("development logging = (%q, %t), want (text, false)", got.Logging.ConsoleFormat, got.Logging.File.Enabled)
@@ -153,17 +171,31 @@ func TestDiscoverPathsFallsBackToDevelopmentWorkingDirectory(t *testing.T) {
 	}
 }
 
-func TestLoadRequiresOverrideAndExplicitMode(t *testing.T) {
+func TestLoadUsesDevelopmentDefaultsWhenOverrideIsMissing(t *testing.T) {
+	t.Parallel()
+
+	got, err := load(writeConfigFiles(t, testDefaultYAML, nil), serviceEnvironment)
+	if err != nil {
+		t.Fatalf("load() error = %v, want development defaults", err)
+	}
+	if got.Mode != ModeDevelopment {
+		t.Fatalf("Mode = %q, want %q", got.Mode, ModeDevelopment)
+	}
+	if got.Auth.WebBaseURL != "http://127.0.0.1:10101" {
+		t.Fatalf("Auth.WebBaseURL = %q, want local Astro origin", got.Auth.WebBaseURL)
+	}
+}
+
+func TestLoadRequiresExplicitModeWhenOverrideExists(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
 		defaultYAML  string
 		overrideYAML *string
 	}{
-		"missing override": {defaultYAML: testDefaultYAML},
-		"missing mode":     {defaultYAML: testDefaultYAML, overrideYAML: stringPointer("server:\n  port: 10300\n")},
-		"invalid mode":     {defaultYAML: testDefaultYAML, overrideYAML: stringPointer("mode: staging\n")},
-		"mode in default":  {defaultYAML: "mode: development\n" + testDefaultYAML, overrideYAML: stringPointer("mode: development\n")},
+		"missing mode":    {defaultYAML: testDefaultYAML, overrideYAML: stringPointer("server:\n  port: 10300\n")},
+		"invalid mode":    {defaultYAML: testDefaultYAML, overrideYAML: stringPointer("mode: staging\n")},
+		"mode in default": {defaultYAML: "mode: development\n" + testDefaultYAML, overrideYAML: stringPointer("mode: development\n")},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -184,13 +216,40 @@ func TestLoadRejectsNonStandardProductionPort(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInsecureProductionWebOrigin(t *testing.T) {
+	t.Parallel()
+
+	paths := writeConfigPair(t, testDefaultYAML, "mode: production\nauth:\n  web_base_url: http://127.0.0.1:9101\n")
+	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "auth.web_base_url") {
+		t.Fatalf("load() error = %v, want production Web origin validation error", err)
+	}
+}
+
+func TestLoadRejectsWebOriginWithPath(t *testing.T) {
+	t.Parallel()
+
+	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101/app\n")
+	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "auth.web_base_url") {
+		t.Fatalf("load() error = %v, want Web origin validation error", err)
+	}
+}
+
+func TestLoadRejectsDeprecatedGithubCallbackURL(t *testing.T) {
+	t.Parallel()
+
+	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101\n  github:\n    callback_url: http://127.0.0.1:10101/auth/github/callback\n")
+	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "callback_url") {
+		t.Fatalf("load() error = %v, want deprecated callback field error", err)
+	}
+}
+
 func TestLoadRejectsUnknownNullAndDuplicateFields(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"unknown":   "mode: development\nserver:\n  typo_port: 10300\n",
-		"null":      "mode: development\nserver:\n  host: null\n",
-		"duplicate": "mode: development\nserver:\n  port: 10201\n  port: 10300\n",
+		"unknown":   testDevelopmentOverrideYAML + "server:\n  typo_port: 10300\n",
+		"null":      testDevelopmentOverrideYAML + "server:\n  host: null\n",
+		"duplicate": testDevelopmentOverrideYAML + "server:\n  port: 10201\n  port: 10300\n",
 	}
 	for name, override := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -205,7 +264,7 @@ func TestLoadRejectsInvalidVersion(t *testing.T) {
 	t.Parallel()
 
 	invalidDefault := strings.Replace(testDefaultYAML, "version: 1", "version: 2", 1)
-	if _, err := load(writeConfigPair(t, invalidDefault, "mode: development\n"), serviceEnvironment); err == nil {
+	if _, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment); err == nil {
 		t.Fatal("load() error = nil, want unsupported version error")
 	}
 }
@@ -219,7 +278,7 @@ func TestLoadRequiresExternalBindings(t *testing.T) {
 		}
 		return serviceEnvironment(key)
 	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, "mode: development\n"), getenv)
+	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
 	if err == nil {
 		t.Fatal("load() error = nil, want missing external binding error")
 	}
@@ -246,7 +305,7 @@ func TestLoadRejectsInvalidHealthcheckToken(t *testing.T) {
 				}
 				return serviceEnvironment(key)
 			}
-			_, err := load(writeConfigPair(t, testDefaultYAML, "mode: development\n"), getenv)
+			_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
 			if err == nil {
 				t.Fatal("load() error = nil, want invalid healthcheck token error")
 			}
@@ -266,7 +325,7 @@ func TestLoadRejectsInvalidWebToken(t *testing.T) {
 		}
 		return serviceEnvironment(key)
 	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, "mode: development\n"), getenv)
+	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
 	if err == nil || !strings.Contains(err.Error(), "API_WEB_TOKEN") {
 		t.Fatalf("load() error = %v, want API_WEB_TOKEN validation error", err)
 	}
@@ -281,7 +340,7 @@ func TestLoadRejectsInvalidTempImportToken(t *testing.T) {
 		}
 		return serviceEnvironment(key)
 	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, "mode: development\n"), getenv)
+	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
 	if err == nil || !strings.Contains(err.Error(), "API_TEMP_IMPORT_TOKEN") {
 		t.Fatalf("load() error = %v, want API_TEMP_IMPORT_TOKEN validation error", err)
 	}
@@ -291,7 +350,7 @@ func TestLoadRejectsInvalidPolicyBounds(t *testing.T) {
 	t.Parallel()
 
 	invalidDefault := strings.Replace(testDefaultYAML, "min_connections: 2", "min_connections: 21", 1)
-	if _, err := load(writeConfigPair(t, invalidDefault, "mode: development\n"), serviceEnvironment); err == nil {
+	if _, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment); err == nil {
 		t.Fatal("load() error = nil, want invalid pool bounds error")
 	}
 }
@@ -336,7 +395,7 @@ func TestLoadRejectsInvalidMailConfiguration(t *testing.T) {
 	for name, replacement := range tests {
 		t.Run(name, func(t *testing.T) {
 			invalidDefault := strings.Replace(testDefaultYAML, replacement.old, replacement.new, 1)
-			_, err := load(writeConfigPair(t, invalidDefault, "mode: development\n"), serviceEnvironment)
+			_, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment)
 			if err == nil {
 				t.Fatal("load() error = nil, want invalid mail configuration error")
 			}
@@ -364,7 +423,7 @@ func TestLoadRejectsUnsafeProxyAndMalformedCORSOrigin(t *testing.T) {
 	for name, replacement := range tests {
 		t.Run(name, func(t *testing.T) {
 			invalidDefault := strings.Replace(testDefaultYAML, replacement.old, replacement.new, 1)
-			if _, err := load(writeConfigPair(t, invalidDefault, "mode: development\n"), serviceEnvironment); err == nil {
+			if _, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment); err == nil {
 				t.Fatal("load() error = nil, want unsafe HTTP configuration error")
 			}
 		})
@@ -381,7 +440,7 @@ func TestLoadDoesNotLeakMalformedExternalURL(t *testing.T) {
 		}
 		return serviceEnvironment(key)
 	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, "mode: development\n"), getenv)
+	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
 	if err == nil {
 		t.Fatal("load() error = nil, want malformed external URL error")
 	}
@@ -421,6 +480,7 @@ func writeFile(t *testing.T, path, contents string) {
 
 func stringPointer(value string) *string { return &value }
 
+//nolint:gosec // These are inert test fixtures and never authenticate a real service.
 func serviceEnvironment(key string) string {
 	values := map[string]string{
 		"API_MIGRATION_DATABASE_URL": "postgres://migrator@example.test/heyblog",
@@ -429,6 +489,10 @@ func serviceEnvironment(key string) string {
 		"API_HEALTHCHECK_TOKEN":      testHealthcheckToken,
 		"API_WEB_TOKEN":              testWebToken,
 		"API_TEMP_IMPORT_TOKEN":      testTempImportToken,
+		"API_AUTH_ACCESS_SECRET":     "test-auth-access-secret-0123456789abcdef",
+		"API_AUTH_REFRESH_SECRET":    "test-auth-refresh-secret-0123456789abcdef",
+		"API_GITHUB_CLIENT_ID":       "github-client-id",
+		"API_GITHUB_CLIENT_SECRET":   "github-client-secret",
 	}
 	return values[key]
 }

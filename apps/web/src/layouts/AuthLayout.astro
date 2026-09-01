@@ -1,0 +1,23 @@
+---
+import PublicLayout from './PublicLayout.astro';
+
+interface Props {
+  title: string;
+  heading: string;
+  description?: string;
+}
+
+const { title, heading, description } = Astro.props;
+---
+
+<PublicLayout {title} showFooter={false} robots="noindex, nofollow">
+  <section class="mx-auto flex w-[min(calc(100%-2rem),30rem)] flex-1 items-center py-10 sm:py-16">
+    <div class="w-full rounded-md border border-line bg-surface p-6 shadow-2xs sm:p-8">
+      <header class="mb-6 grid gap-2">
+        <h1 class="text-2xl/tight font-semibold text-fg">{heading}</h1>
+        {description ? <p class="text-sm/normal text-fg-muted">{description}</p> : null}
+      </header>
+      <slot />
+    </div>
+  </section>
+</PublicLayout>

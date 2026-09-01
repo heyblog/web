@@ -1,0 +1,66 @@
+---
+import { managementPermissions, type SessionUser } from '@/application/auth/auth.types';
+
+interface Props {
+  actor: SessionUser;
+  user: SessionUser;
+  permissionLabels: Readonly<Record<(typeof managementPermissions)[number], string>>;
+}
+
+const { actor, user, permissionLabels } = Astro.props;
+const canEditRole = actor.role === 'SYS_ADMIN' && actor.id !== user.id;
+const canEditPermissions = user.role === 'ADMIN' && actor.id !== user.id;
+---
+
+<article class="rounded-md border border-line bg-surface p-4">
+  <header class="mb-4 border-b border-line pb-4">
+    <strong class="block font-medium">{user.display_name}</strong>
+    <span class="text-xs break-all text-fg-muted">{user.email}</span>
+    <p class="mt-2 text-xs text-fg-muted">
+      {user.active ? '可用' : '停用'} · {user.email_verified ? '已验证' : '未验证'}
+    </p>
+  </header>
+  <form class="mb-5 grid gap-2" method="post" action={`/management/users/${user.id}/role`}>
+    <label class="text-xs font-medium text-fg-muted" for={`mobile-role-${user.id}`}>角色</label>
+    <div class="flex gap-2">
+      <select
+        class="min-h-11 min-w-0 flex-1 rounded-sm border border-line-strong bg-surface px-3"
+        id={`mobile-role-${user.id}`}
+        name="role"
+        disabled={!canEditRole}
+      >
+        <option value="USER" selected={user.role === 'USER'}>USER</option>
+        <option value="ADMIN" selected={user.role === 'ADMIN'}>ADMIN</option>
+      </select>
+      <button
+        class="min-h-11 rounded-sm border border-line-strong px-4 font-medium hover:bg-subtle disabled:opacity-50"
+        disabled={!canEditRole}
+        type="submit">保存</button
+      >
+    </div>
+  </form>
+  <form class="grid gap-3" method="post" action={`/management/users/${user.id}/permissions`}>
+    <fieldset class="grid grid-cols-1 gap-2 sm:grid-cols-2" disabled={!canEditPermissions}>
+      <legend class="mb-2 text-xs font-medium text-fg-muted">模块权限</legend>
+      {
+        managementPermissions.map((permission) => (
+          <label class="flex min-h-9 items-center gap-2">
+            <input
+              class="size-4 accent-primary"
+              type="checkbox"
+              name="permissions"
+              value={permission}
+              checked={user.permissions.includes(permission)}
+            />
+            <span class="text-sm">{permissionLabels[permission]}</span>
+          </label>
+        ))
+      }
+    </fieldset>
+    <button
+      class="min-h-11 rounded-sm border border-line-strong px-4 font-medium hover:bg-subtle disabled:opacity-50"
+      disabled={!canEditPermissions}
+      type="submit">保存权限</button
+    >
+  </form>
+</article>

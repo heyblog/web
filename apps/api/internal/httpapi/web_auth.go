@@ -25,3 +25,6 @@ func webAuthorization(expectedToken string) Middleware {
 		}
 	}
 }
+
+// WebAuthorization exposes the service-to-service guard to feature route packages.
+func WebAuthorization(expectedToken string) Middleware { return webAuthorization(expectedToken) }

@@ -27,8 +27,9 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - API development tasks load the repository-root `.env.development`; tests use isolated fixtures
   and require no environment file. Production orchestrators inject the three external service URLs
   plus `API_HEALTHCHECK_TOKEN`, `API_TEMP_IMPORT_TOKEN`, and `API_WEB_TOKEN` with Docker
-  `--env-file` or Compose `env_file`;
-  the image does not load dotenv files.
+  `--env-file` or Compose `env_file`. User authentication additionally requires
+  `API_AUTH_ACCESS_SECRET`, `API_AUTH_REFRESH_SECRET`, `API_GITHUB_CLIENT_ID`, and
+  `API_GITHUB_CLIENT_SECRET`; the image does not load dotenv files.
   `internal/config/config.go` is the API's only process-environment reader and exports validated
   typed configuration.
 - Keep the root development and production environment templates limited to application service
@@ -37,21 +38,24 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - `internal/config` exclusively owns YAML discovery/loading and process-environment loading. Other
   packages receive only validated typed configuration through constructors and must not call
   `os.Getenv`, `os.LookupEnv`, or read application configuration files.
-- `config/default.yaml` is the documented non-sensitive baseline. The required, ignored
-  `config/conf.yaml` declares `mode: development|production` and contains scenario differences; the
-  application never creates or rewrites either file.
+- `config/default.yaml` is the documented non-sensitive development baseline. The optional, ignored
+  `config/conf.yaml` declares `mode: development|production` when present and contains scenario
+  differences; the application never creates or rewrites either file.
+- `auth.web_base_url` is the browser-visible Web origin. The default configuration uses the local
+  Astro origin; scenario overrides replace it for production. GitHub always callbacks through the Web route at
+  `<auth.web_base_url>/auth/github/callback`; do not configure or expose a direct API callback.
 - Configuration discovery first checks the real executable's sibling `config/` directory and falls
   back to the current working directory's `config/` only when the executable default is absent.
-  Both files always come from the same directory and use the fixed names `default.yaml` and
-  `conf.yaml`.
+  Both files come from the same directory and use the fixed names `default.yaml` and `conf.yaml`.
 - The service accepts no arguments. `--healthcheck` is the only supported invocation flag and is
   owned by bootstrap rather than application configuration.
 - Environment variables own secrets, credentials, and deployment-injected external resource
   bindings. Non-sensitive server, logging, timeout, pool, CORS, proxy, and health policy belongs in
   YAML.
-- `mail.ses.region` and purpose-specific sender addresses belong in YAML. AWS SES credentials are
-  resolved through the AWS SDK default credential chain so deployments can use workload roles;
-  never add long-lived AWS access keys to YAML or repository environment templates.
+- `mail.ses.region` and purpose-specific sender addresses belong in YAML. AWS SES credentials use the
+  AWS SDK standard environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional
+  `AWS_SESSION_TOKEN` for STS); never add credentials to YAML. Missing startup credentials fail API
+  bootstrap, while credentials that expire during runtime make mail operations unavailable.
 - Production containers use internal port `10201`; host exposure changes through container port
   mapping rather than production YAML overrides.
 
@@ -111,6 +115,17 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   dependencies.
 - Propagate request cancellation and deadlines through application, database, cache, and outbound
   HTTP calls.
+- Browser authentication routes under `/auth/*` are web-internal and require `X-HeyBlog-Web-Token`.
+  Local authentication uses Argon2id passwords, six-digit SES email verification, one-time password
+  reset links, short-lived access JWTs, and Redis-backed rotating refresh sessions. Both tokens are
+  delivered only through HttpOnly SameSite=Lax cookies; account security changes increment
+  `auth_version` to invalidate existing sessions.
+- GitHub OAuth state is single-use in Redis. Login may match only a verified primary GitHub email;
+  binding requires that email to match the authenticated account, and unbinding must leave a local
+  password login method.
+- `/management/users*` remains web-internal but also requires an authenticated `SYS_ADMIN` or an
+  `ADMIN` with `user.manage`; role and permission mutations must enforce scope and self-management
+  restrictions in the application layer.
 - `POST /internal/temp/data-import` is a temporary authenticated migration endpoint. It requires
   `Authorization: Bearer <API_TEMP_IMPORT_TOKEN>`, accepts only the two cleaned migration bundles,
   and owns a ninety-minute request deadline and route-specific upload limit. Its single transaction

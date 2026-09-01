@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,6 +14,45 @@ type fakeSESClient struct {
 	ctx   context.Context
 	input *sesv2.SendEmailInput
 	err   error
+}
+
+func TestOpenSESLoadsCredentialsFromEnvironment(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+	t.Setenv("AWS_SESSION_TOKEN", "test-session-token")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "missing-credentials"))
+	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "missing-config"))
+
+	sender, err := OpenSES(context.Background(), "ap-southeast-1")
+	if err != nil {
+		t.Fatalf("OpenSES() error = %v, want environment credentials to initialize SES", err)
+	}
+	if sender == nil {
+		t.Fatal("OpenSES() sender = nil, want initialized sender")
+	}
+}
+
+func TestOpenSESRejectsMissingCredentials(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_PROFILE", "missing-profile")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "missing-credentials"))
+	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "missing-config"))
+
+	_, err := OpenSES(context.Background(), "ap-southeast-1")
+	if err == nil {
+		t.Fatal("OpenSES() error = nil, want missing credentials error")
+	}
+	var credentialError *sesCredentialError
+	if !errors.As(err, &credentialError) {
+		t.Fatalf("OpenSES() error = %T, want SES credential error", err)
+	}
+	if credentialError.Error() != "load AWS credentials for SES" {
+		t.Fatalf("credential error = %q, want stable non-secret message", credentialError.Error())
+	}
 }
 
 func (client *fakeSESClient) SendEmail(
@@ -165,5 +205,12 @@ func TestSESSenderWrapsAWSFailureWithoutMessageContents(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "private-recipient") || strings.Contains(err.Error(), "123456") {
 		t.Fatalf("Send() error leaked message contents: %v", err)
+	}
+	if !errors.Is(err, ErrDeliveryUnavailable) {
+		t.Fatalf("Send() error = %v, want delivery-unavailable classification", err)
+	}
+	component, ok := err.(interface{ Component() string })
+	if !ok || component.Component() != "ses" {
+		t.Fatalf("Send() component = (%v, %t), want ses", component, ok)
 	}
 }

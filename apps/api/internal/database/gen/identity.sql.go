@@ -48,6 +48,17 @@ func (q *Queries) ActivateUser(ctx context.Context, id pgtype.UUID) (IdentityUse
 	return i, err
 }
 
+const bumpUserAuthVersion = `-- name: BumpUserAuthVersion :exec
+UPDATE identity.users
+   SET auth_version = auth_version + 1
+ WHERE id = $1::uuid AND deleted_at IS NULL
+`
+
+func (q *Queries) BumpUserAuthVersion(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, bumpUserAuthVersion, id)
+	return err
+}
+
 const cancelUserDeletion = `-- name: CancelUserDeletion :one
 UPDATE identity.users
    SET access_status = 'ACTIVE',
@@ -124,6 +135,72 @@ func (q *Queries) CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (Ide
 	return i, err
 }
 
+const consumeEmailVerificationCode = `-- name: ConsumeEmailVerificationCode :exec
+UPDATE identity.email_verification_codes
+   SET consumed_at = clock_timestamp()
+ WHERE id = $1::uuid AND consumed_at IS NULL
+`
+
+func (q *Queries) ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, consumeEmailVerificationCode, id)
+	return err
+}
+
+const consumePasswordResetToken = `-- name: ConsumePasswordResetToken :exec
+UPDATE identity.password_reset_tokens
+   SET consumed_at = clock_timestamp()
+ WHERE id = $1::uuid AND consumed_at IS NULL
+`
+
+func (q *Queries) ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, consumePasswordResetToken, id)
+	return err
+}
+
+const createEmailVerificationCode = `-- name: CreateEmailVerificationCode :exec
+INSERT INTO identity.email_verification_codes (user_id, email, code_hash, expires_at)
+VALUES ($1::uuid, $2::text, $3::text, $4::timestamptz)
+`
+
+type CreateEmailVerificationCodeParams struct {
+	UserID    pgtype.UUID
+	Email     string
+	CodeHash  string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error {
+	_, err := q.db.Exec(ctx, createEmailVerificationCode,
+		arg.UserID,
+		arg.Email,
+		arg.CodeHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
+INSERT INTO identity.password_reset_tokens (user_id, email, token_hash, expires_at)
+VALUES ($1::uuid, $2::text, $3::text, $4::timestamptz)
+`
+
+type CreatePasswordResetTokenParams struct {
+	UserID    pgtype.UUID
+	Email     string
+	TokenHash string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error {
+	_, err := q.db.Exec(ctx, createPasswordResetToken,
+		arg.UserID,
+		arg.Email,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO identity.users (
     email,
@@ -178,6 +255,62 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Identit
 	return i, err
 }
 
+const createUserManagementPermission = `-- name: CreateUserManagementPermission :exec
+INSERT INTO identity.user_management_permissions (user_id, permission_key, granted_by)
+VALUES ($1::uuid, $2::text, $3::uuid)
+`
+
+type CreateUserManagementPermissionParams struct {
+	UserID        pgtype.UUID
+	PermissionKey string
+	GrantedBy     pgtype.UUID
+}
+
+func (q *Queries) CreateUserManagementPermission(ctx context.Context, arg CreateUserManagementPermissionParams) error {
+	_, err := q.db.Exec(ctx, createUserManagementPermission, arg.UserID, arg.PermissionKey, arg.GrantedBy)
+	return err
+}
+
+const deleteEmailVerificationCodes = `-- name: DeleteEmailVerificationCodes :exec
+DELETE FROM identity.email_verification_codes
+ WHERE user_id = $1::uuid
+`
+
+func (q *Queries) DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteEmailVerificationCodes, userID)
+	return err
+}
+
+const deletePasswordResetTokens = `-- name: DeletePasswordResetTokens :exec
+DELETE FROM identity.password_reset_tokens
+ WHERE user_id = $1::uuid
+`
+
+func (q *Queries) DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deletePasswordResetTokens, userID)
+	return err
+}
+
+const deleteUserGitHubIdentity = `-- name: DeleteUserGitHubIdentity :exec
+DELETE FROM identity.oauth_identities
+ WHERE provider = 'GITHUB' AND user_id = $1::uuid
+`
+
+func (q *Queries) DeleteUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserGitHubIdentity, userID)
+	return err
+}
+
+const deleteUserManagementPermissions = `-- name: DeleteUserManagementPermissions :exec
+DELETE FROM identity.user_management_permissions
+ WHERE user_id = $1::uuid
+`
+
+func (q *Queries) DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserManagementPermissions, userID)
+	return err
+}
+
 const getGitHubIdentity = `-- name: GetGitHubIdentity :one
 SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
   FROM identity.oauth_identities
@@ -196,6 +329,53 @@ func (q *Queries) GetGitHubIdentity(ctx context.Context, providerUserID string) 
 		&i.Profile,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLatestEmailVerificationCode = `-- name: GetLatestEmailVerificationCode :one
+SELECT id, user_id, email, code_hash, attempt_count, expires_at, consumed_at, created_at
+  FROM identity.email_verification_codes
+ WHERE email = $1::text AND consumed_at IS NULL
+ ORDER BY created_at DESC
+ LIMIT 1
+ FOR UPDATE
+`
+
+func (q *Queries) GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error) {
+	row := q.db.QueryRow(ctx, getLatestEmailVerificationCode, email)
+	var i IdentityEmailVerificationCode
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Email,
+		&i.CodeHash,
+		&i.AttemptCount,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getPasswordResetToken = `-- name: GetPasswordResetToken :one
+SELECT id, user_id, email, token_hash, expires_at, consumed_at, created_at
+  FROM identity.password_reset_tokens
+ WHERE token_hash = $1::text AND consumed_at IS NULL
+ FOR UPDATE
+`
+
+func (q *Queries) GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error) {
+	row := q.db.QueryRow(ctx, getPasswordResetToken, tokenHash)
+	var i IdentityPasswordResetToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Email,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -299,6 +479,66 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (Ident
 	return i, err
 }
 
+const getUserGitHubIdentity = `-- name: GetUserGitHubIdentity :one
+SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
+  FROM identity.oauth_identities
+ WHERE provider = 'GITHUB' AND user_id = $1::uuid
+`
+
+func (q *Queries) GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error) {
+	row := q.db.QueryRow(ctx, getUserGitHubIdentity, userID)
+	var i IdentityOauthIdentity
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Provider,
+		&i.ProviderUserID,
+		&i.ProviderLogin,
+		&i.Profile,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const incrementEmailVerificationAttempts = `-- name: IncrementEmailVerificationAttempts :exec
+UPDATE identity.email_verification_codes
+   SET attempt_count = attempt_count + 1
+ WHERE id = $1::uuid
+`
+
+func (q *Queries) IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, incrementEmailVerificationAttempts, id)
+	return err
+}
+
+const listUserManagementPermissions = `-- name: ListUserManagementPermissions :many
+SELECT permission_key
+  FROM identity.user_management_permissions
+ WHERE user_id = $1::uuid
+ ORDER BY permission_key
+`
+
+func (q *Queries) ListUserManagementPermissions(ctx context.Context, userID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listUserManagementPermissions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var permission_key string
+		if err := rows.Scan(&permission_key); err != nil {
+			return nil, err
+		}
+		items = append(items, permission_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserOAuthIdentities = `-- name: ListUserOAuthIdentities :many
 SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
   FROM identity.oauth_identities
@@ -322,6 +562,53 @@ func (q *Queries) ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUI
 			&i.ProviderUserID,
 			&i.ProviderLogin,
 			&i.Profile,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersForManagement = `-- name: ListUsersForManagement :many
+SELECT id, email, username, display_name, password_hash, role, access_status,
+       email_verified_at, auth_version, profile, settings, last_login_at,
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+  FROM identity.users
+ WHERE deleted_at IS NULL
+ ORDER BY created_at DESC
+`
+
+func (q *Queries) ListUsersForManagement(ctx context.Context) ([]IdentityUser, error) {
+	rows, err := q.db.Query(ctx, listUsersForManagement)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IdentityUser{}
+	for rows.Next() {
+		var i IdentityUser
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Username,
+			&i.DisplayName,
+			&i.PasswordHash,
+			&i.Role,
+			&i.AccessStatus,
+			&i.EmailVerifiedAt,
+			&i.AuthVersion,
+			&i.Profile,
+			&i.Settings,
+			&i.LastLoginAt,
+			&i.DeletionRequestedAt,
+			&i.DeletionScheduledFor,
+			&i.DeletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -417,6 +704,53 @@ func (q *Queries) RequestUserDeletion(ctx context.Context, id pgtype.UUID) (Iden
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const setUserEmailVerified = `-- name: SetUserEmailVerified :exec
+UPDATE identity.users
+   SET email_verified_at = clock_timestamp()
+ WHERE id = $1::uuid
+   AND deleted_at IS NULL
+`
+
+func (q *Queries) SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setUserEmailVerified, id)
+	return err
+}
+
+const setUserPassword = `-- name: SetUserPassword :exec
+UPDATE identity.users
+   SET password_hash = $1::text,
+       auth_version = auth_version + 1
+ WHERE id = $2::uuid
+   AND access_status = 'ACTIVE'
+   AND deleted_at IS NULL
+`
+
+type SetUserPasswordParams struct {
+	PasswordHash string
+	ID           pgtype.UUID
+}
+
+func (q *Queries) SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, setUserPassword, arg.PasswordHash, arg.ID)
+	return err
+}
+
+const setUserRole = `-- name: SetUserRole :exec
+UPDATE identity.users
+   SET role = $1::text
+ WHERE id = $2::uuid AND deleted_at IS NULL
+`
+
+type SetUserRoleParams struct {
+	Role string
+	ID   pgtype.UUID
+}
+
+func (q *Queries) SetUserRole(ctx context.Context, arg SetUserRoleParams) error {
+	_, err := q.db.Exec(ctx, setUserRole, arg.Role, arg.ID)
+	return err
 }
 
 const suspendUser = `-- name: SuspendUser :one

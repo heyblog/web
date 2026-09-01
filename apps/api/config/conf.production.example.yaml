@@ -1,2 +1,6 @@
 # Deploy as config/conf.yaml beside the production binary.
 mode: production
+
+auth:
+  # Public HTTPS origin reached by browsers, not the Web container address.
+  web_base_url: https://www.heyblog.net

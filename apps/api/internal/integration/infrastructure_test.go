@@ -4,8 +4,11 @@ package integration_test
 
 import (
 	"context"
+	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -20,11 +23,13 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 
+	"heyblog-api/internal/auth"
 	"heyblog-api/internal/cache"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/database"
 	dbgen "heyblog-api/internal/database/gen"
 	"heyblog-api/internal/database/migrations"
+	"heyblog-api/internal/mail"
 	"heyblog-api/internal/ratelimit"
 )
 
@@ -101,7 +106,124 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyRuntimePermissions(ctx, t, pool)
 	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)
 	verifyUserDeletionSemantics(ctx, t, pool, migrationURL)
+	verifyAuthenticationFlows(ctx, t, pool)
 	verifyMigrationRollback(ctx, t, adminConnection, migrationURL)
+}
+
+type authMailRecorder struct{ messages []mail.Message }
+
+func (sender *authMailRecorder) Send(_ context.Context, message mail.Message) error {
+	sender.messages = append(sender.messages, message)
+	return nil
+}
+
+func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	container, err := tcredis.Run(ctx, "redis:8.4-alpine")
+	if err != nil {
+		t.Fatalf("start auth Redis container: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(container); err != nil {
+			t.Errorf("terminate auth Redis container: %v", err)
+		}
+	})
+	redisURL, err := container.ConnectionString(ctx)
+	if err != nil {
+		t.Fatalf("get auth Redis connection string: %v", err)
+	}
+	redisClient, err := cache.OpenRedis(ctx, config.RedisConfig{URL: redisURL, DialTimeout: 3 * time.Second, ReadTimeout: 2 * time.Second, WriteTimeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("open auth Redis client: %v", err)
+	}
+	t.Cleanup(func() { _ = redisClient.Close() })
+
+	recorder := &authMailRecorder{}
+	service := auth.NewService(auth.Dependencies{Pool: pool, Redis: redisClient, MailSender: recorder,
+		VerificationMailer: mail.NewVerificationMailer(recorder, "verify@example.test"), Config: auth.Config{
+			AccessSecret: "integration-access-secret", RefreshSecret: "integration-refresh-secret",
+			AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, VerificationTTL: 10 * time.Minute,
+			PasswordResetTTL: 10 * time.Minute, WebBaseURL: "http://web.example.test", MailFrom: "verify@example.test",
+		}})
+	const email = "auth-integration@example.test"
+	if err := service.Register(ctx, "auth_integration", email, "correct-password"); err != nil {
+		t.Fatalf("register auth user: %v", err)
+	}
+	code := regexp.MustCompile(`[0-9]{6}`).FindString(recorder.messages[len(recorder.messages)-1].Text)
+	if code == "" {
+		t.Fatal("verification email did not contain a six-digit code")
+	}
+	if _, _, err := service.Login(ctx, email, "correct-password"); err == nil {
+		t.Fatal("unverified user unexpectedly logged in")
+	}
+	if err := service.VerifyEmail(ctx, email, code); err != nil {
+		t.Fatalf("verify auth email: %v", err)
+	}
+	if err := service.VerifyEmail(ctx, email, code); err == nil {
+		t.Fatal("verification code was accepted twice")
+	}
+
+	user, tokens, err := service.Login(ctx, email, "correct-password")
+	if err != nil {
+		t.Fatalf("login verified user: %v", err)
+	}
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/me", nil)
+	request.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: tokens[0]})
+	request.AddCookie(&http.Cookie{Name: "heyblog_refresh_token", Value: tokens[1]})
+	if current, err := service.Current(ctx, request); err != nil || current.ID != user.ID {
+		t.Fatalf("current user = (%q, %v), want %q", current.ID, err, user.ID)
+	}
+	_, rotated, err := service.Refresh(ctx, request)
+	if err != nil {
+		t.Fatalf("refresh session: %v", err)
+	}
+	if _, _, err := service.Refresh(ctx, request); err == nil {
+		t.Fatal("refresh token was accepted after rotation")
+	}
+	logoutRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/auth/logout", nil)
+	logoutRequest.AddCookie(&http.Cookie{Name: "heyblog_refresh_token", Value: rotated[1]})
+	if err := service.Logout(ctx, logoutRequest); err != nil {
+		t.Fatalf("logout session: %v", err)
+	}
+
+	if err := service.ForgotPassword(ctx, email); err != nil {
+		t.Fatalf("request password reset: %v", err)
+	}
+	resetText := recorder.messages[len(recorder.messages)-1].Text
+	resetToken := strings.TrimSpace(resetText[strings.LastIndex(resetText, "token=")+len("token="):])
+	if resetToken == "" {
+		t.Fatal("password reset email did not contain a token")
+	}
+	if err := service.ResetPassword(ctx, resetToken, "new-correct-password"); err != nil {
+		t.Fatalf("reset password: %v", err)
+	}
+	if err := service.ResetPassword(ctx, resetToken, "another-password"); err == nil {
+		t.Fatal("password reset token was accepted twice")
+	}
+	if _, _, err := service.Login(ctx, email, "correct-password"); err == nil {
+		t.Fatal("old password remained valid after reset")
+	}
+	user, _, err = service.Login(ctx, email, "new-correct-password")
+	if err != nil {
+		t.Fatalf("login with reset password: %v", err)
+	}
+
+	admin, err := dbgen.New(pool).CreateUser(ctx, dbgen.CreateUserParams{Email: "sysadmin@example.test", Username: "auth_sysadmin", DisplayName: "Auth Sysadmin"})
+	if err != nil {
+		t.Fatalf("create auth sysadmin: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE identity.users SET role = 'SYS_ADMIN', email_verified_at = clock_timestamp() WHERE id = $1`, admin.ID); err != nil {
+		t.Fatalf("promote auth sysadmin: %v", err)
+	}
+	actor := auth.User{ID: admin.ID.String(), Role: auth.RoleSysAdmin}
+	managed, err := service.UpdateRole(ctx, actor, user.ID, auth.RoleAdmin)
+	if err != nil || managed.Role != auth.RoleAdmin {
+		t.Fatalf("update auth role = (%q, %v)", managed.Role, err)
+	}
+	managed, err = service.UpdatePermissions(ctx, actor, user.ID, []auth.Permission{auth.PermissionUserManage})
+	if err != nil || !slices.Contains(managed.Permissions, auth.PermissionUserManage) {
+		t.Fatalf("update auth permissions = (%v, %v)", managed.Permissions, err)
+	}
 }
 
 func bootstrapDatabaseRoles(ctx context.Context, t *testing.T, connection *pgx.Conn) {
@@ -210,8 +332,8 @@ func verifyDatabaseCatalog(ctx context.Context, t *testing.T, connection *pgx.Co
 	`, []string{"identity", "directory", "content"}).Scan(&tableCount); err != nil {
 		t.Fatalf("query business tables: %v", err)
 	}
-	if tableCount != 15 {
-		t.Fatalf("business table count = %d, want 15", tableCount)
+	if tableCount != 18 {
+		t.Fatalf("business table count = %d, want 18", tableCount)
 	}
 
 	var graphExists bool

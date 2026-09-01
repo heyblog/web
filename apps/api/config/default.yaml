@@ -73,3 +73,14 @@ health:
   readiness_timeout: 2s
   # Time to remain online but unready before graceful shutdown, allowing load balancers to drain.
   drain_delay: 5s
+
+auth:
+  # Browser-visible Astro origin used when no scenario override is present.
+  web_base_url: http://127.0.0.1:10101
+  cookie_domain: ""
+  access_ttl: 6h
+  refresh_ttl: 168h
+  verification_ttl: 15m
+  password_reset_ttl: 1h
+  github:
+    scope: read:user,user:email

@@ -1,0 +1,66 @@
+---
+import { IconUserPlus } from '@tabler/icons-svelte';
+
+import { authErrorMessage } from '@/application/auth/auth-page';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import AuthLayout from '@/layouts/AuthLayout.astro';
+export const prerender = false;
+const error = authErrorMessage(Astro.url.searchParams.get('error'));
+---
+
+<AuthLayout
+  title="注册 | HeyBlog"
+  heading="创建账号"
+  description="注册后需要使用邮箱验证码激活账号。"
+>
+  <AuthNotice message={error} />
+  <form class="grid gap-4" method="post" action="/auth/register">
+    <label class="grid gap-1.5 text-sm font-medium"
+      >用户名<input
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+        name="username"
+        autocomplete="username"
+        pattern="[a-z0-9_]{3,32}"
+        required
+      /></label
+    >
+    <label class="grid gap-1.5 text-sm font-medium"
+      >邮箱<input
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+        name="email"
+        type="email"
+        autocomplete="email"
+        required
+      /></label
+    >
+    <label class="grid gap-1.5 text-sm font-medium"
+      >密码<input
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+        name="password"
+        type="password"
+        autocomplete="new-password"
+        minlength="8"
+        maxlength="128"
+        required
+      /></label
+    >
+    <label class="grid gap-1.5 text-sm font-medium"
+      >确认密码<input
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+        name="confirm_password"
+        type="password"
+        autocomplete="new-password"
+        minlength="8"
+        maxlength="128"
+        required
+      /></label
+    >
+    <button
+      class="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-primary px-4 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+      type="submit"><IconUserPlus size={18} stroke={1.8} aria-hidden="true" />创建账号</button
+    >
+  </form>
+  <p class="mt-6 text-center text-sm text-fg-muted">
+    已有账号？ <a class="text-tint-fg hover:underline" href="/login">登录</a>
+  </p>
+</AuthLayout>

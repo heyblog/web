@@ -12,10 +12,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/httpapi"
+	"heyblog-api/internal/mail"
 )
 
 func TestRunClosesDependenciesWhenListenFails(t *testing.T) {
@@ -31,8 +33,10 @@ func TestRunClosesDependenciesWhenListenFails(t *testing.T) {
 				return nil
 			}}, nil
 		},
-		newHandler: func(httpapi.Options, *pgxpool.Pool, string) (http.Handler, error) { return http.NewServeMux(), nil },
-		newServer:  func(http.Handler) managedHTTPServer { return &stubHTTPServer{} },
+		newHandler: func(httpapi.Options, runtimeDependencies, config.Config, string) (http.Handler, error) {
+			return http.NewServeMux(), nil
+		},
+		newServer: func(http.Handler) managedHTTPServer { return &stubHTTPServer{} },
 	})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("run() error = %v, want listen error", err)
@@ -100,15 +104,15 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	err := run(ctx, applicationTestConfig(), discardLogger(), applicationOperations{
 		listen:           func(string, string) (net.Listener, error) { return &stubListener{}, nil },
 		openDependencies: func(context.Context, config.Config) (runtimeDependencies, error) { return dependencies, nil },
-		newHandler: func(options httpapi.Options, pool *pgxpool.Pool, importToken string) (http.Handler, error) {
+		newHandler: func(options httpapi.Options, runtime runtimeDependencies, _ config.Config, importToken string) (http.Handler, error) {
 			health = options.Health
 			healthcheckToken = options.HealthcheckToken
 			webToken = options.WebToken
 			if options.PublicViews != wantViews {
 				t.Fatalf("public views = %p, want %p", options.PublicViews, wantViews)
 			}
-			if pool != wantPool {
-				t.Fatalf("database pool = %p, want %p", pool, wantPool)
+			if runtime.DatabasePool() != wantPool {
+				t.Fatalf("database pool = %p, want %p", runtime.DatabasePool(), wantPool)
 			}
 			tempImportToken = importToken
 			return http.NewServeMux(), nil
@@ -203,6 +207,9 @@ func (dependencies *stubRuntimeDependencies) PublicViews() publicview.Reader {
 }
 func (dependencies *stubRuntimeDependencies) Close() error                { return dependencies.close() }
 func (dependencies *stubRuntimeDependencies) DatabasePool() *pgxpool.Pool { return dependencies.pool }
+func (*stubRuntimeDependencies) RedisClient() *redis.Client               { return nil }
+func (*stubRuntimeDependencies) Mail() mail.Sender                        { return nil }
+func (*stubRuntimeDependencies) Verification() *mail.VerificationMailer   { return nil }
 
 type stubHTTPServer struct {
 	serveDone chan struct{}

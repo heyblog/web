@@ -1,0 +1,145 @@
+---
+import { IconBrandGithub, IconKey, IconLogout2, IconShieldLock } from '@tabler/icons-svelte';
+
+import { readSessionUser } from '@/application/auth/auth.server';
+import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+
+export const prerender = false;
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=%2Fdashboard');
+const canManageUsers = user.role === 'SYS_ADMIN' || user.permissions.includes('user.manage');
+---
+
+<PublicLayout title="账号 | HeyBlog" robots="noindex, nofollow">
+  <section class="mx-auto w-[min(calc(100%-2rem),64rem)] py-10 sm:py-14">
+    <header class="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-line pb-6">
+      <div>
+        <p class="mb-2 text-sm text-fg-muted">{user.email}</p><h1 class="text-3xl font-semibold">
+          {user.display_name}
+        </h1>
+      </div>
+      <form method="post" action="/auth/logout">
+        <button
+          class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-medium hover:bg-subtle"
+          type="submit"><IconLogout2 size={18} stroke={1.8} aria-hidden="true" />退出登录</button
+        >
+      </form>
+    </header>
+    <AuthNotice message={authErrorMessage(Astro.url.searchParams.get('error'))} />
+    <AuthNotice message={authStatusMessage(Astro.url.searchParams.get('status'))} kind="success" />
+    <dl
+      class="mb-10 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
+    >
+      <div class="bg-surface p-4">
+        <dt class="text-xs text-fg-muted">角色</dt><dd class="mt-1 font-medium">{user.role}</dd>
+      </div>
+      <div class="bg-surface p-4">
+        <dt class="text-xs text-fg-muted">邮箱</dt><dd class="mt-1 font-medium">
+          {user.email_verified ? '已验证' : '未验证'}
+        </dd>
+      </div>
+      <div class="bg-surface p-4">
+        <dt class="text-xs text-fg-muted">本地密码</dt><dd class="mt-1 font-medium">
+          {user.has_password ? '已设置' : '未设置'}
+        </dd>
+      </div>
+      <div class="bg-surface p-4">
+        <dt class="text-xs text-fg-muted">GitHub</dt><dd class="mt-1 font-medium">
+          {user.has_github ? '已绑定' : '未绑定'}
+        </dd>
+      </div>
+    </dl>
+    <div class="grid gap-10 lg:grid-cols-2">
+      <section aria-labelledby="password-heading">
+        <h2 class="mb-5 flex items-center gap-2 text-xl font-semibold" id="password-heading">
+          <IconKey size={20} stroke={1.8} aria-hidden="true" />{
+            user.has_password ? '修改密码' : '设置密码'
+          }
+        </h2>
+        <form class="grid gap-4" method="post" action="/auth/password">
+          {
+            user.has_password ? (
+              <label class="grid gap-1.5 text-sm font-medium">
+                当前密码
+                <input
+                  class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+                  name="current_password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                />
+              </label>
+            ) : null
+          }
+          <label class="grid gap-1.5 text-sm font-medium"
+            >新密码<input
+              class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+              name="next_password"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              maxlength="128"
+              required
+            /></label
+          >
+          <label class="grid gap-1.5 text-sm font-medium"
+            >确认新密码<input
+              class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
+              name="confirm_password"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              maxlength="128"
+              required
+            /></label
+          >
+          <button
+            class="min-h-11 rounded-sm bg-primary px-4 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
+            type="submit">保存密码</button
+          >
+        </form>
+      </section>
+      <section aria-labelledby="github-heading">
+        <h2 class="mb-5 flex items-center gap-2 text-xl font-semibold" id="github-heading">
+          <IconBrandGithub size={20} stroke={1.8} aria-hidden="true" />GitHub 登录
+        </h2>
+        <p class="mb-5 text-sm/normal text-fg-muted">
+          绑定后可使用 GitHub 登录；解绑前必须保留本地密码。
+        </p>
+        {
+          user.has_github ? (
+            <form method="post" action="/auth/github/unbind">
+              <button
+                class="min-h-11 rounded-sm border border-danger px-4 text-sm font-semibold text-danger-fg hover:bg-danger-bg"
+                disabled={!user.has_password}
+                type="submit"
+              >
+                解绑 GitHub
+              </button>
+            </form>
+          ) : (
+            <a
+              class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
+              href="/auth/github/start?intent=bind&next=%2Fdashboard"
+            >
+              绑定 GitHub
+            </a>
+          )
+        }
+        {
+          canManageUsers ? (
+            <a
+              class="mt-6 flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
+              href="/management/users"
+            >
+              <IconShieldLock size={18} stroke={1.8} aria-hidden="true" />
+              用户与授权
+            </a>
+          ) : null
+        }
+      </section>
+    </div>
+  </section>
+</PublicLayout>
