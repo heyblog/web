@@ -13,6 +13,12 @@ tasks:
         apps/web       The frontend web app built with Astro
         EOF
 
+  apps:dev:
+    desc: Run core apps
+    deps:
+      - api:dev
+      - web:dev
+
   install:
     desc: Install repository dependencies
     cmds:
