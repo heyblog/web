@@ -1,0 +1,29 @@
+---
+import { IconArrowRight } from '@tabler/icons-svelte';
+
+import type { BlogSummary } from '@/application/static-content/static-content.models';
+import BlogList from '@/components/blog/BlogList.astro';
+
+interface Props {
+  blogs: BlogSummary[];
+}
+
+const { blogs } = Astro.props;
+---
+
+<section class="border-t border-line py-12 sm:py-16" aria-labelledby="project-blog-title">
+  <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="font-mono text-xs font-medium text-tint-fg">项目动态</p>
+      <h2 class="mt-2 text-2xl/tight font-semibold" id="project-blog-title">最近发布</h2>
+    </div>
+    <a
+      class="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-tint-fg hover:underline sm:min-h-10"
+      href="/blog"
+    >
+      <span>查看全部</span>
+      <IconArrowRight aria-hidden="true" size={16} stroke={1.75} />
+    </a>
+  </div>
+  <BlogList {blogs} compact headingLevel={3} />
+</section>

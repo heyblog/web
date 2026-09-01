@@ -500,6 +500,48 @@ func (q *Queries) GetSoftwareComponentByID(ctx context.Context, id pgtype.UUID) 
 	return i, err
 }
 
+const listDefaultPublicSiteFeedsBySiteIDs = `-- name: ListDefaultPublicSiteFeedsBySiteIDs :many
+SELECT id, site_id, name, location_type, url_ref, external_url, url_key, format, is_enabled, is_default, created_at, updated_at
+  FROM directory.site_feeds
+ WHERE site_id = ANY($1::uuid[])
+   AND is_enabled
+   AND is_default
+ ORDER BY site_id
+`
+
+func (q *Queries) ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteFeed, error) {
+	rows, err := q.db.Query(ctx, listDefaultPublicSiteFeedsBySiteIDs, siteIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectorySiteFeed{}
+	for rows.Next() {
+		var i DirectorySiteFeed
+		if err := rows.Scan(
+			&i.ID,
+			&i.SiteID,
+			&i.Name,
+			&i.LocationType,
+			&i.UrlRef,
+			&i.ExternalUrl,
+			&i.UrlKey,
+			&i.Format,
+			&i.IsEnabled,
+			&i.IsDefault,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnabledSoftwareComponents = `-- name: ListEnabledSoftwareComponents :many
 SELECT id, name, normalized_name, description, homepage_url, repository_url, is_open_source, is_enabled, created_at, updated_at FROM directory.software_components WHERE is_enabled ORDER BY name, id
 `
@@ -713,6 +755,139 @@ func (q *Queries) ListPublicSiteTags(ctx context.Context, siteID pgtype.UUID) ([
 			&i.Name,
 			&i.Slug,
 			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteTagsBySiteIDs = `-- name: ListPublicSiteTagsBySiteIDs :many
+SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
+  FROM directory.site_tags AS assignment
+  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+ WHERE assignment.site_id = ANY($1::uuid[])
+   AND tag.is_enabled
+   AND tag.merged_into_id IS NULL
+ ORDER BY assignment.site_id, assignment.role, tag.name
+`
+
+type ListPublicSiteTagsBySiteIDsRow struct {
+	SiteID           pgtype.UUID
+	TagID            pgtype.UUID
+	Role             string
+	AssignmentSource string
+	Note             *string
+	CreatedAt        pgtype.Timestamptz
+	Name             string
+	Slug             string
+	Description      string
+}
+
+func (q *Queries) ListPublicSiteTagsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]ListPublicSiteTagsBySiteIDsRow, error) {
+	rows, err := q.db.Query(ctx, listPublicSiteTagsBySiteIDs, siteIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublicSiteTagsBySiteIDsRow{}
+	for rows.Next() {
+		var i ListPublicSiteTagsBySiteIDsRow
+		if err := rows.Scan(
+			&i.SiteID,
+			&i.TagID,
+			&i.Role,
+			&i.AssignmentSource,
+			&i.Note,
+			&i.CreatedAt,
+			&i.Name,
+			&i.Slug,
+			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSitemapsBySiteIDs = `-- name: ListPublicSitemapsBySiteIDs :many
+SELECT id, site_id, kind, location_type, url_ref, external_url, url_key, created_at, updated_at
+  FROM directory.site_resources
+ WHERE site_id = ANY($1::uuid[])
+   AND kind = 'SITEMAP'
+ ORDER BY site_id
+`
+
+func (q *Queries) ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error) {
+	rows, err := q.db.Query(ctx, listPublicSitemapsBySiteIDs, siteIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectorySiteResource{}
+	for rows.Next() {
+		var i DirectorySiteResource
+		if err := rows.Scan(
+			&i.ID,
+			&i.SiteID,
+			&i.Kind,
+			&i.LocationType,
+			&i.UrlRef,
+			&i.ExternalUrl,
+			&i.UrlKey,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRandomVisibleSites = `-- name: ListRandomVisibleSites :many
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+  FROM directory.sites
+ WHERE visibility = 'VISIBLE'
+ ORDER BY random()
+ LIMIT $1
+`
+
+func (q *Queries) ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error) {
+	rows, err := q.db.Query(ctx, listRandomVisibleSites, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectorySite{}
+	for rows.Next() {
+		var i DirectorySite
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShortID,
+			&i.CustomID,
+			&i.Name,
+			&i.Scheme,
+			&i.NormalizedHost,
+			&i.BasePath,
+			&i.Summary,
+			&i.AccessScope,
+			&i.Visibility,
+			&i.VisibilityReason,
+			&i.Revision,
+			&i.JoinedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

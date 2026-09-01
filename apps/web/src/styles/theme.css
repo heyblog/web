@@ -43,6 +43,8 @@
   --color-warning-bg: var(--sem-warning-bg);
   --color-warning-fg: var(--sem-warning-fg);
   --color-warning-border: var(--sem-warning-border);
+  --color-info-bg: var(--sem-info-bg);
+  --color-info-fg: var(--sem-info-fg);
 }
 
 :root {
@@ -72,6 +74,8 @@
   --sem-warning-bg: #fffbeb;
   --sem-warning-fg: #b45309;
   --sem-warning-border: #f59e0b;
+  --sem-info-bg: #f0f9ff;
+  --sem-info-fg: #0369a1;
   --selection-bg: #b3dee0;
   --selection-fg: #062d2f;
   --motion-fast: 150ms;
@@ -103,8 +107,6 @@
   --sem-danger-bg: #4c0519;
   --sem-danger-fg: #fda4af;
   --sem-success-border: #34d399;
-  --sem-success-bg: #022c22;
-  --sem-success-fg: #6ee7b7;
   --sem-primary-active: #0c666b;
   --sem-tint: rgb(10 67 70 / 40%);
   --sem-tint-hover: rgb(11 83 87 / 50%);
@@ -112,6 +114,10 @@
   --sem-warning-bg: rgb(69 26 3 / 30%);
   --sem-warning-fg: #fbbf24;
   --sem-warning-border: #f59e0b;
+  --sem-success-bg: rgb(2 44 34 / 30%);
+  --sem-success-fg: #34d399;
+  --sem-info-bg: rgb(8 47 73 / 30%);
+  --sem-info-fg: #38bdf8;
   --selection-bg: #0b5357;
   --selection-fg: #d9eeef;
 }

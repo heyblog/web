@@ -1,25 +1,39 @@
 ---
+import { createHomeMockState, parseHomeMockMode } from '@/application/home/home.mock';
 import { loadHome } from '@/application/home/home.server';
-import { readMemberDirectory } from '@/application/static-content/static-content.server';
+import { selectHomeProjectBlogs } from '@/application/home/home-project-blogs.shared';
+import {
+  readBlogSummaries,
+  readMemberDirectory,
+} from '@/application/static-content/static-content.server';
 import HomeAnnouncement from '@/components/home/HomeAnnouncement.astro';
 import HomeCommunity from '@/components/home/HomeCommunity.astro';
 import HomeHero from '@/components/home/HomeHero.astro';
-import HomeSites from '@/components/home/HomeSites.astro';
+import HomeProjectBlogs from '@/components/home/HomeProjectBlogs.astro';
+import HomeSites from '@/components/home/HomeSites.svelte';
 import PublicLayout from '@/layouts/PublicLayout.astro';
 
 export const prerender = false;
 
-const [homeResult, memberDirectory] = await Promise.all([
-  loadHome(Astro.request.signal),
+const mockMode = parseHomeMockMode(
+  Astro.url.searchParams.get('mock'),
+  import.meta.env.DEV || import.meta.env.MODE === 'test',
+);
+const [homeResult, blogs, memberDirectory] = await Promise.all([
+  mockMode ? Promise.resolve(null) : loadHome(Astro.request.signal),
+  readBlogSummaries(),
   readMemberDirectory(),
 ]);
-const home = homeResult.kind === 'success' ? homeResult.data : null;
+const mockState = mockMode ? createHomeMockState(mockMode) : null;
+const home = mockState?.home ?? (homeResult?.kind === 'success' ? homeResult.data : null);
+const unavailable = mockState?.unavailable ?? home === null;
+const projectBlogs = selectHomeProjectBlogs(blogs);
 const activeMemberCount = memberDirectory.current.filter(
   (member) => member.status === 'ACTIVE',
 ).length;
 
 Astro.response.headers.set('Cache-Control', 'no-store');
-if (homeResult.kind !== 'success') {
+if (unavailable) {
   Astro.response.status = 503;
   Astro.response.headers.set('Retry-After', '30');
 }
@@ -35,7 +49,8 @@ if (homeResult.kind !== 'success') {
         </div>
       ) : null
     }
-    <HomeSites sites={home?.sites ?? []} unavailable={home === null} />
+    <HomeSites client:load sites={home?.sites ?? []} {unavailable} {mockMode} />
+    <HomeProjectBlogs blogs={projectBlogs} />
     <HomeCommunity {activeMemberCount} />
   </div>
 </PublicLayout>

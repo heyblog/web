@@ -1,0 +1,33 @@
+[data-card-section='summary'],
+[data-card-section='tags'] {
+  max-height: 1.5rem;
+  transition: max-height var(--card-content-duration, var(--motion-base)) var(--ease-standard);
+}
+
+[data-card-section='tags'] {
+  max-height: 1.25rem;
+}
+
+[data-card-section='summary'][data-expanded='true'],
+[data-card-section='tags'][data-expanded='true'] {
+  max-height: var(--expanded-height);
+}
+
+[data-card-section='details'] {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--card-content-duration, var(--motion-base))
+    var(--ease-standard);
+}
+
+[data-card-section='details'][data-expanded='true'] {
+  grid-template-rows: 1fr;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-card-section='summary'],
+  [data-card-section='tags'],
+  [data-card-section='details'] {
+    transition: none;
+  }
+}

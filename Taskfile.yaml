@@ -32,3 +32,9 @@ tasks:
     desc: Lint the latest commit message
     cmds:
       - pnpm exec commitlint --config ./commitlint.config.cjs --last
+
+  app:dev:
+    desc: Run core apps
+    deps:
+      - api:dev
+      - web:dev

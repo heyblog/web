@@ -6,6 +6,9 @@ export const prerender = false;
 
 const customID = Astro.params.customId ?? '';
 const loaded = await loadSiteByCustomID(customID, Astro.request.signal);
+if (loaded.kind === 'success') {
+  return Astro.redirect(`/site/${encodeURIComponent(loaded.data.shortId)}`, 308);
+}
 const result = loaded.kind === 'bad-request' ? ({ kind: 'not-found' } as const) : loaded;
 
 Astro.response.headers.set('Cache-Control', 'no-store');

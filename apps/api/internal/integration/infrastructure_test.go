@@ -29,6 +29,7 @@ import (
 	"heyblog-api/internal/database"
 	dbgen "heyblog-api/internal/database/gen"
 	"heyblog-api/internal/database/migrations"
+	"heyblog-api/internal/domain/content"
 	"heyblog-api/internal/mail"
 	"heyblog-api/internal/ratelimit"
 )
@@ -569,6 +570,22 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	if countAfter != countBefore+1 {
 		t.Fatalf("visible site count = %d, want %d", countAfter, countBefore+1)
 	}
+	randomSites, err := queries.ListRandomVisibleSites(ctx, int32(countAfter)) // #nosec G115 -- isolated fixtures keep the test count small.
+	if err != nil {
+		t.Fatalf("list random visible sites: %v", err)
+	}
+	var foundVisible bool
+	for _, candidate := range randomSites {
+		if candidate.ID == hiddenSiteID {
+			t.Fatal("random visible sites included a hidden site")
+		}
+		if candidate.ID == visibleSiteID {
+			foundVisible = true
+		}
+	}
+	if !foundVisible {
+		t.Fatal("random visible sites omitted a visible site within a full-size result")
+	}
 
 	if _, err := connection.Exec(ctx, `
 		INSERT INTO directory.site_feeds (
@@ -590,6 +607,31 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	}
 	if len(feeds) != 1 || feeds[0].Name != "Public feed" || !feeds[0].IsEnabled {
 		t.Fatalf("public site feeds = %#v", feeds)
+	}
+	batchFeeds, err := queries.ListDefaultPublicSiteFeedsBySiteIDs(
+		ctx,
+		[]pgtype.UUID{visibleSiteID, hiddenSiteID},
+	)
+	if err != nil {
+		t.Fatalf("list default public feeds by site IDs: %v", err)
+	}
+	if len(batchFeeds) != 1 || batchFeeds[0].SiteID != visibleSiteID || !batchFeeds[0].IsDefault {
+		t.Fatalf("default public site feeds = %#v", batchFeeds)
+	}
+
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.site_resources (
+			site_id, kind, location_type, url_ref, url_key
+		) VALUES ($1, 'SITEMAP', 'RELATIVE', '/sitemap.xml', '/sitemap.xml')
+	`, visibleSiteID); err != nil {
+		t.Fatalf("insert public sitemap fixture: %v", err)
+	}
+	sitemaps, err := queries.ListPublicSitemapsBySiteIDs(ctx, []pgtype.UUID{visibleSiteID, hiddenSiteID})
+	if err != nil {
+		t.Fatalf("list public sitemaps by site IDs: %v", err)
+	}
+	if len(sitemaps) != 1 || sitemaps[0].SiteID != visibleSiteID || sitemaps[0].Kind != "SITEMAP" {
+		t.Fatalf("public site sitemaps = %#v", sitemaps)
 	}
 
 	var enabledTagID, disabledTagID, mergedTagID, canonicalTagID pgtype.UUID
@@ -634,6 +676,13 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	}
 	if len(tags) != 1 || tags[0].TagID != enabledTagID || tags[0].Name != "Public Topic" {
 		t.Fatalf("public site tags = %#v", tags)
+	}
+	batchTags, err := queries.ListPublicSiteTagsBySiteIDs(ctx, []pgtype.UUID{visibleSiteID, hiddenSiteID})
+	if err != nil {
+		t.Fatalf("list public site tags by site IDs: %v", err)
+	}
+	if len(batchTags) != 1 || batchTags[0].SiteID != visibleSiteID || batchTags[0].TagID != enabledTagID {
+		t.Fatalf("batch public site tags = %#v", batchTags)
 	}
 
 	var enabledComponentID, disabledComponentID pgtype.UUID
@@ -994,17 +1043,17 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 
 	body := "Read **the release notes**."
 	draft, err := queries.CreateAnnouncement(ctx, dbgen.CreateAnnouncementParams{
-		Kind:         "MAIN",
+		Kind:         string(content.KindMain),
 		Title:        "Release announcement",
 		BodyMarkdown: &body,
 		Priority:     50,
-		ActionType:   "NONE",
+		ActionType:   string(content.ActionNone),
 		ActorID:      actor.ID,
 	})
 	if err != nil {
 		t.Fatalf("create announcement draft: %v", err)
 	}
-	if draft.Status != "DRAFT" || draft.RowVersion != 1 {
+	if draft.Status != string(content.StatusDraft) || draft.RowVersion != 1 {
 		t.Fatalf("created announcement = %#v", draft)
 	}
 
@@ -1019,7 +1068,7 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 	if err != nil {
 		t.Fatalf("publish announcement: %v", err)
 	}
-	if published.Status != "PUBLISHED" || published.RowVersion != 2 {
+	if published.Status != string(content.StatusPublished) || published.RowVersion != 2 {
 		t.Fatalf("published announcement = %#v", published)
 	}
 
@@ -1041,7 +1090,7 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 		Title:              correctedTitle,
 		BodyMarkdown:       published.BodyMarkdown,
 		Priority:           published.Priority,
-		ActionType:         "INTERNAL",
+		ActionType:         string(content.ActionInternal),
 		ActionLabel:        &actionLabel,
 		ActionPath:         &actionPath,
 		StartsAt:           published.StartsAt,
@@ -1064,10 +1113,10 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 	}
 
 	bannerDraft, err := queries.CreateAnnouncement(ctx, dbgen.CreateAnnouncementParams{
-		Kind:       "BANNER",
+		Kind:       string(content.KindBanner),
 		Title:      "Current banner query",
 		Priority:   0,
-		ActionType: "NONE",
+		ActionType: string(content.ActionNone),
 		ActorID:    actor.ID,
 	})
 	if err != nil {
@@ -1106,7 +1155,7 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 	if err != nil {
 		t.Fatalf("archive main announcement: %v", err)
 	}
-	if archived.Status != "ARCHIVED" {
+	if archived.Status != string(content.StatusArchived) {
 		t.Fatalf("archived announcement status = %q", archived.Status)
 	}
 	publicArchive, err := queries.ListPublicAnnouncementArchive(ctx, dbgen.ListPublicAnnouncementArchiveParams{
@@ -1121,10 +1170,10 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 	}
 
 	deletableDraft, err := queries.CreateAnnouncement(ctx, dbgen.CreateAnnouncementParams{
-		Kind:       "MAIN",
+		Kind:       string(content.KindMain),
 		Title:      "Delete this draft",
 		Priority:   0,
-		ActionType: "NONE",
+		ActionType: string(content.ActionNone),
 		ActorID:    actor.ID,
 	})
 	if err != nil {
@@ -1144,7 +1193,7 @@ func insertAnnouncement(
 	t *testing.T,
 	connection *pgxpool.Pool,
 	actorID pgtype.UUID,
-	kind string,
+	kind content.Kind,
 	title string,
 	priority int32,
 	startsAt time.Time,

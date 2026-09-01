@@ -30,6 +30,13 @@ SELECT *
  ORDER BY joined_at DESC, id DESC
  LIMIT $1 OFFSET $2;
 
+-- name: ListRandomVisibleSites :many
+SELECT *
+  FROM directory.sites
+ WHERE visibility = 'VISIBLE'
+ ORDER BY random()
+ LIMIT $1;
+
 -- name: CountVisibleSites :one
 SELECT count(*)::bigint
   FROM directory.sites
@@ -90,6 +97,14 @@ SELECT *
  WHERE site_id = $1 AND is_enabled
  ORDER BY is_default DESC, created_at, id;
 
+-- name: ListDefaultPublicSiteFeedsBySiteIDs :many
+SELECT *
+  FROM directory.site_feeds
+ WHERE site_id = ANY(sqlc.arg(site_ids)::uuid[])
+   AND is_enabled
+   AND is_default
+ ORDER BY site_id;
+
 -- name: DeleteSiteFeed :exec
 DELETE FROM directory.site_feeds WHERE id = $1 AND site_id = $2;
 
@@ -111,6 +126,13 @@ RETURNING *;
 
 -- name: ListSiteResources :many
 SELECT * FROM directory.site_resources WHERE site_id = $1 ORDER BY kind;
+
+-- name: ListPublicSitemapsBySiteIDs :many
+SELECT *
+  FROM directory.site_resources
+ WHERE site_id = ANY(sqlc.arg(site_ids)::uuid[])
+   AND kind = 'SITEMAP'
+ ORDER BY site_id;
 
 -- name: DeleteSiteResource :exec
 DELETE FROM directory.site_resources WHERE site_id = $1 AND kind = $2;
@@ -178,6 +200,15 @@ SELECT assignment.*, tag.name, tag.slug, tag.description
    AND tag.is_enabled
    AND tag.merged_into_id IS NULL
  ORDER BY assignment.role, tag.name;
+
+-- name: ListPublicSiteTagsBySiteIDs :many
+SELECT assignment.*, tag.name, tag.slug, tag.description
+  FROM directory.site_tags AS assignment
+  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+ WHERE assignment.site_id = ANY(sqlc.arg(site_ids)::uuid[])
+   AND tag.is_enabled
+   AND tag.merged_into_id IS NULL
+ ORDER BY assignment.site_id, assignment.role, tag.name;
 
 -- name: UnassignSiteTag :exec
 DELETE FROM directory.site_tags WHERE site_id = $1 AND tag_id = $2;

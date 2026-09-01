@@ -1,6 +1,5 @@
 import { type ApiJsonResult, fetchApiJson } from '@/application/api/client.server';
-import type { HomeSiteCard } from '@/application/home/home.server';
-import { siteDetailPath } from '@/application/home/home.server';
+import { type SiteCardBase, siteDetailPath } from '@/application/home/home.shared';
 
 export interface SiteTopic {
   name: string;
@@ -35,8 +34,7 @@ export interface SiteTechnology {
   isOpenSource: boolean;
 }
 
-export interface SiteProfile extends HomeSiteCard {
-  updatedAt: string;
+export interface SiteProfile extends SiteCardBase {
   topics: SiteTopic[];
   warnings: SiteWarning[];
   feeds: SiteFeed[];

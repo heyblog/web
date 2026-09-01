@@ -1,0 +1,35 @@
+dialog[data-blog-card-dialog] {
+  right: auto;
+  bottom: auto;
+  height: fit-content;
+  transform-origin: top left;
+}
+
+dialog[data-blog-card-dialog]::backdrop {
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+
+dialog[data-blog-card-dialog][data-phase='measuring'] {
+  visibility: hidden;
+}
+
+dialog[data-blog-card-dialog][data-phase='opening']::backdrop,
+dialog[data-blog-card-dialog][data-phase='open']::backdrop {
+  opacity: 1;
+}
+
+dialog[data-blog-card-dialog][data-phase='closing']::backdrop {
+  opacity: 0;
+  transition-duration: var(--motion-fast);
+}
+
+dialog[data-blog-card-dialog]:not([open]) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog[data-blog-card-dialog]::backdrop {
+    transition-duration: var(--motion-fast);
+  }
+}

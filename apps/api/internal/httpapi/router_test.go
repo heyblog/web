@@ -93,7 +93,7 @@ func TestPublicViewRoutesUseWebAuthenticationAndTypedReader(t *testing.T) {
 	var gotCustomID string
 	views := publicViewReaderStub{
 		home: func(context.Context) (publicview.Home, error) {
-			return publicview.Home{SiteCount: 2, Sites: []publicview.SiteCard{}}, nil
+			return publicview.Home{SiteCount: 2, Sites: []publicview.HomeSiteCard{}}, nil
 		},
 		byIdentifier: func(_ context.Context, identifier publicview.SiteIdentifier) (publicview.SiteProfile, error) {
 			gotIdentifier = identifier
@@ -578,7 +578,7 @@ func (stub publicViewReaderStub) Home(ctx context.Context) (publicview.Home, err
 	if stub.home != nil {
 		return stub.home(ctx)
 	}
-	return publicview.Home{Sites: []publicview.SiteCard{}}, nil
+	return publicview.Home{Sites: []publicview.HomeSiteCard{}}, nil
 }
 
 func (stub publicViewReaderStub) SiteByIdentifier(
