@@ -28,8 +28,8 @@ tasks:
     cmds:
       - task: container:command:check
       - task: container:base
-      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/api/Dockerfile -t heyblog-api:local .'
-      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/web/Dockerfile -t heyblog-web:local .'
+      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/api/Dockerfile -t api:local .'
+      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/web/Dockerfile -t web:local .'
 
   container:scan:
     desc: Scan local API and Web images for fixable high-severity vulnerabilities
@@ -47,7 +47,7 @@ tasks:
           --volume "${docker_socket}:/var/run/docker.sock" \
           "{{.TRIVY_IMAGE}}" \
           -ec '
-            for image in heyblog-api:local heyblog-web:local; do
+            for image in api:local web:local; do
               trivy image \
                 --exit-code 1 \
                 --ignore-unfixed \
@@ -113,11 +113,11 @@ tasks:
           esac
           [ "${#tag}" -le 128 ] || { printf 'image tag is too long: %s\n' "${tag}" >&2; exit 1; }
         done
-        for image in heyblog-api:local heyblog-web:local; do
+        for image in api:local web:local; do
           {{.DOCKER_COMMAND}} image inspect "${image}" >/dev/null
         done
         for tag in "$@"; do
-          for image in heyblog-api heyblog-web; do
+          for image in api web; do
             target=${registry}/${namespace}/${image}:${tag}
             {{.DOCKER_COMMAND}} tag "${image}:local" "${target}"
             {{.DOCKER_COMMAND}} push "${target}"

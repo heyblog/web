@@ -114,7 +114,7 @@ Task 只提供 `task compose:check` 配置校验，不管理这些服务的生�
 
 API 和 Web 必须位于同一私有容器网络，只发布 Web 的 `9101` 端口。API 的 `10201` 仅在内部网络开放，不配置主机端口映射。入口代理也只能转发到 Web，不能为 API 创建公网路由。
 
-运行 `task container:scan` 可检查已经构建的 `heyblog-api:local` 和 `heyblog-web:local` 镜像；
+运行 `task container:scan` 可检查已经构建的 `api:local` 和 `web:local` 镜像；
 `task container:publish REGISTRY=... NAMESPACE=... IMAGE_TAGS='sha,latest'` 只标记并推送已经由
 `task container:verify` 验证的本地镜像，不会隐式构建或扫描；这是远程写操作，三个参数均为
 必填。CI 总是先推送不可变的提交 SHA；仅当远端 main 仍指向当前提交时才更新 `latest`。
