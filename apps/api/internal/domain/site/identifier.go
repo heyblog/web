@@ -2,6 +2,7 @@ package site
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -13,9 +14,24 @@ const (
 	base62Limit             = byte(248)
 )
 
+var ErrInvalidShortID = errors.New("invalid short ID")
+
 // NewShortID returns a cryptographically random, fixed-width Base62 site ID.
 func NewShortID() (string, error) {
 	return generateShortID(rand.Reader)
+}
+
+// ValidateShortID checks the case-sensitive fixed-width Base62 route identifier.
+func ValidateShortID(value string) error {
+	if len(value) != ShortIDLength {
+		return ErrInvalidShortID
+	}
+	for index := range value {
+		if !isASCIIAlphanumeric(value[index]) {
+			return ErrInvalidShortID
+		}
+	}
+	return nil
 }
 
 func generateShortID(source io.Reader) (string, error) {

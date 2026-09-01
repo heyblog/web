@@ -16,7 +16,7 @@ import (
 const (
 	blogsFormat     = "heyblog.data-import.blogs"
 	graphFormat     = "heyblog.data-import.graph"
-	contractVersion = 2
+	contractVersion = 3
 )
 
 var sha256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -36,11 +36,10 @@ type BlogBundle struct {
 }
 
 type InputMetadata struct {
-	Kind      string `json:"kind"`
-	File      string `json:"file"`
-	SHA256    string `json:"sha256"`
-	Count     int    `json:"count"`
-	EdgeCount *int   `json:"edge_count,omitempty"`
+	Kind   string `json:"kind"`
+	File   string `json:"file"`
+	SHA256 string `json:"sha256"`
+	Count  int    `json:"count"`
 }
 
 type LegacyBlog struct {
@@ -52,7 +51,6 @@ type LegacyBlog struct {
 	Sitemap          *string             `json:"sitemap"`
 	LinkPage         *string             `json:"link_page"`
 	JoinedAt         string              `json:"joined_at"`
-	CreatedAt        string              `json:"created_at"`
 	UpdatedAt        string              `json:"updated_at"`
 	AccessScope      string              `json:"access_scope"`
 	Visibility       string              `json:"visibility"`
@@ -256,7 +254,7 @@ func validateBundles(bundles Bundles) error {
 	}
 	for index, blog := range blogs.Blogs {
 		if strings.TrimSpace(blog.ID) == "" || strings.TrimSpace(blog.Name) == "" ||
-			strings.TrimSpace(blog.URL) == "" || strings.TrimSpace(blog.Summary) == "" {
+			strings.TrimSpace(blog.URL) == "" {
 			return fmt.Errorf("blogs[%d] is missing required migration data", index)
 		}
 		if !slices.Contains([]string{"ALL", "CN_ONLY", "GLOBAL_ONLY"}, blog.AccessScope) {
@@ -268,15 +266,14 @@ func validateBundles(bundles Bundles) error {
 			return fmt.Errorf("blogs[%d] has invalid visibility state", index)
 		}
 		joinedAt, joinedErr := time.Parse(time.RFC3339Nano, blog.JoinedAt)
-		createdAt, createdErr := time.Parse(time.RFC3339Nano, blog.CreatedAt)
 		updatedAt, updatedErr := time.Parse(time.RFC3339Nano, blog.UpdatedAt)
-		if joinedErr != nil || createdErr != nil || updatedErr != nil || joinedAt.Before(createdAt) || updatedAt.Before(joinedAt) || updatedAt.Before(createdAt) {
+		if joinedErr != nil || updatedErr != nil || updatedAt.Before(joinedAt) {
 			return fmt.Errorf("blogs[%d] has invalid timestamps", index)
 		}
 		defaults := 0
 		for feedIndex, feed := range blog.Feeds {
 			if strings.TrimSpace(feed.URL) == "" || strings.TrimSpace(feed.Name) == "" ||
-				!slices.Contains([]string{"RSS", "ATOM", "JSON"}, feed.Format) {
+				!slices.Contains([]string{"UNKNOWN", "RSS", "ATOM", "JSON"}, feed.Format) {
 				return fmt.Errorf("blogs[%d].feed[%d] is incomplete", index, feedIndex)
 			}
 			if feed.IsDefault {
@@ -291,7 +288,7 @@ func validateBundles(bundles Bundles) error {
 		}
 		seenOrigins := make(map[string]struct{}, len(blog.Origins))
 		for originIndex, origin := range blog.Origins {
-			if !slices.Contains([]string{"HEYBLOG_OLD", "ZHBLOGS_OLD", "WEB_SUBMIT", "FRIEND_LINK_DISCOVERY"}, origin.SourceKey) ||
+			if !slices.Contains([]string{"HEYBLOG_OLD", "ZHBLOGS_OLD", "WEB_SUBMIT"}, origin.SourceKey) ||
 				strings.TrimSpace(origin.ExternalReference) == "" || len(origin.Metadata.InputKinds) == 0 ||
 				len(origin.Metadata.ExternalReferences) == 0 {
 				return fmt.Errorf("blogs[%d].origins[%d] is incomplete", index, originIndex)
@@ -330,21 +327,14 @@ func validateBundles(bundles Bundles) error {
 }
 
 func validateInputMetadata(inputs []InputMetadata) error {
-	expected := []string{"zhblogs", "nodes", "edges", "outbound"}
+	expected := []string{"zhblogs", "classification"}
 	if len(inputs) != len(expected) {
-		return errors.New("exactly four input records are required")
+		return errors.New("exactly two input records are required")
 	}
 	for index, input := range inputs {
 		if input.Kind != expected[index] || strings.TrimSpace(input.File) == "" ||
 			!sha256Pattern.MatchString(input.SHA256) || input.Count < 0 {
 			return fmt.Errorf("inputs[%d] is invalid", index)
-		}
-		if input.Kind == "outbound" {
-			if input.EdgeCount == nil || *input.EdgeCount < 0 {
-				return fmt.Errorf("inputs[%d].edge_count is required", index)
-			}
-		} else if input.EdgeCount != nil {
-			return fmt.Errorf("inputs[%d].edge_count is unexpected", index)
 		}
 	}
 	return nil

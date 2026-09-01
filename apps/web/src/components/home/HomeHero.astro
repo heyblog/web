@@ -1,0 +1,58 @@
+---
+import { IconArrowDown, IconUsersPlus } from '@tabler/icons-svelte';
+
+import { siteConfig } from '@/site.config';
+
+interface Props {
+  siteCount: number | null;
+}
+
+const { siteCount } = Astro.props;
+---
+
+<section
+  class="grid gap-10 border-b border-line py-12 sm:py-16 md:grid-cols-[minmax(0,1fr)_17rem] md:items-end"
+  aria-labelledby="home-title"
+>
+  <div class="max-w-184">
+    <div class="mb-6 flex items-center gap-4">
+      <img class="size-16 rounded-md" src="/favicon.svg" alt="" width="64" height="64" />
+      <p class="font-mono text-xs font-medium text-tint-fg">独立博客网络</p>
+    </div>
+    <h1 class="text-4xl/tight font-bold" id="home-title">{siteConfig.name}</h1>
+    <p class="mt-5 max-w-160 text-lg/7 text-fg-muted">{siteConfig.description}</p>
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a
+        class="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-primary px-5 text-sm font-medium text-white transition-[background-color,scale] duration-(--motion-fast) ease-out hover:bg-primary-hover active:scale-96 sm:min-h-10"
+        href="#discover"
+      >
+        今日推荐
+        <IconArrowDown aria-hidden="true" size={16} stroke={1.8} />
+      </a>
+      <a
+        class="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-5 text-sm font-medium text-fg transition-[border-color,background-color,scale] duration-(--motion-fast) ease-out hover:border-primary hover:bg-subtle active:scale-96 sm:min-h-10"
+        href="/contribute"
+      >
+        参与贡献
+        <IconUsersPlus aria-hidden="true" size={16} stroke={1.8} />
+      </a>
+    </div>
+  </div>
+
+  <aside
+    class="border-t border-line pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-8"
+    aria-label="站点概览"
+  >
+    <p class="font-mono text-xs font-medium text-fg-muted">已收录博客</p>
+    {
+      siteCount === null ? (
+        <p class="mt-3 text-sm text-fg-muted">数据暂不可用</p>
+      ) : (
+        <p class="mt-2 text-4xl/tight font-bold tabular-nums">
+          {siteCount.toLocaleString('zh-CN')}
+        </p>
+      )
+    }
+    <p class="mt-4 text-sm/6 text-fg-muted">持续连接独立写作者，让真实而长期的表达更容易被发现。</p>
+  </aside>
+</section>

@@ -1,0 +1,333 @@
+---
+import {
+  IconAlertTriangle,
+  IconArrowLeft,
+  IconBrandGithub,
+  IconCalendar,
+  IconCode,
+  IconExternalLink,
+  IconLink,
+  IconRefresh,
+  IconRss,
+  IconSitemap,
+  IconWorldWww,
+} from '@tabler/icons-svelte';
+
+import type { ApiJsonResult } from '@/application/api/client.server';
+import {
+  canonicalSitePath,
+  type SiteProfile,
+} from '@/application/site-profile/site-profile.server';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+
+interface Props {
+  result: ApiJsonResult<SiteProfile>;
+  requestedPath: string;
+}
+
+const { result, requestedPath } = Astro.props;
+const profile = result.kind === 'success' ? result.data : null;
+const unavailable = result.kind === 'unavailable';
+const title = profile ? profile.name : unavailable ? '站点资料暂不可用' : '站点不存在';
+const description =
+  profile?.summary || (unavailable ? '站点资料暂时无法加载。' : '未找到对应的站点资料。');
+const accessScopeLabels: Record<SiteProfile['accessScope'], string> = {
+  ALL: '全球可访问',
+  CN_ONLY: '仅中国大陆可访问',
+  GLOBAL_ONLY: '仅海外可访问',
+};
+const technologyRoleLabels: Record<SiteProfile['technologies'][number]['role'], string> = {
+  SITE_PROGRAM: '站点程序',
+  FRAMEWORK: '框架',
+  LANGUAGE: '语言',
+  RUNTIME: '运行时',
+  OTHER: '其他',
+};
+const resourceLabels: Record<SiteProfile['resources'][number]['kind'], string> = {
+  LINK_PAGE: '友情链接页',
+  SITEMAP: '站点地图',
+};
+const dateLabel = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? '日期未知'
+    : date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+};
+const shortCode = profile ? (Array.from(profile.name.trim())[0]?.toUpperCase() ?? 'H') : 'HB';
+---
+
+<PublicLayout
+  {title}
+  {description}
+  canonicalPath={profile ? canonicalSitePath(profile) : requestedPath}
+  robots={profile ? undefined : 'noindex, nofollow'}
+  publishedTime={profile?.joinedAt}
+  modifiedTime={profile?.updatedAt}
+>
+  <div
+    class="mx-auto w-[min(calc(100%-2rem),80rem)] flex-1 py-10 sm:w-[min(calc(100%-3rem),80rem)] sm:py-12"
+  >
+    <a
+      class="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-fg-muted transition-colors duration-(--motion-fast) hover:text-tint-fg sm:min-h-10"
+      href="/#discover"
+    >
+      <IconArrowLeft aria-hidden="true" size={16} stroke={1.8} />
+      返回今日推荐
+    </a>
+
+    {
+      profile ? (
+        <div class="mt-6">
+          <section class="grid gap-8 border-b border-line pb-10 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div class="min-w-0">
+              <div class="flex items-start gap-4">
+                <span class="inline-flex size-14 shrink-0 items-center justify-center rounded-md bg-tint font-mono text-lg font-semibold text-tint-fg">
+                  {shortCode}
+                </span>
+                <div class="min-w-0">
+                  <p class="font-mono text-xs font-medium text-tint-fg">站点资料</p>
+                  <h1 class="mt-2 text-3xl/tight font-bold wrap-anywhere">{profile.name}</h1>
+                  <p class="mt-2 font-mono text-sm wrap-anywhere text-fg-muted">{profile.host}</p>
+                </div>
+              </div>
+              <p class="mt-6 max-w-176 text-base/7 text-fg-muted">
+                {profile.summary || '这个站点已经加入 HeyBlog 独立博客目录。'}
+              </p>
+              <div class="mt-5 flex flex-wrap gap-2">
+                <span class="rounded-sm bg-tint px-2 py-1 text-xs font-medium text-tint-fg">
+                  {accessScopeLabels[profile.accessScope]}
+                </span>
+                {profile.topics.map((topic) => (
+                  <span class="rounded-sm bg-subtle px-2 py-1 text-xs font-medium text-fg-muted">
+                    {topic.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <a
+              class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-primary px-5 text-sm font-medium text-white transition-[background-color,scale] duration-(--motion-fast) ease-out hover:bg-primary-hover active:scale-96 sm:min-h-10"
+              href={profile.homepageUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              访问博客
+              <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
+            </a>
+          </section>
+
+          <dl class="grid border-b border-line py-6 sm:grid-cols-3">
+            <div class="flex items-start gap-3 py-3 sm:py-0 sm:pr-5">
+              <IconCalendar
+                class="mt-0.5 shrink-0 text-fg-muted"
+                aria-hidden="true"
+                size={17}
+                stroke={1.8}
+              />
+              <div>
+                <dt class="text-xs font-medium text-fg-muted">加入目录</dt>
+                <dd class="mt-1 text-sm font-medium">{dateLabel(profile.joinedAt)}</dd>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 border-t border-line py-3 sm:border-t-0 sm:border-l sm:px-5 sm:py-0">
+              <IconWorldWww
+                class="mt-0.5 shrink-0 text-fg-muted"
+                aria-hidden="true"
+                size={17}
+                stroke={1.8}
+              />
+              <div class="min-w-0">
+                <dt class="text-xs font-medium text-fg-muted">站点域名</dt>
+                <dd class="mt-1 text-sm font-medium wrap-anywhere">{profile.host}</dd>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 border-t border-line py-3 sm:border-t-0 sm:border-l sm:py-0 sm:pl-5">
+              <IconLink
+                class="mt-0.5 shrink-0 text-fg-muted"
+                aria-hidden="true"
+                size={17}
+                stroke={1.8}
+              />
+              <div>
+                <dt class="text-xs font-medium text-fg-muted">目录标识</dt>
+                <dd class="mt-1 font-mono text-sm font-medium">
+                  {profile.customId ?? profile.shortId}
+                </dd>
+              </div>
+            </div>
+          </dl>
+
+          {profile.warnings.length > 0 ? (
+            <section
+              class="mt-8 rounded-md border border-l-3 border-line border-l-warning-border bg-warning-bg p-4 text-warning-fg"
+              aria-labelledby="site-warnings-title"
+            >
+              <div class="flex items-start gap-3">
+                <IconAlertTriangle
+                  class="mt-0.5 shrink-0"
+                  aria-hidden="true"
+                  size={18}
+                  stroke={1.8}
+                />
+                <div>
+                  <h2 class="text-sm font-semibold" id="site-warnings-title">
+                    访问提示
+                  </h2>
+                  <ul class="mt-2 grid gap-2 text-sm/6">
+                    {profile.warnings.map((warning) => (
+                      <li>
+                        <strong class="font-medium">{warning.name}</strong>
+                        {warning.description ? `：${warning.description}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <div class="grid gap-10 py-10 md:grid-cols-2">
+            {profile.feeds.length > 0 || profile.resources.length > 0 ? (
+              <section aria-labelledby="site-resources-title">
+                <p class="font-mono text-xs font-medium text-tint-fg">公开入口</p>
+                <h2 class="mt-2 text-xl/snug font-semibold" id="site-resources-title">
+                  订阅与资源
+                </h2>
+                <ul class="mt-5 border-y border-line">
+                  {profile.feeds.map((feed) => (
+                    <li class="border-b border-line last:border-b-0">
+                      <a
+                        class="group flex min-h-16 items-center gap-3 py-3"
+                        href={feed.url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
+                          <IconRss aria-hidden="true" size={17} stroke={1.8} />
+                        </span>
+                        <span class="min-w-0">
+                          <span class="font-medium">{feed.name}</span>
+                          <span class="mt-0.5 block text-xs text-fg-muted">
+                            {feed.format}
+                            {feed.isDefault ? ' · 默认订阅' : ''}
+                          </span>
+                        </span>
+                        <IconExternalLink
+                          class="ml-auto shrink-0 text-fg-muted transition-colors duration-(--motion-fast) group-hover:text-tint-fg"
+                          aria-hidden="true"
+                          size={15}
+                          stroke={1.8}
+                        />
+                      </a>
+                    </li>
+                  ))}
+                  {profile.resources.map((resource) => (
+                    <li class="border-b border-line last:border-b-0">
+                      <a
+                        class="group flex min-h-16 items-center gap-3 py-3"
+                        href={resource.url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
+                          {resource.kind === 'SITEMAP' ? (
+                            <IconSitemap aria-hidden="true" size={17} stroke={1.8} />
+                          ) : (
+                            <IconLink aria-hidden="true" size={17} stroke={1.8} />
+                          )}
+                        </span>
+                        <span class="font-medium">{resourceLabels[resource.kind]}</span>
+                        <IconExternalLink
+                          class="ml-auto shrink-0 text-fg-muted transition-colors duration-(--motion-fast) group-hover:text-tint-fg"
+                          aria-hidden="true"
+                          size={15}
+                          stroke={1.8}
+                        />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {profile.technologies.length > 0 ? (
+              <section aria-labelledby="site-technologies-title">
+                <p class="font-mono text-xs font-medium text-tint-fg">技术信息</p>
+                <h2 class="mt-2 text-xl/snug font-semibold" id="site-technologies-title">
+                  站点技术栈
+                </h2>
+                <ul class="mt-5 border-y border-line">
+                  {profile.technologies.map((technology) => {
+                    const href = technology.homepageUrl ?? technology.repositoryUrl;
+                    return (
+                      <li class="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-b-0">
+                        <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
+                          <IconCode aria-hidden="true" size={17} stroke={1.8} />
+                        </span>
+                        <span class="min-w-0">
+                          <span class="font-medium">{technology.name}</span>
+                          <span class="mt-0.5 block text-xs text-fg-muted">
+                            {technologyRoleLabels[technology.role]}
+                            {technology.isOpenSource ? ' · 开源' : ''}
+                          </span>
+                        </span>
+                        {href ? (
+                          <a
+                            class="ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-md text-fg-muted transition-[background-color,color,scale] duration-(--motion-fast) hover:bg-subtle hover:text-tint-fg active:scale-96 sm:size-10"
+                            href={href}
+                            rel="noreferrer"
+                            target="_blank"
+                            aria-label={
+                              technology.homepageUrl
+                                ? `访问 ${technology.name} 官网`
+                                : `查看 ${technology.name} 代码仓库`
+                            }
+                          >
+                            {technology.repositoryUrl === href ? (
+                              <IconBrandGithub aria-hidden="true" size={17} stroke={1.8} />
+                            ) : (
+                              <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
+                            )}
+                          </a>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <section
+          class="flex min-h-96 flex-col items-center justify-center border-b border-line py-16 text-center"
+          aria-labelledby="site-state-title"
+        >
+          <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
+            {unavailable ? (
+              <IconRefresh aria-hidden="true" size={20} stroke={1.8} />
+            ) : (
+              <IconWorldWww aria-hidden="true" size={20} stroke={1.8} />
+            )}
+          </span>
+          <h1 class="mt-4 text-xl font-semibold" id="site-state-title">
+            {title}
+          </h1>
+          <p class="mt-2 max-w-md text-sm/6 text-fg-muted">
+            {unavailable
+              ? '服务暂时无法返回这份站点资料，请稍后重试。'
+              : '请检查地址，或返回首页浏览今天的推荐。'}
+          </p>
+          {unavailable ? (
+            <a
+              class="mt-5 inline-flex min-h-11 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-white transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-hover active:scale-96 sm:min-h-10"
+              href={requestedPath}
+            >
+              <IconRefresh aria-hidden="true" size={16} stroke={1.8} />
+              重新加载
+            </a>
+          ) : null}
+        </section>
+      )
+    }
+  </div>
+</PublicLayout>

@@ -22,7 +22,7 @@ func validateCleanedJSONShape(blogData, graphData []byte) error {
 		path := fmt.Sprintf("$.blogs[%d]", index)
 		blog, objectErr := requiredObject(raw, path, []string{
 			"id", "name", "url", "summary", "feeds", "sitemap", "link_page",
-			"joined_at", "created_at", "updated_at", "access_scope", "visibility",
+			"joined_at", "updated_at", "access_scope", "visibility",
 			"visibility_reason", "origins", "main_tag", "sub_tags", "architecture",
 		}, map[string]bool{
 			"sitemap": true, "link_page": true, "visibility_reason": true,
@@ -108,7 +108,7 @@ func validateInputsShape(data json.RawMessage, path string) error {
 		return err
 	}
 	for index, raw := range inputs {
-		if _, err := requiredObject(raw, fmt.Sprintf("%s[%d]", path, index), []string{"kind", "file", "sha256", "count"}, map[string]bool{"edge_count": true}); err != nil {
+		if _, err := requiredObject(raw, fmt.Sprintf("%s[%d]", path, index), []string{"kind", "file", "sha256", "count"}, nil); err != nil {
 			return err
 		}
 	}

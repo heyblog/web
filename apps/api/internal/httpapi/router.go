@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"heyblog-api/internal/apperror"
+	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 )
 
@@ -19,6 +20,7 @@ type Options struct {
 	Health             *Health
 	HealthcheckToken   string
 	WebToken           string
+	PublicViews        publicview.Reader
 	BodyLimitOverrides map[Route]int64
 }
 
@@ -40,6 +42,9 @@ func NewRouter(options Options) (*gin.Engine, error) {
 	}
 	if options.WebToken == "" {
 		return nil, fmt.Errorf("web token is required")
+	}
+	if options.PublicViews == nil {
+		return nil, fmt.Errorf("public view reader is required")
 	}
 	logger := options.Logger
 	if logger == nil {
@@ -73,6 +78,9 @@ func NewRouter(options Options) (*gin.Engine, error) {
 		return nil, err
 	}
 	router.GET("/ping", ping)
+	if err := registerPublicViewRoutes(router, options.WebToken, options.PublicViews); err != nil {
+		return nil, err
+	}
 	healthAuth := healthAuthorization(options.HealthcheckToken)
 	router.GET("/health/live", Adapt(Chain(func(*Context) (Response, error) {
 		return NoContent(http.StatusNoContent).WithHeader("Cache-Control", "no-store"), nil

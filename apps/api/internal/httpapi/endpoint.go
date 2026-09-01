@@ -77,6 +77,10 @@ func (ctx *Context) ClientIP() string {
 	return ctx.native.ClientIP()
 }
 
+func (ctx *Context) Param(name string) string {
+	return ctx.native.Param(name)
+}
+
 func (ctx *Context) Header(key, value string) {
 	ctx.native.Header(key, value)
 }

@@ -44,6 +44,19 @@ func TestValidateCustomIDAcceptsCaseSensitiveRouteAlphabet(t *testing.T) {
 	}
 }
 
+func TestValidateShortIDAcceptsOnlyFixedWidthBase62(t *testing.T) {
+	t.Parallel()
+
+	if err := ValidateShortID("A1b2C3d4E"); err != nil {
+		t.Fatalf("ValidateShortID() error = %v", err)
+	}
+	for _, value := range []string{"short", "A1b2C3d4-", "A1b2C3d4_", "A1b2C3d4Ef"} {
+		if err := ValidateShortID(value); !errors.Is(err, ErrInvalidShortID) {
+			t.Errorf("ValidateShortID(%q) error = %v, want ErrInvalidShortID", value, err)
+		}
+	}
+}
+
 func TestNormalizeAddress(t *testing.T) {
 	t.Parallel()
 
@@ -53,6 +66,42 @@ func TestNormalizeAddress(t *testing.T) {
 	}
 	if got.Scheme != "https" || got.NormalizedHost != "xn--fsqu00a.xn--fiqs8s" || got.BasePath != "/blog" {
 		t.Fatalf("NormalizeAddress() = %#v", got)
+	}
+}
+
+func TestAddressReconstructsHomepageAndStoredLocations(t *testing.T) {
+	t.Parallel()
+
+	address := Address{
+		Scheme:         "https",
+		NormalizedHost: "example.com",
+		BasePath:       "/%E5%8D%9A%E5%AE%A2",
+	}
+	homepage, err := address.HomepageURL()
+	if err != nil {
+		t.Fatalf("HomepageURL() error = %v", err)
+	}
+	if homepage != "https://example.com/%E5%8D%9A%E5%AE%A2" {
+		t.Fatalf("HomepageURL() = %q", homepage)
+	}
+
+	relative, err := address.LocationURL(Location{Type: "RELATIVE", URLRef: "/feed.xml?lang=zh"})
+	if err != nil {
+		t.Fatalf("LocationURL(relative) error = %v", err)
+	}
+	if relative != "https://example.com/feed.xml?lang=zh" {
+		t.Fatalf("LocationURL(relative) = %q", relative)
+	}
+
+	external, err := address.LocationURL(Location{
+		Type:        "EXTERNAL",
+		ExternalURL: "https://feeds.example.net/a%2Fb.xml",
+	})
+	if err != nil {
+		t.Fatalf("LocationURL(external) error = %v", err)
+	}
+	if external != "https://feeds.example.net/a%2Fb.xml" {
+		t.Fatalf("LocationURL(external) = %q", external)
 	}
 }
 

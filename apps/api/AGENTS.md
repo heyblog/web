@@ -101,9 +101,10 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Do not leak internal errors, SQL details, upstream addresses, credentials, or stack traces.
 - Internal HTTP endpoints require an explicit trust and authentication model; network placement is
   not authorization.
-- `GET /ping` is web-internal, has no application rate limit, and requires the shared
-  `X-HeyBlog-Web-Token`. Future direct third-party routes must be registered explicitly as public
-  instead of weakening web-internal authentication. `GET /health/live` and `/health/ready` are
+- `GET /ping`, `GET /home`, `GET /sites/id/:identifier`, and `GET /sites/custom/:customId` are
+  web-internal, have no application rate limit, and require the shared `X-HeyBlog-Web-Token`.
+  Future direct third-party routes must be registered explicitly as public instead of weakening
+  web-internal authentication. `GET /health/live` and `/health/ready` are
   internal, have no application rate limit, and require
   `Authorization: Bearer <API_HEALTHCHECK_TOKEN>`. The liveness response is immediate; readiness is
   bounded by `health.readiness_timeout`. Authentication failures return 401 without probing

@@ -1,130 +1,41 @@
 ---
-import { IconArrowRight, IconBook2, IconUsers } from '@tabler/icons-svelte';
-
-import {
-  readBlogSummaries,
-  readDocsLandingEntry,
-  readMemberDirectory,
-} from '@/application/static-content/static-content.server';
-import BlogList from '@/components/blog/BlogList.astro';
+import { loadHome } from '@/application/home/home.server';
+import { readMemberDirectory } from '@/application/static-content/static-content.server';
+import HomeAnnouncement from '@/components/home/HomeAnnouncement.astro';
+import HomeCommunity from '@/components/home/HomeCommunity.astro';
+import HomeHero from '@/components/home/HomeHero.astro';
+import HomeSites from '@/components/home/HomeSites.astro';
 import PublicLayout from '@/layouts/PublicLayout.astro';
-import { siteConfig } from '@/site.config';
 
-export const prerender = true;
+export const prerender = false;
 
-const [blogs, docsLanding, memberDirectory] = await Promise.all([
-  readBlogSummaries(),
-  readDocsLandingEntry(),
+const [homeResult, memberDirectory] = await Promise.all([
+  loadHome(Astro.request.signal),
   readMemberDirectory(),
 ]);
-const recentBlogs = blogs.slice(0, 3);
-const currentMembers = memberDirectory.current;
-const actionLinkClass =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-[background-color,color,scale] ease-standard [transition-duration:var(--motion-color),var(--motion-color),var(--motion-fast)] active:scale-96 sm:min-h-10 motion-reduce:transition-colors';
+const home = homeResult.kind === 'success' ? homeResult.data : null;
+const activeMemberCount = memberDirectory.current.filter(
+  (member) => member.status === 'ACTIVE',
+).length;
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+if (homeResult.kind !== 'success') {
+  Astro.response.status = 503;
+  Astro.response.headers.set('Retry-After', '30');
+}
 ---
 
 <PublicLayout>
-  <div class="mx-auto w-[min(calc(100%-2rem),80rem)] pb-16 sm:w-[min(calc(100%-3rem),80rem)]">
-    <section
-      class="flex min-h-[min(34rem,calc(100vh-9rem))] flex-col justify-center border-b border-line py-16"
-      aria-labelledby="home-title"
-    >
-      <p class="mb-4 font-mono text-xs font-medium text-tint-fg">发现值得阅读的个人博客</p>
-      <h1 class="text-[2rem] leading-tight font-bold sm:text-4xl" id="home-title">
-        {siteConfig.name}
-      </h1>
-      <p class="mt-5 max-w-152 text-lg/snug text-fg-muted">{siteConfig.description}</p>
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a
-          class:list={[actionLinkClass, 'bg-primary text-white hover:bg-primary-hover']}
-          href="/blog"
-        >
-          <span>浏览项目博客</span>
-          <IconArrowRight aria-hidden="true" size={17} stroke={1.75} />
-        </a>
-        <a class:list={[actionLinkClass, 'bg-tint text-tint-fg hover:bg-tint-hover']} href="/docs">
-          <IconBook2 aria-hidden="true" size={17} stroke={1.75} />
-          <span>阅读项目文档</span>
-        </a>
-      </div>
-    </section>
-
-    <section class="py-12 sm:py-16" aria-labelledby="home-blog-title">
-      <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p class="font-mono text-xs font-medium text-tint-fg">项目动态</p>
-          <h2 class="mt-2 text-2xl font-semibold text-fg" id="home-blog-title">最近发布</h2>
+  <div class="mx-auto w-[min(calc(100%-2rem),80rem)] sm:w-[min(calc(100%-3rem),80rem)]">
+    <HomeHero siteCount={home?.siteCount ?? null} />
+    {
+      home?.announcement ? (
+        <div class="pt-8">
+          <HomeAnnouncement announcement={home.announcement} />
         </div>
-        <a
-          class="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-tint-fg hover:underline sm:min-h-10"
-          href="/blog"
-        >
-          <span>查看全部</span>
-          <IconArrowRight aria-hidden="true" size={16} stroke={1.75} />
-        </a>
-      </div>
-      <BlogList blogs={recentBlogs} compact headingLevel={3} />
-    </section>
-
-    <div class="grid border-t border-line md:grid-cols-2 md:divide-x md:divide-line">
-      <section class="py-10 md:pr-10" aria-labelledby="home-docs-title">
-        <span
-          class="inline-flex size-10 items-center justify-center rounded-md bg-tint text-tint-fg"
-          aria-hidden="true"
-        >
-          <IconBook2 size={19} stroke={1.75} />
-        </span>
-        <h2 class="mt-5 text-2xl font-semibold text-fg" id="home-docs-title">
-          {docsLanding.data.title}
-        </h2>
-        <p class="mt-3 max-w-136 text-sm/normal text-fg-muted">
-          {docsLanding.data.description}
-        </p>
-        <a
-          class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-tint-fg hover:underline sm:min-h-10"
-          href="/docs"
-        >
-          <span>进入文档</span>
-          <IconArrowRight aria-hidden="true" size={16} stroke={1.75} />
-        </a>
-      </section>
-
-      <section
-        class="border-t border-line py-10 md:border-t-0 md:pl-10"
-        aria-labelledby="home-members-title"
-      >
-        <span
-          class="inline-flex size-10 items-center justify-center rounded-md bg-tint text-tint-fg"
-          aria-hidden="true"
-        >
-          <IconUsers size={19} stroke={1.75} />
-        </span>
-        <h2 class="mt-5 text-2xl font-semibold text-fg" id="home-members-title">项目成员</h2>
-        <p class="mt-3 text-sm/normal text-fg-muted">
-          当前共有 {currentMembers.length} 位成员参与项目维护。
-        </p>
-        <ul class="mt-4 flex list-none flex-wrap gap-x-4 gap-y-1 p-0" aria-label="当前成员">
-          {
-            currentMembers.map((member) => (
-              <li>
-                <a
-                  class="inline-flex min-h-11 items-center text-sm font-medium text-tint-fg hover:underline sm:min-h-10"
-                  href={`/members#${member.id}`}
-                >
-                  {member.displayName}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-        <a
-          class="mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-tint-fg hover:underline sm:min-h-10"
-          href="/members"
-        >
-          <span>查看成员页</span>
-          <IconArrowRight aria-hidden="true" size={16} stroke={1.75} />
-        </a>
-      </section>
-    </div>
+      ) : null
+    }
+    <HomeSites sites={home?.sites ?? []} unavailable={home === null} />
+    <HomeCommunity {activeMemberCount} />
   </div>
 </PublicLayout>

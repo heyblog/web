@@ -21,7 +21,7 @@ func validatePlan(plan Plan) error {
 		if _, exists := shortIDs[row.ShortID]; exists {
 			return fmt.Errorf("duplicate site short id %q", row.ShortID)
 		}
-		if strings.TrimSpace(row.Name) == "" || strings.TrimSpace(row.Summary) == "" ||
+		if strings.TrimSpace(row.Name) == "" ||
 			!slices.Contains([]string{"ALL", "CN_ONLY", "GLOBAL_ONLY"}, row.AccessScope) ||
 			!slices.Contains([]string{"VISIBLE", "HIDDEN"}, row.Visibility) ||
 			row.Visibility == "VISIBLE" && row.VisibilityReason != "" ||

@@ -33,6 +33,9 @@
   --color-tint: var(--sem-tint);
   --color-tint-hover: var(--sem-tint-hover);
   --color-tint-fg: var(--sem-tint-fg);
+  --color-warning-bg: var(--sem-warning-bg);
+  --color-warning-fg: var(--sem-warning-fg);
+  --color-warning-border: var(--sem-warning-border);
 }
 
 :root {
@@ -52,6 +55,9 @@
   --sem-tint: #eff8f8;
   --sem-tint-hover: #d9eeef;
   --sem-tint-fg: #0c666b;
+  --sem-warning-bg: #fffbeb;
+  --sem-warning-fg: #b45309;
+  --sem-warning-border: #f59e0b;
   --selection-bg: #b3dee0;
   --selection-fg: #062d2f;
   --motion-fast: 150ms;
@@ -82,6 +88,9 @@
   --sem-tint: rgb(10 67 70 / 40%);
   --sem-tint-hover: rgb(11 83 87 / 50%);
   --sem-tint-fg: #7fc5c9;
+  --sem-warning-bg: rgb(69 26 3 / 30%);
+  --sem-warning-fg: #fbbf24;
+  --sem-warning-border: #f59e0b;
   --selection-bg: #0b5357;
   --selection-fg: #d9eeef;
 }

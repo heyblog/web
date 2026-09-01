@@ -6,8 +6,6 @@ import (
 )
 
 type Plan struct {
-	BlogSHA256     string
-	GraphSHA256    string
 	Sites          []SiteRow
 	Feeds          []FeedRow
 	Resources      []ResourceRow

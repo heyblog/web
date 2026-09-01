@@ -30,6 +30,11 @@ SELECT *
  ORDER BY joined_at DESC, id DESC
  LIMIT $1 OFFSET $2;
 
+-- name: CountVisibleSites :one
+SELECT count(*)::bigint
+  FROM directory.sites
+ WHERE visibility = 'VISIBLE';
+
 -- name: UpdateSiteAddress :one
 UPDATE directory.sites
    SET scheme = $2,
@@ -78,6 +83,12 @@ RETURNING *;
 
 -- name: ListSiteFeeds :many
 SELECT * FROM directory.site_feeds WHERE site_id = $1 ORDER BY is_default DESC, created_at, id;
+
+-- name: ListPublicSiteFeeds :many
+SELECT *
+  FROM directory.site_feeds
+ WHERE site_id = $1 AND is_enabled
+ ORDER BY is_default DESC, created_at, id;
 
 -- name: DeleteSiteFeed :exec
 DELETE FROM directory.site_feeds WHERE id = $1 AND site_id = $2;
@@ -159,6 +170,15 @@ SELECT assignment.*, tag.name, tag.slug, tag.description
  WHERE assignment.site_id = $1
  ORDER BY assignment.role, tag.name;
 
+-- name: ListPublicSiteTags :many
+SELECT assignment.*, tag.name, tag.slug, tag.description
+  FROM directory.site_tags AS assignment
+  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+ WHERE assignment.site_id = $1
+   AND tag.is_enabled
+   AND tag.merged_into_id IS NULL
+ ORDER BY assignment.role, tag.name;
+
 -- name: UnassignSiteTag :exec
 DELETE FROM directory.site_tags WHERE site_id = $1 AND tag_id = $2;
 
@@ -223,6 +243,14 @@ SELECT assignment.*, component.name, component.normalized_name,
   FROM directory.site_software_components AS assignment
   JOIN directory.software_components AS component ON component.id = assignment.component_id
  WHERE assignment.site_id = $1
+ ORDER BY assignment.role, component.name;
+
+-- name: ListPublicSiteSoftwareComponents :many
+SELECT assignment.*, component.name, component.normalized_name,
+       component.homepage_url, component.repository_url, component.is_open_source
+  FROM directory.site_software_components AS assignment
+  JOIN directory.software_components AS component ON component.id = assignment.component_id
+ WHERE assignment.site_id = $1 AND component.is_enabled
  ORDER BY assignment.role, component.name;
 
 -- name: UnassignSiteSoftwareComponent :exec

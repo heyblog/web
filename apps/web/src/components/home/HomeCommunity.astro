@@ -1,0 +1,66 @@
+---
+import { IconArrowRight, IconBook2, IconInfoCircle, IconUsers } from '@tabler/icons-svelte';
+
+interface Props {
+  activeMemberCount: number;
+}
+
+const { activeMemberCount } = Astro.props;
+const links = [
+  {
+    label: '了解 HeyBlog',
+    description: '项目目标与长期方向',
+    href: '/about',
+    icon: IconInfoCircle,
+  },
+  {
+    label: '社区公约',
+    description: '共同维护开放、尊重的交流环境',
+    href: '/community',
+    icon: IconBook2,
+  },
+  {
+    label: '参与贡献',
+    description: '加入内容、数据与工程协作',
+    href: '/contribute',
+    icon: IconUsers,
+  },
+];
+---
+
+<section class="border-t border-line py-12 sm:py-16" aria-labelledby="community-title">
+  <div class="grid gap-8 md:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] md:items-start">
+    <div>
+      <p class="font-mono text-xs font-medium text-tint-fg">开放协作</p>
+      <h2 class="mt-2 text-2xl/tight font-semibold" id="community-title">由社区共同维护</h2>
+      <p class="mt-4 max-w-md text-sm/6 text-fg-muted">
+        当前有 <strong class="font-semibold text-fg">{activeMemberCount}</strong> 位活跃成员参与项目建设。
+      </p>
+    </div>
+
+    <nav class="border-y border-line" aria-label="了解和参与 HeyBlog">
+      {
+        links.map(({ label, description, href, icon: Icon }) => (
+          <a
+            class="group flex min-h-20 items-center gap-4 border-b border-line py-4 last:border-b-0"
+            href={href}
+          >
+            <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg transition-colors duration-(--motion-fast) group-hover:bg-tint">
+              <Icon aria-hidden="true" size={18} stroke={1.8} />
+            </span>
+            <span class="min-w-0">
+              <span class="font-medium text-fg">{label}</span>
+              <span class="mt-1 block text-sm text-fg-muted">{description}</span>
+            </span>
+            <IconArrowRight
+              class="ml-auto shrink-0 text-fg-muted transition-[color,transform] duration-(--motion-base) ease-standard group-hover:translate-x-1 group-hover:text-tint-fg motion-reduce:transform-none motion-reduce:transition-colors"
+              aria-hidden="true"
+              size={16}
+              stroke={1.8}
+            />
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</section>

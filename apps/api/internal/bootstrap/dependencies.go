@@ -9,9 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/cache"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/database"
+	dbgen "heyblog-api/internal/database/gen"
 	"heyblog-api/internal/mail"
 )
 
@@ -20,6 +22,7 @@ type Dependencies struct {
 	Redis              *redis.Client
 	MailSender         mail.Sender
 	VerificationMailer *mail.VerificationMailer
+	views              publicview.Reader
 
 	pingDatabase  func(context.Context) error
 	pingRedis     func(context.Context) error
@@ -87,6 +90,7 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		Redis:              redisClient,
 		MailSender:         mailSender,
 		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address),
+		views:              publicview.New(dbgen.New(pool)),
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},
@@ -98,6 +102,10 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		},
 		closeRedis: func() error { return operations.closeRedis(redisClient) },
 	}, nil
+}
+
+func (dependencies *Dependencies) PublicViews() publicview.Reader {
+	return dependencies.views
 }
 
 func (dependencies *Dependencies) Ready(ctx context.Context) error {

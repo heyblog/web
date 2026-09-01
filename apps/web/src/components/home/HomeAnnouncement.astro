@@ -1,0 +1,49 @@
+---
+import { IconArrowRight, IconExternalLink, IconSpeakerphone } from '@tabler/icons-svelte';
+
+import type { HomeAnnouncement } from '@/application/home/home.server';
+
+interface Props {
+  announcement: HomeAnnouncement;
+}
+
+const { announcement } = Astro.props;
+const date = new Date(announcement.startsAt);
+const dateLabel = Number.isNaN(date.getTime())
+  ? '站点公告'
+  : date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+---
+
+<aside
+  class="flex flex-col gap-4 rounded-md border border-l-3 border-line border-l-primary bg-tint p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+  aria-label="当前公告"
+>
+  <div class="flex min-w-0 items-start gap-3">
+    <span
+      class="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-surface text-tint-fg"
+    >
+      <IconSpeakerphone aria-hidden="true" size={18} stroke={1.8} />
+    </span>
+    <div class="min-w-0">
+      <p class="font-mono text-xs font-medium text-tint-fg">{dateLabel}</p>
+      <p class="mt-1 leading-6 font-medium text-fg">{announcement.title}</p>
+    </div>
+  </div>
+  {
+    announcement.action ? (
+      <a
+        class="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-md px-3 text-sm font-medium text-tint-fg transition-[background-color,scale] duration-(--motion-fast) ease-out hover:bg-tint-hover active:scale-96 sm:min-h-10 sm:self-auto"
+        href={announcement.action.href}
+        rel={announcement.action.external ? 'noreferrer' : undefined}
+        target={announcement.action.external ? '_blank' : undefined}
+      >
+        {announcement.action.label}
+        {announcement.action.external ? (
+          <IconExternalLink aria-hidden="true" size={15} stroke={1.8} />
+        ) : (
+          <IconArrowRight aria-hidden="true" size={15} stroke={1.8} />
+        )}
+      </a>
+    ) : null
+  }
+</aside>

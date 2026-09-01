@@ -92,6 +92,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 
 	verifyDirectorySiteTimestampSchema(ctx, t, pool)
 	verifyDirectoryConstraints(ctx, t, pool)
+	verifyPublicViewQueries(ctx, t, pool)
 	verifyTagAndIconConstraints(ctx, t, pool)
 	verifyAnnouncementQueries(ctx, t, pool)
 	verifyAnnouncementConstraints(ctx, t, pool, migrationURL)
@@ -422,6 +423,133 @@ func verifyDirectoryConstraints(ctx context.Context, t *testing.T, connection *p
 
 }
 
+func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+	queries := dbgen.New(connection)
+
+	countBefore, err := queries.CountVisibleSites(ctx)
+	if err != nil {
+		t.Fatalf("count visible sites before fixture: %v", err)
+	}
+	visibleSiteID := insertSite(ctx, t, connection, "6Pv7Qw8Er", "Public Query", "public-query.example.com")
+	hiddenSiteID := insertSite(ctx, t, connection, "7Pv8Qw9Er", "Hidden Query", "hidden-query.example.com")
+	if _, err := connection.Exec(ctx, `
+		UPDATE directory.sites
+		   SET visibility = 'HIDDEN', visibility_reason = 'integration fixture'
+		 WHERE id = $1
+	`, hiddenSiteID); err != nil {
+		t.Fatalf("hide public query fixture: %v", err)
+	}
+	countAfter, err := queries.CountVisibleSites(ctx)
+	if err != nil {
+		t.Fatalf("count visible sites after fixture: %v", err)
+	}
+	if countAfter != countBefore+1 {
+		t.Fatalf("visible site count = %d, want %d", countAfter, countBefore+1)
+	}
+
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.site_feeds (
+			site_id, name, location_type, url_ref, url_key, format, is_enabled, is_default
+		) VALUES ($1, 'Public feed', 'RELATIVE', '/feed.xml', '/feed.xml', 'ATOM', true, true)
+	`, visibleSiteID); err != nil {
+		t.Fatalf("insert public feed fixture: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO directory.site_feeds (
+			site_id, name, location_type, url_ref, url_key, format, is_enabled, is_default
+		) VALUES ($1, 'Disabled feed', 'RELATIVE', '/disabled.xml', '/disabled.xml', 'RSS', false, false)
+	`, visibleSiteID); err != nil {
+		t.Fatalf("insert disabled feed fixture: %v", err)
+	}
+	feeds, err := queries.ListPublicSiteFeeds(ctx, visibleSiteID)
+	if err != nil {
+		t.Fatalf("list public site feeds: %v", err)
+	}
+	if len(feeds) != 1 || feeds[0].Name != "Public feed" || !feeds[0].IsEnabled {
+		t.Fatalf("public site feeds = %#v", feeds)
+	}
+
+	var enabledTagID, disabledTagID, mergedTagID, canonicalTagID pgtype.UUID
+	for _, fixture := range []struct {
+		name           string
+		normalizedName string
+		slug           string
+		enabled        bool
+		id             *pgtype.UUID
+	}{
+		{name: "Public Topic", normalizedName: "public topic", slug: "public-topic", enabled: true, id: &enabledTagID},
+		{name: "Disabled Topic", normalizedName: "disabled topic", slug: "disabled-topic", enabled: false, id: &disabledTagID},
+		{name: "Merged Topic", normalizedName: "merged topic", slug: "merged-topic", enabled: true, id: &mergedTagID},
+		{name: "Canonical Topic", normalizedName: "canonical topic", slug: "canonical-topic", enabled: true, id: &canonicalTagID},
+	} {
+		if err := connection.QueryRow(ctx, `
+			INSERT INTO directory.tags (name, normalized_name, slug, is_enabled)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id
+		`, fixture.name, fixture.normalizedName, fixture.slug, fixture.enabled).Scan(fixture.id); err != nil {
+			t.Fatalf("insert tag fixture %q: %v", fixture.name, err)
+		}
+	}
+	for _, tagID := range []pgtype.UUID{enabledTagID, disabledTagID, mergedTagID} {
+		if _, err := connection.Exec(ctx, `
+			INSERT INTO directory.site_tags (site_id, tag_id, role)
+			VALUES ($1, $2, 'WARNING')
+		`, visibleSiteID, tagID); err != nil {
+			t.Fatalf("assign public view tag fixture: %v", err)
+		}
+	}
+	if _, err := connection.Exec(ctx, `
+		UPDATE directory.tags
+		   SET merged_into_id = $2, merged_at = clock_timestamp()
+		 WHERE id = $1
+	`, mergedTagID, canonicalTagID); err != nil {
+		t.Fatalf("merge public view tag fixture: %v", err)
+	}
+	tags, err := queries.ListPublicSiteTags(ctx, visibleSiteID)
+	if err != nil {
+		t.Fatalf("list public site tags: %v", err)
+	}
+	if len(tags) != 1 || tags[0].TagID != enabledTagID || tags[0].Name != "Public Topic" {
+		t.Fatalf("public site tags = %#v", tags)
+	}
+
+	var enabledComponentID, disabledComponentID pgtype.UUID
+	for _, fixture := range []struct {
+		name           string
+		normalizedName string
+		enabled        bool
+		id             *pgtype.UUID
+	}{
+		{name: "Public Runtime", normalizedName: "public runtime", enabled: true, id: &enabledComponentID},
+		{name: "Disabled Runtime", normalizedName: "disabled runtime", enabled: false, id: &disabledComponentID},
+	} {
+		if err := connection.QueryRow(ctx, `
+			INSERT INTO directory.software_components (name, normalized_name, is_enabled)
+			VALUES ($1, $2, $3)
+			RETURNING id
+		`, fixture.name, fixture.normalizedName, fixture.enabled).Scan(fixture.id); err != nil {
+			t.Fatalf("insert software fixture %q: %v", fixture.name, err)
+		}
+	}
+	for _, componentID := range []pgtype.UUID{enabledComponentID, disabledComponentID} {
+		if _, err := connection.Exec(ctx, `
+			INSERT INTO directory.site_software_components (
+				site_id, component_id, role, evidence_source
+			) VALUES ($1, $2, 'RUNTIME', 'MANUAL')
+		`, visibleSiteID, componentID); err != nil {
+			t.Fatalf("assign public view software fixture: %v", err)
+		}
+	}
+	technologies, err := queries.ListPublicSiteSoftwareComponents(ctx, visibleSiteID)
+	if err != nil {
+		t.Fatalf("list public site software components: %v", err)
+	}
+	if len(technologies) != 1 || technologies[0].ComponentID != enabledComponentID || technologies[0].Name != "Public Runtime" {
+		t.Fatalf("public site software components = %#v", technologies)
+	}
+}
+
 func verifyAnnouncementConstraints(
 	ctx context.Context,
 	t *testing.T,
@@ -464,6 +592,13 @@ func verifyAnnouncementConstraints(
 		activeStart.Add(time.Minute),
 		&activeEnd,
 	)
+	leading, err := dbgen.New(connection).GetLeadingActiveMainAnnouncement(ctx)
+	if err != nil {
+		t.Fatalf("get leading active main announcement: %v", err)
+	}
+	if leading.ID != highPriorityID || leading.Title != "High priority announcement" {
+		t.Fatalf("leading active main announcement = %#v", leading)
+	}
 
 	rows, err := connection.Query(ctx, `
 		SELECT title

@@ -85,6 +85,16 @@ SELECT *
    AND (ends_at IS NULL OR ends_at > clock_timestamp())
  ORDER BY priority DESC, starts_at DESC, id DESC;
 
+-- name: GetLeadingActiveMainAnnouncement :one
+SELECT *
+  FROM content.announcements
+ WHERE kind = 'MAIN'
+   AND status = 'PUBLISHED'
+   AND starts_at <= clock_timestamp()
+   AND (ends_at IS NULL OR ends_at > clock_timestamp())
+ ORDER BY priority DESC, starts_at DESC, id DESC
+ LIMIT 1;
+
 -- name: GetActiveBannerAnnouncement :one
 SELECT *
   FROM content.announcements

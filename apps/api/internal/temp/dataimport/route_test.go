@@ -18,6 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/httpapi"
 )
@@ -212,6 +213,7 @@ func newImportTestRouter(t *testing.T, operation ImportOperation) *gin.Engine {
 		Logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
 		HealthcheckToken:   "test-healthcheck-token-0123456789abcdef",
 		WebToken:           "test-web-service-token-0123456789abcdef",
+		PublicViews:        importTestPublicViews{},
 		BodyLimitOverrides: BodyLimitOverrides(),
 	})
 	if err != nil {
@@ -261,6 +263,23 @@ type recordingOperation struct {
 	bundles Bundles
 	counts  Counts
 	err     error
+}
+
+type importTestPublicViews struct{}
+
+func (importTestPublicViews) Home(context.Context) (publicview.Home, error) {
+	return publicview.Home{}, nil
+}
+
+func (importTestPublicViews) SiteByIdentifier(
+	context.Context,
+	publicview.SiteIdentifier,
+) (publicview.SiteProfile, error) {
+	return publicview.SiteProfile{}, nil
+}
+
+func (importTestPublicViews) SiteByCustomID(context.Context, string) (publicview.SiteProfile, error) {
+	return publicview.SiteProfile{}, nil
 }
 
 func (operation *recordingOperation) Import(_ context.Context, bundles Bundles) (Counts, error) {

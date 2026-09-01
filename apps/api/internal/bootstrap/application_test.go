@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/httpapi"
 )
@@ -93,7 +94,9 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	var webToken string
 	var tempImportToken string
 	wantPool := &pgxpool.Pool{}
+	wantViews := publicview.New(nil)
 	dependencies.pool = wantPool
+	dependencies.views = wantViews
 	err := run(ctx, applicationTestConfig(), discardLogger(), applicationOperations{
 		listen:           func(string, string) (net.Listener, error) { return &stubListener{}, nil },
 		openDependencies: func(context.Context, config.Config) (runtimeDependencies, error) { return dependencies, nil },
@@ -101,6 +104,9 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 			health = options.Health
 			healthcheckToken = options.HealthcheckToken
 			webToken = options.WebToken
+			if options.PublicViews != wantViews {
+				t.Fatalf("public views = %p, want %p", options.PublicViews, wantViews)
+			}
 			if pool != wantPool {
 				t.Fatalf("database pool = %p, want %p", pool, wantPool)
 			}
@@ -188,9 +194,13 @@ func (address stubAddress) String() string  { return string(address) }
 type stubRuntimeDependencies struct {
 	close func() error
 	pool  *pgxpool.Pool
+	views publicview.Reader
 }
 
-func (*stubRuntimeDependencies) Ready(context.Context) error              { return nil }
+func (*stubRuntimeDependencies) Ready(context.Context) error { return nil }
+func (dependencies *stubRuntimeDependencies) PublicViews() publicview.Reader {
+	return dependencies.views
+}
 func (dependencies *stubRuntimeDependencies) Close() error                { return dependencies.close() }
 func (dependencies *stubRuntimeDependencies) DatabasePool() *pgxpool.Pool { return dependencies.pool }
 

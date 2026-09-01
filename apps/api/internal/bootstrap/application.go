@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/domain/site"
 	"heyblog-api/internal/httpapi"
@@ -19,6 +20,7 @@ import (
 
 type runtimeDependencies interface {
 	httpapi.Readiness
+	PublicViews() publicview.Reader
 	DatabasePool() *pgxpool.Pool
 	Close() error
 }
@@ -71,6 +73,7 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 		Health:           health,
 		HealthcheckToken: configuration.HealthcheckToken,
 		WebToken:         configuration.WebToken,
+		PublicViews:      dependencies.PublicViews(),
 	}, dependencies.DatabasePool(), configuration.TempImportToken)
 	if err != nil {
 		return withStage("router_build", err)

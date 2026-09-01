@@ -37,7 +37,7 @@ func TestRealCleanedBundlesBuildCompletePlan(t *testing.T) {
 	counts := plan.Counts()
 	t.Logf("real import counts: %#v", counts)
 	if counts.Sites != bundles.Blogs.Count || counts.FriendLinks != bundles.Graph.EdgeCount ||
-		counts.Sources != 4 || counts.Origins < counts.Sites {
-		t.Fatalf("Counts() = %#v, want sites/edges from bundles, four sources, and at least one origin per site", counts)
+		counts.Sources != 3 || counts.Origins < counts.Sites {
+		t.Fatalf("Counts() = %#v, want sites/edges from bundles, three sources, and at least one origin per site", counts)
 	}
 }

@@ -4,7 +4,10 @@ package dataimport
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -86,13 +89,22 @@ func TestRealCleanedBundlesImportIntoEmptyDatabase(t *testing.T) {
 		return fmt.Sprintf("%09d", shortID), nil
 	})
 	started := time.Now()
-	counts, err := service.Import(ctx, bundles)
-	if err != nil {
-		t.Fatalf("Import() error = %v", err)
+	router := newImportTestRouter(t, service)
+	request := multipartImportRequest(t, blogs, graph)
+	request.Header.Set("Authorization", "Bearer "+testImportToken)
+	responseRecorder := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	router.ServeHTTP(responseRecorder, request)
+	if responseRecorder.Code != http.StatusOK {
+		t.Fatalf("HTTP import response = (%d, %q), want 200", responseRecorder.Code, responseRecorder.Body.String())
 	}
+	var response importResponse
+	if err := json.Unmarshal(responseRecorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode HTTP import response: %v", err)
+	}
+	counts := response.Counts
 	if counts.Sites != bundles.Blogs.Count || counts.FriendLinks != bundles.Graph.EdgeCount ||
-		counts.Sources != 4 || counts.Origins < counts.Sites {
-		t.Fatalf("Import() counts = %#v, want sites/edges from bundles, four sources, and at least one origin per site", counts)
+		counts.Sources != 3 || counts.Origins < counts.Sites {
+		t.Fatalf("Import() counts = %#v, want sites/edges from bundles, three sources, and at least one origin per site", counts)
 	}
 	t.Logf("real data import duration: %s", time.Since(started))
 

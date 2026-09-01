@@ -29,6 +29,58 @@ type Location struct {
 	URLKey      string
 }
 
+type FriendTarget struct {
+	URL            string
+	NormalizedHost string
+}
+
+// HomepageURL reconstructs the canonical public homepage from stored address parts.
+func (address Address) HomepageURL() (string, error) {
+	if address.Scheme != "http" && address.Scheme != "https" {
+		return "", fmt.Errorf("%w: scheme must be http or https", ErrInvalidSiteAddress)
+	}
+	host, err := normalizeHost(address.NormalizedHost)
+	if err != nil {
+		return "", err
+	}
+	escapedPath, err := canonicalEscapedPath(address.BasePath)
+	if err != nil {
+		return "", fmt.Errorf("%w: normalize base path: %w", ErrInvalidSiteAddress, err)
+	}
+	parsed := &url.URL{Scheme: address.Scheme, Host: host}
+	if err := setEscapedPath(parsed, escapedPath); err != nil {
+		return "", fmt.Errorf("%w: build base path: %w", ErrInvalidSiteAddress, err)
+	}
+	return parsed.String(), nil
+}
+
+// LocationURL reconstructs a stored relative or external site resource URL.
+func (address Address) LocationURL(location Location) (string, error) {
+	if location.Type == "EXTERNAL" {
+		normalized, err := NormalizeLocation(location.ExternalURL, address, false)
+		if err != nil || normalized.Type != "EXTERNAL" {
+			return "", fmt.Errorf("%w: invalid external location", ErrInvalidSiteAddress)
+		}
+		return normalized.ExternalURL, nil
+	}
+	if location.Type != "RELATIVE" {
+		return "", fmt.Errorf("%w: unsupported location type", ErrInvalidSiteAddress)
+	}
+	normalized, err := NormalizeLocation(location.URLRef, address, false)
+	if err != nil || normalized.Type != "RELATIVE" {
+		return "", fmt.Errorf("%w: invalid relative location", ErrInvalidSiteAddress)
+	}
+	homepage, err := url.Parse(address.Scheme + "://" + address.NormalizedHost)
+	if err != nil {
+		return "", fmt.Errorf("%w: build site origin: %w", ErrInvalidSiteAddress, err)
+	}
+	reference, err := url.Parse(normalized.URLRef)
+	if err != nil {
+		return "", fmt.Errorf("%w: build location reference: %w", ErrInvalidSiteAddress, err)
+	}
+	return homepage.ResolveReference(reference).String(), nil
+}
+
 // NormalizeAddress separates a canonical site URL into scheme, IDNA hostname,
 // and root-relative installation path.
 func NormalizeAddress(raw string) (Address, error) {

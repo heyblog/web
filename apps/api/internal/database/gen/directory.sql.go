@@ -172,6 +172,19 @@ func (q *Queries) AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (D
 	return i, err
 }
 
+const countVisibleSites = `-- name: CountVisibleSites :one
+SELECT count(*)::bigint
+  FROM directory.sites
+ WHERE visibility = 'VISIBLE'
+`
+
+func (q *Queries) CountVisibleSites(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countVisibleSites)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createSite = `-- name: CreateSite :one
 INSERT INTO directory.sites (
     short_id,
@@ -549,6 +562,157 @@ func (q *Queries) ListEnabledTags(ctx context.Context) ([]DirectoryTag, error) {
 			&i.MergedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteFeeds = `-- name: ListPublicSiteFeeds :many
+SELECT id, site_id, name, location_type, url_ref, external_url, url_key, format, is_enabled, is_default, created_at, updated_at
+  FROM directory.site_feeds
+ WHERE site_id = $1 AND is_enabled
+ ORDER BY is_default DESC, created_at, id
+`
+
+func (q *Queries) ListPublicSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error) {
+	rows, err := q.db.Query(ctx, listPublicSiteFeeds, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectorySiteFeed{}
+	for rows.Next() {
+		var i DirectorySiteFeed
+		if err := rows.Scan(
+			&i.ID,
+			&i.SiteID,
+			&i.Name,
+			&i.LocationType,
+			&i.UrlRef,
+			&i.ExternalUrl,
+			&i.UrlKey,
+			&i.Format,
+			&i.IsEnabled,
+			&i.IsDefault,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteSoftwareComponents = `-- name: ListPublicSiteSoftwareComponents :many
+SELECT assignment.site_id, assignment.component_id, assignment.role, assignment.evidence_source, assignment.confidence, assignment.identified_by, assignment.first_identified_at, assignment.last_confirmed_at, component.name, component.normalized_name,
+       component.homepage_url, component.repository_url, component.is_open_source
+  FROM directory.site_software_components AS assignment
+  JOIN directory.software_components AS component ON component.id = assignment.component_id
+ WHERE assignment.site_id = $1 AND component.is_enabled
+ ORDER BY assignment.role, component.name
+`
+
+type ListPublicSiteSoftwareComponentsRow struct {
+	SiteID            pgtype.UUID
+	ComponentID       pgtype.UUID
+	Role              string
+	EvidenceSource    string
+	Confidence        pgtype.Numeric
+	IdentifiedBy      pgtype.UUID
+	FirstIdentifiedAt pgtype.Timestamptz
+	LastConfirmedAt   pgtype.Timestamptz
+	Name              string
+	NormalizedName    string
+	HomepageUrl       *string
+	RepositoryUrl     *string
+	IsOpenSource      bool
+}
+
+func (q *Queries) ListPublicSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteSoftwareComponentsRow, error) {
+	rows, err := q.db.Query(ctx, listPublicSiteSoftwareComponents, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublicSiteSoftwareComponentsRow{}
+	for rows.Next() {
+		var i ListPublicSiteSoftwareComponentsRow
+		if err := rows.Scan(
+			&i.SiteID,
+			&i.ComponentID,
+			&i.Role,
+			&i.EvidenceSource,
+			&i.Confidence,
+			&i.IdentifiedBy,
+			&i.FirstIdentifiedAt,
+			&i.LastConfirmedAt,
+			&i.Name,
+			&i.NormalizedName,
+			&i.HomepageUrl,
+			&i.RepositoryUrl,
+			&i.IsOpenSource,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteTags = `-- name: ListPublicSiteTags :many
+SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
+  FROM directory.site_tags AS assignment
+  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+ WHERE assignment.site_id = $1
+   AND tag.is_enabled
+   AND tag.merged_into_id IS NULL
+ ORDER BY assignment.role, tag.name
+`
+
+type ListPublicSiteTagsRow struct {
+	SiteID           pgtype.UUID
+	TagID            pgtype.UUID
+	Role             string
+	AssignmentSource string
+	Note             *string
+	CreatedAt        pgtype.Timestamptz
+	Name             string
+	Slug             string
+	Description      string
+}
+
+func (q *Queries) ListPublicSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteTagsRow, error) {
+	rows, err := q.db.Query(ctx, listPublicSiteTags, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublicSiteTagsRow{}
+	for rows.Next() {
+		var i ListPublicSiteTagsRow
+		if err := rows.Scan(
+			&i.SiteID,
+			&i.TagID,
+			&i.Role,
+			&i.AssignmentSource,
+			&i.Note,
+			&i.CreatedAt,
+			&i.Name,
+			&i.Slug,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}

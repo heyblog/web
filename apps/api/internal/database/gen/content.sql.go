@@ -249,6 +249,46 @@ func (q *Queries) GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (Cont
 	return i, err
 }
 
+const getLeadingActiveMainAnnouncement = `-- name: GetLeadingActiveMainAnnouncement :one
+SELECT id, kind, title, body_markdown, status, priority, action_type, action_label, action_path, action_external_url, starts_at, ends_at, published_at, archived_at, created_by, updated_by, published_by, archived_by, row_version, created_at, updated_at
+  FROM content.announcements
+ WHERE kind = 'MAIN'
+   AND status = 'PUBLISHED'
+   AND starts_at <= clock_timestamp()
+   AND (ends_at IS NULL OR ends_at > clock_timestamp())
+ ORDER BY priority DESC, starts_at DESC, id DESC
+ LIMIT 1
+`
+
+func (q *Queries) GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error) {
+	row := q.db.QueryRow(ctx, getLeadingActiveMainAnnouncement)
+	var i ContentAnnouncement
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Status,
+		&i.Priority,
+		&i.ActionType,
+		&i.ActionLabel,
+		&i.ActionPath,
+		&i.ActionExternalUrl,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.PublishedAt,
+		&i.ArchivedAt,
+		&i.CreatedBy,
+		&i.UpdatedBy,
+		&i.PublishedBy,
+		&i.ArchivedBy,
+		&i.RowVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listActiveMainAnnouncements = `-- name: ListActiveMainAnnouncements :many
 SELECT id, kind, title, body_markdown, status, priority, action_type, action_label, action_path, action_external_url, starts_at, ends_at, published_at, archived_at, created_by, updated_by, published_by, archived_by, row_version, created_at, updated_at
   FROM content.announcements

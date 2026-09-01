@@ -1,0 +1,20 @@
+---
+import { loadSiteByCustomID } from '@/application/site-profile/site-profile.server';
+import SiteProfileRoute from '@/components/site-profile/SiteProfileRoute.astro';
+
+export const prerender = false;
+
+const customID = Astro.params.customId ?? '';
+const loaded = await loadSiteByCustomID(customID, Astro.request.signal);
+const result = loaded.kind === 'bad-request' ? ({ kind: 'not-found' } as const) : loaded;
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+if (result.kind === 'not-found') {
+  Astro.response.status = 404;
+} else if (result.kind === 'unavailable') {
+  Astro.response.status = 503;
+  Astro.response.headers.set('Retry-After', '30');
+}
+---
+
+<SiteProfileRoute {result} requestedPath={Astro.url.pathname} />

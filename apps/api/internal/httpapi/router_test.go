@@ -16,6 +16,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"heyblog-api/internal/apperror"
+	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 )
 
@@ -81,6 +83,111 @@ func TestWebEndpointRequiresServiceToken(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.Code, test.wantStatus)
 			}
 		})
+	}
+}
+
+func TestPublicViewRoutesUseWebAuthenticationAndTypedReader(t *testing.T) {
+	t.Parallel()
+
+	var gotIdentifier publicview.SiteIdentifier
+	var gotCustomID string
+	views := publicViewReaderStub{
+		home: func(context.Context) (publicview.Home, error) {
+			return publicview.Home{SiteCount: 2, Sites: []publicview.SiteCard{}}, nil
+		},
+		byIdentifier: func(_ context.Context, identifier publicview.SiteIdentifier) (publicview.SiteProfile, error) {
+			gotIdentifier = identifier
+			return publicview.SiteProfile{SiteCard: publicview.SiteCard{ShortID: identifier.Value}}, nil
+		},
+		byCustomID: func(_ context.Context, customID string) (publicview.SiteProfile, error) {
+			gotCustomID = customID
+			return publicview.SiteProfile{SiteCard: publicview.SiteCard{CustomID: &customID}}, nil
+		},
+	}
+	router := newRouterWithViews(t, testHTTPConfig(), views)
+
+	tests := []struct {
+		path       string
+		wantStatus int
+		wantBody   string
+	}{
+		{path: "/home", wantStatus: http.StatusOK, wantBody: `"siteCount":2`},
+		{path: "/sites/id/A1b2C3d4E", wantStatus: http.StatusOK, wantBody: `"shortId":"A1b2C3d4E"`},
+		{path: "/sites/custom/My_Blog", wantStatus: http.StatusOK, wantBody: `"customId":"My_Blog"`},
+	}
+	for _, test := range tests {
+		request := httptest.NewRequest(http.MethodGet, test.path, nil)
+		request.Header.Set(WebTokenHeader, testWebToken)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != test.wantStatus || !strings.Contains(response.Body.String(), test.wantBody) {
+			t.Fatalf("%s response = (%d, %q), want status %d containing %q", test.path, response.Code, response.Body.String(), test.wantStatus, test.wantBody)
+		}
+		if response.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s Cache-Control = %q, want no-store", test.path, response.Header().Get("Cache-Control"))
+		}
+	}
+	if gotIdentifier.Kind != publicview.IdentifierShortID || gotIdentifier.Value != "A1b2C3d4E" {
+		t.Fatalf("identifier = %#v", gotIdentifier)
+	}
+	if gotCustomID != "My_Blog" {
+		t.Fatalf("custom ID = %q", gotCustomID)
+	}
+
+	unauthorized := httptest.NewRecorder()
+	router.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/home", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestPublicViewRoutesRejectInvalidIdentifiersBeforeApplication(t *testing.T) {
+	t.Parallel()
+
+	applicationCalls := 0
+	views := publicViewReaderStub{
+		byIdentifier: func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error) {
+			applicationCalls++
+			return publicview.SiteProfile{}, nil
+		},
+		byCustomID: func(context.Context, string) (publicview.SiteProfile, error) {
+			applicationCalls++
+			return publicview.SiteProfile{}, nil
+		},
+	}
+	router := newRouterWithViews(t, testHTTPConfig(), views)
+	for _, path := range []string{"/sites/id/not-valid", "/sites/custom/a"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		request.Header.Set(WebTokenHeader, testWebToken)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"bad_request"`) {
+			t.Fatalf("%s response = (%d, %q), want bad request", path, response.Code, response.Body.String())
+		}
+	}
+	if applicationCalls != 0 {
+		t.Fatalf("application calls = %d, want 0", applicationCalls)
+	}
+}
+
+func TestPublicViewRoutePreservesNotFoundProblem(t *testing.T) {
+	t.Parallel()
+
+	router := newRouterWithViews(t, testHTTPConfig(), publicViewReaderStub{
+		byIdentifier: func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error) {
+			return publicview.SiteProfile{}, apperror.New(
+				apperror.KindNotFound,
+				apperror.CodeNotFound,
+				"site was not found",
+			)
+		},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/sites/id/A1b2C3d4E", nil)
+	request.Header.Set(WebTokenHeader, testWebToken)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || !strings.Contains(response.Body.String(), `"code":"not_found"`) {
+		t.Fatalf("response = (%d, %q), want not found", response.Code, response.Body.String())
 	}
 }
 
@@ -310,6 +417,7 @@ func TestBodyLimitUsesMethodAndRouteOverride(t *testing.T) {
 		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
 		HealthcheckToken: testHealthcheckToken,
 		WebToken:         testWebToken,
+		PublicViews:      publicViewReaderStub{},
 		BodyLimitOverrides: map[Route]int64{
 			{Method: http.MethodPost, Path: "/large"}: 8,
 		},
@@ -401,6 +509,32 @@ func newTestRouter(t *testing.T, health *Health) *gin.Engine {
 
 func newRouterWithConfig(t *testing.T, configuration config.HTTPConfig, health *Health, output io.Writer) *gin.Engine {
 	t.Helper()
+	return newRouterWithDependencies(t, configuration, health, output, publicViewReaderStub{})
+}
+
+func newRouterWithViews(
+	t *testing.T,
+	configuration config.HTTPConfig,
+	views publicview.Reader,
+) *gin.Engine {
+	t.Helper()
+	return newRouterWithDependencies(
+		t,
+		configuration,
+		NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second),
+		io.Discard,
+		views,
+	)
+}
+
+func newRouterWithDependencies(
+	t *testing.T,
+	configuration config.HTTPConfig,
+	health *Health,
+	output io.Writer,
+	views publicview.Reader,
+) *gin.Engine {
+	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(output, nil))
 	router, err := NewRouter(Options{
 		Mode:             config.ModeDevelopment,
@@ -409,6 +543,7 @@ func newRouterWithConfig(t *testing.T, configuration config.HTTPConfig, health *
 		Health:           health,
 		HealthcheckToken: testHealthcheckToken,
 		WebToken:         testWebToken,
+		PublicViews:      views,
 	})
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)
@@ -431,4 +566,37 @@ type readinessFunc func(context.Context) error
 
 func (function readinessFunc) Ready(ctx context.Context) error {
 	return function(ctx)
+}
+
+type publicViewReaderStub struct {
+	home         func(context.Context) (publicview.Home, error)
+	byIdentifier func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error)
+	byCustomID   func(context.Context, string) (publicview.SiteProfile, error)
+}
+
+func (stub publicViewReaderStub) Home(ctx context.Context) (publicview.Home, error) {
+	if stub.home != nil {
+		return stub.home(ctx)
+	}
+	return publicview.Home{Sites: []publicview.SiteCard{}}, nil
+}
+
+func (stub publicViewReaderStub) SiteByIdentifier(
+	ctx context.Context,
+	identifier publicview.SiteIdentifier,
+) (publicview.SiteProfile, error) {
+	if stub.byIdentifier != nil {
+		return stub.byIdentifier(ctx, identifier)
+	}
+	return publicview.SiteProfile{}, nil
+}
+
+func (stub publicViewReaderStub) SiteByCustomID(
+	ctx context.Context,
+	customID string,
+) (publicview.SiteProfile, error) {
+	if stub.byCustomID != nil {
+		return stub.byCustomID(ctx, customID)
+	}
+	return publicview.SiteProfile{}, nil
 }

@@ -1,0 +1,93 @@
+---
+import { IconArrowRight, IconRefresh } from '@tabler/icons-svelte';
+
+import { type HomeSiteCard, siteDetailPath } from '@/application/home/home.server';
+
+interface Props {
+  sites: HomeSiteCard[];
+  unavailable?: boolean;
+}
+
+const { sites, unavailable = false } = Astro.props;
+const accessScopeLabels: Record<HomeSiteCard['accessScope'], string> = {
+  ALL: '全球可访问',
+  CN_ONLY: '仅中国大陆可访问',
+  GLOBAL_ONLY: '仅海外可访问',
+};
+const joinedLabel = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? '已加入目录'
+    : `${date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short' })} 加入`;
+};
+const shortCode = (name: string) => Array.from(name.trim())[0]?.toUpperCase() ?? 'H';
+---
+
+<section class="scroll-mt-24 py-12 sm:py-16" id="discover" aria-labelledby="discover-title">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="font-mono text-xs font-medium text-tint-fg">每日发现</p>
+      <h2 class="mt-2 text-2xl/tight font-semibold" id="discover-title">今天，从这些博客开始</h2>
+    </div>
+    <p class="max-w-md text-sm/6 text-fg-muted">
+      推荐每天稳定更新，进入站内资料页后可以继续访问博客原站。
+    </p>
+  </div>
+
+  {
+    unavailable ? (
+      <div class="mt-6 flex min-h-44 flex-col items-center justify-center rounded-md border border-line bg-surface px-6 text-center">
+        <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
+          <IconRefresh aria-hidden="true" size={20} stroke={1.8} />
+        </span>
+        <h3 class="mt-4 text-sm font-semibold">推荐暂时无法加载</h3>
+        <p class="mt-1 text-sm text-fg-muted">稍后刷新页面即可重新获取。</p>
+        <a
+          class="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-tint-fg hover:underline sm:min-h-10"
+          href="/"
+        >
+          重新加载
+        </a>
+      </div>
+    ) : sites.length === 0 ? (
+      <div class="mt-6 flex min-h-44 flex-col items-center justify-center rounded-md border border-line bg-surface px-6 text-center">
+        <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle font-mono text-sm font-semibold text-fg-muted">
+          HB
+        </span>
+        <h3 class="mt-4 text-sm font-semibold">暂无可展示的博客资料</h3>
+      </div>
+    ) : (
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+        {sites.map((site) => (
+          <a
+            class="group flex min-h-64 flex-col rounded-md border border-line bg-surface p-6 shadow-2xs transition-colors duration-(--motion-fast) ease-standard hover:border-line-strong"
+            href={siteDetailPath(site)}
+          >
+            <span class="inline-flex size-11 items-center justify-center rounded-md bg-tint font-mono text-sm font-semibold text-tint-fg">
+              {shortCode(site.name)}
+            </span>
+            <div class="mt-5 flex items-start justify-between gap-3">
+              <h3 class="min-w-0 text-xl/snug font-semibold wrap-anywhere">{site.name}</h3>
+              <span class="shrink-0 rounded-sm bg-subtle px-2 py-1 text-xs font-medium text-fg-muted">
+                {accessScopeLabels[site.accessScope]}
+              </span>
+            </div>
+            <p class="mt-2 font-mono text-xs wrap-anywhere text-fg-muted">{site.host}</p>
+            <p class="mt-4 line-clamp-3 text-sm/6 text-fg-muted">
+              {site.summary || '这个站点已经加入 HeyBlog 独立博客目录。'}
+            </p>
+            <span class="mt-auto flex items-center justify-between gap-3 pt-6 text-sm text-fg-muted">
+              <span>{joinedLabel(site.joinedAt)}</span>
+              <IconArrowRight
+                class="shrink-0 text-tint-fg transition-transform duration-(--motion-base) ease-standard group-hover:translate-x-1 motion-reduce:transform-none motion-reduce:transition-none"
+                aria-hidden="true"
+                size={16}
+                stroke={1.8}
+              />
+            </span>
+          </a>
+        ))}
+      </div>
+    )
+  }
+</section>

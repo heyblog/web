@@ -103,7 +103,7 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Import() error = %v", err)
 	}
-	wantCounts := Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 2, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 4, Origins: 4, FriendLinks: 1}
+	wantCounts := Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 2, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 3, Origins: 3, FriendLinks: 1}
 	if counts != wantCounts {
 		t.Fatalf("Import() counts = %#v, want %#v", counts, wantCounts)
 	}
@@ -113,8 +113,8 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 	if err := pool.QueryRow(ctx, "SELECT format, is_default FROM directory.site_feeds").Scan(&feedFormat, &isDefault); err != nil {
 		t.Fatalf("query imported feed: %v", err)
 	}
-	if feedFormat != "ATOM" || !isDefault {
-		t.Fatalf("feed = (%q, %t), want ATOM default", feedFormat, isDefault)
+	if feedFormat != "UNKNOWN" || !isDefault {
+		t.Fatalf("feed = (%q, %t), want UNKNOWN default", feedFormat, isDefault)
 	}
 	var sourceCount, originCount, dependencyCount int
 	if err := pool.QueryRow(ctx, `
@@ -124,23 +124,23 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 	`).Scan(&sourceCount, &originCount, &dependencyCount); err != nil {
 		t.Fatalf("query imported relations: %v", err)
 	}
-	if sourceCount != 4 || originCount != 4 || dependencyCount != 1 {
-		t.Fatalf("relations = sources:%d origins:%d dependencies:%d, want 4/4/1", sourceCount, originCount, dependencyCount)
+	if sourceCount != 3 || originCount != 3 || dependencyCount != 1 {
+		t.Fatalf("relations = sources:%d origins:%d dependencies:%d, want 3/3/1", sourceCount, originCount, dependencyCount)
 	}
 	var hiddenVisibility string
 	var hiddenReason *string
 	if err := pool.QueryRow(ctx, "SELECT visibility, visibility_reason FROM directory.sites WHERE id = $1::uuid", bundles.Blogs.Blogs[1].ID).Scan(&hiddenVisibility, &hiddenReason); err != nil {
 		t.Fatalf("query hidden site: %v", err)
 	}
-	if hiddenVisibility != "HIDDEN" || hiddenReason == nil || *hiddenReason != "FRIEND_LINK_DISCOVERY_PENDING_REVIEW" {
+	if hiddenVisibility != "HIDDEN" || hiddenReason == nil || *hiddenReason != "HEYBLOG_OLD_CLASSIFICATION_PENDING_REVIEW" {
 		t.Fatalf("hidden state = (%q, %v), want review reason", hiddenVisibility, hiddenReason)
 	}
 	var metadataOrigins int
 	if err := pool.QueryRow(ctx, "SELECT count(*) FROM directory.site_origins WHERE jsonb_array_length(metadata->'input_kinds') > 0").Scan(&metadataOrigins); err != nil {
 		t.Fatalf("query origin metadata: %v", err)
 	}
-	if metadataOrigins != 4 {
-		t.Fatalf("origins with metadata = %d, want 4", metadataOrigins)
+	if metadataOrigins != 3 {
+		t.Fatalf("origins with metadata = %d, want 3", metadataOrigins)
 	}
 	var storedGraphEdges int
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM directory_graph."FRIEND_LINK"`).Scan(&storedGraphEdges); err != nil {

@@ -3,7 +3,7 @@ import type { SiteConfig } from './site-config.types';
 export const siteConfig: SiteConfig = {
   name: 'HeyBlog',
   title: 'HeyBlog',
-  description: '尝试发现、整理并链接公开的个人博客站点。',
+  description: '尝试发现、整理公开的个人博客站点',
   url: 'https://www.heyblog.net',
   language: 'zh-CN',
   locale: 'zh_CN',

@@ -37,11 +37,8 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 		return Plan{}, fmt.Errorf("short ID generator is required")
 	}
 	plan := Plan{
-		BlogSHA256:  inputSHA256(bundles.Blogs.Inputs, "zhblogs"),
-		GraphSHA256: inputSHA256(bundles.Graph.Inputs, "outbound"),
 		Sources: []SourceRow{
-			{Key: "FRIEND_LINK_DISCOVERY", Name: "Friend-link discovery"},
-			{Key: "HEYBLOG_OLD", Name: "Legacy HeyBlog graph data"},
+			{Key: "HEYBLOG_OLD", Name: "Legacy HeyBlog classification data"},
 			{Key: "WEB_SUBMIT", Name: "Web submission"},
 			{Key: "ZHBLOGS_OLD", Name: "Legacy ZHBlogs directory data"},
 		},
@@ -70,16 +67,12 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 		if err != nil {
 			return Plan{}, err
 		}
-		createdAt, err := parseImportTime(blog.CreatedAt, fmt.Sprintf("blogs[%d].created_at", index))
-		if err != nil {
-			return Plan{}, err
-		}
 		updatedAt, err := parseImportTime(blog.UpdatedAt, fmt.Sprintf("blogs[%d].updated_at", index))
 		if err != nil {
 			return Plan{}, err
 		}
-		if joinedAt.Before(createdAt) || updatedAt.Before(joinedAt) || updatedAt.Before(createdAt) {
-			return Plan{}, fmt.Errorf("blogs[%d] timestamps violate created_at <= joined_at <= updated_at", index)
+		if updatedAt.Before(joinedAt) {
+			return Plan{}, fmt.Errorf("blogs[%d] timestamps violate joined_at <= updated_at", index)
 		}
 		plan.Sites = append(plan.Sites, SiteRow{
 			ID: blog.ID, ShortID: shortID, Name: strings.TrimSpace(blog.Name),
@@ -299,19 +292,10 @@ func parseImportTime(value, field string) (time.Time, error) {
 
 func feedFormat(value string) (string, error) {
 	format := strings.ToUpper(strings.TrimSpace(value))
-	if !slices.Contains([]string{"RSS", "ATOM", "JSON"}, format) {
+	if !slices.Contains([]string{"UNKNOWN", "RSS", "ATOM", "JSON"}, format) {
 		return "", fmt.Errorf("unsupported feed format %q", format)
 	}
 	return format, nil
-}
-
-func inputSHA256(inputs []InputMetadata, kind string) string {
-	for _, input := range inputs {
-		if input.Kind == kind {
-			return input.SHA256
-		}
-	}
-	return ""
 }
 
 func addTag(plan *Plan, tags map[string]TagRow, siteID string, legacy LegacyTag, role string) error {

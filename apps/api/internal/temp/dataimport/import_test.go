@@ -22,13 +22,11 @@ const (
 func testBundleJSON() ([]byte, []byte) {
 	inputs := fmt.Sprintf(`[
     {"kind":"zhblogs","file":"zhblogs.json","sha256":"%s","count":2},
-    {"kind":"nodes","file":"nodes.jsonl","sha256":"%s","count":2},
-    {"kind":"edges","file":"edges.jsonl","sha256":"%s","count":1},
-    {"kind":"outbound","file":"outbound.json","sha256":"%s","count":1,"edge_count":1}
-  ]`, strings.Repeat("a", 64), strings.Repeat("b", 64), strings.Repeat("c", 64), strings.Repeat("d", 64))
+    {"kind":"classification","file":"classification.json","sha256":"%s","count":2}
+  ]`, strings.Repeat("a", 64), strings.Repeat("b", 64))
 	blogs := fmt.Sprintf(`{
   "format": "heyblog.data-import.blogs",
-  "version": 2,
+  "version": 3,
   "generated_at": "2026-08-15T12:00:00Z",
   "inputs": %s,
   "count": 2,
@@ -38,18 +36,17 @@ func testBundleJSON() ([]byte, []byte) {
       "name": "Example",
       "url": "https://example.com/blog",
       "summary": "Example summary",
-      "feeds": [{"url":"/blog/feed.xml","name":"Default","is_default":true,"format":"ATOM"}],
+      "feeds": [{"url":"/blog/feed.xml","name":"Default","is_default":true,"format":"UNKNOWN"}],
       "sitemap": "/sitemap.xml",
       "link_page": "https://links.example/page",
       "joined_at": "2025-01-01T00:00:00Z",
-      "created_at": "2025-01-01T00:00:00Z",
       "updated_at": "2026-01-01T00:00:00Z",
       "access_scope": "GLOBAL_ONLY",
       "visibility": "VISIBLE",
       "visibility_reason": null,
       "origins": [
         {"source_key":"ZHBLOGS_OLD","external_reference":"%s","first_discovered_at":"2025-01-01T00:00:00Z","metadata":{"input_kinds":["zhblogs"],"external_references":["%s"]}},
-        {"source_key":"HEYBLOG_OLD","external_reference":"10","first_discovered_at":"2025-01-02T00:00:00Z","metadata":{"input_kinds":["nodes"],"external_references":["10"]}}
+        {"source_key":"HEYBLOG_OLD","external_reference":"%s","first_discovered_at":"2025-01-02T00:00:00Z","metadata":{"input_kinds":["classification"],"external_references":["%s"]}}
       ],
       "main_tag": {"id":"%s","name":"技术","machine_key":"technology","description":"Tech","is_enabled":true},
       "sub_tags": [{"id":"%s","name":"开源","machine_key":null,"description":null,"is_enabled":true}],
@@ -62,29 +59,27 @@ func testBundleJSON() ([]byte, []byte) {
       "id": "%s",
       "name": "Other",
       "url": "http://other.example/",
-      "summary": "该博客暂无描述",
+      "summary": "",
       "feeds": [],
       "sitemap": null,
       "link_page": null,
       "joined_at": "2025-02-01T00:00:00Z",
-      "created_at": "2025-02-01T00:00:00Z",
       "updated_at": "2026-02-01T00:00:00Z",
       "access_scope": "ALL",
       "visibility": "HIDDEN",
-      "visibility_reason": "FRIEND_LINK_DISCOVERY_PENDING_REVIEW",
+      "visibility_reason": "HEYBLOG_OLD_CLASSIFICATION_PENDING_REVIEW",
       "origins": [
-        {"source_key":"WEB_SUBMIT","external_reference":"submission-2","first_discovered_at":"2025-02-01T00:00:00Z","metadata":{"input_kinds":["zhblogs"],"external_references":["submission-2"]}},
-        {"source_key":"FRIEND_LINK_DISCOVERY","external_reference":"other.example","first_discovered_at":"2026-08-15T12:00:00Z","metadata":{"input_kinds":["graph"],"external_references":["other.example"]}}
+        {"source_key":"WEB_SUBMIT","external_reference":"%s","first_discovered_at":"2025-02-01T00:00:00Z","metadata":{"input_kinds":["zhblogs"],"external_references":["%s"]}}
       ],
       "main_tag": null,
       "sub_tags": [],
       "architecture": null
     }
   ]
-}`, inputs, testSiteIDOne, testSiteIDOne, testSiteIDOne, testTagIDMain, testTagIDSub, testProgramID, testStackID, testSiteIDTwo)
+}`, inputs, testSiteIDOne, testSiteIDOne, testSiteIDOne, testSiteIDOne, testSiteIDOne, testTagIDMain, testTagIDSub, testProgramID, testStackID, testSiteIDTwo, testSiteIDTwo, testSiteIDTwo)
 	graph := fmt.Sprintf(`{
   "format": "heyblog.data-import.graph",
-  "version": 2,
+  "version": 3,
   "generated_at": "2026-08-15T12:00:00Z",
   "inputs": %s,
   "node_count": 2,
@@ -101,6 +96,7 @@ func TestDecodeBundlesRejectsUnknownFieldsAndCountMismatch(t *testing.T) {
 	blogs, friends := testBundleJSON()
 	tests := map[string][]byte{
 		"unknown field":      []byte(strings.Replace(string(blogs), `"count": 2,`, `"count": 2, "unexpected": true,`, 1)),
+		"removed created at": []byte(strings.Replace(string(blogs), `"updated_at": "2026-01-01T00:00:00Z"`, `"created_at": "2025-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"`, 1)),
 		"count mismatch":     []byte(strings.Replace(string(blogs), "\"count\": 2,\n  \"blogs\"", "\"count\": 1,\n  \"blogs\"", 1)),
 		"legacy format":      []byte(strings.Replace(string(blogs), `heyblog.data-import.blogs`, `zhblogs.blogs`, 1)),
 		"missing visibility": []byte(strings.Replace(string(blogs), `      "visibility": "VISIBLE",`, "", 1)),
@@ -153,7 +149,7 @@ func TestBuildPlanRejectsRelationalConstraintViolationsBeforeStore(t *testing.T)
 	}
 }
 
-func TestDecodeBundlesPreservesHiddenStateAndMultipleOrigins(t *testing.T) {
+func TestDecodeBundlesBuildsPlanWithoutRemovedCreatedAt(t *testing.T) {
 	t.Parallel()
 
 	blogs, graph := testBundleJSON()
@@ -165,11 +161,24 @@ func TestDecodeBundlesPreservesHiddenStateAndMultipleOrigins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildPlan() error = %v", err)
 	}
-	if plan.Sites[1].Visibility != "HIDDEN" || plan.Sites[1].VisibilityReason != "FRIEND_LINK_DISCOVERY_PENDING_REVIEW" {
+	if plan.Sites[1].Visibility != "HIDDEN" || plan.Sites[1].VisibilityReason != "HEYBLOG_OLD_CLASSIFICATION_PENDING_REVIEW" || plan.Sites[1].Summary != "" {
 		t.Fatalf("hidden site = %#v, want preserved review state", plan.Sites[1])
 	}
-	if len(plan.Origins) != 4 {
-		t.Fatalf("origins = %#v, want all four per-site provenance rows", plan.Origins)
+	if len(plan.Feeds) != 1 || plan.Feeds[0].Format != "UNKNOWN" {
+		t.Fatalf("feeds = %#v, want database-compatible UNKNOWN format", plan.Feeds)
+	}
+	if len(plan.Origins) != 3 {
+		t.Fatalf("origins = %#v, want all three per-site provenance rows", plan.Origins)
+	}
+}
+
+func TestDecodeBundlesRejectsRemovedFriendLinkDiscoveryOrigin(t *testing.T) {
+	t.Parallel()
+
+	blogs, graph := testBundleJSON()
+	blogs = []byte(strings.Replace(string(blogs), `"source_key":"WEB_SUBMIT"`, `"source_key":"FRIEND_LINK_DISCOVERY"`, 1))
+	if _, err := DecodeBundles(blogs, graph); err == nil {
+		t.Fatal("DecodeBundles() error = nil, want removed source rejected")
 	}
 }
 
@@ -187,17 +196,21 @@ func TestBuildPlanRejectsDuplicateNormalizedSiteResources(t *testing.T) {
 	}
 }
 
-func TestBuildPlanRejectsJoinedBeforeCreated(t *testing.T) {
+func TestBuildPlanRejectsUpdatedBeforeJoined(t *testing.T) {
 	t.Parallel()
 
+	// Given
 	blogs, graph := testBundleJSON()
 	bundles, err := DecodeBundles(blogs, graph)
 	if err != nil {
 		t.Fatalf("DecodeBundles() error = %v", err)
 	}
-	bundles.Blogs.Blogs[0].CreatedAt = "2025-01-02T00:00:00Z"
+	bundles.Blogs.Blogs[0].UpdatedAt = "2024-12-31T00:00:00Z"
+
+	// When
 	if _, err := BuildPlan(bundles, sequenceGenerator("AAAAAAAAA", "BBBBBBBBB")); err == nil {
-		t.Fatal("BuildPlan() error = nil, want joined_at before created_at rejected")
+		// Then
+		t.Fatal("BuildPlan() error = nil, want updated_at before joined_at rejected")
 	}
 }
 
@@ -249,8 +262,8 @@ func TestBuildPlanMapsDirectoryRelationsAndRetriesShortIDCollision(t *testing.T)
 	if !first.JoinedAt.Equal(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("site joined_at = %s, want preserved legacy join time", first.JoinedAt)
 	}
-	if len(plan.Feeds) != 1 || plan.Feeds[0].LocationType != "RELATIVE" || plan.Feeds[0].URLRef != "/blog/feed.xml" || plan.Feeds[0].Format != "ATOM" {
-		t.Fatalf("feeds = %#v, want normalized relative Atom feed", plan.Feeds)
+	if len(plan.Feeds) != 1 || plan.Feeds[0].LocationType != "RELATIVE" || plan.Feeds[0].URLRef != "/blog/feed.xml" || plan.Feeds[0].Format != "UNKNOWN" {
+		t.Fatalf("feeds = %#v, want normalized relative feed with unknown format", plan.Feeds)
 	}
 	if len(plan.Resources) != 2 || plan.Resources[0].Kind != "LINK_PAGE" || plan.Resources[1].Kind != "SITEMAP" {
 		t.Fatalf("resources = %#v, want deterministic link-page and sitemap rows", plan.Resources)
@@ -270,13 +283,13 @@ func TestBuildPlanMapsDirectoryRelationsAndRetriesShortIDCollision(t *testing.T)
 	if len(plan.SiteComponents) != 1 || plan.SiteComponents[0].Role != "SITE_PROGRAM" {
 		t.Fatalf("site components = %#v, want imported site program", plan.SiteComponents)
 	}
-	if len(plan.Sources) != 4 || len(plan.Origins) != 4 || len(plan.Origins[0].Metadata) == 0 {
-		t.Fatalf("provenance = (%#v, %#v), want four source types and metadata-preserving origins", plan.Sources, plan.Origins)
+	if len(plan.Sources) != 3 || len(plan.Origins) != 3 || len(plan.Origins[0].Metadata) == 0 {
+		t.Fatalf("provenance = (%#v, %#v), want three source types and metadata-preserving origins", plan.Sources, plan.Origins)
 	}
 	if len(plan.FriendLinks) != 1 || plan.FriendLinks[0].SourceSiteID != testSiteIDOne || plan.FriendLinks[0].TargetHost != "other.example" {
 		t.Fatalf("friend links = %#v, want both endpoints resolved to registered sites", plan.FriendLinks)
 	}
-	if got := plan.Counts(); got != (Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 2, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 4, Origins: 4, FriendLinks: 1}) {
+	if got := plan.Counts(); got != (Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 2, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 3, Origins: 3, FriendLinks: 1}) {
 		t.Fatalf("Counts() = %#v, want mapped row totals", got)
 	}
 }
