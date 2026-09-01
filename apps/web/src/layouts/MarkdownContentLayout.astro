@@ -73,7 +73,14 @@ const suppressLeadingHeading = shouldSuppressLeadingContentTitle(title, headings
         </nav>
       ) : null
     }
-    <div class="grid gap-8 sm:pt-4 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-12">
+    <div
+      class:list={[
+        'grid gap-8 sm:pt-4 md:justify-center',
+        hasToc
+          ? 'md:grid-cols-[minmax(0,44rem)_16rem] md:gap-12'
+          : 'md:grid-cols-[minmax(0,44rem)]',
+      ]}
+    >
       <article
         class:list={[
           'min-w-0',

@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveBrandVisibility } from '../src/shared/public-header.shared.ts';
+import {
+  resolveBrandVisibility,
+  resolvePublicAccountEntry,
+} from '../src/shared/public-header.shared.ts';
+
+test('maps public account navigation from session presence', () => {
+  assert.deepEqual(resolvePublicAccountEntry(false), { href: '/login', label: '登录' });
+  assert.deepEqual(resolvePublicAccountEntry(true), { href: '/dashboard', label: '账号' });
+});
 
 test('keeps the brand visible outside the home page', () => {
   assert.equal(resolveBrandVisibility({ home: false, heroBottom: null, threshold: 76 }), true);

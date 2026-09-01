@@ -1,4 +1,8 @@
 <script>
+  import {
+    resolveContentScrollProgress,
+    updateContentProgress,
+  } from '@/components/content-page/content-toc-progress.browser';
   import { setupAnimatedDetails } from '@/shared/animated-details.browser';
 
   const mobileToc = document.querySelector<HTMLDetailsElement>('[data-content-toc-mobile]');
@@ -97,21 +101,14 @@
         });
       }
 
-      const articleRect = article.getBoundingClientRect();
-      const readingLine = Math.min(112, window.innerHeight * 0.3);
-      const progress = Math.min(
-        1,
-        Math.max(0, (readingLine - articleRect.top) / Math.max(articleRect.height, 1)),
+      const progress = resolveContentScrollProgress(
+        window.scrollY,
+        document.documentElement.scrollHeight,
+        window.innerHeight,
       );
-      const progressPercent = Math.round(progress * 100);
-
       for (const progressBar of progressBars) {
-        progressBar.setAttribute('aria-valuenow', String(progressPercent));
         const value = progressBar.querySelector<HTMLElement>('[data-content-progress-value]');
-
-        if (value) {
-          value.style.transform = `scaleX(${progress})`;
-        }
+        updateContentProgress(progressBar, value?.style ?? null, progress);
       }
     };
 

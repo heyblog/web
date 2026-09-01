@@ -95,6 +95,9 @@ path. Management pages additionally enforce the API-provided role and permission
 - Decide rendering per route. Request-dependent pages use SSR; content that does not need request
   state may be prerendered.
 - Server-rendered pages may call the Go API through server-only application modules.
+- Keep public content pages prerendered when only a small personalized region needs request state.
+  Render that region as a Server Island with a layout-stable fallback, and mark personalized island
+  responses `private, no-store`.
 - Browser mutations, authenticated reads, and live refreshes go through same-origin Astro routes or
   actions. Do not expose the internal API base URL to browser code.
 - Keep the API base URL in server-only configuration. Never place internal URLs or secrets in

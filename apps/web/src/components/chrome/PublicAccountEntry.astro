@@ -1,0 +1,22 @@
+---
+import { resolvePublicAccountEntry } from '@/shared/public-header.shared';
+
+interface Props {
+  hasSession?: boolean;
+  variant: 'desktop' | 'mobile';
+}
+
+const deferred = Astro.props.hasSession === undefined;
+const { hasSession = Astro.cookies.has('heyblog_access_token'), variant } = Astro.props;
+const entry = resolvePublicAccountEntry(hasSession);
+const entryClass =
+  variant === 'desktop'
+    ? 'hidden min-h-10 items-center rounded-sm px-3 text-sm font-medium text-fg-muted transition-colors hover:bg-tint hover:text-tint-fg sm:inline-flex'
+    : 'flex min-h-11 items-center rounded-sm px-3 text-sm font-medium text-fg-muted hover:bg-tint hover:text-tint-fg';
+
+if (deferred) {
+  Astro.response.headers.set('Cache-Control', 'private, no-store');
+}
+---
+
+<a class={entryClass} href={entry.href}>{entry.label}</a>
