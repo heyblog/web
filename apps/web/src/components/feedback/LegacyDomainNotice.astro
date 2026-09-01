@@ -1,0 +1,234 @@
+---
+import { IconAlertTriangle, IconX } from '@tabler/icons-svelte';
+
+import { getLegacyDomainNoticeFromUrl } from '@/application/site-notice/site-notice.shared';
+import { siteConfig } from '@/site.config';
+
+const target = {
+  hostname: new URL(siteConfig.url).hostname,
+  name: siteConfig.name,
+};
+const initialNotice = getLegacyDomainNoticeFromUrl(Astro.url, target);
+---
+
+<section
+  class="pointer-events-none fixed inset-x-0 top-20 z-50 px-4 sm:px-6"
+  aria-label="域名迁移通知"
+>
+  <article
+    aria-atomic="true"
+    aria-labelledby="legacy-domain-notice-title"
+    aria-describedby="legacy-domain-notice-message"
+    class="pointer-events-auto relative mx-auto grid w-full max-w-xl grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 overflow-hidden rounded-md border border-l-3 border-line border-l-warning-border bg-surface p-4 shadow-md transition-[opacity,transform] duration-(--motion-slow) ease-out data-[state=closing]:-translate-y-2 data-[state=closing]:opacity-0 data-[state=entering]:-translate-y-2 data-[state=entering]:opacity-0 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast)"
+    data-duration-ms={initialNotice?.durationMs}
+    data-legacy-domain-notice
+    data-state="open"
+    data-target-hostname={target.hostname}
+    data-target-name={target.name}
+    data-tone={initialNotice?.tone}
+    hidden={!initialNotice}
+    role="status"
+  >
+    <span aria-hidden="true" class="pointer-events-none absolute inset-0 bg-warning-bg"></span>
+
+    <div class="relative mt-0.5 text-warning-fg">
+      <IconAlertTriangle aria-hidden="true" size={20} stroke={1.75} />
+    </div>
+
+    <div class="relative min-w-0">
+      <p class="text-xs font-medium text-warning-fg" data-legacy-domain-notice-eyebrow>
+        {initialNotice?.eyebrow}
+      </p>
+      <h2 class="mt-1 text-base font-semibold text-fg" id="legacy-domain-notice-title">
+        <span data-legacy-domain-notice-title>{initialNotice?.title}</span>
+      </h2>
+      <p
+        class="mt-1 text-sm/normal text-fg-muted"
+        id="legacy-domain-notice-message"
+        data-legacy-domain-notice-message
+      >
+        {initialNotice?.message}
+      </p>
+    </div>
+
+    <button
+      aria-label="关闭域名迁移通知"
+      class="relative inline-flex size-11 shrink-0 items-center justify-center rounded-sm text-fg-muted transition-[background-color,color] duration-(--motion-color) ease-standard hover:bg-surface/70 hover:text-fg sm:size-10"
+      data-legacy-domain-notice-close
+      type="button"
+    >
+      <IconX aria-hidden="true" size={18} stroke={1.75} />
+    </button>
+
+    <div aria-hidden="true" class="absolute inset-x-0 bottom-0 h-1.5 overflow-hidden bg-subtle">
+      <span class="block h-full origin-left bg-warning-border" data-legacy-domain-notice-progress
+      ></span>
+    </div>
+  </article>
+</section>
+
+<script>
+  import {
+    getLegacyDomainNoticeFromUrl,
+    getUrlWithoutLegacySource,
+  } from '@/application/site-notice/site-notice.shared';
+
+  const EXIT_DURATION_MS = 350;
+  const REDUCED_MOTION_EXIT_DURATION_MS = 150;
+
+  const initializeLegacyDomainNotice = (): void => {
+    const element = document.querySelector('[data-legacy-domain-notice]');
+
+    if (!(element instanceof HTMLElement)) {
+      return;
+    }
+
+    const targetHostname = element.dataset.targetHostname;
+    const targetName = element.dataset.targetName;
+
+    if (!targetHostname || !targetName) {
+      return;
+    }
+
+    const notice = getLegacyDomainNoticeFromUrl(window.location.href, {
+      hostname: targetHostname,
+      name: targetName,
+    });
+
+    if (!notice) {
+      return;
+    }
+
+    const eyebrow = element.querySelector('[data-legacy-domain-notice-eyebrow]');
+    const title = element.querySelector('[data-legacy-domain-notice-title]');
+    const message = element.querySelector('[data-legacy-domain-notice-message]');
+    const closeButton = element.querySelector('[data-legacy-domain-notice-close]');
+    const progress = element.querySelector('[data-legacy-domain-notice-progress]');
+
+    if (
+      !(eyebrow instanceof HTMLElement) ||
+      !(title instanceof HTMLElement) ||
+      !(message instanceof HTMLElement) ||
+      !(closeButton instanceof HTMLButtonElement) ||
+      !(progress instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    eyebrow.textContent = notice.eyebrow;
+    title.textContent = notice.title;
+    message.textContent = notice.message;
+    element.dataset.durationMs = String(notice.durationMs);
+    element.dataset.tone = notice.tone;
+    element.hidden = false;
+    progress.style.setProperty('--legacy-domain-notice-duration', `${notice.durationMs}ms`);
+
+    let remainingDuration = notice.durationMs;
+    let timerStartedAt = performance.now();
+    let closeTimer: number | undefined;
+    let hasFocus = false;
+    let hasPointer = false;
+
+    const clearCloseTimer = (): void => {
+      if (closeTimer === undefined) {
+        return;
+      }
+
+      window.clearTimeout(closeTimer);
+      closeTimer = undefined;
+    };
+
+    const closeNotice = (): void => {
+      if (element.dataset.state === 'closing') {
+        return;
+      }
+
+      clearCloseTimer();
+      element.dataset.state = 'closing';
+
+      const exitDuration = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? REDUCED_MOTION_EXIT_DURATION_MS
+        : EXIT_DURATION_MS;
+
+      window.setTimeout(() => element.remove(), exitDuration);
+    };
+
+    const scheduleClose = (): void => {
+      if (hasFocus || hasPointer || remainingDuration <= 0 || element.dataset.state === 'closing') {
+        return;
+      }
+
+      timerStartedAt = performance.now();
+      element.dataset.paused = 'false';
+      closeTimer = window.setTimeout(closeNotice, remainingDuration);
+    };
+
+    const pauseClose = (): void => {
+      if (closeTimer === undefined) {
+        return;
+      }
+
+      remainingDuration = Math.max(0, remainingDuration - (performance.now() - timerStartedAt));
+      element.dataset.paused = 'true';
+      clearCloseTimer();
+    };
+
+    closeButton.addEventListener('click', closeNotice);
+    element.addEventListener('pointerenter', () => {
+      hasPointer = true;
+      pauseClose();
+    });
+    element.addEventListener('pointerleave', () => {
+      hasPointer = false;
+      scheduleClose();
+    });
+    element.addEventListener('focusin', () => {
+      hasFocus = true;
+      pauseClose();
+    });
+    element.addEventListener('focusout', (event) => {
+      if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) {
+        return;
+      }
+
+      hasFocus = false;
+      scheduleClose();
+    });
+
+    element.dataset.state = 'entering';
+    window.requestAnimationFrame(() => {
+      element.dataset.state = 'open';
+      scheduleClose();
+    });
+
+    window.history.replaceState(
+      window.history.state,
+      '',
+      getUrlWithoutLegacySource(new URL(window.location.href)),
+    );
+  };
+
+  initializeLegacyDomainNotice();
+</script>
+
+<style>
+  [data-legacy-domain-notice-progress] {
+    animation: legacy-domain-notice-progress var(--legacy-domain-notice-duration) linear forwards;
+  }
+
+  [data-legacy-domain-notice][data-paused='true'] [data-legacy-domain-notice-progress] {
+    animation-play-state: paused;
+  }
+
+  @keyframes legacy-domain-notice-progress {
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-legacy-domain-notice-progress] {
+      animation: none;
+    }
+  }
+</style>
