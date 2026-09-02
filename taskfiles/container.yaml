@@ -125,10 +125,11 @@ tasks:
         done
 
   compose:check:
-    desc: Validate the development dependency Compose configuration
+    desc: Validate development and production Compose configurations
     cmds:
       - task: container:command:check
       - '{{.DOCKER_COMMAND}} compose -f infra/docker/docker-compose.env.yaml config --quiet'
+      - '{{.DOCKER_COMMAND}} compose --env-file .env.production.example -f infra/docker/docker-compose.production.yaml config --quiet'
 
   container:check:
     desc: Validate container configuration

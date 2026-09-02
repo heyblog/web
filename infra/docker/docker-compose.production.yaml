@@ -1,0 +1,92 @@
+name: heyblog-production
+
+services:
+  redis:
+    image: redis:8-trixie@sha256:344e3945a0b431c8ff1eecd58c5573538126bd756f02fc7e218ddf1fc2546366
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$$(cat /run/secrets/redis_password)"
+    restart: unless-stopped
+    secrets:
+      - redis_password
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping | grep --quiet PONG
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks:
+      - private
+
+  api:
+    image: ${REGISTRY:-ccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      API_MIGRATION_DATABASE_URL: ${API_MIGRATION_DATABASE_URL:?API_MIGRATION_DATABASE_URL is required}
+      API_DATABASE_URL: ${API_DATABASE_URL:?API_DATABASE_URL is required}
+      API_REDIS_URL: ${API_REDIS_URL:?API_REDIS_URL is required}
+      API_HEALTHCHECK_TOKEN: ${API_HEALTHCHECK_TOKEN:?API_HEALTHCHECK_TOKEN is required}
+      API_TEMP_IMPORT_TOKEN: ${API_TEMP_IMPORT_TOKEN:?API_TEMP_IMPORT_TOKEN is required}
+      API_WEB_TOKEN: ${API_WEB_TOKEN:?API_WEB_TOKEN is required}
+      API_AUTH_ACCESS_SECRET: ${API_AUTH_ACCESS_SECRET:?API_AUTH_ACCESS_SECRET is required}
+      API_AUTH_REFRESH_SECRET: ${API_AUTH_REFRESH_SECRET:?API_AUTH_REFRESH_SECRET is required}
+      API_GITHUB_CLIENT_ID: ${API_GITHUB_CLIENT_ID:?API_GITHUB_CLIENT_ID is required}
+      API_GITHUB_CLIENT_SECRET: ${API_GITHUB_CLIENT_SECRET:?API_GITHUB_CLIENT_SECRET is required}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID is required}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is required}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - '10201'
+    volumes:
+      - type: bind
+        source: ${API_CONFIG_FILE:-../../apps/api/config/conf.yaml}
+        target: /app/config/conf.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+      - api_logs:/var/log/heyblog/api
+    stop_grace_period: 25s
+    networks:
+      - private
+
+  web:
+    image: ${REGISTRY:-ccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/web:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      WEB_API_BASE_URL: ${WEB_API_BASE_URL:-http://api:10201}
+      API_WEB_TOKEN: ${API_WEB_TOKEN:?API_WEB_TOKEN is required}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${WEB_HOST_PORT:-10101}:10101'
+    networks:
+      - private
+
+networks:
+  private:
+    name: heyblog-production
+    ipam:
+      config:
+        - subnet: ${HEYBLOG_NETWORK_SUBNET:-172.31.0.0/24}
+
+secrets:
+  redis_password:
+    environment: REDIS_PASSWORD
+
+volumes:
+  api_logs:
+  redis_data:

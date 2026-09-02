@@ -23,7 +23,7 @@ RUN apt-get update \
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=9101
+    PORT=10101
 
 LABEL org.opencontainers.image.title="HeyBlog Web"
 
@@ -31,7 +31,7 @@ COPY --from=builder --chown=node:node /workspace/apps/web/dist ./dist
 
 USER node
 
-EXPOSE 9101
+EXPOSE 10101
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=6 \
   CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT).then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
