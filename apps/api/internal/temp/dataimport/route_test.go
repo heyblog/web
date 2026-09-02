@@ -271,6 +271,17 @@ func (importTestPublicViews) Home(context.Context) (publicview.Home, error) {
 	return publicview.Home{}, nil
 }
 
+func (importTestPublicViews) Directory(
+	context.Context,
+	publicview.DirectoryQuery,
+) (publicview.DirectoryView, error) {
+	return publicview.DirectoryView{}, nil
+}
+
+func (importTestPublicViews) DirectoryOptions(context.Context) (publicview.DirectoryOptions, error) {
+	return publicview.DirectoryOptions{}, nil
+}
+
 func (importTestPublicViews) SiteByIdentifier(
 	context.Context,
 	publicview.SiteIdentifier,

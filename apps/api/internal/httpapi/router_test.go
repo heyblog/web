@@ -95,6 +95,24 @@ func TestPublicViewRoutesUseWebAuthenticationAndTypedReader(t *testing.T) {
 		home: func(context.Context) (publicview.Home, error) {
 			return publicview.Home{SiteCount: 2, Sites: []publicview.HomeSiteCard{}}, nil
 		},
+		directory: func(
+			_ context.Context,
+			query publicview.DirectoryQuery,
+		) (publicview.DirectoryView, error) {
+			return publicview.DirectoryView{
+				Items: []publicview.SiteCardView{}, Query: query,
+				Pagination: publicview.DirectoryPagination{Page: 1, PageSize: 24, TotalPages: 1},
+			}, nil
+		},
+		directoryOptions: func(context.Context) (publicview.DirectoryOptions, error) {
+			return publicview.DirectoryOptions{
+				PrimaryTags: []publicview.DirectoryOption{{
+					Value: "technology", Label: "技术", NormalCount: 2,
+				}},
+				SecondaryTags: []publicview.DirectoryOption{}, Warnings: []publicview.DirectoryOption{},
+				Technologies: []publicview.DirectoryOption{},
+			}, nil
+		},
 		byIdentifier: func(_ context.Context, identifier publicview.SiteIdentifier) (publicview.SiteProfile, error) {
 			gotIdentifier = identifier
 			return publicview.SiteProfile{SiteCard: publicview.SiteCard{ShortID: identifier.Value}}, nil
@@ -112,6 +130,8 @@ func TestPublicViewRoutesUseWebAuthenticationAndTypedReader(t *testing.T) {
 		wantBody   string
 	}{
 		{path: "/home", wantStatus: http.StatusOK, wantBody: `"siteCount":2`},
+		{path: "/sites?q=Astro", wantStatus: http.StatusOK, wantBody: `"q":"Astro"`},
+		{path: "/sites/options", wantStatus: http.StatusOK, wantBody: `"value":"technology"`},
 		{path: "/sites/id/A1b2C3d4E", wantStatus: http.StatusOK, wantBody: `"shortId":"A1b2C3d4E"`},
 		{path: "/sites/custom/My_Blog", wantStatus: http.StatusOK, wantBody: `"customId":"My_Blog"`},
 	}
@@ -569,9 +589,11 @@ func (function readinessFunc) Ready(ctx context.Context) error {
 }
 
 type publicViewReaderStub struct {
-	home         func(context.Context) (publicview.Home, error)
-	byIdentifier func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error)
-	byCustomID   func(context.Context, string) (publicview.SiteProfile, error)
+	home             func(context.Context) (publicview.Home, error)
+	directory        func(context.Context, publicview.DirectoryQuery) (publicview.DirectoryView, error)
+	directoryOptions func(context.Context) (publicview.DirectoryOptions, error)
+	byIdentifier     func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error)
+	byCustomID       func(context.Context, string) (publicview.SiteProfile, error)
 }
 
 func (stub publicViewReaderStub) Home(ctx context.Context) (publicview.Home, error) {
@@ -579,6 +601,28 @@ func (stub publicViewReaderStub) Home(ctx context.Context) (publicview.Home, err
 		return stub.home(ctx)
 	}
 	return publicview.Home{Sites: []publicview.HomeSiteCard{}}, nil
+}
+
+func (stub publicViewReaderStub) Directory(
+	ctx context.Context,
+	query publicview.DirectoryQuery,
+) (publicview.DirectoryView, error) {
+	if stub.directory != nil {
+		return stub.directory(ctx, query)
+	}
+	return publicview.DirectoryView{Items: []publicview.HomeSiteCard{}}, nil
+}
+
+func (stub publicViewReaderStub) DirectoryOptions(
+	ctx context.Context,
+) (publicview.DirectoryOptions, error) {
+	if stub.directoryOptions != nil {
+		return stub.directoryOptions(ctx)
+	}
+	return publicview.DirectoryOptions{
+		PrimaryTags: []publicview.DirectoryOption{}, SecondaryTags: []publicview.DirectoryOption{},
+		Warnings: []publicview.DirectoryOption{}, Technologies: []publicview.DirectoryOption{},
+	}, nil
 }
 
 func (stub publicViewReaderStub) SiteByIdentifier(

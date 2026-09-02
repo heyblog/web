@@ -172,6 +172,123 @@ func (q *Queries) AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (D
 	return i, err
 }
 
+const countDirectorySitesByStatus = `-- name: CountDirectorySitesByStatus :one
+SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
+       count(*) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
+  FROM directory.sites AS site
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+   AND (
+       $1::text = ''
+       OR strpos(
+           lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
+           lower($1::text)
+       ) > 0
+   )
+   AND (
+       cardinality($2::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'PRIMARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY($2::text[])
+       )
+   )
+   AND (
+       cardinality($3::text[]) = 0
+       OR (
+           SELECT count(DISTINCT tag.slug)
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'SECONDARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY($3::text[])
+       ) = cardinality($3::text[])
+   )
+   AND (
+       cardinality($4::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'WARNING'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY($4::text[])
+       )
+   )
+   AND (
+       cardinality($5::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_software_components AS assignment
+             JOIN directory.software_components AS component ON component.id = assignment.component_id
+            WHERE assignment.site_id = site.id
+              AND component.is_enabled
+              AND component.normalized_name = ANY($5::text[])
+       )
+   )
+   AND (
+       cardinality($6::text[]) = 0
+       OR site.access_scope = ANY($6::text[])
+   )
+   AND (
+       $7::text = 'any'
+       OR (
+           $7::text = 'with'
+           AND EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+       OR (
+           $7::text = 'without'
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+   )
+`
+
+type CountDirectorySitesByStatusParams struct {
+	QueryText         string
+	PrimaryTagSlugs   []string
+	SecondaryTagSlugs []string
+	WarningSlugs      []string
+	TechnologyNames   []string
+	AccessScopes      []string
+	FeedMode          string
+}
+
+type CountDirectorySitesByStatusRow struct {
+	NormalCount   int64
+	AbnormalCount int64
+}
+
+func (q *Queries) CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error) {
+	row := q.db.QueryRow(ctx, countDirectorySitesByStatus,
+		arg.QueryText,
+		arg.PrimaryTagSlugs,
+		arg.SecondaryTagSlugs,
+		arg.WarningSlugs,
+		arg.TechnologyNames,
+		arg.AccessScopes,
+		arg.FeedMode,
+	)
+	var i CountDirectorySitesByStatusRow
+	err := row.Scan(&i.NormalCount, &i.AbnormalCount)
+	return i, err
+}
+
 const countVisibleSites = `-- name: CountVisibleSites :one
 SELECT count(*)::bigint
   FROM directory.sites
@@ -531,6 +648,276 @@ func (q *Queries) ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteI
 			&i.IsDefault,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDirectorySites = `-- name: ListDirectorySites :many
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at
+  FROM directory.sites AS site
+ WHERE site.visibility = $1::text
+   AND (
+       $2::text = ''
+       OR strpos(
+           lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
+           lower($2::text)
+       ) > 0
+   )
+   AND (
+       cardinality($3::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'PRIMARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY($3::text[])
+       )
+   )
+   AND (
+       cardinality($4::text[]) = 0
+       OR (
+           SELECT count(DISTINCT tag.slug)
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'SECONDARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY($4::text[])
+       ) = cardinality($4::text[])
+   )
+   AND (
+       cardinality($5::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'WARNING'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY($5::text[])
+       )
+   )
+   AND (
+       cardinality($6::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_software_components AS assignment
+             JOIN directory.software_components AS component ON component.id = assignment.component_id
+            WHERE assignment.site_id = site.id
+              AND component.is_enabled
+              AND component.normalized_name = ANY($6::text[])
+       )
+   )
+   AND (
+       cardinality($7::text[]) = 0
+       OR site.access_scope = ANY($7::text[])
+   )
+   AND (
+       $8::text = 'any'
+       OR (
+           $8::text = 'with'
+           AND EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+       OR (
+           $8::text = 'without'
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+   )
+ ORDER BY
+       CASE WHEN $9::text = 'random'
+           THEN md5($10::text || ':' || site.short_id)
+       END,
+       CASE WHEN $9::text = 'joined' AND $11::text = 'desc'
+           THEN site.joined_at
+       END DESC,
+       CASE WHEN $9::text = 'joined' AND $11::text = 'asc'
+           THEN site.joined_at
+       END ASC,
+       CASE WHEN $9::text = 'updated' AND $11::text = 'desc'
+           THEN site.updated_at
+       END DESC,
+       CASE WHEN $9::text = 'updated' AND $11::text = 'asc'
+           THEN site.updated_at
+       END ASC,
+       site.short_id
+ LIMIT $13::integer
+OFFSET $12::integer
+`
+
+type ListDirectorySitesParams struct {
+	SiteVisibility    string
+	QueryText         string
+	PrimaryTagSlugs   []string
+	SecondaryTagSlugs []string
+	WarningSlugs      []string
+	TechnologyNames   []string
+	AccessScopes      []string
+	FeedMode          string
+	SortMode          string
+	Seed              string
+	SortOrder         string
+	PageOffset        int32
+	PageLimit         int32
+}
+
+func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySitesParams) ([]DirectorySite, error) {
+	rows, err := q.db.Query(ctx, listDirectorySites,
+		arg.SiteVisibility,
+		arg.QueryText,
+		arg.PrimaryTagSlugs,
+		arg.SecondaryTagSlugs,
+		arg.WarningSlugs,
+		arg.TechnologyNames,
+		arg.AccessScopes,
+		arg.FeedMode,
+		arg.SortMode,
+		arg.Seed,
+		arg.SortOrder,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectorySite{}
+	for rows.Next() {
+		var i DirectorySite
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShortID,
+			&i.CustomID,
+			&i.Name,
+			&i.Scheme,
+			&i.NormalizedHost,
+			&i.BasePath,
+			&i.Summary,
+			&i.AccessScope,
+			&i.Visibility,
+			&i.VisibilityReason,
+			&i.Revision,
+			&i.JoinedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDirectoryTagOptions = `-- name: ListDirectoryTagOptions :many
+SELECT tag.name, tag.slug, assignment.role,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'VISIBLE'
+       )::bigint AS normal_count,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'HIDDEN'
+       )::bigint AS abnormal_count
+  FROM directory.site_tags AS assignment
+  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+  JOIN directory.sites AS site ON site.id = assignment.site_id
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+   AND tag.is_enabled
+   AND tag.merged_into_id IS NULL
+ GROUP BY tag.id, tag.name, tag.slug, assignment.role
+ ORDER BY assignment.role, normal_count DESC, abnormal_count DESC, tag.name, tag.slug
+`
+
+type ListDirectoryTagOptionsRow struct {
+	Name          string
+	Slug          string
+	Role          string
+	NormalCount   int64
+	AbnormalCount int64
+}
+
+func (q *Queries) ListDirectoryTagOptions(ctx context.Context) ([]ListDirectoryTagOptionsRow, error) {
+	rows, err := q.db.Query(ctx, listDirectoryTagOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDirectoryTagOptionsRow{}
+	for rows.Next() {
+		var i ListDirectoryTagOptionsRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Slug,
+			&i.Role,
+			&i.NormalCount,
+			&i.AbnormalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDirectoryTechnologyOptions = `-- name: ListDirectoryTechnologyOptions :many
+SELECT component.name, component.normalized_name,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'VISIBLE'
+       )::bigint AS normal_count,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'HIDDEN'
+       )::bigint AS abnormal_count
+  FROM directory.site_software_components AS assignment
+  JOIN directory.software_components AS component ON component.id = assignment.component_id
+  JOIN directory.sites AS site ON site.id = assignment.site_id
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND component.is_enabled
+ GROUP BY component.id, component.name, component.normalized_name
+ ORDER BY normal_count DESC, abnormal_count DESC, component.name, component.normalized_name
+`
+
+type ListDirectoryTechnologyOptionsRow struct {
+	Name           string
+	NormalizedName string
+	NormalCount    int64
+	AbnormalCount  int64
+}
+
+func (q *Queries) ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDirectoryTechnologyOptionsRow, error) {
+	rows, err := q.db.Query(ctx, listDirectoryTechnologyOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDirectoryTechnologyOptionsRow{}
+	for rows.Next() {
+		var i ListDirectoryTechnologyOptionsRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.NormalizedName,
+			&i.NormalCount,
+			&i.AbnormalCount,
 		); err != nil {
 			return nil, err
 		}

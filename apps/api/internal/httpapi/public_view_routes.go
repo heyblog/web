@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,6 +31,33 @@ func registerPublicViewRoutes(
 	}
 	if err := register("/home", func(ctx *Context) (Response, error) {
 		view, err := reader.Home(ctx.Request.Context())
+		if err != nil {
+			return Response{}, err
+		}
+		response, err := JSON(http.StatusOK, view)
+		return response.WithHeader("Cache-Control", "no-store"), err
+	}); err != nil {
+		return err
+	}
+	if err := register("/sites", func(ctx *Context) (Response, error) {
+		query, err := parseDirectoryQuery(ctx.Request.URL.Query(), time.Now())
+		if err != nil {
+			return Response{}, err
+		}
+		view, err := reader.Directory(ctx.Request.Context(), query)
+		if err != nil {
+			return Response{}, err
+		}
+		response, err := JSON(http.StatusOK, view)
+		return response.WithHeader("Cache-Control", "no-store"), err
+	}); err != nil {
+		return err
+	}
+	if err := register("/sites/options", func(ctx *Context) (Response, error) {
+		for name := range ctx.Request.URL.Query() {
+			return Response{}, invalidDirectoryQuery(name, "is not supported")
+		}
+		view, err := reader.DirectoryOptions(ctx.Request.Context())
 		if err != nil {
 			return Response{}, err
 		}

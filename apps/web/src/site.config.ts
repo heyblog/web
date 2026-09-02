@@ -17,7 +17,8 @@ export const siteConfig: SiteConfig = {
   twitterCard: 'summary_large_image',
   navigation: [
     { label: '首页', href: '/', match: 'exact' },
-    { label: '博客', href: '/blog', match: 'prefix' },
+    { label: '博客列表', href: '/site', match: 'prefix' },
+    { label: '项目动态', href: '/blog', match: 'prefix' },
     // { label: '文档', href: '/docs', match: 'prefix' },
     { label: '成员', href: '/members', match: 'prefix' },
   ],

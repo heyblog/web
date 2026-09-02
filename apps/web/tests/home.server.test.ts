@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { refreshHome } from '../src/application/home/home.browser.ts';
@@ -13,6 +14,15 @@ import {
   resolveAnchoredDialogLayout,
   resolveVisibleTagCount,
 } from '../src/components/home/blog-card-layout.shared.ts';
+
+test('blog card expansion does not emit inline styles blocked by the CSP', async () => {
+  const source = await readFile(
+    new URL('../src/components/home/BlogCardContent.svelte', import.meta.url),
+    'utf8',
+  );
+
+  assert.doesNotMatch(source, /style:|style=/);
+});
 
 test('formats joined dates without depending on the server timezone', () => {
   assert.equal(formatSiteJoinedAt('2025-01-02T23:30:00-08:00'), '2025年1月加入');

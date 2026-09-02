@@ -69,10 +69,10 @@ const shortCode = profile ? (Array.from(profile.name.trim())[0]?.toUpperCase() ?
   >
     <a
       class="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-fg-muted transition-colors duration-(--motion-fast) hover:text-tint-fg sm:min-h-10"
-      href="/#discover"
+      href="/site"
     >
       <IconArrowLeft aria-hidden="true" size={16} stroke={1.8} />
-      返回今日推荐
+      返回博客目录
     </a>
 
     {
@@ -94,6 +94,11 @@ const shortCode = profile ? (Array.from(profile.name.trim())[0]?.toUpperCase() ?
                 {profile.summary || '这个站点已经加入 HeyBlog 独立博客目录。'}
               </p>
               <div class="mt-5 flex flex-wrap gap-2">
+                {profile.directoryStatus === 'abnormal' ? (
+                  <span class="rounded-sm bg-warning-bg px-2 py-1 text-xs font-medium text-warning-fg">
+                    异常状态
+                  </span>
+                ) : null}
                 <span class="rounded-sm bg-tint px-2 py-1 text-xs font-medium text-tint-fg">
                   {accessScopeLabels[profile.accessScope]}
                 </span>

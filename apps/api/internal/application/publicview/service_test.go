@@ -327,16 +327,39 @@ func TestSiteProfileMapsOnlyPublicReadModel(t *testing.T) {
 	}
 }
 
-func TestSiteProfileTreatsInvisibleAndMissingSitesAsNotFound(t *testing.T) {
+func TestSiteProfileAllowsHiddenSitesWithoutExposingVisibilityReason(t *testing.T) {
 	t.Parallel()
 
 	hidden := testSite("A1b2C3d4E")
 	hidden.Visibility = "HIDDEN"
+	reason := "internal review state"
+	hidden.VisibilityReason = &reason
+	service := New(queryStub{byShortID: hidden})
+
+	profile, err := service.SiteByIdentifier(context.Background(), SiteIdentifier{
+		Kind: IdentifierShortID, Value: "A1b2C3d4E",
+	})
+
+	if err != nil {
+		t.Fatalf("SiteByIdentifier() error = %v", err)
+	}
+	if profile.DirectoryStatus != DirectoryStatusAbnormal {
+		t.Fatalf("directory status = %q, want abnormal", profile.DirectoryStatus)
+	}
+}
+
+func TestSiteProfileTreatsRemovedAndMissingSitesAsNotFound(t *testing.T) {
+	t.Parallel()
+
+	removed := testSite("A1b2C3d4E")
+	removed.Visibility = "REMOVED"
+	reason := "removed"
+	removed.VisibilityReason = &reason
 	tests := []struct {
 		name    string
 		queries queryStub
 	}{
-		{name: "hidden", queries: queryStub{byShortID: hidden}},
+		{name: "removed", queries: queryStub{byShortID: removed}},
 		{name: "missing", queries: queryStub{byShortIDErr: pgx.ErrNoRows}},
 	}
 	for _, test := range tests {
@@ -390,35 +413,77 @@ func timestamp(value time.Time) pgtype.Timestamptz {
 }
 
 type queryStub struct {
-	count           int64
-	countErr        error
-	listRandom      func(context.Context, int32) ([]dbgen.DirectorySite, error)
-	announcement    dbgen.ContentAnnouncement
-	announcementErr error
-	byID            dbgen.DirectorySite
-	byIDErr         error
-	byShortID       dbgen.DirectorySite
-	byShortIDErr    error
-	byCustomID      dbgen.DirectorySite
-	byCustomIDErr   error
-	feeds           []dbgen.DirectorySiteFeed
-	feedsErr        error
-	batchFeeds      []dbgen.DirectorySiteFeed
-	batchFeedsErr   error
-	resources       []dbgen.DirectorySiteResource
-	resourcesErr    error
-	batchSitemaps   []dbgen.DirectorySiteResource
-	batchSitemapErr error
-	tags            []dbgen.ListPublicSiteTagsRow
-	tagsErr         error
-	batchTags       []dbgen.ListPublicSiteTagsBySiteIDsRow
-	batchTagsErr    error
-	technologies    []dbgen.ListPublicSiteSoftwareComponentsRow
-	technologiesErr error
+	count                    int64
+	countErr                 error
+	directoryCounts          dbgen.CountDirectorySitesByStatusRow
+	countDirectory           func(context.Context, dbgen.CountDirectorySitesByStatusParams) (dbgen.CountDirectorySitesByStatusRow, error)
+	listDirectory            func(context.Context, dbgen.ListDirectorySitesParams) ([]dbgen.DirectorySite, error)
+	directoryTags            []dbgen.ListDirectoryTagOptionsRow
+	directoryTagsErr         error
+	directoryTechnologies    []dbgen.ListDirectoryTechnologyOptionsRow
+	directoryTechnologiesErr error
+	listRandom               func(context.Context, int32) ([]dbgen.DirectorySite, error)
+	announcement             dbgen.ContentAnnouncement
+	announcementErr          error
+	byID                     dbgen.DirectorySite
+	byIDErr                  error
+	byShortID                dbgen.DirectorySite
+	byShortIDErr             error
+	byCustomID               dbgen.DirectorySite
+	byCustomIDErr            error
+	feeds                    []dbgen.DirectorySiteFeed
+	feedsErr                 error
+	batchFeeds               []dbgen.DirectorySiteFeed
+	batchFeedsErr            error
+	resources                []dbgen.DirectorySiteResource
+	resourcesErr             error
+	batchSitemaps            []dbgen.DirectorySiteResource
+	batchSitemapErr          error
+	tags                     []dbgen.ListPublicSiteTagsRow
+	tagsErr                  error
+	batchTags                []dbgen.ListPublicSiteTagsBySiteIDsRow
+	batchTagsErr             error
+	technologies             []dbgen.ListPublicSiteSoftwareComponentsRow
+	technologiesErr          error
 }
 
 func (stub queryStub) CountVisibleSites(context.Context) (int64, error) {
 	return stub.count, stub.countErr
+}
+
+func (stub queryStub) CountDirectorySitesByStatus(
+	ctx context.Context,
+	parameters dbgen.CountDirectorySitesByStatusParams,
+) (dbgen.CountDirectorySitesByStatusRow, error) {
+	if stub.countDirectory != nil {
+		return stub.countDirectory(ctx, parameters)
+	}
+	if stub.directoryCounts != (dbgen.CountDirectorySitesByStatusRow{}) {
+		return stub.directoryCounts, stub.countErr
+	}
+	return dbgen.CountDirectorySitesByStatusRow{NormalCount: stub.count}, stub.countErr
+}
+
+func (stub queryStub) ListDirectorySites(
+	ctx context.Context,
+	parameters dbgen.ListDirectorySitesParams,
+) ([]dbgen.DirectorySite, error) {
+	if stub.listDirectory != nil {
+		return stub.listDirectory(ctx, parameters)
+	}
+	return []dbgen.DirectorySite{}, nil
+}
+
+func (stub queryStub) ListDirectoryTagOptions(
+	context.Context,
+) ([]dbgen.ListDirectoryTagOptionsRow, error) {
+	return stub.directoryTags, stub.directoryTagsErr
+}
+
+func (stub queryStub) ListDirectoryTechnologyOptions(
+	context.Context,
+) ([]dbgen.ListDirectoryTechnologyOptionsRow, error) {
+	return stub.directoryTechnologies, stub.directoryTechnologiesErr
 }
 
 func (stub queryStub) ListRandomVisibleSites(ctx context.Context, limit int32) ([]dbgen.DirectorySite, error) {

@@ -18,16 +18,19 @@ export interface SiteCardBase {
   host: string;
   homepageUrl: string;
   accessScope: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
+  directoryStatus: 'normal' | 'abnormal';
   joinedAt: string;
   updatedAt: string;
 }
 
-export interface HomeSiteCard extends SiteCardBase {
+export interface SiteCardView extends SiteCardBase {
   topics: HomeSiteTopic[];
   warnings: HomeSiteWarning[];
   defaultFeed: HomeSiteFeed | null;
   sitemapUrl: string | null;
 }
+
+export type HomeSiteCard = SiteCardView;
 
 // TODO(home-card): restore visitCount, articleCount, the content-last-updated marker, old
 // tone/color logic, feedback action, and legacy UUID tracking when authoritative APIs exist.

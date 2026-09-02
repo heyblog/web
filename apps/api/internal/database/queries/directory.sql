@@ -42,6 +42,228 @@ SELECT count(*)::bigint
   FROM directory.sites
  WHERE visibility = 'VISIBLE';
 
+-- name: CountDirectorySitesByStatus :one
+SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
+       count(*) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
+  FROM directory.sites AS site
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+   AND (
+       sqlc.arg(query_text)::text = ''
+       OR strpos(
+           lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
+           lower(sqlc.arg(query_text)::text)
+       ) > 0
+   )
+   AND (
+       cardinality(sqlc.arg(primary_tag_slugs)::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'PRIMARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY(sqlc.arg(primary_tag_slugs)::text[])
+       )
+   )
+   AND (
+       cardinality(sqlc.arg(secondary_tag_slugs)::text[]) = 0
+       OR (
+           SELECT count(DISTINCT tag.slug)
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'SECONDARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY(sqlc.arg(secondary_tag_slugs)::text[])
+       ) = cardinality(sqlc.arg(secondary_tag_slugs)::text[])
+   )
+   AND (
+       cardinality(sqlc.arg(warning_slugs)::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'WARNING'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY(sqlc.arg(warning_slugs)::text[])
+       )
+   )
+   AND (
+       cardinality(sqlc.arg(technology_names)::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_software_components AS assignment
+             JOIN directory.software_components AS component ON component.id = assignment.component_id
+            WHERE assignment.site_id = site.id
+              AND component.is_enabled
+              AND component.normalized_name = ANY(sqlc.arg(technology_names)::text[])
+       )
+   )
+   AND (
+       cardinality(sqlc.arg(access_scopes)::text[]) = 0
+       OR site.access_scope = ANY(sqlc.arg(access_scopes)::text[])
+   )
+   AND (
+       sqlc.arg(feed_mode)::text = 'any'
+       OR (
+           sqlc.arg(feed_mode)::text = 'with'
+           AND EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+       OR (
+           sqlc.arg(feed_mode)::text = 'without'
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+   );
+
+-- name: ListDirectorySites :many
+SELECT site.*
+  FROM directory.sites AS site
+ WHERE site.visibility = sqlc.arg(site_visibility)::text
+   AND (
+       sqlc.arg(query_text)::text = ''
+       OR strpos(
+           lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
+           lower(sqlc.arg(query_text)::text)
+       ) > 0
+   )
+   AND (
+       cardinality(sqlc.arg(primary_tag_slugs)::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'PRIMARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY(sqlc.arg(primary_tag_slugs)::text[])
+       )
+   )
+   AND (
+       cardinality(sqlc.arg(secondary_tag_slugs)::text[]) = 0
+       OR (
+           SELECT count(DISTINCT tag.slug)
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'SECONDARY'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY(sqlc.arg(secondary_tag_slugs)::text[])
+       ) = cardinality(sqlc.arg(secondary_tag_slugs)::text[])
+   )
+   AND (
+       cardinality(sqlc.arg(warning_slugs)::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_tags AS assignment
+             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+            WHERE assignment.site_id = site.id
+              AND assignment.role = 'WARNING'
+              AND tag.is_enabled
+              AND tag.merged_into_id IS NULL
+              AND tag.slug = ANY(sqlc.arg(warning_slugs)::text[])
+       )
+   )
+   AND (
+       cardinality(sqlc.arg(technology_names)::text[]) = 0
+       OR EXISTS (
+           SELECT 1
+             FROM directory.site_software_components AS assignment
+             JOIN directory.software_components AS component ON component.id = assignment.component_id
+            WHERE assignment.site_id = site.id
+              AND component.is_enabled
+              AND component.normalized_name = ANY(sqlc.arg(technology_names)::text[])
+       )
+   )
+   AND (
+       cardinality(sqlc.arg(access_scopes)::text[]) = 0
+       OR site.access_scope = ANY(sqlc.arg(access_scopes)::text[])
+   )
+   AND (
+       sqlc.arg(feed_mode)::text = 'any'
+       OR (
+           sqlc.arg(feed_mode)::text = 'with'
+           AND EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+       OR (
+           sqlc.arg(feed_mode)::text = 'without'
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM directory.site_feeds AS feed
+                WHERE feed.site_id = site.id AND feed.is_enabled
+           )
+       )
+   )
+ ORDER BY
+       CASE WHEN sqlc.arg(sort_mode)::text = 'random'
+           THEN md5(sqlc.arg(seed)::text || ':' || site.short_id)
+       END,
+       CASE WHEN sqlc.arg(sort_mode)::text = 'joined' AND sqlc.arg(sort_order)::text = 'desc'
+           THEN site.joined_at
+       END DESC,
+       CASE WHEN sqlc.arg(sort_mode)::text = 'joined' AND sqlc.arg(sort_order)::text = 'asc'
+           THEN site.joined_at
+       END ASC,
+       CASE WHEN sqlc.arg(sort_mode)::text = 'updated' AND sqlc.arg(sort_order)::text = 'desc'
+           THEN site.updated_at
+       END DESC,
+       CASE WHEN sqlc.arg(sort_mode)::text = 'updated' AND sqlc.arg(sort_order)::text = 'asc'
+           THEN site.updated_at
+       END ASC,
+       site.short_id
+ LIMIT sqlc.arg(page_limit)::integer
+OFFSET sqlc.arg(page_offset)::integer;
+
+-- name: ListDirectoryTagOptions :many
+SELECT tag.name, tag.slug, assignment.role,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'VISIBLE'
+       )::bigint AS normal_count,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'HIDDEN'
+       )::bigint AS abnormal_count
+  FROM directory.site_tags AS assignment
+  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+  JOIN directory.sites AS site ON site.id = assignment.site_id
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+   AND tag.is_enabled
+   AND tag.merged_into_id IS NULL
+ GROUP BY tag.id, tag.name, tag.slug, assignment.role
+ ORDER BY assignment.role, normal_count DESC, abnormal_count DESC, tag.name, tag.slug;
+
+-- name: ListDirectoryTechnologyOptions :many
+SELECT component.name, component.normalized_name,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'VISIBLE'
+       )::bigint AS normal_count,
+       count(DISTINCT assignment.site_id) FILTER (
+           WHERE site.visibility = 'HIDDEN'
+       )::bigint AS abnormal_count
+  FROM directory.site_software_components AS assignment
+  JOIN directory.software_components AS component ON component.id = assignment.component_id
+  JOIN directory.sites AS site ON site.id = assignment.site_id
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND component.is_enabled
+ GROUP BY component.id, component.name, component.normalized_name
+ ORDER BY normal_count DESC, abnormal_count DESC, component.name, component.normalized_name;
+
 -- name: UpdateSiteAddress :one
 UPDATE directory.sites
    SET scheme = $2,

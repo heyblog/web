@@ -23,6 +23,7 @@ type Querier interface {
 	ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error
 	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
+	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
 	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
@@ -60,6 +61,9 @@ type Querier interface {
 	ListAnnouncementRevisions(ctx context.Context, announcementID pgtype.UUID) ([]ContentAnnouncementRevision, error)
 	ListAnnouncementsForManagement(ctx context.Context, arg ListAnnouncementsForManagementParams) ([]ListAnnouncementsForManagementRow, error)
 	ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteFeed, error)
+	ListDirectorySites(ctx context.Context, arg ListDirectorySitesParams) ([]DirectorySite, error)
+	ListDirectoryTagOptions(ctx context.Context) ([]ListDirectoryTagOptionsRow, error)
+	ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDirectoryTechnologyOptionsRow, error)
 	ListEnabledSoftwareComponents(ctx context.Context) ([]DirectorySoftwareComponent, error)
 	ListEnabledTags(ctx context.Context) ([]DirectoryTag, error)
 	ListFriendLinks(ctx context.Context, arg ListFriendLinksParams) ([]ListFriendLinksRow, error)

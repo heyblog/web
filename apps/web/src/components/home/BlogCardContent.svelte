@@ -37,30 +37,16 @@
     primary:
       'inline-flex min-h-5 shrink-0 items-center rounded-sm bg-tint px-2 text-xs font-medium text-tint-fg',
     secondary:
-      'inline-flex min-h-5 shrink-0 items-center rounded-sm bg-subtle px-2 text-xs font-medium text-fg-muted',
+      'inline-flex min-h-5 shrink-0 items-center rounded-sm bg-subtle px-2 text-xs font-medium text-fg',
   } as const satisfies Record<BlogCardTagTone, string>;
   let { site, expanded, truncated, expandedShell, titleId, descriptionId, plannedFields }: Props =
     $props();
   let visibleTagCount = $state(Number.POSITIVE_INFINITY);
-  let summaryExpandedHeight = $state(24);
-  let tagsExpandedHeight = $state(20);
   const orderedTags = $derived(createBlogCardTags(site));
   const visibleTags = $derived(truncated ? orderedTags.slice(0, visibleTagCount) : orderedTags);
   const hiddenTagCount = $derived(truncated ? orderedTags.length - visibleTagCount : 0);
   const tagCounterValues = $derived(orderedTags.map((_tag, index) => index + 1));
   const summary = $derived(site.summary.trim() || '该博客已被 HeyBlog 收录，暂无博客简介。');
-
-  function measureSummary(): Attachment<HTMLParagraphElement> {
-    return (node) => {
-      const measure = () => {
-        summaryExpandedHeight = Math.max(24, Math.ceil(node.getBoundingClientRect().height));
-      };
-      const resizeObserver = new ResizeObserver(measure);
-      resizeObserver.observe(node);
-      measure();
-      return () => resizeObserver.disconnect();
-    };
-  }
 
   function measureTagLayout(tags: readonly BlogCardTag[]): Attachment<HTMLDivElement> {
     return (node) => {
@@ -85,10 +71,6 @@
             gap: Number.parseFloat(getComputedStyle(fullTagList ?? node).columnGap) || 0,
             maxRows: 1,
           });
-          tagsExpandedHeight = Math.max(
-            20,
-            Math.ceil(fullTagList?.getBoundingClientRect().height ?? 20),
-          );
         });
       };
       const resizeObserver = new ResizeObserver(measure);
@@ -121,36 +103,26 @@
       <p class="mt-1 truncate font-mono text-xs text-fg-muted">
         {site.host}
       </p>
+      {#if site.directoryStatus === 'abnormal'}
+        <span
+          class="mt-2 inline-flex min-h-5 items-center rounded-sm bg-warning-bg px-2 text-xs font-medium text-warning-fg"
+        >
+          异常状态
+        </span>
+      {/if}
     </div>
   </header>
 
-  <div
-    class="relative mt-2 overflow-hidden"
-    data-card-section="summary"
-    data-expanded={expanded}
-    style:--expanded-height={`${summaryExpandedHeight}px`}
-  >
+  <div class="relative mt-2 overflow-hidden" data-card-section="summary" data-expanded={expanded}>
     <p
       class={['text-sm/6 wrap-break-word break-keep text-fg-muted', truncated && 'line-clamp-1']}
       id={descriptionId}
     >
       {summary}
     </p>
-    <p
-      class="invisible absolute inset-x-0 top-0 text-sm/6 wrap-break-word break-keep text-fg-muted"
-      aria-hidden="true"
-      {@attach measureSummary()}
-    >
-      {summary}
-    </p>
   </div>
 
-  <div
-    class="relative mt-2 overflow-hidden"
-    data-card-section="tags"
-    data-expanded={expanded}
-    style:--expanded-height={`${tagsExpandedHeight}px`}
-  >
+  <div class="relative mt-2 overflow-hidden" data-card-section="tags" data-expanded={expanded}>
     <div class="flex flex-wrap gap-1.5">
       {#each visibleTags as tag (tag.key)}
         <span class={tagClasses[tag.tone]}>{tag.label}</span>

@@ -10,7 +10,7 @@
 
 [data-card-section='summary'][data-expanded='true'],
 [data-card-section='tags'][data-expanded='true'] {
-  max-height: var(--expanded-height);
+  max-height: 12rem;
 }
 
 [data-card-section='details'] {

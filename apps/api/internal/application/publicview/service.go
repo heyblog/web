@@ -26,17 +26,26 @@ type SiteIdentifier struct {
 
 type Reader interface {
 	Home(context.Context) (Home, error)
+	Directory(context.Context, DirectoryQuery) (DirectoryView, error)
+	DirectoryOptions(context.Context) (DirectoryOptions, error)
 	SiteByIdentifier(context.Context, SiteIdentifier) (SiteProfile, error)
 	SiteByCustomID(context.Context, string) (SiteProfile, error)
 }
 
 type Queries interface {
+	CountDirectorySitesByStatus(
+		context.Context,
+		dbgen.CountDirectorySitesByStatusParams,
+	) (dbgen.CountDirectorySitesByStatusRow, error)
 	CountVisibleSites(context.Context) (int64, error)
 	GetLeadingActiveMainAnnouncement(context.Context) (dbgen.ContentAnnouncement, error)
 	GetSiteByCustomID(context.Context, *string) (dbgen.DirectorySite, error)
 	GetSiteByID(context.Context, pgtype.UUID) (dbgen.DirectorySite, error)
 	GetSiteByShortID(context.Context, string) (dbgen.DirectorySite, error)
 	ListDefaultPublicSiteFeedsBySiteIDs(context.Context, []pgtype.UUID) ([]dbgen.DirectorySiteFeed, error)
+	ListDirectorySites(context.Context, dbgen.ListDirectorySitesParams) ([]dbgen.DirectorySite, error)
+	ListDirectoryTagOptions(context.Context) ([]dbgen.ListDirectoryTagOptionsRow, error)
+	ListDirectoryTechnologyOptions(context.Context) ([]dbgen.ListDirectoryTechnologyOptionsRow, error)
 	ListPublicSiteFeeds(context.Context, pgtype.UUID) ([]dbgen.DirectorySiteFeed, error)
 	ListPublicSiteSoftwareComponents(context.Context, pgtype.UUID) ([]dbgen.ListPublicSiteSoftwareComponentsRow, error)
 	ListPublicSiteTags(context.Context, pgtype.UUID) ([]dbgen.ListPublicSiteTagsRow, error)
@@ -51,15 +60,16 @@ type Service struct {
 }
 
 type SiteCard struct {
-	ShortID     string    `json:"shortId"`
-	CustomID    *string   `json:"customId"`
-	Name        string    `json:"name"`
-	Summary     string    `json:"summary"`
-	Host        string    `json:"host"`
-	HomepageURL string    `json:"homepageUrl"`
-	AccessScope string    `json:"accessScope"`
-	JoinedAt    time.Time `json:"joinedAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ShortID         string          `json:"shortId"`
+	CustomID        *string         `json:"customId"`
+	Name            string          `json:"name"`
+	Summary         string          `json:"summary"`
+	Host            string          `json:"host"`
+	HomepageURL     string          `json:"homepageUrl"`
+	AccessScope     string          `json:"accessScope"`
+	DirectoryStatus DirectoryStatus `json:"directoryStatus"`
+	JoinedAt        time.Time       `json:"joinedAt"`
+	UpdatedAt       time.Time       `json:"updatedAt"`
 }
 
 type SiteProfile struct {
@@ -147,7 +157,7 @@ func (service *Service) loadProfile(
 	row dbgen.DirectorySite,
 	lookupErr error,
 ) (SiteProfile, error) {
-	if errors.Is(lookupErr, pgx.ErrNoRows) || lookupErr == nil && row.Visibility != "VISIBLE" {
+	if errors.Is(lookupErr, pgx.ErrNoRows) || lookupErr == nil && row.Visibility == "REMOVED" {
 		return SiteProfile{}, notFound()
 	}
 	if lookupErr != nil {
@@ -227,43 +237,6 @@ func (service *Service) loadProfile(
 		})
 	}
 	return profile, nil
-}
-
-func mapSiteCard(row dbgen.DirectorySite) (SiteCard, error) {
-	if !row.JoinedAt.Valid {
-		return SiteCard{}, invalidSiteTimestamp("join")
-	}
-	if !row.UpdatedAt.Valid {
-		return SiteCard{}, invalidSiteTimestamp("update")
-	}
-	homepageURL, err := (site.Address{
-		Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath,
-	}).HomepageURL()
-	if err != nil {
-		return SiteCard{}, err
-	}
-	return SiteCard{
-		ShortID:     row.ShortID,
-		CustomID:    row.CustomID,
-		Name:        row.Name,
-		Summary:     row.Summary,
-		Host:        row.NormalizedHost,
-		HomepageURL: homepageURL,
-		AccessScope: row.AccessScope,
-		JoinedAt:    row.JoinedAt.Time,
-		UpdatedAt:   row.UpdatedAt.Time,
-	}, nil
-}
-
-func locationFromValues(locationType string, urlRef, externalURL *string) site.Location {
-	location := site.Location{Type: locationType}
-	if urlRef != nil {
-		location.URLRef = *urlRef
-	}
-	if externalURL != nil {
-		location.ExternalURL = *externalURL
-	}
-	return location
 }
 
 var _ Reader = (*Service)(nil)

@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -99,6 +100,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyDirectorySiteTimestampSchema(ctx, t, pool)
 	verifyDirectoryConstraints(ctx, t, pool)
 	verifyPublicViewQueries(ctx, t, pool)
+	verifyDirectoryQueries(ctx, t, pool)
 	verifyTagAndIconConstraints(ctx, t, pool)
 	verifyAnnouncementQueries(ctx, t, pool)
 	verifyAnnouncementConstraints(ctx, t, pool, migrationURL)
@@ -109,6 +111,179 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyUserDeletionSemantics(ctx, t, pool, migrationURL)
 	verifyAuthenticationFlows(ctx, t, pool)
 	verifyMigrationRollback(ctx, t, adminConnection, migrationURL)
+}
+
+func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
+	t.Helper()
+	queries := dbgen.New(connection)
+	for index := range 26 {
+		insertSite(
+			ctx,
+			t,
+			connection,
+			fmt.Sprintf("D%08d", index),
+			fmt.Sprintf("Directory Fixture %02d", index),
+			fmt.Sprintf("directory-%02d.example.com", index),
+		)
+	}
+
+	filters := dbgen.CountDirectorySitesByStatusParams{
+		QueryText: "directory fixture", PrimaryTagSlugs: []string{}, SecondaryTagSlugs: []string{},
+		WarningSlugs: []string{}, TechnologyNames: []string{}, AccessScopes: []string{"ALL"},
+		FeedMode: "without",
+	}
+	counts, err := queries.CountDirectorySitesByStatus(ctx, filters)
+	if err != nil {
+		t.Fatalf("count directory fixtures: %v", err)
+	}
+	if counts.NormalCount != 26 || counts.AbnormalCount != 0 {
+		t.Fatalf("directory fixture counts = %#v, want normal=26 abnormal=0", counts)
+	}
+
+	base := dbgen.ListDirectorySitesParams{
+		SiteVisibility: "VISIBLE", QueryText: filters.QueryText,
+		PrimaryTagSlugs: filters.PrimaryTagSlugs, SecondaryTagSlugs: filters.SecondaryTagSlugs,
+		WarningSlugs: filters.WarningSlugs, TechnologyNames: filters.TechnologyNames,
+		AccessScopes: filters.AccessScopes, FeedMode: filters.FeedMode,
+		SortMode: "random", Seed: "site-directory:integration", SortOrder: "desc", PageLimit: 24,
+	}
+	firstPage, err := queries.ListDirectorySites(ctx, base)
+	if err != nil {
+		t.Fatalf("list first stable directory page: %v", err)
+	}
+	repeatedPage, err := queries.ListDirectorySites(ctx, base)
+	if err != nil {
+		t.Fatalf("repeat first stable directory page: %v", err)
+	}
+	if len(firstPage) != 24 || !slices.EqualFunc(firstPage, repeatedPage, func(left, right dbgen.DirectorySite) bool {
+		return left.ID == right.ID
+	}) {
+		t.Fatalf("stable directory page changed between identical queries")
+	}
+	base.PageOffset = 24
+	secondPage, err := queries.ListDirectorySites(ctx, base)
+	if err != nil {
+		t.Fatalf("list second stable directory page: %v", err)
+	}
+	if len(secondPage) != 2 {
+		t.Fatalf("second directory page length = %d, want 2", len(secondPage))
+	}
+	seen := make(map[pgtype.UUID]struct{}, len(firstPage))
+	for _, row := range firstPage {
+		seen[row.ID] = struct{}{}
+	}
+	for _, row := range secondPage {
+		if _, exists := seen[row.ID]; exists {
+			t.Fatalf("stable directory pages repeated site %s", row.ShortID)
+		}
+	}
+
+	primaryOne, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
+		Name: "Directory Primary One", NormalizedName: "directory primary one",
+		Slug: "directory-primary-one", Description: "integration fixture",
+	})
+	if err != nil {
+		t.Fatalf("create first directory primary tag: %v", err)
+	}
+	primaryTwo, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
+		Name: "Directory Primary Two", NormalizedName: "directory primary two",
+		Slug: "directory-primary-two", Description: "integration fixture",
+	})
+	if err != nil {
+		t.Fatalf("create second directory primary tag: %v", err)
+	}
+	secondaryOne, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
+		Name: "Directory Secondary One", NormalizedName: "directory secondary one",
+		Slug: "directory-secondary-one", Description: "integration fixture",
+	})
+	if err != nil {
+		t.Fatalf("create first directory secondary tag: %v", err)
+	}
+	secondaryTwo, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
+		Name: "Directory Secondary Two", NormalizedName: "directory secondary two",
+		Slug: "directory-secondary-two", Description: "integration fixture",
+	})
+	if err != nil {
+		t.Fatalf("create second directory secondary tag: %v", err)
+	}
+	visibleBoth := insertSite(ctx, t, connection, "F00000001", "Role Fixture Visible Both", "role-visible-both.example.com")
+	visiblePartial := insertSite(ctx, t, connection, "F00000002", "Role Fixture Visible Partial", "role-visible-partial.example.com")
+	hiddenBoth := insertSite(ctx, t, connection, "F00000003", "Role Fixture Hidden Both", "role-hidden-both.example.com")
+	removedBoth := insertSite(ctx, t, connection, "F00000004", "Role Fixture Removed Both", "role-removed-both.example.com")
+	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET visibility = 'HIDDEN', visibility_reason = 'fixture' WHERE id = $1`, hiddenBoth); err != nil {
+		t.Fatalf("hide directory role fixture: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET visibility = 'REMOVED', visibility_reason = 'fixture' WHERE id = $1`, removedBoth); err != nil {
+		t.Fatalf("remove directory role fixture: %v", err)
+	}
+	assign := func(siteID, tagID pgtype.UUID, role string) {
+		t.Helper()
+		if _, assignErr := queries.AssignSiteTag(ctx, dbgen.AssignSiteTagParams{
+			SiteID: siteID, TagID: tagID, Role: role, AssignmentSource: "SYSTEM",
+		}); assignErr != nil {
+			t.Fatalf("assign %s directory role fixture: %v", role, assignErr)
+		}
+	}
+	for _, siteID := range []pgtype.UUID{visibleBoth, hiddenBoth, removedBoth} {
+		assign(siteID, primaryOne.ID, "PRIMARY")
+		assign(siteID, secondaryOne.ID, "SECONDARY")
+		assign(siteID, secondaryTwo.ID, "SECONDARY")
+	}
+	assign(visiblePartial, primaryTwo.ID, "PRIMARY")
+	assign(visiblePartial, secondaryOne.ID, "SECONDARY")
+
+	roleFilters := dbgen.CountDirectorySitesByStatusParams{
+		QueryText: "role fixture", PrimaryTagSlugs: []string{primaryOne.Slug, primaryTwo.Slug},
+		SecondaryTagSlugs: []string{secondaryOne.Slug}, WarningSlugs: []string{},
+		TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any",
+	}
+	roleCounts, err := queries.CountDirectorySitesByStatus(ctx, roleFilters)
+	if err != nil {
+		t.Fatalf("count primary OR directory fixtures: %v", err)
+	}
+	if roleCounts.NormalCount != 2 || roleCounts.AbnormalCount != 1 {
+		t.Fatalf("primary OR status counts = %#v, want normal=2 abnormal=1", roleCounts)
+	}
+	roleFilters.SecondaryTagSlugs = []string{secondaryOne.Slug, secondaryTwo.Slug}
+	roleCounts, err = queries.CountDirectorySitesByStatus(ctx, roleFilters)
+	if err != nil {
+		t.Fatalf("count secondary AND directory fixtures: %v", err)
+	}
+	if roleCounts.NormalCount != 1 || roleCounts.AbnormalCount != 1 {
+		t.Fatalf("secondary AND status counts = %#v, want normal=1 abnormal=1", roleCounts)
+	}
+	hiddenRows, err := queries.ListDirectorySites(ctx, dbgen.ListDirectorySitesParams{
+		SiteVisibility: "HIDDEN", QueryText: roleFilters.QueryText,
+		PrimaryTagSlugs: roleFilters.PrimaryTagSlugs, SecondaryTagSlugs: roleFilters.SecondaryTagSlugs,
+		WarningSlugs: []string{}, TechnologyNames: []string{}, AccessScopes: []string{},
+		FeedMode: "any", SortMode: "joined", Seed: "integration", SortOrder: "desc", PageLimit: 24,
+	})
+	if err != nil {
+		t.Fatalf("list hidden directory fixtures: %v", err)
+	}
+	if len(hiddenRows) != 1 || hiddenRows[0].ID != hiddenBoth {
+		t.Fatalf("hidden directory rows = %#v, want only hidden fixture", hiddenRows)
+	}
+	optionRows, err := queries.ListDirectoryTagOptions(ctx)
+	if err != nil {
+		t.Fatalf("list directory tag options: %v", err)
+	}
+	var primaryOption, secondaryOption *dbgen.ListDirectoryTagOptionsRow
+	for index := range optionRows {
+		row := &optionRows[index]
+		if row.Slug == primaryOne.Slug && row.Role == "PRIMARY" {
+			primaryOption = row
+		}
+		if row.Slug == secondaryTwo.Slug && row.Role == "SECONDARY" {
+			secondaryOption = row
+		}
+	}
+	if primaryOption == nil || primaryOption.NormalCount != 1 || primaryOption.AbnormalCount != 1 {
+		t.Fatalf("primary directory option = %#v, want normal=1 abnormal=1", primaryOption)
+	}
+	if secondaryOption == nil || secondaryOption.NormalCount != 1 || secondaryOption.AbnormalCount != 1 {
+		t.Fatalf("secondary directory option = %#v, want normal=1 abnormal=1", secondaryOption)
+	}
 }
 
 type authMailRecorder struct{ messages []mail.Message }

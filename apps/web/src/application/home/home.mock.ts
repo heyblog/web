@@ -170,6 +170,7 @@ function createMockCard(
     defaultFeed: null,
     sitemapUrl: null,
     ...overrides,
+    directoryStatus: overrides.directoryStatus ?? 'normal',
   };
 }
 

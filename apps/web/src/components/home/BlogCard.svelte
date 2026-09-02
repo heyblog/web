@@ -25,7 +25,10 @@
 <div class="contents">
   <article
     bind:this={cardElement}
-    class="group/card relative isolate h-64 w-full max-w-full min-w-0 overflow-hidden rounded-md border border-line bg-surface shadow-2xs transition-[transform,border-color] duration-(--motion-base) ease-standard motion-reduce:transform-none motion-reduce:transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-px [@media(hover:hover)_and_(pointer:fine)]:hover:border-line-strong [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-xs"
+    class={[
+      'group/card relative isolate w-full max-w-full min-w-0 overflow-hidden rounded-md border border-line bg-surface shadow-2xs transition-[transform,border-color] duration-(--motion-base) ease-standard motion-reduce:transform-none motion-reduce:transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-px [@media(hover:hover)_and_(pointer:fine)]:hover:border-line-strong [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-xs',
+      site.directoryStatus === 'abnormal' ? 'h-72' : 'h-64',
+    ]}
     data-blog-card
     data-site-id={site.shortId}
   >
