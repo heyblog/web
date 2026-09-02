@@ -31,7 +31,7 @@ mail:
     verification:
       address: no-reply@verify.mail.heyblog.net
     submission:
-      address: no-reply@submission.mail.heyblog.net
+      address: no-reply@notify.mail.heyblog.net
 
 logging:
   # Minimum level: debug, info, warn, or error.
