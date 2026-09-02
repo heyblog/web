@@ -1,11 +1,18 @@
 ---
-import { loadSiteByIdentifier } from '@/application/site-profile/site-profile.server';
+import {
+  canonicalSiteRedirectPath,
+  loadSiteByIdentifier,
+} from '@/application/site-profile/site-profile.server';
 import SiteProfileRoute from '@/components/site-profile/SiteProfileRoute.astro';
 
 export const prerender = false;
 
 const identifier = Astro.params.identifier ?? '';
 const loaded = await loadSiteByIdentifier(identifier, Astro.request.signal);
+const redirectPath = canonicalSiteRedirectPath(identifier, loaded);
+if (redirectPath) {
+  return Astro.redirect(redirectPath, 308);
+}
 const result = loaded.kind === 'bad-request' ? ({ kind: 'not-found' } as const) : loaded;
 
 Astro.response.headers.set('Cache-Control', 'no-store');
