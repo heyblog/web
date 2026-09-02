@@ -2,11 +2,30 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 )
+
+func TestGitHubClientMapsTransportFailureToUnavailable(t *testing.T) {
+	service := &Service{config: Config{WebBaseURL: "https://web.example.test"}}
+	service.httpClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, context.DeadlineExceeded
+	})}
+
+	_, err := service.githubAccessToken(context.Background(), "oauth-code")
+	var authErr *AuthError
+	if !errors.As(err, &authErr) || authErr.Code != "github_exchange_failed" || authErr.StatusCode != http.StatusBadGateway {
+		t.Fatalf("githubAccessToken() error = %#v, want GitHub unavailable error", err)
+	}
+
+	_, _, err = service.githubIdentity(context.Background(), "github-token")
+	if !errors.As(err, &authErr) || authErr.Code != "github_identity_failed" || authErr.StatusCode != http.StatusBadGateway {
+		t.Fatalf("githubIdentity() error = %#v, want GitHub unavailable error", err)
+	}
+}
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 

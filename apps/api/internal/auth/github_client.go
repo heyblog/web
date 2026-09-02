@@ -19,7 +19,7 @@ func (service *Service) githubAccessToken(ctx context.Context, code string) (str
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := service.httpClient.Do(request)
 	if err != nil {
-		return "", err
+		return "", newAuthError("github_exchange_failed", http.StatusBadGateway, "GitHub login is unavailable")
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode/100 != 2 {
@@ -43,7 +43,7 @@ func (service *Service) githubIdentity(ctx context.Context, accessToken string) 
 	request.Header.Set("Accept", "application/vnd.github+json")
 	response, err := service.httpClient.Do(request)
 	if err != nil {
-		return githubProfile{}, "", err
+		return githubProfile{}, "", newAuthError("github_identity_failed", http.StatusBadGateway, "GitHub login is unavailable")
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode/100 != 2 {
@@ -61,7 +61,7 @@ func (service *Service) githubIdentity(ctx context.Context, accessToken string) 
 	emailRequest.Header.Set("Accept", "application/vnd.github+json")
 	emailResponse, err := service.httpClient.Do(emailRequest)
 	if err != nil {
-		return githubProfile{}, "", err
+		return githubProfile{}, "", newAuthError("github_identity_failed", http.StatusBadGateway, "GitHub login is unavailable")
 	}
 	defer func() { _ = emailResponse.Body.Close() }()
 	if emailResponse.StatusCode/100 != 2 {

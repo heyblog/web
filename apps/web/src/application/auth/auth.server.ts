@@ -13,6 +13,8 @@ export async function requestAuthAPI(
   }> = {},
 ): Promise<Response> {
   const configuration = loadWebServerConfig();
+  const upstreamURL = new URL(path, configuration.apiBaseUrl);
+  const timeoutMs = upstreamURL.pathname === '/auth/github/callback' ? 55_000 : 10_000;
   const headers = new Headers({
     Accept: 'application/json',
     'X-HeyBlog-Web-Token': configuration.apiWebToken,
@@ -23,12 +25,12 @@ export async function requestAuthAPI(
 
   let upstream: Response;
   try {
-    upstream = await fetch(new URL(path, configuration.apiBaseUrl), {
+    upstream = await fetch(upstreamURL, {
       method: init.method ?? 'GET',
       headers,
       body: init.body ? JSON.stringify(init.body) : undefined,
       redirect: 'manual',
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]),
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]),
     });
   } catch {
     return Response.json(

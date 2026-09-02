@@ -35,3 +35,10 @@ test('keeps documents available without exposing them in the public navigation',
     ],
   );
 });
+
+test('trusts the canonical production origin behind the reverse proxy', async () => {
+  const source = await readFile(new URL('../astro.config.ts', import.meta.url), 'utf8');
+
+  assert.match(source, /allowedDomains:/u);
+  assert.match(source, /hostname: 'www\.heyblog\.net'/u);
+});

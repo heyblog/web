@@ -51,7 +51,7 @@ var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
 
 func NewService(deps Dependencies) *Service {
 	return &Service{repo: newRepository(deps.Pool), redis: deps.Redis, mailer: deps.VerificationMailer,
-		sender: deps.MailSender, config: deps.Config, httpClient: &http.Client{Timeout: 10 * time.Second}}
+		sender: deps.MailSender, config: deps.Config, httpClient: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (service *Service) Register(ctx context.Context, username, email, password string) error {

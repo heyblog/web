@@ -27,6 +27,7 @@ export default defineConfig({
     defaultStrategy: 'hover',
   },
   security: {
+    allowedDomains: [{ protocol: 'https', hostname: 'www.heyblog.net', port: '443' }],
     csp: {
       directives: [
         "default-src 'self'",

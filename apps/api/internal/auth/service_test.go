@@ -1,6 +1,16 @@
 package auth
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+func TestNewServiceAllowsSlowGitHubResponses(t *testing.T) {
+	service := NewService(Dependencies{})
+	if service.httpClient.Timeout != 15*time.Second {
+		t.Fatalf("GitHub HTTP timeout = %s, want 15s", service.httpClient.Timeout)
+	}
+}
 
 func TestValidEmailAcceptsNormalizedMailboxOnly(t *testing.T) {
 	if !validEmail("reader@example.test") {

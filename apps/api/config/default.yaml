@@ -55,7 +55,7 @@ http:
   # net/http server timeouts. Endpoint-specific deadlines remain the route owner's responsibility.
   read_header_timeout: 5s
   read_timeout: 30s
-  write_timeout: 30s
+  write_timeout: 50s
   idle_timeout: 1m
   shutdown_timeout: 10s
   # Maximum request-header and request-body sizes in bytes.

@@ -53,6 +53,36 @@ test('auth API forwards only service credentials and browser cookies', async () 
   }
 });
 
+test('auth API gives the GitHub callback a longer timeout', async () => {
+  // Given
+  Object.assign(process.env, authEnvironment);
+  const originalFetch = globalThis.fetch;
+  const originalTimeout = AbortSignal.timeout;
+  let requestedTimeout: number | undefined;
+  globalThis.fetch = async () => new Response(null, { status: 204 });
+  AbortSignal.timeout = (milliseconds) => {
+    requestedTimeout = milliseconds;
+    return originalTimeout(1_000);
+  };
+
+  try {
+    // When
+    await requestAuthAPI(
+      new Request('https://web.example.test/auth/github/callback'),
+      '/auth/github/callback?code=code&state=state',
+    );
+
+    // Then
+    assert.equal(requestedTimeout, 55_000);
+
+    await requestAuthAPI(new Request('https://web.example.test/auth/login'), '/auth/login');
+    assert.equal(requestedTimeout, 10_000);
+  } finally {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = originalTimeout;
+  }
+});
+
 test('session reader treats an unauthorized API response as signed out', async () => {
   // Given
   Object.assign(process.env, authEnvironment);
