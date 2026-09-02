@@ -1,0 +1,16 @@
+---
+import PublicHeader from '@/components/chrome/PublicHeader.astro';
+import SiteAuditQuery from '@/components/site-submission/SiteAuditQuery.svelte';
+import SiteSubmissionNavigation from '@/components/site-submission/SiteSubmissionNavigation.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+export const prerender = false;
+---
+
+<BaseLayout title="查询审核结果">
+  <PublicHeader currentPath={Astro.url.pathname} />
+  <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+    <SiteSubmissionNavigation currentPath={Astro.url.pathname} /><div class="mx-auto max-w-3xl">
+      <SiteAuditQuery client:load />
+    </div>
+  </main>
+</BaseLayout>

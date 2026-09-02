@@ -1,0 +1,201 @@
+---
+import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
+import type {
+  AuditAction,
+  AuditPage,
+  AuditStatus,
+} from '@/application/site-submission/site-submission.types';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fsite-submissions');
+const allowed =
+  actor.role === 'SYS_ADMIN' ||
+  (actor.role === 'ADMIN' && actor.permissions.includes('site_audit.review'));
+if (!allowed) return Astro.redirect('/forbidden');
+const status = Astro.url.searchParams.has('status')
+  ? (Astro.url.searchParams.get('status') ?? '')
+  : 'PENDING';
+const action = Astro.url.searchParams.get('action') ?? '';
+const page = Math.max(1, Number(Astro.url.searchParams.get('page') ?? '1') || 1);
+const query = new URLSearchParams({ page: String(page), page_size: '20' });
+if (status) query.set('status', status);
+if (action) query.set('action', action);
+const response = await requestAuthAPI(Astro.request, `/management/site-audits?${query.toString()}`);
+if (!response.ok) return Astro.redirect('/forbidden');
+const payload: AuditPage = await response.json();
+const returnPath = `${Astro.url.pathname}${Astro.url.search}`;
+const actionLabels: Readonly<Record<AuditAction, string>> = {
+  CREATE: '新增',
+  UPDATE: '修改',
+  DELETE: '删除',
+  RESTORE: '恢复',
+};
+const statusLabels: Readonly<Record<AuditStatus, string>> = {
+  PENDING: '待审核',
+  APPROVED: '已通过',
+  REJECTED: '未通过',
+};
+---
+
+<ManagementLayout
+  title="站点申请审核"
+  heading="站点申请审核"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[
+    {
+      label: '站点申请审核',
+      href: '/management/site-submissions',
+      description: '查看申请、差异与审核结果',
+    },
+    ...(actor.role === 'SYS_ADMIN' || actor.permissions.includes('user.manage')
+      ? [{ label: '用户与授权', href: '/management/users', description: '管理角色与模块权限' }]
+      : []),
+  ]}
+>
+  <AuthNotice
+    message={Astro.url.searchParams.get('reviewed') === 'approved'
+      ? '申请已批准。'
+      : Astro.url.searchParams.get('reviewed') === 'rejected'
+        ? '申请已驳回。'
+        : null}
+    kind="success"
+  />
+  <form
+    class="mb-6 grid gap-3 rounded-md border border-line p-4 sm:grid-cols-[1fr_1fr_auto]"
+    method="get"
+  >
+    <label class="grid gap-2 text-sm"
+      >状态<select
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+        name="status"
+        ><option value="">全部状态</option>{
+          Object.entries(statusLabels).map(([value, label]) => (
+            <option value={value} selected={status === value}>
+              {label}
+            </option>
+          ))
+        }</select
+      ></label
+    >
+    <label class="grid gap-2 text-sm"
+      >动作<select
+        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+        name="action"
+        ><option value="">全部动作</option>{
+          Object.entries(actionLabels).map(([value, label]) => (
+            <option value={value} selected={action === value}>
+              {label}
+            </option>
+          ))
+        }</select
+      ></label
+    >
+    <button
+      class="min-h-11 self-end rounded-sm border border-line-strong px-4 font-medium"
+      type="submit">筛选</button
+    >
+  </form>
+
+  <div class="grid gap-3 md:hidden">
+    {
+      payload.items.map((item) => (
+        <a
+          class="grid gap-2 rounded-md border border-line p-4"
+          href={`/management/site-submissions/${item.id}?returnTo=${encodeURIComponent(returnPath)}`}
+        >
+          <>
+            <div class="flex justify-between gap-3">
+              <>
+                <strong>{actionLabels[item.action]}申请</strong>
+                <span class="text-xs text-fg-muted">{statusLabels[item.status]}</span>
+              </>
+            </div>
+            <span class="font-medium">{item.site_name || '未命名站点'}</span>
+            <span class="text-xs break-all text-fg-muted">{item.site_address}</span>
+            <span class="text-sm text-fg-muted">{item.submitter_name || '匿名提交者'}</span>
+            <time class="text-xs text-fg-muted">
+              {new Date(item.created_at).toLocaleString('zh-CN')}
+            </time>
+          </>
+        </a>
+      ))
+    }
+  </div>
+  <div class="hidden overflow-x-auto border-y border-line md:block">
+    <table class="w-full min-w-180 border-collapse text-left text-sm">
+      <thead
+        ><tr class="bg-subtle text-xs text-fg-muted"
+          ><th class="p-3 font-medium">站点</th><th class="p-3 font-medium">动作</th><th
+            class="p-3 font-medium">状态</th
+          ><th class="p-3 font-medium">提交者</th><th class="p-3 font-medium">提交时间</th><th
+            class="p-3 font-medium">操作</th
+          ></tr
+        ></thead
+      ><tbody class="divide-y divide-line"
+        >{
+          payload.items.map((item) => (
+            <tr>
+              <>
+                <td class="p-3">
+                  <strong class="block font-medium">{item.site_name || '未命名站点'}</strong>
+                  <span
+                    class="block max-w-72 truncate text-xs text-fg-muted"
+                    title={item.site_address}
+                  >
+                    {item.site_address}
+                  </span>
+                </td>
+                <td class="p-3">{actionLabels[item.action]}</td>
+                <td class="p-3">{statusLabels[item.status]}</td>
+                <td class="p-3">
+                  {item.submitter_name || '匿名'}
+                  <span class="block text-xs text-fg-muted">{item.submitter_email}</span>
+                </td>
+                <td class="p-3">{new Date(item.created_at).toLocaleString('zh-CN')}</td>
+                <td class="p-3">
+                  <a
+                    class="font-medium text-tint-fg underline-offset-4 hover:underline"
+                    href={`/management/site-submissions/${item.id}?returnTo=${encodeURIComponent(returnPath)}`}
+                  >
+                    {item.status === 'PENDING' ? '开始审核' : '查看详情'}
+                  </a>
+                </td>
+              </>
+            </tr>
+          ))
+        }</tbody
+      >
+    </table>
+  </div>
+  {
+    payload.items.length === 0 ? (
+      <section class="rounded-md border border-dashed border-line p-10 text-center">
+        <h2 class="font-semibold">没有符合条件的申请</h2>
+        <p class="mt-2 text-sm text-fg-muted">调整状态或动作筛选后再查看。</p>
+      </section>
+    ) : null
+  }
+  <nav class="mt-6 flex items-center justify-between text-sm" aria-label="分页">
+    <a
+      class:list={[
+        'rounded-sm border border-line-strong px-3 py-2',
+        { 'pointer-events-none opacity-40': payload.page <= 1 },
+      ]}
+      href={`?${new URLSearchParams({ ...(status ? { status } : {}), ...(action ? { action } : {}), page: String(Math.max(1, payload.page - 1)) })}`}
+      >上一页</a
+    ><span
+      >第 {payload.page} / {Math.max(1, payload.total_pages)} 页，共 {payload.total_items} 条</span
+    ><a
+      class:list={[
+        'rounded-sm border border-line-strong px-3 py-2',
+        { 'pointer-events-none opacity-40': payload.page >= payload.total_pages },
+      ]}
+      href={`?${new URLSearchParams({ ...(status ? { status } : {}), ...(action ? { action } : {}), page: String(payload.page + 1) })}`}
+      >下一页</a
+    >
+  </nav>
+</ManagementLayout>

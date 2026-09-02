@@ -1,0 +1,7 @@
+---
+import SiteSubmissionRoute from '@/components/site-submission/SiteSubmissionRoute.astro';
+export const prerender = false;
+const initialShortId = Astro.url.searchParams.get('short_id') ?? '';
+---
+
+<SiteSubmissionRoute action="UPDATE" title="修订站点" {initialShortId} />

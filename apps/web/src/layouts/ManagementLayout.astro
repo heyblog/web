@@ -53,9 +53,8 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
     <aside class="border-b border-line bg-surface lg:border-r lg:border-b-0">
       <details
         class="group lg:sticky lg:top-0"
-        open
         data-management-navigation
-        data-details-state="open"
+        data-details-state="closed"
       >
         <summary
           class="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold lg:hidden [&::-webkit-details-marker]:hidden"
@@ -121,7 +120,9 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
       </details>
     </aside>
 
-    <main class="min-w-0 px-4 pt-6 pb-12 sm:px-8 sm:pt-8 sm:pb-16 lg:w-[min(100%,80rem)] lg:p-12">
+    <main
+      class="mx-auto w-full max-w-7xl min-w-0 px-4 pt-6 pb-12 sm:px-8 sm:pt-8 sm:pb-16 lg:px-12 lg:pt-10"
+    >
       <header class="mb-8 border-b border-line pb-6">
         <p class="mb-4 font-mono text-xs font-medium text-tint-fg">{eyebrow}</p>
         <h1 class="text-[2rem] leading-tight font-bold sm:text-4xl">{heading}</h1>
@@ -158,6 +159,8 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
     const syncDesktopNavigation = () => {
       if (desktopNavigation.matches) {
         navigationControllers.forEach(({ controller }) => controller.open());
+      } else {
+        navigationControllers.forEach(({ controller }) => controller.close({ immediate: true }));
       }
     };
 

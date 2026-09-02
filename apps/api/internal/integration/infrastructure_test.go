@@ -4,6 +4,8 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -105,6 +107,8 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyAnnouncementQueries(ctx, t, pool)
 	verifyAnnouncementConstraints(ctx, t, pool, migrationURL)
 	verifySoftwareComponentDependencies(ctx, t, pool)
+	verifySiteAuditReviewDraftQueries(ctx, t, pool)
+	verifySiteAuditShortIDMaintenance(ctx, t, pool)
 	verifyFriendLinkGraph(ctx, t, pool, adminConnection)
 	verifyRuntimePermissions(ctx, t, pool)
 	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)
@@ -283,6 +287,53 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	}
 	if secondaryOption == nil || secondaryOption.NormalCount != 1 || secondaryOption.AbnormalCount != 1 {
 		t.Fatalf("secondary directory option = %#v, want normal=1 abnormal=1", secondaryOption)
+	}
+}
+
+func verifySiteAuditReviewDraftQueries(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	queries := dbgen.New(pool)
+	reviewer, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+		Email: "audit-reviewer@example.test", Username: "audit_reviewer", DisplayName: "Audit Reviewer",
+	})
+	if err != nil {
+		t.Fatalf("create audit reviewer: %v", err)
+	}
+	audit, err := queries.CreateSiteAudit(ctx, dbgen.CreateSiteAuditParams{
+		LookupSecretHash: make([]byte, 32), Action: "CREATE",
+		ProposedSnapshot: []byte(`{"name":"Submitted"}`), RequestReason: "",
+	})
+	if err != nil {
+		t.Fatalf("create review draft audit: %v", err)
+	}
+	saved, err := queries.SaveSiteAuditReviewDraft(ctx, dbgen.SaveSiteAuditReviewDraftParams{
+		ReviewDraftSnapshot: []byte(`{"name":"Corrected"}`), ReviewDraftUpdatedBy: reviewer.ID,
+		ID: audit.ID, ExpectedReviewDraftRevision: 0,
+	})
+	if err != nil {
+		t.Fatalf("save review draft: %v", err)
+	}
+	var savedDraft map[string]string
+	if err := json.Unmarshal(saved.ReviewDraftSnapshot, &savedDraft); err != nil {
+		t.Fatalf("decode saved review draft: %v", err)
+	}
+	if saved.ReviewDraftRevision != 1 || savedDraft["name"] != "Corrected" {
+		t.Fatalf("saved review draft = (revision:%d snapshot:%s)", saved.ReviewDraftRevision, saved.ReviewDraftSnapshot)
+	}
+	if _, err := queries.SaveSiteAuditReviewDraft(ctx, dbgen.SaveSiteAuditReviewDraftParams{
+		ReviewDraftSnapshot: []byte(`{"name":"Stale"}`), ReviewDraftUpdatedBy: reviewer.ID,
+		ID: audit.ID, ExpectedReviewDraftRevision: 0,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("stale review draft error = %v, want pgx.ErrNoRows", err)
+	}
+	discarded, err := queries.DiscardSiteAuditReviewDraft(ctx, dbgen.DiscardSiteAuditReviewDraftParams{
+		ReviewDraftUpdatedBy: reviewer.ID, ID: audit.ID, ExpectedReviewDraftRevision: 1,
+	})
+	if err != nil {
+		t.Fatalf("discard review draft: %v", err)
+	}
+	if discarded.ReviewDraftSnapshot != nil || discarded.ReviewDraftRevision != 2 {
+		t.Fatalf("discarded review draft = (revision:%d snapshot:%s)", discarded.ReviewDraftRevision, discarded.ReviewDraftSnapshot)
 	}
 }
 
@@ -508,8 +559,8 @@ func verifyDatabaseCatalog(ctx context.Context, t *testing.T, connection *pgx.Co
 	`, []string{"identity", "directory", "content"}).Scan(&tableCount); err != nil {
 		t.Fatalf("query business tables: %v", err)
 	}
-	if tableCount != 18 {
-		t.Fatalf("business table count = %d, want 18", tableCount)
+	if tableCount != 19 {
+		t.Fatalf("business table count = %d, want 19", tableCount)
 	}
 
 	var graphExists bool

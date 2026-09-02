@@ -10,6 +10,8 @@ export const prerender = false;
 const user = await readSessionUser(Astro.request);
 if (!user) return Astro.redirect('/login?next=%2Fdashboard');
 const canManageUsers = user.role === 'SYS_ADMIN' || user.permissions.includes('user.manage');
+const canReviewSiteAudits =
+  user.role === 'SYS_ADMIN' || user.permissions.includes('site_audit.review');
 ---
 
 <PublicLayout title="账号 | HeyBlog" robots="noindex, nofollow">
@@ -129,14 +131,27 @@ const canManageUsers = user.role === 'SYS_ADMIN' || user.permissions.includes('u
           )
         }
         {
-          canManageUsers ? (
-            <a
-              class="mt-6 flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
-              href="/management/users"
-            >
-              <IconShieldLock size={18} stroke={1.8} aria-hidden="true" />
-              用户与授权
-            </a>
+          canReviewSiteAudits || canManageUsers ? (
+            <nav class="mt-6 grid gap-2" aria-label="管理入口">
+              {canReviewSiteAudits ? (
+                <a
+                  class="flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
+                  href="/management/site-submissions"
+                >
+                  <IconShieldLock size={18} stroke={1.8} aria-hidden="true" />
+                  站点申请审核
+                </a>
+              ) : null}
+              {canManageUsers ? (
+                <a
+                  class="flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
+                  href="/management/users"
+                >
+                  <IconShieldLock size={18} stroke={1.8} aria-hidden="true" />
+                  用户与授权
+                </a>
+              ) : null}
+            </nav>
           ) : null
         }
       </section>

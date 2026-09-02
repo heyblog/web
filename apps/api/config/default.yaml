@@ -30,6 +30,8 @@ mail:
     # Purpose-specific identities keep unrelated mail flows isolated as the service grows.
     verification:
       address: no-reply@verify.mail.heyblog.net
+    submission:
+      address: no-reply@submission.mail.heyblog.net
 
 logging:
   # Minimum level: debug, info, warn, or error.

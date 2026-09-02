@@ -21,6 +21,18 @@ export const siteConfig: SiteConfig = {
     { label: '项目动态', href: '/blog', match: 'prefix' },
     // { label: '文档', href: '/docs', match: 'prefix' },
     { label: '成员', href: '/members', match: 'prefix' },
+    {
+      label: '提交博客',
+      href: '/site/submissions',
+      match: 'prefix',
+      children: [
+        { label: '提交新站点', href: '/site/submissions/new' },
+        { label: '修订站点', href: '/site/submissions/update' },
+        { label: '删除站点', href: '/site/submissions/delete' },
+        { label: '恢复站点', href: '/site/submissions/restore' },
+        { label: '查询申请', href: '/site/submissions/query' },
+      ],
+    },
   ],
   footer: {
     copyrightStartYear: 2022,

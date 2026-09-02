@@ -1,0 +1,76 @@
+---
+import {
+  IconArrowRight,
+  IconEdit,
+  IconPlus,
+  IconRestore,
+  IconSearch,
+  IconTrash,
+} from '@tabler/icons-svelte';
+const actions = [
+  {
+    title: '提交新站点',
+    description: '将尚未收录的个人博客提交到目录。',
+    href: '/site/submissions/new',
+    icon: IconPlus,
+  },
+  {
+    title: '修订站点',
+    description: '更新站点资料、Feed、标签或程序信息。',
+    href: '/site/submissions/update',
+    icon: IconEdit,
+  },
+  {
+    title: '删除站点',
+    description: '申请将不再适合展示的站点移出公开目录。',
+    href: '/site/submissions/delete',
+    icon: IconTrash,
+  },
+  {
+    title: '恢复站点',
+    description: '申请恢复此前从目录中移除的站点。',
+    href: '/site/submissions/restore',
+    icon: IconRestore,
+  },
+  {
+    title: '查询申请',
+    description: '使用一次性查询凭证查看审核进度和意见。',
+    href: '/site/submissions/query',
+    icon: IconSearch,
+  },
+] as const;
+---
+
+<section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {
+    actions.map((action) => {
+      const Icon = action.icon;
+      return (
+        <a
+          class="group grid min-h-48 content-between rounded-md border border-line bg-surface p-5 transition-[border-color,transform] duration-(--motion-base) hover:-translate-y-px hover:border-primary motion-reduce:transform-none"
+          href={action.href}
+        >
+          <>
+            <div>
+              <>
+                <span class="inline-flex size-10 items-center justify-center rounded-md bg-tint text-tint-fg">
+                  <Icon size={20} stroke={1.8} aria-hidden="true" />
+                </span>
+                <h2 class="mt-5 text-lg font-semibold">{action.title}</h2>
+                <p class="mt-2 text-sm text-fg-muted">{action.description}</p>
+              </>
+            </div>
+            <span class="mt-6 inline-flex items-center gap-2 text-sm font-medium text-tint-fg">
+              进入页面
+              <IconArrowRight
+                class="transition-transform duration-(--motion-base) group-hover:translate-x-1 motion-reduce:transform-none"
+                size={17}
+                aria-hidden="true"
+              />
+            </span>
+          </>
+        </a>
+      );
+    })
+  }
+</section>

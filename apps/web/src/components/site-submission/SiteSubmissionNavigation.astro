@@ -1,0 +1,50 @@
+---
+interface Props {
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+const items = [
+  { label: '申请中心', href: '/site/submissions' },
+  { label: '提交新站点', href: '/site/submissions/new' },
+  { label: '修订站点', href: '/site/submissions/update' },
+  { label: '删除站点', href: '/site/submissions/delete' },
+  { label: '恢复站点', href: '/site/submissions/restore' },
+  { label: '查询申请', href: '/site/submissions/query' },
+] as const;
+---
+
+<nav
+  class="mb-6 overflow-x-auto border-b border-line"
+  aria-label="站点申请"
+  data-submission-navigation
+>
+  <div class="flex w-max min-w-full gap-1">
+    {
+      items.map((item) => {
+        const active = currentPath === item.href;
+
+        return (
+          <a
+            class:list={[
+              'inline-flex min-h-11 shrink-0 items-center justify-center border-b-2 px-3 text-sm font-medium transition-colors duration-(--motion-color)',
+              active ? 'border-primary text-fg' : 'border-transparent text-fg-muted hover:text-fg',
+            ]}
+            href={item.href}
+            aria-current={active ? 'page' : undefined}
+            data-active={active ? '' : undefined}
+          >
+            {item.label}
+          </a>
+        );
+      })
+    }
+  </div>
+</nav>
+
+<script>
+  const navigation = document.querySelector<HTMLElement>('[data-submission-navigation]');
+  const activeItem = navigation?.querySelector<HTMLElement>('[data-active]');
+
+  activeItem?.scrollIntoView({ block: 'nearest', inline: 'center' });
+</script>

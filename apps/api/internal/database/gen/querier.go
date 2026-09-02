@@ -14,6 +14,8 @@ type Querier interface {
 	ActivateUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	AddSiteOrigin(ctx context.Context, arg AddSiteOriginParams) (DirectorySiteOrigin, error)
 	AddSoftwareComponentDependency(ctx context.Context, arg AddSoftwareComponentDependencyParams) (DirectorySoftwareComponentDependency, error)
+	ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotParams) (DirectorySite, error)
+	ApproveSiteAudit(ctx context.Context, arg ApproveSiteAuditParams) (DirectorySiteAudit, error)
 	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (ContentAnnouncement, error)
 	AssignSiteSoftwareComponent(ctx context.Context, arg AssignSiteSoftwareComponentParams) (DirectorySiteSoftwareComponent, error)
 	AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (DirectorySiteTag, error)
@@ -24,11 +26,13 @@ type Querier interface {
 	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
+	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
 	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
 	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error
 	CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error)
+	CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams) (DirectorySiteAudit, error)
 	CreateSoftwareComponent(ctx context.Context, arg CreateSoftwareComponentParams) (DirectorySoftwareComponent, error)
 	CreateTag(ctx context.Context, arg CreateTagParams) (DirectoryTag, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (IdentityUser, error)
@@ -37,21 +41,29 @@ type Querier interface {
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
 	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error
+	DeleteSiteFeeds(ctx context.Context, siteID pgtype.UUID) error
 	DeleteSiteResource(ctx context.Context, arg DeleteSiteResourceParams) error
+	DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) error
 	DeleteUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) error
 	DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error
+	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
 	GetActiveBannerAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
 	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
+	GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
+	GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash []byte) (DirectorySiteAudit, error)
 	GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error)
 	GetSiteByHost(ctx context.Context, normalizedHost string) (DirectorySite, error)
 	GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error)
 	GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (DirectorySiteIcon, error)
+	GetSiteSourceByKey(ctx context.Context, sourceKey string) (DirectorySiteSource, error)
 	GetSoftwareComponentByID(ctx context.Context, id pgtype.UUID) (DirectorySoftwareComponent, error)
+	GetSoftwareComponentByNormalizedName(ctx context.Context, normalizedName string) (DirectorySoftwareComponent, error)
+	GetTagByNormalizedName(ctx context.Context, normalizedName string) (DirectoryTag, error)
 	GetUserByEmail(ctx context.Context, email string) (IdentityUser, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserByUsername(ctx context.Context, username string) (IdentityUser, error)
@@ -64,6 +76,7 @@ type Querier interface {
 	ListDirectorySites(ctx context.Context, arg ListDirectorySitesParams) ([]DirectorySite, error)
 	ListDirectoryTagOptions(ctx context.Context) ([]ListDirectoryTagOptionsRow, error)
 	ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDirectoryTechnologyOptionsRow, error)
+	ListEnabledSoftwareComponentDependencies(ctx context.Context) ([]ListEnabledSoftwareComponentDependenciesRow, error)
 	ListEnabledSoftwareComponents(ctx context.Context) ([]DirectorySoftwareComponent, error)
 	ListEnabledTags(ctx context.Context) ([]DirectoryTag, error)
 	ListFriendLinks(ctx context.Context, arg ListFriendLinksParams) ([]ListFriendLinksRow, error)
@@ -74,6 +87,7 @@ type Querier interface {
 	ListPublicSiteTagsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]ListPublicSiteTagsBySiteIDsRow, error)
 	ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error)
 	ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error)
+	ListSiteAuditsForManagement(ctx context.Context, arg ListSiteAuditsForManagementParams) ([]ListSiteAuditsForManagementRow, error)
 	ListSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListSiteOrigins(ctx context.Context, siteID pgtype.UUID) ([]ListSiteOriginsRow, error)
 	ListSiteResources(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteResource, error)
@@ -84,16 +98,23 @@ type Querier interface {
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
 	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
+	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
+	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams) (DirectorySiteAudit, error)
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error
 	RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	SaveSiteAuditReviewDraft(ctx context.Context, arg SaveSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
+	SearchSitesForSubmission(ctx context.Context, query string) ([]DirectorySite, error)
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
 	SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
 	SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	UnassignAllSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) error
+	UnassignAllSiteTags(ctx context.Context, siteID pgtype.UUID) error
 	UnassignSiteSoftwareComponent(ctx context.Context, arg UnassignSiteSoftwareComponentParams) error
 	UnassignSiteTag(ctx context.Context, arg UnassignSiteTagParams) error
 	UnlinkOAuthIdentity(ctx context.Context, arg UnlinkOAuthIdentityParams) error

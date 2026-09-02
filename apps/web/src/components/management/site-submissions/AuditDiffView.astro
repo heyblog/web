@@ -1,0 +1,133 @@
+---
+import type { DiffItem, DiffViews } from '@/application/site-submission/site-submission.types';
+
+interface Props {
+  diff: DiffViews;
+  mode?: 'all' | 'correction';
+}
+
+const { diff, mode = 'all' } = Astro.props;
+const fieldLabels: Readonly<Record<string, string>> = {
+  name: '站点名称',
+  address: '站点地址',
+  summary: '站点简介',
+  access_scope: '访问范围',
+  visibility: '目录状态',
+  visibility_reason: '状态原因',
+  feeds: 'Feed',
+  resources: '站点资源',
+  tags: '主题标签',
+  components: '站点程序',
+  program_dependencies: '程序技术栈',
+};
+const allSections: ReadonlyArray<{
+  title: string;
+  description: string;
+  items: readonly DiffItem[];
+  tone: 'default' | 'warning' | 'danger';
+}> = [
+  {
+    title: '用户申请',
+    description: '提交时的正式数据 → 用户申请值',
+    items: diff.requested,
+    tone: 'default',
+  },
+  {
+    title: '正式数据漂移',
+    description: '提交时的正式数据 → 当前正式数据',
+    items: diff.drift,
+    tone: 'warning',
+  },
+  {
+    title: '审核修正',
+    description: '用户申请值 → 审核修正值',
+    items: diff.reviewer_correction,
+    tone: 'default',
+  },
+  {
+    title: '待解决冲突',
+    description: '用户与其他修改同时触及的字段',
+    items: diff.conflicts,
+    tone: 'danger',
+  },
+];
+const sections = allSections.filter(
+  (section) => section.items.length > 0 && (mode === 'all' || section.title === '审核修正'),
+);
+---
+
+<div class="grid gap-6">
+  {
+    sections.map((section) => (
+      <section
+        class:list={[
+          'grid gap-4 rounded-md border p-5',
+          section.tone === 'warning' && 'border-warning-border bg-warning-bg',
+          section.tone === 'danger' && 'border-danger bg-danger-bg',
+          section.tone === 'default' && 'border-line',
+        ]}
+      >
+        <header>
+          <h2 class="text-lg font-bold">{section.title}</h2>
+          <p class="mt-1 text-sm text-fg-muted">{section.description}</p>
+        </header>
+        <div class="grid gap-3">
+          {section.items.map((item) => (
+            <article class="overflow-hidden rounded-sm border border-line bg-surface">
+              <h3 class="border-b border-line bg-subtle px-3 py-2 text-sm font-semibold">
+                {fieldLabels[item.field] ?? item.field}
+              </h3>
+              {item.before !== undefined || item.after !== undefined ? (
+                <div class="grid md:grid-cols-2">
+                  <div class="border-b border-line p-3 md:border-r md:border-b-0">
+                    <p class="text-xs text-fg-muted">变更前</p>
+                    <pre
+                      class="mt-2 overflow-x-auto text-xs whitespace-pre-wrap"
+                      set:text={item.before || '—'}
+                    />
+                  </div>
+                  <div class="p-3">
+                    <p class="text-xs text-fg-muted">变更后</p>
+                    <pre
+                      class="mt-2 overflow-x-auto text-xs whitespace-pre-wrap"
+                      set:text={item.after || '—'}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div class="grid gap-3 p-3 text-xs sm:grid-cols-3">
+                  <div>
+                    <strong class="text-success-fg">新增</strong>
+                    <ul class="mt-2 grid gap-1">
+                      {item.added?.map((value) => (
+                        <li class="break-all">{value}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <strong class="text-danger-fg">删除</strong>
+                    <ul class="mt-2 grid gap-1">
+                      {item.removed?.map((value) => (
+                        <li class="break-all">{value}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <strong>修改</strong>
+                    <ul class="mt-2 grid gap-1">
+                      {item.changed?.map((value) => (
+                        <li class="break-all">
+                          {value.before} → {value.after}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    ))
+  }
+</div>

@@ -85,6 +85,7 @@ type SESConfig struct {
 
 type MailSendersConfig struct {
 	Verification MailSenderConfig
+	Submission   MailSenderConfig
 }
 
 type MailSenderConfig struct {
@@ -171,6 +172,7 @@ type fileSESConfig struct {
 
 type fileMailSendersConfig struct {
 	Verification fileMailSenderConfig `yaml:"verification"`
+	Submission   fileMailSenderConfig `yaml:"submission"`
 }
 
 type fileMailSenderConfig struct {
@@ -481,6 +483,9 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 				Verification: MailSenderConfig{
 					Address: strings.TrimSpace(values.Mail.Senders.Verification.Address),
 				},
+				Submission: MailSenderConfig{
+					Address: strings.TrimSpace(values.Mail.Senders.Submission.Address),
+				},
 			},
 		},
 		Logging: LoggingConfig{
@@ -547,6 +552,9 @@ func (configuration Config) validate() error {
 		return err
 	}
 	if err := validateMailbox("mail.senders.verification.address", configuration.Mail.Senders.Verification.Address); err != nil {
+		return err
+	}
+	if err := validateMailbox("mail.senders.submission.address", configuration.Mail.Senders.Submission.Address); err != nil {
 		return err
 	}
 	if !slices.Contains([]string{"debug", "info", "warn", "error"}, configuration.Logging.Level) {

@@ -100,6 +100,10 @@ path. Management pages additionally enforce the API-provided role and permission
   responses `private, no-store`.
 - Browser mutations, authenticated reads, and live refreshes go through same-origin Astro routes or
   actions. Do not expose the internal API base URL to browser code.
+- Site lifecycle forms live under `src/components/site-submission`, with browser payload mapping and
+  the purpose-built same-origin proxy under `src/application/site-submission`. Public submission
+  routes use `/api/site-submissions/*`; management review pages use the authenticated server API
+  boundary and preserve the requested, drift, reviewer-correction, and conflict diff views.
 - Keep the API base URL in server-only configuration. Never place internal URLs or secrets in
   `PUBLIC_*` variables.
 - Define cache behavior with each data path. Authentication and mutations default to `no-store`;

@@ -122,6 +122,54 @@ type DirectorySite struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+// Anonymous site lifecycle requests with immutable aggregate evidence and reviewed outcomes.
+type DirectorySiteAudit struct {
+	// UUIDv7 site audit primary key.
+	ID pgtype.UUID
+	// SHA-256 hash of the anonymous high-entropy lookup credential.
+	LookupSecretHash []byte
+	// Requested lifecycle action: CREATE, UPDATE, DELETE, or RESTORE.
+	Action string
+	// Review state: PENDING, APPROVED, or REJECTED.
+	Status string
+	// Target site; absent only while a CREATE request is pending.
+	SiteID pgtype.UUID
+	// Site revision captured when a non-CREATE request was submitted.
+	BaseRevision *int64
+	// Immutable aggregate snapshot captured before the requested change.
+	BaseSnapshot []byte
+	// Immutable aggregate snapshot containing the requested result.
+	ProposedSnapshot []byte
+	// Latest normalized reviewer correction saved before a final decision.
+	ReviewDraftSnapshot []byte
+	// Monotonic version used to prevent concurrent reviewer draft overwrites.
+	ReviewDraftRevision int64
+	// Administrator who last saved or discarded the reviewer draft.
+	ReviewDraftUpdatedBy pgtype.UUID
+	// Time the reviewer draft was last saved or discarded.
+	ReviewDraftUpdatedAt pgtype.Timestamptz
+	// Aggregate snapshot applied after an approved review and optional correction.
+	FinalSnapshot []byte
+	// Submitter explanation for the requested action.
+	RequestReason string
+	// Optional submitter display name used only for review context.
+	SubmitterName *string
+	// Optional submitter mailbox used only for decision notification.
+	SubmitterEmail *string
+	// Whether the submitter requested a decision email.
+	NotifyByEmail bool
+	// Decision note intentionally visible to the submitter.
+	ReviewerComment *string
+	// Administrator who completed the review.
+	ReviewedBy pgtype.UUID
+	// Time the review decision became final.
+	ReviewedAt pgtype.Timestamptz
+	// Time the anonymous request was created.
+	CreatedAt pgtype.Timestamptz
+	// Last audit state update time maintained by trigger.
+	UpdatedAt pgtype.Timestamptz
+}
+
 // Zero or more candidate feeds with one default whenever enabled feeds exist.
 type DirectorySiteFeed struct {
 	// UUIDv7 feed candidate primary key.

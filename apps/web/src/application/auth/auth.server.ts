@@ -8,7 +8,7 @@ export async function requestAuthAPI(
   request: Request,
   path: `/${string}`,
   init: Readonly<{
-    method?: 'GET' | 'POST' | 'PATCH';
+    method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
     body?: Readonly<Record<string, unknown>>;
   }> = {},
 ): Promise<Response> {

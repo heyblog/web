@@ -80,6 +80,66 @@ func (q *Queries) AddSoftwareComponentDependency(ctx context.Context, arg AddSof
 	return i, err
 }
 
+const applySiteSnapshot = `-- name: ApplySiteSnapshot :one
+UPDATE directory.sites
+   SET name = $2,
+       scheme = $3,
+       normalized_host = $4,
+       base_path = $5,
+       summary = $6,
+       access_scope = $7,
+       visibility = $8,
+       visibility_reason = $9
+ WHERE id = $1 AND revision = $10
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+`
+
+type ApplySiteSnapshotParams struct {
+	ID               pgtype.UUID
+	Name             string
+	Scheme           string
+	NormalizedHost   string
+	BasePath         string
+	Summary          string
+	AccessScope      string
+	Visibility       string
+	VisibilityReason *string
+	Revision         int64
+}
+
+func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotParams) (DirectorySite, error) {
+	row := q.db.QueryRow(ctx, applySiteSnapshot,
+		arg.ID,
+		arg.Name,
+		arg.Scheme,
+		arg.NormalizedHost,
+		arg.BasePath,
+		arg.Summary,
+		arg.AccessScope,
+		arg.Visibility,
+		arg.VisibilityReason,
+		arg.Revision,
+	)
+	var i DirectorySite
+	err := row.Scan(
+		&i.ID,
+		&i.ShortID,
+		&i.CustomID,
+		&i.Name,
+		&i.Scheme,
+		&i.NormalizedHost,
+		&i.BasePath,
+		&i.Summary,
+		&i.AccessScope,
+		&i.Visibility,
+		&i.VisibilityReason,
+		&i.Revision,
+		&i.JoinedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const assignSiteSoftwareComponent = `-- name: AssignSiteSoftwareComponent :one
 INSERT INTO directory.site_software_components (
     site_id,
@@ -455,6 +515,15 @@ func (q *Queries) DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) 
 	return err
 }
 
+const deleteSiteFeeds = `-- name: DeleteSiteFeeds :exec
+DELETE FROM directory.site_feeds WHERE site_id = $1
+`
+
+func (q *Queries) DeleteSiteFeeds(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSiteFeeds, siteID)
+	return err
+}
+
 const deleteSiteResource = `-- name: DeleteSiteResource :exec
 DELETE FROM directory.site_resources WHERE site_id = $1 AND kind = $2
 `
@@ -466,6 +535,15 @@ type DeleteSiteResourceParams struct {
 
 func (q *Queries) DeleteSiteResource(ctx context.Context, arg DeleteSiteResourceParams) error {
 	_, err := q.db.Exec(ctx, deleteSiteResource, arg.SiteID, arg.Kind)
+	return err
+}
+
+const deleteSiteResources = `-- name: DeleteSiteResources :exec
+DELETE FROM directory.site_resources WHERE site_id = $1
+`
+
+func (q *Queries) DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSiteResources, siteID)
 	return err
 }
 
@@ -595,6 +673,25 @@ func (q *Queries) GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (Director
 	return i, err
 }
 
+const getSiteSourceByKey = `-- name: GetSiteSourceByKey :one
+SELECT id, source_key, name, base_url, is_enabled, created_at, updated_at FROM directory.site_sources WHERE source_key = $1
+`
+
+func (q *Queries) GetSiteSourceByKey(ctx context.Context, sourceKey string) (DirectorySiteSource, error) {
+	row := q.db.QueryRow(ctx, getSiteSourceByKey, sourceKey)
+	var i DirectorySiteSource
+	err := row.Scan(
+		&i.ID,
+		&i.SourceKey,
+		&i.Name,
+		&i.BaseUrl,
+		&i.IsEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getSoftwareComponentByID = `-- name: GetSoftwareComponentByID :one
 SELECT id, name, normalized_name, description, homepage_url, repository_url, is_open_source, is_enabled, created_at, updated_at FROM directory.software_components WHERE id = $1
 `
@@ -611,6 +708,51 @@ func (q *Queries) GetSoftwareComponentByID(ctx context.Context, id pgtype.UUID) 
 		&i.RepositoryUrl,
 		&i.IsOpenSource,
 		&i.IsEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSoftwareComponentByNormalizedName = `-- name: GetSoftwareComponentByNormalizedName :one
+SELECT id, name, normalized_name, description, homepage_url, repository_url, is_open_source, is_enabled, created_at, updated_at FROM directory.software_components WHERE normalized_name = $1
+`
+
+func (q *Queries) GetSoftwareComponentByNormalizedName(ctx context.Context, normalizedName string) (DirectorySoftwareComponent, error) {
+	row := q.db.QueryRow(ctx, getSoftwareComponentByNormalizedName, normalizedName)
+	var i DirectorySoftwareComponent
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NormalizedName,
+		&i.Description,
+		&i.HomepageUrl,
+		&i.RepositoryUrl,
+		&i.IsOpenSource,
+		&i.IsEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getTagByNormalizedName = `-- name: GetTagByNormalizedName :one
+SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at FROM directory.tags WHERE normalized_name = $1 AND merged_into_id IS NULL
+`
+
+func (q *Queries) GetTagByNormalizedName(ctx context.Context, normalizedName string) (DirectoryTag, error) {
+	row := q.db.QueryRow(ctx, getTagByNormalizedName, normalizedName)
+	var i DirectoryTag
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NormalizedName,
+		&i.Slug,
+		&i.Description,
+		&i.IsEnabled,
+		&i.MergedIntoID,
+		&i.MergedBy,
+		&i.MergedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -919,6 +1061,46 @@ func (q *Queries) ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDir
 			&i.NormalCount,
 			&i.AbnormalCount,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEnabledSoftwareComponentDependencies = `-- name: ListEnabledSoftwareComponentDependencies :many
+SELECT dependency_relation.component_id,
+       dependency_relation.dependency_component_id,
+       dependency_relation.role
+  FROM directory.software_component_dependencies AS dependency_relation
+  JOIN directory.software_components AS component
+    ON component.id = dependency_relation.component_id
+  JOIN directory.software_components AS dependency
+    ON dependency.id = dependency_relation.dependency_component_id
+ WHERE component.is_enabled AND dependency.is_enabled
+ ORDER BY dependency_relation.component_id, dependency_relation.role,
+          dependency.name, dependency_relation.dependency_component_id
+`
+
+type ListEnabledSoftwareComponentDependenciesRow struct {
+	ComponentID           pgtype.UUID
+	DependencyComponentID pgtype.UUID
+	Role                  string
+}
+
+func (q *Queries) ListEnabledSoftwareComponentDependencies(ctx context.Context) ([]ListEnabledSoftwareComponentDependenciesRow, error) {
+	rows, err := q.db.Query(ctx, listEnabledSoftwareComponentDependencies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEnabledSoftwareComponentDependenciesRow{}
+	for rows.Next() {
+		var i ListEnabledSoftwareComponentDependenciesRow
+		if err := rows.Scan(&i.ComponentID, &i.DependencyComponentID, &i.Role); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1619,6 +1801,32 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 	return items, nil
 }
 
+const lockSiteByID = `-- name: LockSiteByID :one
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
+	row := q.db.QueryRow(ctx, lockSiteByID, id)
+	var i DirectorySite
+	err := row.Scan(
+		&i.ID,
+		&i.ShortID,
+		&i.CustomID,
+		&i.Name,
+		&i.Scheme,
+		&i.NormalizedHost,
+		&i.BasePath,
+		&i.Summary,
+		&i.AccessScope,
+		&i.Visibility,
+		&i.VisibilityReason,
+		&i.Revision,
+		&i.JoinedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const removeSoftwareComponentDependency = `-- name: RemoveSoftwareComponentDependency :exec
 DELETE FROM directory.software_component_dependencies
  WHERE component_id = $1 AND dependency_component_id = $2 AND role = $3
@@ -1633,6 +1841,51 @@ type RemoveSoftwareComponentDependencyParams struct {
 func (q *Queries) RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error {
 	_, err := q.db.Exec(ctx, removeSoftwareComponentDependency, arg.ComponentID, arg.DependencyComponentID, arg.Role)
 	return err
+}
+
+const searchSitesForSubmission = `-- name: SearchSitesForSubmission :many
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+  FROM directory.sites
+ WHERE name ILIKE '%' || $1::text || '%'
+    OR normalized_host ILIKE '%' || $1::text || '%'
+    OR short_id = $1::text
+ ORDER BY visibility, name, id
+ LIMIT 12
+`
+
+func (q *Queries) SearchSitesForSubmission(ctx context.Context, query string) ([]DirectorySite, error) {
+	rows, err := q.db.Query(ctx, searchSitesForSubmission, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectorySite{}
+	for rows.Next() {
+		var i DirectorySite
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShortID,
+			&i.CustomID,
+			&i.Name,
+			&i.Scheme,
+			&i.NormalizedHost,
+			&i.BasePath,
+			&i.Summary,
+			&i.AccessScope,
+			&i.Visibility,
+			&i.VisibilityReason,
+			&i.Revision,
+			&i.JoinedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setSiteVisibility = `-- name: SetSiteVisibility :one
@@ -1675,6 +1928,24 @@ func (q *Queries) SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityPa
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const unassignAllSiteSoftwareComponents = `-- name: UnassignAllSiteSoftwareComponents :exec
+DELETE FROM directory.site_software_components WHERE site_id = $1
+`
+
+func (q *Queries) UnassignAllSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, unassignAllSiteSoftwareComponents, siteID)
+	return err
+}
+
+const unassignAllSiteTags = `-- name: UnassignAllSiteTags :exec
+DELETE FROM directory.site_tags WHERE site_id = $1
+`
+
+func (q *Queries) UnassignAllSiteTags(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, unassignAllSiteTags, siteID)
+	return err
 }
 
 const unassignSiteSoftwareComponent = `-- name: UnassignSiteSoftwareComponent :exec

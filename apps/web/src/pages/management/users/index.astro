@@ -34,6 +34,15 @@ const permissionLabels: Readonly<Record<(typeof managementPermissions)[number], 
   currentPath={Astro.url.pathname}
   identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
   navigation={[
+    ...(actor.role === 'SYS_ADMIN' || actor.permissions.includes('site_audit.review')
+      ? [
+          {
+            label: '站点申请审核',
+            href: '/management/site-submissions',
+            description: '查看申请、差异与审核结果',
+          },
+        ]
+      : []),
     { label: '用户与授权', href: '/management/users', description: '管理角色与模块权限' },
   ]}
 >

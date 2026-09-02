@@ -1,0 +1,61 @@
+---
+import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
+import type {
+  AuditDetail,
+  SubmissionOptions,
+} from '@/application/site-submission/site-submission.types';
+import AuditCorrectionEditor from '@/components/management/site-submissions/AuditCorrectionEditor.svelte';
+import AuditDiffView from '@/components/management/site-submissions/AuditDiffView.astro';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const allowed =
+  actor.role === 'SYS_ADMIN' ||
+  (actor.role === 'ADMIN' && actor.permissions.includes('site_audit.review'));
+if (!allowed) return Astro.redirect('/forbidden');
+const auditID = Astro.params.auditId ?? '';
+const [detailResponse, optionsResponse] = await Promise.all([
+  requestAuthAPI(Astro.request, `/management/site-audits/${auditID}`),
+  requestAuthAPI(Astro.request, '/site-submissions/options'),
+]);
+if (detailResponse.status === 404) return Astro.redirect('/management/site-submissions');
+if (!detailResponse.ok || !optionsResponse.ok) return Astro.redirect('/forbidden');
+const detail: AuditDetail = await detailResponse.json();
+if (detail.status !== 'PENDING' || (detail.action !== 'CREATE' && detail.action !== 'UPDATE'))
+  return Astro.redirect(`/management/site-submissions/${auditID}`);
+const options: SubmissionOptions = await optionsResponse.json();
+const requestedReturn = Astro.url.searchParams.get('returnTo') ?? '';
+const listReturnPath =
+  requestedReturn.startsWith('/management/site-submissions') && !requestedReturn.startsWith('//')
+    ? requestedReturn
+    : '/management/site-submissions?status=PENDING';
+const returnPath = `/management/site-submissions/${auditID}?returnTo=${encodeURIComponent(listReturnPath)}`;
+---
+
+<ManagementLayout
+  title="批准前修正"
+  heading="批准前修正"
+  currentPath="/management/site-submissions"
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[
+    {
+      label: '站点申请审核',
+      href: '/management/site-submissions',
+      description: '查看申请、差异与审核结果',
+    },
+    ...(actor.role === 'SYS_ADMIN' || actor.permissions.includes('user.manage')
+      ? [{ label: '用户与授权', href: '/management/users', description: '管理角色与模块权限' }]
+      : []),
+  ]}
+>
+  <details class="mb-6 rounded-md border border-line bg-surface">
+    <summary class="min-h-11 cursor-pointer px-5 py-3 font-semibold">查看申请与当前数据差异</summary
+    >
+    <div class="border-t border-line p-4 sm:p-5">
+      <AuditDiffView diff={detail.diff} />
+    </div>
+  </details>
+  <AuditCorrectionEditor client:load {detail} {options} {returnPath} />
+</ManagementLayout>

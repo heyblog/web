@@ -127,6 +127,11 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - `/management/users*` remains web-internal but also requires an authenticated `SYS_ADMIN` or an
   `ADMIN` with `user.manage`; role and permission mutations must enforce scope and self-management
   restrictions in the application layer.
+- `/site-submissions*` is a web-internal anonymous submission boundary protected by the shared Web
+  token and route-specific rate limits. CREATE, UPDATE, DELETE, and RESTORE requests return a
+  one-time lookup credential; only its SHA-256 digest is persisted. `/management/site-audits*`
+  additionally requires `site_audit.review`, and creating new canonical taxonomy entries during
+  approval requires `taxonomy.manage`.
 - `POST /internal/temp/data-import` is a temporary authenticated migration endpoint. It requires
   `Authorization: Bearer <API_TEMP_IMPORT_TOKEN>`, accepts only the two cleaned migration bundles,
   and owns a ninety-minute request deadline and route-specific upload limit. Its single transaction
@@ -183,6 +188,9 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   affected DTOs, callers, and integration tests coherently.
 - Map persistence records to domain values and HTTP DTOs deliberately; do not share database entity
   shapes with TypeScript consumers.
+- `directory.site_audits` stores immutable aggregate evidence for site lifecycle requests. Approved
+  reviews apply snapshots to the normalized directory tables in one transaction; the JSONB
+  snapshots are audit history, not a second canonical site model.
 - If a cache is introduced, initialize and own it centrally with an explicit invalidation and
   shutdown lifecycle. Other services must not bypass the API's data ownership.
 - The selected data-access stack is pgx/v5 for PostgreSQL connections, Goose v3 for migrations,

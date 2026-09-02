@@ -1,0 +1,28 @@
+---
+import type { AuditAction } from '@/application/site-submission/site-submission.types';
+import PublicHeader from '@/components/chrome/PublicHeader.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+import SiteSubmissionForm from './SiteSubmissionForm.svelte';
+import SiteSubmissionNavigation from './SiteSubmissionNavigation.astro';
+
+interface Props {
+  action: AuditAction;
+  title: string;
+  initialShortId?: string;
+}
+
+const { action, title, initialShortId = '' } = Astro.props;
+---
+
+<BaseLayout {title}>
+  <PublicHeader currentPath={Astro.url.pathname} />
+  <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+    <SiteSubmissionNavigation currentPath={Astro.url.pathname} />
+    <header class="mb-8 border-b border-line pb-5">
+      <p class="font-mono text-xs text-tint-fg">site submissions</p>
+      <h1 class="mt-3 text-3xl font-bold">{title}</h1>
+    </header>
+    <SiteSubmissionForm client:load {action} {initialShortId} />
+  </main>
+</BaseLayout>

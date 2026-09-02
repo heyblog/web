@@ -14,6 +14,9 @@ RETURNING *;
 -- name: GetSiteByID :one
 SELECT * FROM directory.sites WHERE id = $1;
 
+-- name: LockSiteByID :one
+SELECT * FROM directory.sites WHERE id = $1 FOR UPDATE;
+
 -- name: GetSiteByShortID :one
 SELECT * FROM directory.sites WHERE short_id = $1;
 
@@ -281,6 +284,19 @@ UPDATE directory.sites
  WHERE id = $1 AND revision = $6
 RETURNING *;
 
+-- name: ApplySiteSnapshot :one
+UPDATE directory.sites
+   SET name = $2,
+       scheme = $3,
+       normalized_host = $4,
+       base_path = $5,
+       summary = $6,
+       access_scope = $7,
+       visibility = $8,
+       visibility_reason = $9
+ WHERE id = $1 AND revision = $10
+RETURNING *;
+
 -- name: SetSiteVisibility :one
 UPDATE directory.sites
    SET visibility = $2,
@@ -330,6 +346,9 @@ SELECT *
 -- name: DeleteSiteFeed :exec
 DELETE FROM directory.site_feeds WHERE id = $1 AND site_id = $2;
 
+-- name: DeleteSiteFeeds :exec
+DELETE FROM directory.site_feeds WHERE site_id = $1;
+
 -- name: UpsertSiteResource :one
 INSERT INTO directory.site_resources (
     site_id,
@@ -358,6 +377,9 @@ SELECT *
 
 -- name: DeleteSiteResource :exec
 DELETE FROM directory.site_resources WHERE site_id = $1 AND kind = $2;
+
+-- name: DeleteSiteResources :exec
+DELETE FROM directory.site_resources WHERE site_id = $1;
 
 -- name: UpsertSiteIcon :one
 INSERT INTO directory.site_icons (
@@ -392,6 +414,9 @@ RETURNING *;
 SELECT * FROM directory.tags
  WHERE is_enabled AND merged_into_id IS NULL
  ORDER BY name, id;
+
+-- name: GetTagByNormalizedName :one
+SELECT * FROM directory.tags WHERE normalized_name = $1 AND merged_into_id IS NULL;
 
 -- name: AssignSiteTag :one
 INSERT INTO directory.site_tags (
@@ -435,6 +460,9 @@ SELECT assignment.*, tag.name, tag.slug, tag.description
 -- name: UnassignSiteTag :exec
 DELETE FROM directory.site_tags WHERE site_id = $1 AND tag_id = $2;
 
+-- name: UnassignAllSiteTags :exec
+DELETE FROM directory.site_tags WHERE site_id = $1;
+
 -- name: CreateSoftwareComponent :one
 INSERT INTO directory.software_components (
     name,
@@ -451,6 +479,9 @@ SELECT * FROM directory.software_components WHERE is_enabled ORDER BY name, id;
 
 -- name: GetSoftwareComponentByID :one
 SELECT * FROM directory.software_components WHERE id = $1;
+
+-- name: GetSoftwareComponentByNormalizedName :one
+SELECT * FROM directory.software_components WHERE normalized_name = $1;
 
 -- name: AddSoftwareComponentDependency :one
 INSERT INTO directory.software_component_dependencies (
@@ -469,6 +500,19 @@ SELECT dependency_relation.*, dependency.name, dependency.normalized_name,
     ON dependency.id = dependency_relation.dependency_component_id
  WHERE dependency_relation.component_id = $1
  ORDER BY dependency_relation.role, dependency.name, dependency.id;
+
+-- name: ListEnabledSoftwareComponentDependencies :many
+SELECT dependency_relation.component_id,
+       dependency_relation.dependency_component_id,
+       dependency_relation.role
+  FROM directory.software_component_dependencies AS dependency_relation
+  JOIN directory.software_components AS component
+    ON component.id = dependency_relation.component_id
+  JOIN directory.software_components AS dependency
+    ON dependency.id = dependency_relation.dependency_component_id
+ WHERE component.is_enabled AND dependency.is_enabled
+ ORDER BY dependency_relation.component_id, dependency_relation.role,
+          dependency.name, dependency_relation.dependency_component_id;
 
 -- name: RemoveSoftwareComponentDependency :exec
 DELETE FROM directory.software_component_dependencies
@@ -510,6 +554,9 @@ SELECT assignment.*, component.name, component.normalized_name,
 DELETE FROM directory.site_software_components
  WHERE site_id = $1 AND component_id = $2 AND role = $3;
 
+-- name: UnassignAllSiteSoftwareComponents :exec
+DELETE FROM directory.site_software_components WHERE site_id = $1;
+
 -- name: UpsertSiteSource :one
 INSERT INTO directory.site_sources (source_key, name, base_url, is_enabled)
 VALUES ($1, $2, $3, $4)
@@ -539,3 +586,15 @@ SELECT origin.*, source.source_key, source.name, source.base_url
   JOIN directory.site_sources AS source ON source.id = origin.source_id
  WHERE origin.site_id = $1
  ORDER BY origin.first_discovered_at, source.source_key;
+
+-- name: GetSiteSourceByKey :one
+SELECT * FROM directory.site_sources WHERE source_key = $1;
+
+-- name: SearchSitesForSubmission :many
+SELECT *
+  FROM directory.sites
+ WHERE name ILIKE '%' || sqlc.arg(query)::text || '%'
+    OR normalized_host ILIKE '%' || sqlc.arg(query)::text || '%'
+    OR short_id = sqlc.arg(query)::text
+ ORDER BY visibility, name, id
+ LIMIT 12;

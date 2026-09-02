@@ -6,6 +6,7 @@ export interface SiteLink {
 
 export interface SiteNavigationItem extends SiteLink {
   match: 'exact' | 'prefix';
+  children?: readonly SiteLink[];
 }
 
 export interface SiteConfig {

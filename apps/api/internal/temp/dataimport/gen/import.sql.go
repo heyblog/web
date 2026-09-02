@@ -19,7 +19,10 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_icons
     UNION ALL SELECT 1 FROM directory.tags
     UNION ALL SELECT 1 FROM directory.site_tags
+    -- The private-program placeholder is shipped by migrations and does not
+    -- represent imported directory content.
     UNION ALL SELECT 1 FROM directory.software_components
+      WHERE normalized_name NOT IN ('其他', '其他（未公开）')
     UNION ALL SELECT 1 FROM directory.software_component_dependencies
     UNION ALL SELECT 1 FROM directory.site_software_components
     UNION ALL SELECT 1 FROM directory.site_sources

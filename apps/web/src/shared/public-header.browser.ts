@@ -120,9 +120,11 @@ function setupHeader(header: HTMLElement): void {
     if (!desktopNavigation.matches) {
       return;
     }
-    header.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
-      closeMenu(menu, false, true);
-    });
+    header
+      .querySelectorAll<HTMLDetailsElement>('[data-public-mobile-menu][open]')
+      .forEach((menu) => {
+        closeMenu(menu, false, true);
+      });
   };
 
   desktopNavigation.addEventListener('change', closeMenusAtDesktop, { signal });

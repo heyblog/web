@@ -1,5 +1,5 @@
 ---
-import { IconMenu2, IconX } from '@tabler/icons-svelte';
+import { IconChevronDown, IconMenu2, IconX } from '@tabler/icons-svelte';
 
 import { siteConfig } from '@/site.config';
 
@@ -62,20 +62,70 @@ const iconButtonClass =
 
     <nav class="hidden self-stretch md:flex" aria-label="主导航">
       {
-        siteConfig.navigation.map((item) => (
-          <a
-            class:list={[
-              navigationLinkClass,
-              { [activeNavigationLinkClass]: isActive(item.href, item.match) },
-            ]}
-            href={item.href}
-            aria-current={isActive(item.href, item.match) ? 'page' : undefined}
-            rel={item.external ? 'noreferrer' : undefined}
-            target={item.external ? '_blank' : undefined}
-          >
-            {item.label}
-          </a>
-        ))
+        siteConfig.navigation.map((item) =>
+          item.children ? (
+            <div class="group/submenu relative flex items-stretch">
+              <a
+                class:list={[
+                  navigationLinkClass,
+                  { [activeNavigationLinkClass]: isActive(item.href, item.match) },
+                ]}
+                href={item.href}
+                aria-current={activePath === item.href ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+              <details
+                class="group flex items-stretch"
+                data-public-menu
+                data-details-state="closed"
+              >
+                <summary
+                  class="flex min-w-10 cursor-pointer list-none items-center justify-center text-fg-muted transition-colors duration-(--motion-color) hover:text-fg [&::-webkit-details-marker]:hidden"
+                  data-public-menu-trigger
+                  aria-label={`展开${item.label}菜单`}
+                  aria-expanded="false"
+                >
+                  <IconChevronDown
+                    class="transition-transform duration-(--motion-base) group-open:rotate-180 motion-reduce:transform-none"
+                    size={16}
+                    aria-hidden="true"
+                  />
+                </summary>
+                <div
+                  class="pointer-events-none absolute top-full right-0 z-40 grid min-w-48 -translate-y-1 gap-1 rounded-md border border-line bg-surface p-1 opacity-0 shadow-sm transition-[transform,opacity] duration-(--motion-base) group-open:pointer-events-auto group-open:translate-y-0 group-open:opacity-100 group-hover/submenu:pointer-events-auto group-hover/submenu:translate-y-0 group-hover/submenu:opacity-100 motion-reduce:transform-none motion-reduce:transition-opacity"
+                  data-public-menu-panel
+                >
+                  {item.children.map((child) => (
+                    <a
+                      class:list={[
+                        'flex min-h-10 items-center rounded-sm px-3 text-sm text-fg-muted hover:bg-subtle hover:text-fg',
+                        { 'bg-tint text-tint-fg': activePath === child.href },
+                      ]}
+                      href={child.href}
+                      aria-current={activePath === child.href ? 'page' : undefined}
+                    >
+                      {child.label}
+                    </a>
+                  ))}
+                </div>
+              </details>
+            </div>
+          ) : (
+            <a
+              class:list={[
+                navigationLinkClass,
+                { [activeNavigationLinkClass]: isActive(item.href, item.match) },
+              ]}
+              href={item.href}
+              aria-current={isActive(item.href, item.match) ? 'page' : undefined}
+              rel={item.external ? 'noreferrer' : undefined}
+              target={item.external ? '_blank' : undefined}
+            >
+              {item.label}
+            </a>
+          ),
+        )
       }
     </nav>
 
@@ -84,7 +134,12 @@ const iconButtonClass =
         <PublicAccountEntry slot="fallback" hasSession={false} variant="desktop" />
       </PublicAccountEntry>
       <ThemeToggle />
-      <details class="group relative md:hidden" data-public-menu data-details-state="closed">
+      <details
+        class="group relative md:hidden"
+        data-public-menu
+        data-public-mobile-menu
+        data-details-state="closed"
+      >
         <summary
           class:list={[
             iconButtonClass,
@@ -116,20 +171,36 @@ const iconButtonClass =
         >
           {
             siteConfig.navigation.map((item) => (
-              <a
-                class:list={[
-                  'flex min-h-11 items-center rounded-sm px-3 text-sm font-medium text-fg-muted transition-[background-color,color] duration-(--motion-color) ease-standard hover:bg-tint hover:text-tint-fg',
-                  {
-                    'bg-tint text-tint-fg': isActive(item.href, item.match),
-                  },
-                ]}
-                href={item.href}
-                aria-current={isActive(item.href, item.match) ? 'page' : undefined}
-                rel={item.external ? 'noreferrer' : undefined}
-                target={item.external ? '_blank' : undefined}
-              >
-                {item.label}
-              </a>
+              <div class="grid">
+                <a
+                  class:list={[
+                    'flex min-h-11 items-center rounded-sm px-3 text-sm font-medium text-fg-muted transition-[background-color,color] duration-(--motion-color) ease-standard hover:bg-tint hover:text-tint-fg',
+                    { 'bg-tint text-tint-fg': isActive(item.href, item.match) },
+                  ]}
+                  href={item.href}
+                  aria-current={activePath === item.href ? 'page' : undefined}
+                  rel={item.external ? 'noreferrer' : undefined}
+                  target={item.external ? '_blank' : undefined}
+                >
+                  {item.label}
+                </a>
+                {item.children ? (
+                  <div class="grid border-l border-line pl-3">
+                    {item.children.map((child) => (
+                      <a
+                        class:list={[
+                          'flex min-h-11 items-center rounded-sm px-3 text-sm text-fg-muted hover:bg-subtle hover:text-fg',
+                          { 'bg-tint text-tint-fg': activePath === child.href },
+                        ]}
+                        href={child.href}
+                        aria-current={activePath === child.href ? 'page' : undefined}
+                      >
+                        {child.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ))
           }
           <PublicAccountEntry server:defer variant="mobile">

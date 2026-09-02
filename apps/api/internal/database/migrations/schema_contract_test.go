@@ -43,6 +43,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00007_content_announcements.sql",
 		"00008_directory_registered_friend_links.sql",
 		"00009_authentication.sql",
+		"00010_site_audits.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -51,6 +52,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 	wantTables := []string{
 		"content.announcement_revisions",
 		"content.announcements",
+		"directory.site_audits",
 		"directory.site_feeds",
 		"directory.site_icons",
 		"directory.site_origins",
@@ -71,6 +73,39 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 	gotTables := collectCreatedTables(t, migrationFS)
 	if strings.Join(gotTables, "\n") != strings.Join(wantTables, "\n") {
 		t.Fatalf("created tables = %v, want %v", gotTables, wantTables)
+	}
+}
+
+func TestSiteAuditsPreserveImmutableSnapshotsAndAnonymousLookup(t *testing.T) {
+	t.Parallel()
+
+	migrationFS, err := Filesystem()
+	if err != nil {
+		t.Fatalf("Filesystem() error = %v", err)
+	}
+	content, err := fs.ReadFile(migrationFS, "00010_site_audits.sql")
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	schema := string(content)
+
+	for _, required := range []string{
+		"CREATE TABLE directory.site_audits (",
+		"lookup_secret_hash bytea NOT NULL",
+		"base_snapshot jsonb",
+		"proposed_snapshot jsonb NOT NULL",
+		"review_draft_snapshot jsonb",
+		"review_draft_revision bigint NOT NULL DEFAULT 0",
+		"final_snapshot jsonb",
+		"INSERT INTO directory.software_components (",
+		"'其他'",
+		"CREATE UNIQUE INDEX site_audits_pending_site_unique_idx",
+		"CREATE TRIGGER site_audits_preserve_submission",
+		"GRANT SELECT, INSERT, UPDATE ON directory.site_audits TO api_runtime",
+	} {
+		if !strings.Contains(schema, required) {
+			t.Errorf("site audit schema is missing %q", required)
+		}
 	}
 }
 

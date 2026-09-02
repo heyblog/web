@@ -1,0 +1,93 @@
+---
+import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
+import type { AuditDetail } from '@/application/site-submission/site-submission.types';
+import AuditActionView from '@/components/management/site-submissions/AuditActionView.astro';
+import AuditReviewPanel from '@/components/management/site-submissions/AuditReviewPanel.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const allowed =
+  actor.role === 'SYS_ADMIN' ||
+  (actor.role === 'ADMIN' && actor.permissions.includes('site_audit.review'));
+if (!allowed) return Astro.redirect('/forbidden');
+const response = await requestAuthAPI(
+  Astro.request,
+  `/management/site-audits/${Astro.params.auditId ?? ''}`,
+);
+if (response.status === 404) return Astro.redirect('/management/site-submissions');
+if (!response.ok) return Astro.redirect('/forbidden');
+const detail: AuditDetail = await response.json();
+const requestedReturn = Astro.url.searchParams.get('returnTo') ?? '';
+const returnPath =
+  requestedReturn.startsWith('/management/site-submissions') && !requestedReturn.startsWith('//')
+    ? requestedReturn
+    : '/management/site-submissions?status=PENDING';
+const canManageTaxonomy =
+  actor.role === 'SYS_ADMIN' || actor.permissions.includes('taxonomy.manage');
+const actionLabels = { CREATE: '新增', UPDATE: '修改', DELETE: '删除', RESTORE: '恢复' } as const;
+const statusLabels = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '未通过' } as const;
+---
+
+<ManagementLayout
+  title="审核详情"
+  heading={`${actionLabels[detail.action]}申请 · ${statusLabels[detail.status]}`}
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[
+    {
+      label: '站点申请审核',
+      href: '/management/site-submissions',
+      description: '查看申请、差异与审核结果',
+    },
+    ...(actor.role === 'SYS_ADMIN' || actor.permissions.includes('user.manage')
+      ? [{ label: '用户与授权', href: '/management/users', description: '管理角色与模块权限' }]
+      : []),
+  ]}
+>
+  <a
+    class="mb-5 inline-flex min-h-10 items-center rounded-sm text-sm font-medium text-tint-fg hover:underline"
+    href={returnPath}>← 返回审核列表</a
+  >
+  <section
+    class="mb-6 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
+  >
+    <div class="bg-surface p-4">
+      <p class="text-xs text-fg-muted">状态</p>
+      <p class="mt-1 font-medium">{statusLabels[detail.status]}</p>
+    </div>
+    <div class="bg-surface p-4">
+      <p class="text-xs text-fg-muted">提交时间</p>
+      <p class="mt-1 text-sm">{new Date(detail.created_at).toLocaleString('zh-CN')}</p>
+    </div>
+    <div class="bg-surface p-4">
+      <p class="text-xs text-fg-muted">提交者</p>
+      <p class="mt-1 text-sm">{detail.submitter_name || '匿名'}</p>
+    </div>
+    <div class="min-w-0 bg-surface p-4">
+      <p class="text-xs text-fg-muted">审核编号</p>
+      <p class="mt-1 truncate font-mono text-sm" title={detail.id}>{detail.id}</p>
+    </div>
+  </section>
+  <div
+    class:list={[
+      'grid items-start gap-6',
+      detail.status === 'PENDING' && 'lg:grid-cols-[minmax(0,1fr)_19rem]',
+    ]}
+  >
+    <AuditActionView {detail} />
+    {
+      detail.status === 'PENDING' ? (
+        <AuditReviewPanel client:load {detail} {returnPath} {canManageTaxonomy} />
+      ) : (
+        <section class="rounded-md border border-line bg-surface p-5">
+          <h2 class="text-lg font-bold">审核结果</h2>
+          <p class="mt-3 text-sm whitespace-pre-wrap text-fg-muted">
+            {detail.reviewer_comment || '未填写审核意见。'}
+          </p>
+        </section>
+      )
+    }
+  </div>
+</ManagementLayout>

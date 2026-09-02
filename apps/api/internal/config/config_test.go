@@ -28,6 +28,8 @@ mail:
   senders:
     verification:
       address: no-reply@verify.mail.heyblog.net
+    submission:
+      address: no-reply@submission.mail.heyblog.net
 logging:
   level: info
   console_format: auto
@@ -132,7 +134,7 @@ func TestLoadUsesDevelopmentModeAndAllowsPortOverride(t *testing.T) {
 	if got.Database.MaxConnectionLifetime != 30*time.Minute || got.HTTP.ShutdownTimeout != 10*time.Second {
 		t.Fatalf("durations were not parsed: database=%s shutdown=%s", got.Database.MaxConnectionLifetime, got.HTTP.ShutdownTimeout)
 	}
-	if got.Mail.SES.Region != "ap-southeast-1" || got.Mail.Senders.Verification.Address != "no-reply@verify.mail.heyblog.net" {
+	if got.Mail.SES.Region != "ap-southeast-1" || got.Mail.Senders.Verification.Address != "no-reply@verify.mail.heyblog.net" || got.Mail.Senders.Submission.Address != "no-reply@submission.mail.heyblog.net" {
 		t.Fatalf("mail configuration = %#v, want Singapore SES verification sender", got.Mail)
 	}
 }

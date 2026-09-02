@@ -18,6 +18,7 @@ import (
 	"heyblog-api/internal/domain/site"
 	"heyblog-api/internal/httpapi"
 	"heyblog-api/internal/mail"
+	"heyblog-api/internal/siteaudit"
 	"heyblog-api/internal/temp/dataimport"
 )
 
@@ -173,6 +174,16 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		MailFrom: configuration.Mail.Senders.Verification.Address,
 	}})
 	if err := auth.RegisterRoutes(router, authService, options.WebToken); err != nil {
+		return nil, err
+	}
+	auditService := siteaudit.NewService(siteaudit.Dependencies{
+		Repository: siteaudit.NewRepository(dependencies.DatabasePool()),
+		Auth:       authService,
+		NewShortID: site.NewShortID,
+		Mailer:     mail.NewSubmissionMailer(dependencies.Mail(), configuration.Mail.Senders.Submission.Address),
+		Logger:     options.Logger,
+	})
+	if err := siteaudit.RegisterRoutes(router, auditService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err
 	}
 	return router, nil
