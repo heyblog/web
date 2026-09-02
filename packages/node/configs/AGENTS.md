@@ -6,6 +6,8 @@ This file refines the repository-level `AGENTS.md` for `packages/node/configs`.
 
 - `packages/node/configs` owns reusable ESLint and Prettier configuration for Node workspace
   modules.
+- This package inherits the project release version from the repository-root `VERSION` file; its
+  `package.json` does not declare an independent version.
 - Treat `package.json`, `tsconfig.json`, root wrapper configurations, and files under `shared/` as
   the package contract and implementation truth.
 - Treat package exports as public workspace interfaces. Update affected consumers with any export

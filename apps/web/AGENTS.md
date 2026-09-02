@@ -5,6 +5,8 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 ## Scope and Sources of Truth
 
 - `apps/web` is the browser-facing Astro and Svelte application.
+- The Web application inherits the project release version from the repository-root `VERSION` file;
+  its `package.json` does not declare an independent version.
 - Treat `package.json`, `astro.config.ts`, `src/site.config.ts`, `svelte.config.ts`, and
   `Taskfile.yaml` as the current dependency, runtime, site metadata, and command truth.
 - Treat `apps/web/contents` as a generated snapshot of the `contents/` directory from the

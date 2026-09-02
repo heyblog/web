@@ -35,6 +35,9 @@ their nearest `AGENTS.md`.
 
 ## Canonical Sources
 
+- Treat the root `VERSION` file as the only project release version for the API, Web application,
+  and repository-owned packages. It contains three JavaScript-safe non-negative integers in strict
+  `X.Y.Z` form. Do not add `version` fields to project `package.json` files.
 - Read `.nvmrc` for the Node.js version and `package.json#packageManager` for the pnpm version.
 - Read `go.work` and module `go.mod` files for the Go toolchain and dependencies.
 - Treat the root `go.mod` and `go.sum` as repository-wide Go tool manifests only. Application
@@ -72,6 +75,8 @@ their nearest `AGENTS.md`.
 - `task --list-all`: discover available repository and module tasks.
 - `task install`: install repository dependencies only.
 - `task prepare`: sync generated Web content; `task setup` additionally installs dependencies and Git hooks.
+- `task version:show|check|patch|minor|major`: inspect, validate, or increment the project version;
+  use `task version:set -- X.Y.Z` to set an exact version.
 - `task <module>:<task>`: run a focused module task, such as `task api:verify` or
   `task web:verify`.
 - `task check`: run repository formatting, lint, type, SQL, Task, and workflow checks.

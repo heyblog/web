@@ -6,6 +6,8 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 
 - `apps/api` is the repository's unified Go HTTP backend. Invoke its tasks from the repository root;
   commands in this Taskfile execute relative to `apps/api`.
+- The API inherits the project release version from the repository-root `VERSION` file; it does not
+  maintain a module-specific version file or expose the version at runtime.
 - Treat `go.mod`, `go.sum`, source code, and `Taskfile.yaml` as the current dependency, toolchain, and
   command truth.
 - Declare API-specific Go CLI dependencies in this module's `go.mod` `tool` block. Repository-wide

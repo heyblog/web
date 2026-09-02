@@ -3,6 +3,42 @@
 version: '3'
 
 tasks:
+  version:show:
+    desc: Print the project version
+    silent: true
+    cmds:
+      - node ./scripts/version.mjs show
+
+  version:check:
+    desc: Validate the canonical project version
+    cmds:
+      - node ./scripts/version.mjs check
+
+  version:test:
+    desc: Test project version management
+    cmds:
+      - node --test ./scripts/version.test.mjs
+
+  version:set:
+    desc: 'Set the project version (usage: task version:set -- X.Y.Z)'
+    cmds:
+      - node ./scripts/version.mjs set {{.CLI_ARGS}}
+
+  version:patch:
+    desc: Increment the project patch version
+    cmds:
+      - node ./scripts/version.mjs bump patch
+
+  version:minor:
+    desc: Increment the project minor version
+    cmds:
+      - node ./scripts/version.mjs bump minor
+
+  version:major:
+    desc: Increment the project major version
+    cmds:
+      - node ./scripts/version.mjs bump major
+
   apps:
     desc: List app status under apps
     silent: true
@@ -88,6 +124,7 @@ tasks:
   check:
     desc: Run repository static checks
     cmds:
+      - task: version:check
       - task: format:check
       - task: lint
       - task: typecheck
@@ -98,6 +135,7 @@ tasks:
   test:
     desc: Run all configured tests
     cmds:
+      - task: version:test
       - task: api:test
       - task: web:test
 

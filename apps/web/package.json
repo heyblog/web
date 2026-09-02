@@ -1,7 +1,6 @@
 {
   "name": "heyblog-web",
   "type": "module",
-  "version": "0.0.1",
   "engines": {
     "node": ">=22.12.0"
   },

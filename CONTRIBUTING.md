@@ -28,6 +28,24 @@ task prepare
 
 不要提交真实凭据、生产数据、本地环境文件或应用生成物。
 
+## 项目版本
+
+根目录的 `VERSION` 是 API、Web 和仓库内部 package 的唯一项目版本来源。各模块的
+`package.json` 不单独声明 `version`。使用以下命令查看、校验或更新版本：
+
+```bash
+task version:show
+task version:check
+task version:set -- 0.1.5
+task version:patch
+task version:minor
+task version:major
+```
+
+版本只接受不带前导零、预发布或构建后缀的 `X.Y.Z`，且每段必须是 JavaScript 安全非负整数。
+递增采用 SemVer 核心版本语义：patch 增加 Z；minor 增加 Y 并将 Z 归零；major 增加 X 并将
+Y、Z 归零。命令只修改 `VERSION`，不会创建 Git 标签、提交或发布产物。
+
 ## 本地开发
 
 复制开发环境模板和 API 配置：
