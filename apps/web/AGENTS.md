@@ -21,6 +21,11 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 - `apps/web/Dockerfile` uses the repository root as its Docker build context and invokes the root
   Taskfile; the Web task commands execute relative to `apps/web`. The production image copies the
   default Astro `dist` output without workspace-wide development dependencies.
+- Footer build provenance is compile-time metadata. `WEB_BUILD_COMMIT`, `WEB_BUILD_REF`,
+  `WEB_BUILD_COMMIT_TIME`, `WEB_BUILD_REPOSITORY_URL`, and `WEB_BUILD_TIME` are accepted only by the
+  Docker builder stage; `task container:build` derives them from the host checkout because `.git`
+  is excluded from the Docker context. They do not change `src/config.server.ts` ownership of Web
+  runtime environment configuration and must not be retained in the runner image.
 
 ## Ownership and Boundaries
 

@@ -3,6 +3,8 @@ import { IconExternalLink } from '@tabler/icons-svelte';
 
 import { siteConfig } from '@/site.config';
 
+import BuildInfo from './BuildInfo.astro';
+
 const currentYear = new Date().getFullYear();
 const copyrightYears =
   currentYear === siteConfig.footer.copyrightStartYear
@@ -26,6 +28,7 @@ const copyrightYears =
           <IconExternalLink aria-hidden="true" size={13} stroke={1.75} />
         </a>
         <p class="m-0">Copyright © {copyrightYears} {siteConfig.footer.copyrightOwner}</p>
+        <BuildInfo />
       </div>
     </section>
 

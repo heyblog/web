@@ -29,7 +29,27 @@ tasks:
       - task: container:command:check
       - task: container:base
       - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/api/Dockerfile -t api:local .'
-      - '{{.DOCKER_COMMAND}} build --platform linux/amd64 -f apps/web/Dockerfile -t web:local .'
+      - |
+        set -eu
+        web_build_commit=$(git rev-parse HEAD)
+        web_build_ref=$(git symbolic-ref --quiet --short HEAD || git describe --tags --exact-match HEAD 2>/dev/null || printf '%s' detached)
+        web_build_commit_time=$(git log -1 --pretty=format:%cI)
+        web_build_repository_url=$(git config --get remote.origin.url || true)
+        case "${web_build_repository_url}" in
+          https://github.com/*|git@github.com:*|ssh://git@github.com/*) ;;
+          *) web_build_repository_url= ;;
+        esac
+        web_build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+        {{.DOCKER_COMMAND}} build \
+          --platform linux/amd64 \
+          --build-arg "WEB_BUILD_COMMIT=${web_build_commit}" \
+          --build-arg "WEB_BUILD_REF=${web_build_ref}" \
+          --build-arg "WEB_BUILD_COMMIT_TIME=${web_build_commit_time}" \
+          --build-arg "WEB_BUILD_REPOSITORY_URL=${web_build_repository_url}" \
+          --build-arg "WEB_BUILD_TIME=${web_build_time}" \
+          -f apps/web/Dockerfile \
+          -t web:local \
+          .
 
   container:scan:
     desc: Scan local API and Web images for fixable high-severity vulnerabilities

@@ -2,6 +2,12 @@
 
 FROM heyblog-builder:local AS builder
 
+ARG WEB_BUILD_COMMIT
+ARG WEB_BUILD_REF
+ARG WEB_BUILD_COMMIT_TIME
+ARG WEB_BUILD_REPOSITORY_URL
+ARG WEB_BUILD_TIME
+
 WORKDIR /workspace
 
 COPY . .
@@ -9,7 +15,12 @@ COPY . .
 RUN --mount=type=cache,id=heyblog-pnpm-store,target=/root/.local/share/pnpm/store \
     corepack install \
     && pnpm install --frozen-lockfile \
-    && task web:build
+    && WEB_BUILD_COMMIT="${WEB_BUILD_COMMIT}" \
+       WEB_BUILD_REF="${WEB_BUILD_REF}" \
+       WEB_BUILD_COMMIT_TIME="${WEB_BUILD_COMMIT_TIME}" \
+       WEB_BUILD_REPOSITORY_URL="${WEB_BUILD_REPOSITORY_URL}" \
+       WEB_BUILD_TIME="${WEB_BUILD_TIME}" \
+       task web:build
 
 FROM node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930bdfa482de99fcdfa3b3de AS runner
 

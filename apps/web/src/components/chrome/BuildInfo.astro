@@ -1,0 +1,154 @@
+---
+import { IconExternalLink, IconX } from '@tabler/icons-svelte';
+
+const buildInfo = __HEYBLOG_BUILD_METADATA__;
+const triggerId = 'footer-build-info-trigger';
+const popoverId = 'footer-build-info-popover';
+const titleId = 'footer-build-info-title';
+const formatter = new Intl.DateTimeFormat('zh-CN', {
+  dateStyle: 'medium',
+  timeStyle: 'medium',
+  hour12: false,
+  timeZone: 'Asia/Shanghai',
+});
+const formatTimestamp = (value: string) => (value ? formatter.format(new Date(value)) : '未知');
+---
+
+<div class="max-w-full">
+  <button
+    class="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-md border border-line-strong bg-surface px-3 font-mono text-xs font-medium text-fg-muted transition-[border-color,background-color,color,scale] duration-(--motion-fast) ease-standard hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 motion-reduce:transition-colors sm:min-h-10"
+    id={triggerId}
+    type="button"
+    aria-controls={popoverId}
+    aria-expanded="false"
+    aria-haspopup="dialog"
+    popovertarget={popoverId}
+  >
+    <span class="shrink-0">构建信息</span>
+    <span aria-hidden="true">·</span>
+    <span class="truncate">v{buildInfo.version} · {buildInfo.shortCommit}</span>
+  </button>
+
+  <div
+    class="fixed z-40 m-0 max-h-[calc(100dvh-2rem)] w-[min(22rem,calc(100vw-2rem))] overflow-auto rounded-md border border-line bg-surface p-4 text-sm text-fg shadow-sm"
+    id={popoverId}
+    data-build-info-popover
+    data-build-info-trigger={triggerId}
+    data-popover-side="above"
+    popover="auto"
+    role="dialog"
+    aria-labelledby={titleId}
+  >
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h2 class="m-0 font-mono text-xs font-semibold" id={titleId}>构建信息</h2>
+        <p class="mt-1 mb-0 text-xs text-fg-muted">v{buildInfo.version}</p>
+      </div>
+      <button
+        class="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-sm text-fg-muted transition-[background-color,color,scale] duration-(--motion-fast) hover:bg-subtle hover:text-fg active:scale-96 motion-reduce:transition-colors sm:size-10"
+        type="button"
+        aria-label="关闭构建信息"
+        popovertarget={popoverId}
+        popovertargetaction="hide"
+      >
+        <IconX aria-hidden="true" size={18} stroke={1.75} />
+      </button>
+    </div>
+
+    <dl class="mt-4 grid gap-3">
+      <div class="flex items-start justify-between gap-4 border-b border-line pb-3">
+        <dt class="shrink-0 text-fg-muted">构建来源</dt>
+        <dd class="m-0 min-w-0 text-right font-mono text-xs break-all">{buildInfo.component}</dd>
+      </div>
+      <div class="flex items-start justify-between gap-4 border-b border-line pb-3">
+        <dt class="shrink-0 text-fg-muted">Ref</dt>
+        <dd class="m-0 min-w-0 text-right font-mono text-xs break-all">{buildInfo.ref}</dd>
+      </div>
+      <div class="flex items-start justify-between gap-4 border-b border-line pb-3">
+        <dt class="shrink-0 text-fg-muted">Commit</dt>
+        <dd class="m-0 min-w-0 text-right font-mono text-xs break-all">
+          {
+            buildInfo.commitUrl ? (
+              <a
+                class="inline-flex items-center gap-1 text-tint-fg underline decoration-line-strong underline-offset-4 transition-colors duration-(--motion-color) hover:text-primary-hover"
+                href={buildInfo.commitUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <span>{buildInfo.commit}</span>
+                <IconExternalLink class="shrink-0" aria-hidden="true" size={13} stroke={1.75} />
+              </a>
+            ) : (
+              buildInfo.commit
+            )
+          }
+        </dd>
+      </div>
+      <div class="flex items-start justify-between gap-4 border-b border-line pb-3">
+        <dt class="shrink-0 text-fg-muted">构建时间</dt>
+        <dd class="m-0 min-w-0 text-right">
+          <time datetime={buildInfo.buildTime}>{formatTimestamp(buildInfo.buildTime)}</time>
+        </dd>
+      </div>
+      <div class="flex items-start justify-between gap-4">
+        <dt class="shrink-0 text-fg-muted">提交时间</dt>
+        <dd class="m-0 min-w-0 text-right">
+          {
+            buildInfo.commitTime ? (
+              <time datetime={buildInfo.commitTime}>{formatTimestamp(buildInfo.commitTime)}</time>
+            ) : (
+              '未知'
+            )
+          }
+        </dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<script>
+  import { initBuildInfoPopovers } from '@/shared/build-info-popover.browser';
+
+  initBuildInfoPopovers();
+</script>
+
+<style>
+  [data-build-info-popover] {
+    opacity: 0;
+    transform: scale(0.99);
+    transform-origin: top left;
+    transition:
+      opacity var(--motion-fast) var(--ease-out),
+      transform var(--motion-fast) var(--ease-out),
+      overlay var(--motion-fast) allow-discrete,
+      display var(--motion-fast) allow-discrete;
+  }
+
+  [data-build-info-popover][data-popover-side='above'] {
+    transform-origin: bottom left;
+  }
+
+  [data-build-info-popover]:popover-open {
+    opacity: 1;
+    transform: scale(1);
+    transition-duration: var(--motion-base);
+  }
+
+  @starting-style {
+    [data-build-info-popover]:popover-open {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-build-info-popover],
+    [data-build-info-popover]:popover-open {
+      transform: none;
+      transition:
+        opacity var(--motion-fast) var(--ease-out),
+        overlay var(--motion-fast) allow-discrete,
+        display var(--motion-fast) allow-discrete;
+    }
+  }
+</style>
