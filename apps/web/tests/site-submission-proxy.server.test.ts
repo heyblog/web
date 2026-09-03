@@ -30,6 +30,8 @@ test('forwards a same-origin JSON mutation through the authenticated service bou
   assert.equal(headers.get('X-HeyBlog-Web-Token'), configuration.apiWebToken);
   assert.equal(headers.get('Content-Type'), 'application/json');
   assert.equal(headers.get('X-Request-ID'), 'browser-request.123');
+  assert.equal(headers.get('X-Real-IP'), '203.0.113.13');
+  assert.equal(headers.get('X-Forwarded-For'), '203.0.113.13');
 });
 
 test('rejects cross-origin and unsupported-media requests before upstream access', async () => {
@@ -88,6 +90,7 @@ function browserRequest(method: 'GET' | 'POST', body?: string, contentType?: str
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Dest': 'empty',
     'X-Request-ID': 'browser-request.123',
+    'X-Real-IP': '203.0.113.13',
   });
   if (contentType) headers.set('Content-Type', contentType);
   return new Request('https://web.example.test/api/site-submissions/create', {

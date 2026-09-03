@@ -9,14 +9,17 @@ import { buildSiteDirectorySearchParams } from './site-directory.shared';
 
 export function loadSiteDirectory(
   query: SiteDirectoryQuery,
-  signal?: AbortSignal,
+  request?: Request,
 ): Promise<ApiJsonResult<SiteDirectoryView>> {
   const parameters = buildSiteDirectorySearchParams(query);
-  return fetchApiJson<SiteDirectoryView>(`/sites?${parameters.toString()}`, { signal });
+  return fetchApiJson<SiteDirectoryView>(`/sites?${parameters.toString()}`, {
+    request,
+    signal: request?.signal,
+  });
 }
 
 export function loadSiteDirectoryOptions(
-  signal?: AbortSignal,
+  request?: Request,
 ): Promise<ApiJsonResult<SiteDirectoryOptions>> {
-  return fetchApiJson<SiteDirectoryOptions>('/sites/options', { signal });
+  return fetchApiJson<SiteDirectoryOptions>('/sites/options', { request, signal: request?.signal });
 }

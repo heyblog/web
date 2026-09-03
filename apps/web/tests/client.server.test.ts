@@ -12,6 +12,9 @@ const configuration = {
 test('fetches JSON through the authenticated Web service boundary', async () => {
   let upstreamRequest: { url: string; init?: RequestInit } | undefined;
   const result = await fetchApiJson<{ siteCount: number }>('/home', {
+    request: new Request('https://web.example.test/', {
+      headers: { 'X-Real-IP': '203.0.113.11' },
+    }),
     loadConfig: () => configuration,
     fetch: async (input, init) => {
       upstreamRequest = { url: input.toString(), init };
@@ -26,6 +29,8 @@ test('fetches JSON through the authenticated Web service boundary', async () => 
   const headers = new Headers(upstreamRequest?.init?.headers);
   assert.equal(headers.get('Accept'), 'application/json');
   assert.equal(headers.get(apiWebTokenHeader), configuration.apiWebToken);
+  assert.equal(headers.get('X-Real-IP'), '203.0.113.11');
+  assert.equal(headers.get('X-Forwarded-For'), '203.0.113.11');
 });
 
 test('maps accepted API statuses without exposing upstream details', async () => {

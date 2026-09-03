@@ -8,7 +8,7 @@ import SiteProfileRoute from '@/components/site-profile/SiteProfileRoute.astro';
 export const prerender = false;
 
 const identifier = Astro.params.identifier ?? '';
-const loaded = await loadSiteByIdentifier(identifier, Astro.request.signal);
+const loaded = await loadSiteByIdentifier(identifier, Astro.request);
 const redirectPath = canonicalSiteRedirectPath(identifier, loaded);
 if (redirectPath) {
   return Astro.redirect(redirectPath, 308);

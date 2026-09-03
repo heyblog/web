@@ -120,9 +120,17 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   HTTP calls.
 - Browser authentication routes under `/auth/*` are web-internal and require `X-HeyBlog-Web-Token`.
   Local authentication uses Argon2id passwords, six-digit SES email verification, one-time password
-  reset links, short-lived access JWTs, and Redis-backed rotating refresh sessions. Both tokens are
-  delivered only through HttpOnly SameSite=Lax cookies; account security changes increment
-  `auth_version` to invalidate existing sessions.
+  reset links, short-lived access JWTs, and Redis-backed rotating refresh sessions. Verification
+  codes expire after ten minutes and password-reset links expire after thirty minutes. Register,
+  resend-verification, and forgot-password requests retain their route/IP limits and share Redis
+  mail controls: one request per normalized email per minute, ten per normalized email per hour,
+  and five hundred globally per hour. Both session tokens are delivered only through HttpOnly
+  SameSite=Lax cookies; account security changes increment `auth_version` to invalidate existing
+  sessions.
+- In production, Nginx accepts the EdgeOne-derived client address and the Web service forwards one
+  validated address to the API. Configure `http.trusted_proxies` with only the private Web/API
+  Compose subnet, keep it synchronized with `HEYBLOG_NETWORK_SUBNET`, and restrict the public
+  origin to EdgeOne so clients cannot forge `EO-Connecting-IP`.
 - GitHub OAuth state is single-use in Redis. Login may match only a verified primary GitHub email;
   binding requires that email to match the authenticated account, and unbinding must leave a local
   password login method.

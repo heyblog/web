@@ -96,13 +96,15 @@ export const POST: APIRoute = async ({ params, request }) => {
         ? '/verify-email'
         : path === 'register'
           ? '/register'
-          : path.startsWith('password/reset')
-            ? '/reset-password'
-            : path === 'password' || path === 'github/unbind'
-              ? '/dashboard'
-              : path.includes('verify')
-                ? '/verify-email'
-                : '/login';
+          : path === 'password/forgot'
+            ? '/forgot-password'
+            : path.startsWith('password/reset')
+              ? '/reset-password'
+              : path === 'password' || path === 'github/unbind'
+                ? '/dashboard'
+                : path.includes('verify')
+                  ? '/verify-email'
+                  : '/login';
     const parameters = new URLSearchParams({ error: code });
     const email = optionalField(form, 'email');
     if (email) parameters.set('email', email);

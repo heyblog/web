@@ -29,6 +29,7 @@ type Dependencies struct {
 	Redis              *redis.Client
 	MailSender         mail.Sender
 	VerificationMailer *mail.VerificationMailer
+	GithubHTTPClient   *http.Client
 	Config             Config
 }
 
@@ -50,8 +51,12 @@ type sessionRecord struct {
 var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
 
 func NewService(deps Dependencies) *Service {
+	httpClient := deps.GithubHTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 15 * time.Second}
+	}
 	return &Service{repo: newRepository(deps.Pool), redis: deps.Redis, mailer: deps.VerificationMailer,
-		sender: deps.MailSender, config: deps.Config, httpClient: &http.Client{Timeout: 15 * time.Second}}
+		sender: deps.MailSender, config: deps.Config, httpClient: httpClient}
 }
 
 func (service *Service) Register(ctx context.Context, username, email, password string) error {

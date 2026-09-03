@@ -82,7 +82,7 @@ auth:
   cookie_domain: ""
   access_ttl: 6h
   refresh_ttl: 168h
-  verification_ttl: 15m
-  password_reset_ttl: 1h
+  verification_ttl: 10m
+  password_reset_ttl: 30m
   github:
     scope: read:user,user:email

@@ -5,7 +5,7 @@ import SiteProfileRoute from '@/components/site-profile/SiteProfileRoute.astro';
 export const prerender = false;
 
 const customID = Astro.params.customId ?? '';
-const loaded = await loadSiteByCustomID(customID, Astro.request.signal);
+const loaded = await loadSiteByCustomID(customID, Astro.request);
 if (loaded.kind === 'success') {
   return Astro.redirect(`/site/${encodeURIComponent(loaded.data.shortId)}`, 308);
 }

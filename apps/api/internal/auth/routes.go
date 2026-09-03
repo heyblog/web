@@ -48,6 +48,9 @@ func RegisterRoutes(router *gin.Engine, service *Service, webToken string) error
 		if err := decodeJSON(ctx.Request, &payload); err != nil {
 			return httpapi.Response{}, err
 		}
+		if err := enforceMailRequest(ctx, limiter, payload.Email); err != nil {
+			return httpapi.Response{}, err
+		}
 		if err := service.Register(ctx.Request.Context(), payload.Username, payload.Email, payload.Password); err != nil {
 			return httpapi.Response{}, mapError(err)
 		}
@@ -108,6 +111,9 @@ func RegisterRoutes(router *gin.Engine, service *Service, webToken string) error
 		if err := decodeJSON(ctx.Request, &payload); err != nil {
 			return httpapi.Response{}, err
 		}
+		if err := enforceMailRequest(ctx, limiter, payload.Email); err != nil {
+			return httpapi.Response{}, err
+		}
 		if err := service.ResendVerification(ctx.Request.Context(), payload.Email); err != nil {
 			return httpapi.Response{}, mapError(err)
 		}
@@ -116,6 +122,9 @@ func RegisterRoutes(router *gin.Engine, service *Service, webToken string) error
 	register(http.MethodPost, "/auth/password/forgot", func(ctx *httpapi.Context) (httpapi.Response, error) {
 		var payload emailRequest
 		if err := decodeJSON(ctx.Request, &payload); err != nil {
+			return httpapi.Response{}, err
+		}
+		if err := enforceMailRequest(ctx, limiter, payload.Email); err != nil {
 			return httpapi.Response{}, err
 		}
 		if err := service.ForgotPassword(ctx.Request.Context(), payload.Email); err != nil {

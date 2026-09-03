@@ -4,10 +4,11 @@ interface Props {
   kind?: 'error' | 'success';
 }
 const { message, kind = 'error' } = Astro.props;
+const hasContent = Boolean(message) || Astro.slots.has('default');
 ---
 
 {
-  message ? (
+  hasContent ? (
     <p
       class:list={[
         'mb-5 rounded-sm border px-3 py-2.5 text-sm/normal',
@@ -17,7 +18,7 @@ const { message, kind = 'error' } = Astro.props;
       ]}
       role={kind === 'error' ? 'alert' : 'status'}
     >
-      {message}
+      {Astro.slots.has('default') ? <slot /> : message}
     </p>
   ) : null
 }

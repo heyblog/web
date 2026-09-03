@@ -20,7 +20,7 @@ const mockMode = parseHomeMockMode(
   import.meta.env.DEV || import.meta.env.MODE === 'test',
 );
 const [homeResult, blogs, memberDirectory] = await Promise.all([
-  mockMode ? Promise.resolve(null) : loadHome(Astro.request.signal),
+  mockMode ? Promise.resolve(null) : loadHome(Astro.request),
   readBlogSummaries(),
   readMemberDirectory(),
 ]);

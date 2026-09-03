@@ -4,6 +4,8 @@ import type { APIRoute } from 'astro';
 
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
 
+import { forwardClientAddress } from './client-ip.server.ts';
+
 export const apiWebTokenHeader = 'X-HeyBlog-Web-Token';
 
 type ForwardableRequestHeader =
@@ -118,6 +120,7 @@ export async function handleApiRequest(
       upstreamHeaders.set(header, value);
     }
   }
+  forwardClientAddress(request, upstreamHeaders);
 
   let upstreamResponse: Response;
   try {

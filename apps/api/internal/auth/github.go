@@ -106,6 +106,9 @@ func (service *Service) githubLogin(ctx context.Context, profile githubProfile, 
 	var record dbUser
 	if err == nil {
 		record, err = service.repo.userByID(ctx, oauth.UserID)
+		if err == nil && record.VerifiedAt == nil && record.Email != nil && normalizeEmail(*record.Email) == email {
+			err = service.repo.verifyEmail(ctx, record.ID)
+		}
 	} else if !isNotFound(err) {
 		return User{}, err
 	}
@@ -117,6 +120,9 @@ func (service *Service) githubLogin(ctx context.Context, profile githubProfile, 
 				return User{}, usernameErr
 			}
 			record, err = service.repo.createUser(ctx, username, email, profile.NameOrLogin(), nil)
+			if err == nil {
+				err = service.repo.verifyEmail(ctx, record.ID)
+			}
 		} else if err == nil {
 			if err = service.repo.verifyEmail(ctx, record.ID); err != nil {
 				return User{}, err

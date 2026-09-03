@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
+import { forwardClientAddress } from '../api/client-ip.server.ts';
 
 const requestIDPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$/;
 
@@ -32,6 +33,7 @@ export async function forwardSiteSubmission(
     'X-HeyBlog-Web-Token': configuration.apiWebToken,
     'X-Request-ID': requestID,
   });
+  forwardClientAddress(request, headers);
   let body: BodyInit | undefined;
   if (method === 'POST') {
     const mediaType = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();

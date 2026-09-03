@@ -66,6 +66,36 @@ func TestRateLimitMiddlewareFailsClosed(t *testing.T) {
 	}
 }
 
+func TestEnforceRateLimitReturnsRetryMetadataForDeniedIdentifier(t *testing.T) {
+	t.Parallel()
+
+	limiter := limiterFunc(func(context.Context, string, ratelimit.Policy) (ratelimit.Decision, error) {
+		return ratelimit.Decision{
+			Allowed:    false,
+			Limit:      1,
+			Remaining:  0,
+			RetryAfter: 59 * time.Second,
+			ResetAfter: time.Minute,
+		}, nil
+	})
+	router := gin.New()
+	router.Use(errorBoundary(slog.New(slog.NewTextHandler(io.Discard, nil))))
+	router.GET("/limited", Adapt(func(ctx *Context) (Response, error) {
+		if err := EnforceRateLimit(ctx, limiter, "reader@example.test", ratelimit.Policy{
+			Name: "mail", Capacity: 1, RefillTokens: 1, RefillInterval: time.Minute,
+		}); err != nil {
+			return Response{}, err
+		}
+		return NoContent(http.StatusNoContent), nil
+	}))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/limited", nil))
+
+	if response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") != "59" {
+		t.Fatalf("response = (%d, %v), want 429 with retry metadata", response.Code, response.Header())
+	}
+}
+
 func rateLimitTestRouter(t *testing.T, limiter RateLimiter, endpoint Endpoint) *gin.Engine {
 	t.Helper()
 

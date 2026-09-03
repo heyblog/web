@@ -33,7 +33,7 @@ test('auth API forwards only service credentials and browser cookies', async () 
     // When
     const response = await requestAuthAPI(
       new Request('https://web.example.test/auth/me', {
-        headers: { Cookie: 'heyblog_access_token=current' },
+        headers: { Cookie: 'heyblog_access_token=current', 'X-Real-IP': '203.0.113.10' },
       }),
       '/auth/me',
     );
@@ -45,6 +45,8 @@ test('auth API forwards only service credentials and browser cookies', async () 
       upstreamRequest?.headers.get('X-HeyBlog-Web-Token'),
       authEnvironment.API_WEB_TOKEN,
     );
+    assert.equal(upstreamRequest?.headers.get('X-Real-IP'), '203.0.113.10');
+    assert.equal(upstreamRequest?.headers.get('X-Forwarded-For'), '203.0.113.10');
     assert.deepEqual(response.headers.getSetCookie(), [
       'heyblog_access_token=renewed; Path=/; HttpOnly',
     ]);

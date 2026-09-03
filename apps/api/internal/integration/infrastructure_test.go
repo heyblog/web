@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -344,6 +345,12 @@ func (sender *authMailRecorder) Send(_ context.Context, message mail.Message) er
 	return nil
 }
 
+type githubRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (function githubRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return function(request)
+}
+
 func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	container, err := tcredis.Run(ctx, "redis:8.4-alpine")
@@ -366,11 +373,26 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	t.Cleanup(func() { _ = redisClient.Close() })
 
 	recorder := &authMailRecorder{}
+	githubClient := &http.Client{Transport: githubRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body := `{"access_token":"github-integration-token"}`
+		switch request.URL.Path {
+		case "/user":
+			body = `{"id":4242,"login":"integration-oauth","name":"Integration OAuth","avatar_url":"https://avatars.example.test/4242"}`
+		case "/user/emails":
+			body = `[{"email":"github-integration@example.test","primary":true,"verified":true}]`
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(body)),
+		}, nil
+	})}
 	service := auth.NewService(auth.Dependencies{Pool: pool, Redis: redisClient, MailSender: recorder,
-		VerificationMailer: mail.NewVerificationMailer(recorder, "verify@example.test"), Config: auth.Config{
+		VerificationMailer: mail.NewVerificationMailer(recorder, "verify@example.test", 10*time.Minute), GithubHTTPClient: githubClient, Config: auth.Config{
 			AccessSecret: "integration-access-secret", RefreshSecret: "integration-refresh-secret",
 			AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, VerificationTTL: 10 * time.Minute,
-			PasswordResetTTL: 10 * time.Minute, WebBaseURL: "http://web.example.test", MailFrom: "verify@example.test",
+			PasswordResetTTL: 30 * time.Minute, WebBaseURL: "http://web.example.test", MailFrom: "verify@example.test",
+			GithubClientID: "github-client-id", GithubClientSecret: "github-client-secret", GithubScope: "read:user,user:email",
 		}})
 	const email = "auth-integration@example.test"
 	if err := service.Register(ctx, "auth_integration", email, "correct-password"); err != nil {
@@ -417,7 +439,11 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("request password reset: %v", err)
 	}
 	resetText := recorder.messages[len(recorder.messages)-1].Text
-	resetToken := strings.TrimSpace(resetText[strings.LastIndex(resetText, "token=")+len("token="):])
+	resetMatch := regexp.MustCompile(`token=([^\s]+)`).FindStringSubmatch(resetText)
+	resetToken := ""
+	if len(resetMatch) == 2 {
+		resetToken = resetMatch[1]
+	}
 	if resetToken == "" {
 		t.Fatal("password reset email did not contain a token")
 	}
@@ -433,6 +459,31 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	user, _, err = service.Login(ctx, email, "new-correct-password")
 	if err != nil {
 		t.Fatalf("login with reset password: %v", err)
+	}
+
+	_, stateToken, err := service.GithubStart(ctx, "/dashboard", false)
+	if err != nil {
+		t.Fatalf("start GitHub login: %v", err)
+	}
+	githubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/github/callback", nil)
+	githubUser, githubTokens, _, err := service.GithubCallback(ctx, githubRequest, "oauth-code", stateToken, stateToken)
+	if err != nil {
+		t.Fatalf("complete GitHub login: %v", err)
+	}
+	if !githubUser.EmailVerified {
+		t.Fatal("new GitHub user email was not marked verified")
+	}
+	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/auth/password", nil)
+	setPasswordRequest.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: githubTokens[0]})
+	if _, _, err := service.SetPassword(ctx, setPasswordRequest, "", "github-local-password"); err != nil {
+		t.Fatalf("set GitHub user password: %v", err)
+	}
+	messageCount := len(recorder.messages)
+	if err := service.ForgotPassword(ctx, "github-integration@example.test"); err != nil {
+		t.Fatalf("request GitHub user password reset: %v", err)
+	}
+	if len(recorder.messages) != messageCount+1 || !strings.Contains(recorder.messages[len(recorder.messages)-1].Text, "30 分钟") {
+		t.Fatalf("GitHub password reset messages = %#v, want one reset email with configured validity", recorder.messages[messageCount:])
 	}
 
 	admin, err := dbgen.New(pool).CreateUser(ctx, dbgen.CreateUserParams{Email: "sysadmin@example.test", Username: "auth_sysadmin", DisplayName: "Auth Sysadmin"})

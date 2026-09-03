@@ -15,8 +15,8 @@ export const prerender = false;
 
 const query = parseSiteDirectorySearchParams(Astro.url.searchParams);
 const [directoryResult, optionsResult] = await Promise.all([
-  loadSiteDirectory(query, Astro.request.signal),
-  loadSiteDirectoryOptions(Astro.request.signal),
+  loadSiteDirectory(query, Astro.request),
+  loadSiteDirectoryOptions(Astro.request),
 ]);
 const fallbackView: SiteDirectoryView = {
   items: [],

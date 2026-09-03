@@ -89,7 +89,7 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		Database:           pool,
 		Redis:              redisClient,
 		MailSender:         mailSender,
-		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address),
+		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address, configuration.Auth.VerificationTTL),
 		views:              publicview.New(dbgen.New(pool)),
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)

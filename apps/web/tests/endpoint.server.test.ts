@@ -45,6 +45,8 @@ test('forwards an allowed page fetch with only declared headers', async () => {
   assert.equal(upstreamRequest?.url, 'http://api.internal:10201/ping');
   const headers = new Headers(upstreamRequest?.init?.headers);
   assert.equal(headers.get(apiWebTokenHeader), configuration.apiWebToken);
+  assert.equal(headers.get('X-Real-IP'), '203.0.113.12');
+  assert.equal(headers.get('X-Forwarded-For'), '203.0.113.12');
   assert.equal(headers.get('Cookie'), null);
   assert.equal(response.headers.get('Content-Encoding'), null);
   assert.equal(response.headers.get('Content-Length'), null);
@@ -295,6 +297,7 @@ test('public policy rejects undeclared origins and preflight headers', async () 
 
 function pageRequest(url = 'https://web.example.test/api/ping', init: RequestInit = {}): Request {
   const headers = new Headers(init.headers);
+  headers.set('X-Real-IP', '203.0.113.12');
   headers.set('Sec-Fetch-Site', 'same-origin');
   headers.set('Sec-Fetch-Mode', 'cors');
   headers.set('Sec-Fetch-Dest', 'empty');

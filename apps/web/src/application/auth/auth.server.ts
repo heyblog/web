@@ -1,4 +1,5 @@
 import { loadWebServerConfig } from '../../config.server.ts';
+import { forwardClientAddress } from '../api/client-ip.server.ts';
 
 import type { ProblemDetails, SessionUser } from './auth.types';
 
@@ -22,6 +23,7 @@ export async function requestAuthAPI(
   const cookie = request.headers.get('cookie');
   if (cookie) headers.set('Cookie', cookie);
   if (init.body) headers.set('Content-Type', 'application/json');
+  forwardClientAddress(request, headers);
 
   let upstream: Response;
   try {

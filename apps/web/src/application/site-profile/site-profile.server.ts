@@ -52,22 +52,28 @@ function assertNever(value: never): never {
 
 export function loadSiteByIdentifier(
   identifier: string,
-  signal?: AbortSignal,
+  request?: Request,
 ): Promise<ApiJsonResult<SiteProfile>> {
   if (!shortIdPattern.test(identifier) && !uuidPattern.test(identifier)) {
     return Promise.resolve({ kind: 'not-found' });
   }
-  return fetchApiJson<SiteProfile>(`/sites/id/${encodeURIComponent(identifier)}`, { signal });
+  return fetchApiJson<SiteProfile>(`/sites/id/${encodeURIComponent(identifier)}`, {
+    request,
+    signal: request?.signal,
+  });
 }
 
 export function loadSiteByCustomID(
   customID: string,
-  signal?: AbortSignal,
+  request?: Request,
 ): Promise<ApiJsonResult<SiteProfile>> {
   if (!customIdPattern.test(customID)) {
     return Promise.resolve({ kind: 'not-found' });
   }
-  return fetchApiJson<SiteProfile>(`/sites/custom/${encodeURIComponent(customID)}`, { signal });
+  return fetchApiJson<SiteProfile>(`/sites/custom/${encodeURIComponent(customID)}`, {
+    request,
+    signal: request?.signal,
+  });
 }
 
 export function canonicalSitePath(profile: SiteProfile): string {

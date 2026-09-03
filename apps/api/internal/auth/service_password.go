@@ -32,7 +32,8 @@ func (service *Service) ForgotPassword(ctx context.Context, email string) error 
 		return newAuthError("mail_unavailable", 503, "email delivery is unavailable")
 	}
 	url := strings.TrimRight(service.config.WebBaseURL, "/") + "/reset-password?token=" + token
-	if err := service.sender.Send(ctx, mail.Message{From: service.config.MailFrom, To: email, Subject: "HeyBlog 密码重置", Text: "请使用以下链接重置密码：\n\n" + url}); err != nil {
+	text := "请使用以下链接重置密码：\n\n" + url + "\n\n链接将在 " + mail.FormatValidity(service.config.PasswordResetTTL) + "后过期。"
+	if err := service.sender.Send(ctx, mail.Message{From: service.config.MailFrom, To: email, Subject: "HeyBlog 密码重置", Text: text}); err != nil {
 		return repositoryError("send reset email", err)
 	}
 	return nil

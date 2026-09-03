@@ -1,5 +1,6 @@
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
 
+import { forwardClientAddress } from './client-ip.server.ts';
 import { apiWebTokenHeader } from './endpoint.server.ts';
 
 export type ApiJsonResult<T> =
@@ -14,6 +15,7 @@ export interface ApiJsonDependencies {
 }
 
 interface ApiJsonOptions extends ApiJsonDependencies {
+  request?: Request;
   signal?: AbortSignal;
   timeoutMs?: number;
 }
@@ -37,12 +39,14 @@ export async function fetchApiJson<T>(
   const signal = options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal;
   let response: Response;
   try {
+    const headers = new Headers({
+      Accept: 'application/json',
+      [apiWebTokenHeader]: configuration.apiWebToken,
+    });
+    if (options.request) forwardClientAddress(options.request, headers);
     response = await (options.fetch ?? fetch)(new URL(path, configuration.apiBaseUrl), {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        [apiWebTokenHeader]: configuration.apiWebToken,
-      },
+      headers,
       redirect: 'error',
       signal,
     });

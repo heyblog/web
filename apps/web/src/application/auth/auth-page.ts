@@ -18,6 +18,7 @@ const messages: Readonly<Record<string, string>> = {
   password_required: '解绑 GitHub 前请先设置本地密码。',
   forbidden: '当前账号没有执行此操作的权限。',
   mail_unavailable: '邮件服务暂时不可用，请稍后在验证页面重新发送。',
+  rate_limited: '请求过于频繁，请稍后再试。',
   bad_gateway: '登录服务暂时不可用，请稍后重试。',
   request_failed: '操作未完成，请检查输入后重试。',
 };
@@ -28,9 +29,9 @@ export function authErrorMessage(code: string | null): string | null {
 
 export function authStatusMessage(status: string | null): string | null {
   if (status === 'verified') return '邮箱验证成功，现在可以登录。';
-  if (status === 'reset-sent') return '如果该邮箱对应可用账号，重置链接已发送。';
+  if (status === 'reset-sent') return '如果该邮箱对应可用账号，重置链接已发送，有效期为 30 分钟。';
   if (status === 'password-reset') return '密码已更新，请使用新密码登录。';
-  if (status === 'verification-sent') return '验证码已发送，请检查邮箱。';
+  if (status === 'verification-sent') return '验证码已发送，有效期为 10 分钟，请检查邮箱。';
   if (status === 'password-updated') return '密码已更新。';
   if (status === 'github-updated') return 'GitHub 绑定状态已更新。';
   return null;

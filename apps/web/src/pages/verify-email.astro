@@ -8,7 +8,11 @@ export const prerender = false;
 const email = Astro.url.searchParams.get('email')?.trim() ?? '';
 ---
 
-<AuthLayout title="验证邮箱 | HeyBlog" heading="验证邮箱" description="输入邮件中的六位验证码。">
+<AuthLayout
+  title="验证邮箱 | HeyBlog"
+  heading="验证邮箱"
+  description="输入邮件中的六位验证码，10 分钟内有效。"
+>
   <AuthNotice message={authErrorMessage(Astro.url.searchParams.get('error'))} />
   <AuthNotice message={authStatusMessage(Astro.url.searchParams.get('status'))} kind="success" />
   <form class="grid gap-4" method="post" action="/auth/verify-email">

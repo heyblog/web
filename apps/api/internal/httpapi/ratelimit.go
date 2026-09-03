@@ -16,28 +16,39 @@ type RateLimiter interface {
 func RateLimit(limiter RateLimiter, policy ratelimit.Policy) Middleware {
 	return func(next Endpoint) Endpoint {
 		return func(ctx *Context) (Response, error) {
-			decision, err := limiter.Allow(ctx.Request.Context(), ctx.ClientIP(), policy)
-			if err != nil {
-				return Response{}, apperror.Wrap(
-					err,
-					apperror.KindUnavailable,
-					apperror.CodeServiceUnavailable,
-					"request rate limit is temporarily unavailable",
-					"apply request rate limit",
-				)
-			}
-			setRateLimitHeaders(ctx, decision)
-			if !decision.Allowed {
-				ctx.Header("Retry-After", durationSeconds(decision.RetryAfter))
-				return Response{}, apperror.New(
-					apperror.KindRateLimited,
-					apperror.CodeRateLimited,
-					"request rate limit exceeded",
-				)
+			if err := EnforceRateLimit(ctx, limiter, ctx.ClientIP(), policy); err != nil {
+				return Response{}, err
 			}
 			return next(ctx)
 		}
 	}
+}
+
+func EnforceRateLimit(ctx *Context, limiter RateLimiter, identifier string, policy ratelimit.Policy) error {
+	decision, err := limiter.Allow(ctx.Request.Context(), identifier, policy)
+	return EnforceRateLimitDecision(ctx, decision, err)
+}
+
+func EnforceRateLimitDecision(ctx *Context, decision ratelimit.Decision, err error) error {
+	if err != nil {
+		return apperror.Wrap(
+			err,
+			apperror.KindUnavailable,
+			apperror.CodeServiceUnavailable,
+			"request rate limit is temporarily unavailable",
+			"apply request rate limit",
+		)
+	}
+	setRateLimitHeaders(ctx, decision)
+	if decision.Allowed {
+		return nil
+	}
+	ctx.Header("Retry-After", durationSeconds(decision.RetryAfter))
+	return apperror.New(
+		apperror.KindRateLimited,
+		apperror.CodeRateLimited,
+		"request rate limit exceeded",
+	)
 }
 
 func setRateLimitHeaders(ctx *Context, decision ratelimit.Decision) {

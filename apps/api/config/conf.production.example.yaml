@@ -1,6 +1,12 @@
 # Deploy as config/conf.yaml beside the production binary.
 mode: production
 
+http:
+  # Trust only the private Compose subnet used by the Web reverse proxy.
+  # Keep this synchronized with HEYBLOG_NETWORK_SUBNET.
+  trusted_proxies:
+    - 172.31.0.0/24
+
 auth:
   # Public HTTPS origin reached by browsers, not the Web container address.
   web_base_url: https://www.heyblog.net
