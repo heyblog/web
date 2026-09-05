@@ -164,23 +164,24 @@ func RegisterRoutes(router *gin.Engine, service *Service, webToken string) error
 		if err != nil {
 			return httpapi.Response{}, mapError(err)
 		}
-		stateCookie := authCookie(service.config, "heyblog_github_state", state, "/auth/github", 600, time.Now().Add(10*time.Minute))
+		stateCookie := authCookie(service.config, githubStateCookieName(state), state, "/auth/github", 600, time.Now().Add(10*time.Minute))
 		response := httpapi.NoContent(http.StatusFound).WithHeader("Location", target).WithHeader("Set-Cookie", stateCookie.String())
 		return response.WithHeader("Cache-Control", "no-store"), nil
 	})
 	register(http.MethodGet, "/auth/github/callback", func(ctx *httpapi.Context) (httpapi.Response, error) {
-		stateCookie, _ := ctx.Request.Cookie("heyblog_github_state")
-		cookieValue := ""
-		if stateCookie != nil {
-			cookieValue = stateCookie.Value
-		}
-		_, cookies, next, err := service.GithubCallback(ctx.Request.Context(), ctx.Request, ctx.Request.URL.Query().Get("code"), ctx.Request.URL.Query().Get("state"), cookieValue)
+		stateToken := ctx.Request.URL.Query().Get("state")
+		cookieValue, legacyCookie := readGithubStateCookie(ctx.Request, stateToken)
+		_, cookies, next, err := service.GithubCallback(ctx.Request.Context(), ctx.Request, ctx.Request.URL.Query().Get("code"), stateToken, cookieValue)
 		if err != nil {
 			return httpapi.Response{}, mapError(err)
 		}
 		target := strings.TrimRight(service.config.WebBaseURL, "/") + next
-		clearStateCookie := authCookie(service.config, "heyblog_github_state", "", "/auth/github", -1, time.Unix(1, 0))
+		clearStateCookie := authCookie(service.config, githubStateCookieName(stateToken), "", "/auth/github", -1, time.Unix(1, 0))
 		response := httpapi.NoContent(http.StatusFound).WithHeader("Location", target).WithHeader("Set-Cookie", clearStateCookie.String())
+		if legacyCookie {
+			clearLegacyStateCookie := authCookie(service.config, legacyGithubStateCookieName, "", "/auth/github", -1, time.Unix(1, 0))
+			response = response.WithHeader("Set-Cookie", clearLegacyStateCookie.String())
+		}
 		return addCookies(response, cookies, service.config), nil
 	})
 	register(http.MethodPost, "/auth/github/unbind", func(ctx *httpapi.Context) (httpapi.Response, error) {

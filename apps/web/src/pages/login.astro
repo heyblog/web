@@ -55,6 +55,7 @@ const status = authStatusMessage(Astro.url.searchParams.get('status'));
   <a
     class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm border border-line-strong bg-surface px-4 text-sm font-semibold text-fg transition-colors hover:bg-subtle"
     href={`/auth/github/start?next=${encodeURIComponent(next)}`}
+    data-astro-prefetch="false"
   >
     <IconBrandGithub size={18} stroke={1.8} aria-hidden="true" /> 使用 GitHub 登录
   </a>

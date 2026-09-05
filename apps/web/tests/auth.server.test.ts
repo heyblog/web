@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -154,4 +155,14 @@ test('OAuth callback maps the API redirect back to the current Web origin', () =
     resolveOAuthLocation(request, 'github/callback', 'http://api.internal:10201/dashboard'),
     'http://127.0.0.1:10101/dashboard',
   );
+});
+
+test('OAuth entry links opt out of Astro prefetch', async () => {
+  const [loginSource, dashboardSource] = await Promise.all([
+    readFile(new URL('../src/pages/login.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/dashboard.astro', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(loginSource, /data-astro-prefetch="false"/u);
+  assert.match(dashboardSource, /data-astro-prefetch="false"/u);
 });

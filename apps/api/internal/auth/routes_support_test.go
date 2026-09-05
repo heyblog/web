@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -39,5 +40,39 @@ func TestAuthCookieUsesConfiguredLifetimeAndDomain(t *testing.T) {
 	cookie := authCookie(Config{WebBaseURL: "https://web.example.test", CookieDomain: ".example.test"}, "token", "value", "/", 3600, expires)
 	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.Domain != ".example.test" || cookie.MaxAge != 3600 || !cookie.Expires.Equal(expires) {
 		t.Fatalf("authCookie() = %#v", cookie)
+	}
+}
+
+func TestGithubStateCookieNameIsScopedToState(t *testing.T) {
+	first := githubStateCookieName("first-state")
+	second := githubStateCookieName("second-state")
+
+	if first == second {
+		t.Fatalf("state cookie names collide: %q", first)
+	}
+	if first != "heyblog_github_state_first-state" || second != "heyblog_github_state_second-state" {
+		t.Fatalf("state cookie names = (%q, %q), want state-scoped names", first, second)
+	}
+}
+
+func TestReadGithubStateCookiePrefersMatchingStateCookie(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/auth/github/callback?state=first-state", nil)
+	request.Header.Set("Cookie", githubStateCookieName("first-state")+"=first-state; "+githubStateCookieName("second-state")+"=second-state")
+
+	value, legacy := readGithubStateCookie(request, "first-state")
+
+	if value != "first-state" || legacy {
+		t.Fatalf("readGithubStateCookie() = (%q, %t), want matching state cookie", value, legacy)
+	}
+}
+
+func TestReadGithubStateCookieFallsBackToLegacyCookie(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/auth/github/callback?state=state", nil)
+	request.Header.Set("Cookie", legacyGithubStateCookieName+"=state")
+
+	value, legacy := readGithubStateCookie(request, "state")
+
+	if value != "state" || !legacy {
+		t.Fatalf("readGithubStateCookie() = (%q, %t), want legacy cookie", value, legacy)
 	}
 }

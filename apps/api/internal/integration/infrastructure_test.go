@@ -461,17 +461,27 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("login with reset password: %v", err)
 	}
 
-	_, stateToken, err := service.GithubStart(ctx, "/dashboard", false)
+	_, firstStateToken, err := service.GithubStart(ctx, "/dashboard", false)
 	if err != nil {
-		t.Fatalf("start GitHub login: %v", err)
+		t.Fatalf("start first GitHub login: %v", err)
 	}
-	githubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/github/callback", nil)
-	githubUser, githubTokens, _, err := service.GithubCallback(ctx, githubRequest, "oauth-code", stateToken, stateToken)
+	_, secondStateToken, err := service.GithubStart(ctx, "/dashboard", false)
 	if err != nil {
-		t.Fatalf("complete GitHub login: %v", err)
+		t.Fatalf("start second GitHub login: %v", err)
+	}
+	firstGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/github/callback", nil)
+	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_github_state_" + firstStateToken, Value: firstStateToken})
+	githubUser, githubTokens, _, err := service.GithubCallback(ctx, firstGithubRequest, "oauth-code", firstStateToken, firstStateToken)
+	if err != nil {
+		t.Fatalf("complete first GitHub login: %v", err)
 	}
 	if !githubUser.EmailVerified {
 		t.Fatal("new GitHub user email was not marked verified")
+	}
+	secondGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/github/callback", nil)
+	secondGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_github_state_" + secondStateToken, Value: secondStateToken})
+	if _, _, _, err := service.GithubCallback(ctx, secondGithubRequest, "oauth-code", secondStateToken, secondStateToken); err != nil {
+		t.Fatalf("complete second GitHub login: %v", err)
 	}
 	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/auth/password", nil)
 	setPasswordRequest.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: githubTokens[0]})

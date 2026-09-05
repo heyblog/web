@@ -13,6 +13,22 @@ import (
 	"heyblog-api/internal/mail"
 )
 
+const legacyGithubStateCookieName = "heyblog_github_state"
+
+func githubStateCookieName(stateToken string) string {
+	return legacyGithubStateCookieName + "_" + stateToken
+}
+
+func readGithubStateCookie(request *http.Request, stateToken string) (string, bool) {
+	if stateCookie, err := request.Cookie(githubStateCookieName(stateToken)); err == nil {
+		return stateCookie.Value, false
+	}
+	if stateCookie, err := request.Cookie(legacyGithubStateCookieName); err == nil {
+		return stateCookie.Value, true
+	}
+	return "", false
+}
+
 type loginRequest struct{ Identifier, Password string }
 type registerRequest struct{ Username, Email, Password string }
 type verifyRequest struct{ Email, Code string }
