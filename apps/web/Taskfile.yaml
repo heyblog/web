@@ -27,6 +27,11 @@ tasks:
     cmds:
       - pnpm test
 
+  smoke:
+    desc: Test the built standalone Web server
+    cmds:
+      - pnpm run test:standalone
+
   typecheck:
     desc: Run Astro check
     cmds:
@@ -67,6 +72,7 @@ tasks:
       - task: test
       - task: check
       - task: build
+      - task: smoke
 
   prepare:
     desc: Sync web content from heyblog/.github main

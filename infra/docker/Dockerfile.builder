@@ -18,12 +18,12 @@ RUN mkdir -p "${NVM_DIR}" \
       --output /tmp/nvm-install.sh \
     && PROFILE=/dev/null NVM_DIR="${NVM_DIR}" bash /tmp/nvm-install.sh \
     && source "${NVM_DIR}/nvm.sh" \
-    && nvm install 24.19.0 \
-    && nvm alias default 24.19.0 \
+    && nvm install 24.21.0 \
+    && nvm alias default 24.21.0 \
     && nvm cache clear \
     && rm /tmp/nvm-install.sh
 
-ENV PATH="${NVM_DIR}/versions/node/v24.19.0/bin:${PATH}"
+ENV PATH="${NVM_DIR}/versions/node/v24.21.0/bin:${PATH}"
 
 RUN corepack enable
 
@@ -44,7 +44,7 @@ RUN go_filename="go1.26.6.linux-amd64.tar.gz" \
     && rm /tmp/go.tar.gz
 
 ENV GOPATH=/go \
-    PATH="/usr/local/nvm/versions/node/v24.19.0/bin:/usr/local/go/bin:/go/bin:${PATH}"
+    PATH="/usr/local/nvm/versions/node/v24.21.0/bin:/usr/local/go/bin:/go/bin:${PATH}"
 
 COPY .task-version /tmp/task-version
 

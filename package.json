@@ -2,7 +2,7 @@
   "name": "heyblog-repo",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee",
+  "packageManager": "pnpm@12.4.0+sha512.37536c26ed40ab4134b6511e09f6b27f3ebb45687468f2406ca3805279a4e5ca158c1931350ad9774d6ab2108d71b3dbaeb39943159294375e4d053e8e05685c",
   "scripts": {
     "format": "prettier --config ./packages/node/configs/prettier.config.ts --write \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"packages/node/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
     "format:check": "prettier --config ./packages/node/configs/prettier.config.ts --check \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"packages/node/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
@@ -11,18 +11,18 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.2.1",
-    "@commitlint/config-conventional": "^21.2.0",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.3",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
     "cross-spawn": "^7.0.6",
-    "eslint": "^10.8.0",
+    "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "globals": "^17.9.0",
+    "globals": "^17.12.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3"
   }

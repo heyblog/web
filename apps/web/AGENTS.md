@@ -166,6 +166,8 @@ Run commands from the repository root:
 - `task web:format:check`: check formatting.
 - `task web:build`: invoke the Web build from the repository root; the module command runs in
   `apps/web`.
+- `task web:smoke`: start the built standalone server on an ephemeral port and verify it serves a
+  request successfully.
 - `task web:prepare`: sync generated content from the `heyblog/.github` `main` branch.
 - `task web:verify`: run all current offline web checks.
 - `task container:build`: build the production container image after Dockerfile changes.
