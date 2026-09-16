@@ -2,6 +2,13 @@
 
 version: '3'
 
+vars:
+  GOLANGCI_LINT_CACHE:
+    sh: printf '%s/golangci-lint-cache\n' "$(git rev-parse --absolute-git-dir)"
+
+env:
+  GOLANGCI_LINT_CACHE: '{{.GOLANGCI_LINT_CACHE}}'
+
 tasks:
   install:
     desc: Download API dependencies
