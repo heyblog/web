@@ -7,6 +7,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV NVM_DIR=/usr/local/nvm
 
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends bash ca-certificates curl git jq tar xz-utils \
     && rm -rf /var/lib/apt/lists/*
 

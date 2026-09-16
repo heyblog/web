@@ -27,6 +27,7 @@ FROM node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930
 WORKDIR /app
 
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends openssl tini \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /opt/yarn-v1.22.22 /usr/local/lib/node_modules/npm \
