@@ -1,42 +1,13 @@
+import { nextDraftID } from './site-submission.draft-id.browser.ts';
 import type {
   AuditAction,
   ComponentInput,
   DependencyRole,
   FeedFormat,
   Option,
-  PublicSnapshot,
   SiteInput,
-  SubmissionOptions,
   SubmissionPayload,
-  SubmissionResult,
 } from './site-submission.types';
-
-const problemMessages: Readonly<Record<string, string>> = {
-  invalid_submission: '请检查当前步骤中标出的内容。',
-  audit_not_found: '查询凭证无效或申请不存在。',
-  site_not_found: '未找到该站点。',
-  site_already_removed: '该站点已处于删除状态。',
-  site_not_removed: '该站点当前无需恢复。',
-  audit_already_reviewed: '该申请已处理，请刷新页面。',
-  site_revision_changed: '站点数据已变化，请刷新后重新审核。',
-  audit_conflicts_unresolved: '站点数据已变化，请刷新后重新审核。',
-  taxonomy_permission_required: '当前账号无权新建分类或技术条目。',
-  taxonomy_metadata_required: '请补全新程序或技术条目的资料。',
-  invalid_tag: '所选标签已不可用，请刷新后重新选择。',
-  invalid_component: '所选程序或技术已不可用，请刷新后重试。',
-  invalid_program_dependency: '程序技术栈包含无效或循环依赖。',
-  program_already_exists: '该程序已存在，请改为选择目录中的程序。',
-  submission_no_changes: '未检测到可提交的修改。',
-  submission_pending: '该站点已有待审核申请，请先查询处理进度。',
-  review_comment_required: '驳回时请填写审核意见。',
-  review_draft_changed: '修正稿已被其他审核者更新，请刷新后继续。',
-  review_draft_forbidden: '当前申请不支持批准前修正。',
-  forbidden: '你没有执行此操作的权限。',
-  request_too_large: '提交内容过大。',
-  unsupported_media_type: '提交格式不受支持。',
-  bad_gateway: '服务暂时不可用，请稍后重试。',
-  internal_error: '服务暂时不可用，请稍后重试。',
-};
 
 export interface FeedDraft {
   id: string;
@@ -86,12 +57,6 @@ export interface EditableSubmission {
   notifyByEmail: boolean;
 }
 
-let draftSequence = 0;
-function draftID(prefix: string): string {
-  draftSequence += 1;
-  return `${prefix}-${draftSequence}`;
-}
-
 export function emptySubmission(): EditableSubmission {
   return {
     siteShortId: '',
@@ -113,7 +78,7 @@ export function emptySubmission(): EditableSubmission {
 export function addFeed(form: EditableSubmission): void {
   if (form.feeds.length >= 8) return;
   form.feeds.push({
-    id: draftID('feed'),
+    id: nextDraftID('feed'),
     name: form.feeds.length === 0 ? '默认订阅' : '',
     url: '',
     format: 'UNKNOWN',
@@ -254,99 +219,4 @@ export function buildSubmissionPayload(
       notify_by_email: form.notifyByEmail,
     },
   };
-}
-
-export function applySnapshot(
-  form: EditableSubmission,
-  snapshot: PublicSnapshot,
-  options: SubmissionOptions,
-): void {
-  form.siteShortId = snapshot.short_id ?? form.siteShortId;
-  form.name = snapshot.name;
-  form.url = `${snapshot.scheme}://${snapshot.normalized_host}${snapshot.base_path}`;
-  form.summary = snapshot.summary;
-  form.feeds = snapshot.feeds.map((feed) => ({
-    id: draftID('feed'),
-    name: feed.name,
-    url: feed.url,
-    format: feed.format,
-    isDefault: feed.is_default,
-  }));
-  form.sitemap = snapshot.resources.find((item) => item.kind === 'SITEMAP')?.url ?? '';
-  form.linkPage = snapshot.resources.find((item) => item.kind === 'LINK_PAGE')?.url ?? '';
-  form.tags = snapshot.tags.map((tag) => ({
-    id: tag.id,
-    name: tag.name || options.tags.find((option) => option.id === tag.id)?.name || tag.id,
-    role: tag.role,
-  }));
-  const program = snapshot.components.find((item) => item.role === 'SITE_PROGRAM');
-  if (!program) {
-    form.program = { kind: 'none' };
-    return;
-  }
-  if (program.id === options.private_program_id) {
-    form.program = { kind: 'other', id: program.id, name: program.name };
-    return;
-  }
-  const dependencies = snapshot.program_dependencies
-    .filter((item) => item.role === 'FRAMEWORK' || item.role === 'LANGUAGE')
-    .map((item) => ({
-      id: item.id,
-      name:
-        item.name ||
-        item.suggested_name ||
-        options.components.find((candidate) => candidate.id === item.id)?.name ||
-        item.id,
-      role: item.role === 'FRAMEWORK' ? ('FRAMEWORK' as const) : ('LANGUAGE' as const),
-      isOpenSource: item.is_open_source,
-      homepageURL: item.homepage_url,
-      repositoryURL: item.repository_url,
-    }));
-  if (!program.id) {
-    form.program = {
-      kind: 'custom',
-      name: program.suggested_name || program.name,
-      isOpenSource: program.is_open_source,
-      homepageURL: program.homepage_url,
-      repositoryURL: program.repository_url,
-      dependencies,
-    };
-    return;
-  }
-  form.program = {
-    kind: 'existing',
-    id: program.id,
-    name:
-      program.name || options.components.find((item) => item.id === program.id)?.name || program.id,
-    dependencies,
-  };
-}
-
-export function submissionEndpoint(action: AuditAction, siteShortId: string): string {
-  if (action === 'CREATE') return '/api/site-submissions/create';
-  const suffix = action === 'UPDATE' ? 'update' : action === 'DELETE' ? 'delete' : 'restore';
-  return `/api/site-submissions/${encodeURIComponent(siteShortId)}/${suffix}`;
-}
-export async function submitForm(
-  action: AuditAction,
-  form: EditableSubmission,
-): Promise<SubmissionResult> {
-  const response = await fetch(submissionEndpoint(action, form.siteShortId), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildSubmissionPayload(form, action)),
-  });
-  if (!response.ok) throw new Error(await problemDetail(response));
-  return (await response.json()) as SubmissionResult;
-}
-export async function problemDetail(response: Response): Promise<string> {
-  const payload: unknown = await response.json().catch(() => null);
-  if (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'code' in payload &&
-    typeof payload.code === 'string'
-  )
-    return problemMessages[payload.code] ?? '请求失败，请稍后重试。';
-  return '请求失败，请稍后重试。';
 }

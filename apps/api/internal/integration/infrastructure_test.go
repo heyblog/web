@@ -110,6 +110,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifySoftwareComponentDependencies(ctx, t, pool)
 	verifySiteAuditReviewDraftQueries(ctx, t, pool)
 	verifySiteAuditShortIDMaintenance(ctx, t, pool)
+	verifySiteAuditAddressConflicts(ctx, t, pool)
 	verifyFriendLinkGraph(ctx, t, pool, adminConnection)
 	verifyRuntimePermissions(ctx, t, pool)
 	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)

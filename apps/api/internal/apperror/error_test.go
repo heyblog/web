@@ -35,3 +35,17 @@ func TestErrorCopiesInvalidParameters(t *testing.T) {
 		t.Fatal("InvalidParams() exposed mutable error state")
 	}
 }
+
+func TestErrorCopiesSafeDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	diagnostics := []Diagnostic{{Key: "database_sqlstate", Value: "23505"}}
+	err := New(KindInternal, CodeInternal, "an unexpected error occurred").WithDiagnostics(diagnostics)
+	diagnostics[0].Value = "changed"
+	got := err.Diagnostics()
+	got[0].Value = "also changed"
+
+	if err.Diagnostics()[0].Value != "23505" {
+		t.Fatal("Diagnostics() exposed mutable error state")
+	}
+}

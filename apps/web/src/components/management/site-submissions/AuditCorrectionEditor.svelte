@@ -1,12 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
 
+  import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
   import {
-    applySnapshot,
     buildSubmissionPayload,
     emptySubmission,
-    problemDetail,
   } from '@/application/site-submission/site-submission.browser';
+  import { applySnapshot } from '@/application/site-submission/site-submission.snapshot.browser';
   import type {
     AuditDetail,
     SubmissionOptions,

@@ -244,6 +244,11 @@ type SiteSearchResult struct {
 	Visibility string `json:"visibility"`
 }
 
+type SiteAvailability struct {
+	Available    bool              `json:"available"`
+	ExistingSite *SiteSearchResult `json:"existing_site,omitempty"`
+}
+
 type ReviewDecision string
 
 const (

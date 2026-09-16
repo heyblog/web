@@ -78,6 +78,9 @@ func (service *Service) Submit(
 	if err != nil {
 		return SubmissionResult{}, err
 	}
+	if err := service.ensureCreateAddressAvailable(ctx, action, proposed.NormalizedHost); err != nil {
+		return SubmissionResult{}, err
+	}
 	if action == ActionCreate || action == ActionUpdate {
 		proposed, err = service.prepareSubmissionTaxonomy(ctx, proposed)
 		if err != nil {

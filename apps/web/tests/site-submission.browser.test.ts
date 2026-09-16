@@ -4,16 +4,13 @@ import test from 'node:test';
 
 import {
   addFeed,
-  applySnapshot,
   buildSubmissionPayload,
   emptySubmission,
   makePrimaryTag,
-  problemDetail,
   removeFeed,
   removeTag,
   selectTag,
   setDefaultFeed,
-  submissionEndpoint,
   syncURLSuggestions,
 } from '../src/application/site-submission/site-submission.browser.ts';
 import { matchesSubmissionOption } from '../src/application/site-submission/site-submission.search.ts';
@@ -181,152 +178,9 @@ test('updates URL suggestions without overwriting manually edited resources', ()
   assert.equal(form.linkPage, 'https://manual.example/friends');
 });
 
-test('applies a complete aggregate snapshot to editable state', () => {
-  const form = emptySubmission();
-  applySnapshot(
-    form,
-    {
-      short_id: 'A1b2C3d4E',
-      revision: 4,
-      name: 'Example',
-      scheme: 'https',
-      normalized_host: 'example.test',
-      base_path: '/blog',
-      summary: 'Summary',
-      access_scope: 'ALL',
-      visibility: 'VISIBLE',
-      feeds: [{ name: 'Main', url: '/feed.xml', format: 'RSS', is_default: true }],
-      resources: [{ kind: 'LINK_PAGE', url: '/friends' }],
-      tags: [
-        {
-          id: 'tag-primary',
-          name: '中文博客',
-          suggested_name: '',
-          slug: 'chinese-blog',
-          description: '',
-          role: 'PRIMARY',
-        },
-      ],
-      components: [
-        {
-          id: 'component-program',
-          name: 'Astro',
-          suggested_name: '',
-          role: 'SITE_PROGRAM',
-          homepage_url: 'https://astro.build',
-          repository_url: 'https://github.com/withastro/astro',
-          is_open_source: true,
-        },
-      ],
-      program_dependencies: [],
-    },
-    options,
-  );
-  assert.equal(form.siteShortId, 'A1b2C3d4E');
-  assert.equal(form.url, 'https://example.test/blog');
-  assert.equal(form.feeds[0]?.url, '/feed.xml');
-  assert.equal(form.linkPage, '/friends');
-  assert.equal(form.tags[0]?.name, '中文博客');
-  assert.deepEqual(form.program, {
-    kind: 'existing',
-    id: 'component-program',
-    name: 'Astro',
-    dependencies: [],
-  });
-});
-
-test('restores a custom program and its dependencies from an audit snapshot', () => {
-  const form = emptySubmission();
-  applySnapshot(
-    form,
-    {
-      name: 'Example',
-      scheme: 'https',
-      normalized_host: 'example.test',
-      base_path: '/',
-      summary: '',
-      access_scope: 'ALL',
-      visibility: 'VISIBLE',
-      feeds: [],
-      resources: [],
-      tags: [
-        {
-          id: 'tag-primary',
-          name: '中文博客',
-          suggested_name: '',
-          slug: 'chinese-blog',
-          description: '',
-          role: 'PRIMARY',
-        },
-      ],
-      components: [
-        {
-          id: '',
-          name: '',
-          suggested_name: 'Custom Engine',
-          role: 'SITE_PROGRAM',
-          homepage_url: 'https://engine.example',
-          repository_url: 'https://code.example/engine',
-          is_open_source: true,
-        },
-      ],
-      program_dependencies: [
-        {
-          id: '',
-          name: '',
-          suggested_name: 'Custom Runtime',
-          role: 'LANGUAGE',
-          homepage_url: 'https://runtime.example',
-          repository_url: 'https://code.example/runtime',
-          is_open_source: true,
-        },
-      ],
-    },
-    options,
-  );
-
-  assert.deepEqual(form.program, {
-    kind: 'custom',
-    name: 'Custom Engine',
-    isOpenSource: true,
-    homepageURL: 'https://engine.example',
-    repositoryURL: 'https://code.example/engine',
-    dependencies: [
-      {
-        id: '',
-        name: 'Custom Runtime',
-        role: 'LANGUAGE',
-        isOpenSource: true,
-        homepageURL: 'https://runtime.example',
-        repositoryURL: 'https://code.example/runtime',
-      },
-    ],
-  });
-});
-
 test('matches CJK and punctuation-insensitive submission options', () => {
   assert.equal(matchesSubmissionOption('中 文', '中文博客'), true);
   assert.equal(matchesSubmissionOption('astro', 'Astro.js'), true);
   assert.equal(matchesSubmissionOption('atjs', 'Astro.js'), true);
   assert.equal(matchesSubmissionOption('vue', 'Astro.js'), false);
-});
-
-test('maps stable API problem codes without exposing upstream detail text', async () => {
-  const response = Response.json(
-    { code: 'submission_no_changes', detail: 'database lookup failed at internal host' },
-    { status: 422 },
-  );
-  const message = await problemDetail(response);
-  assert.equal(message, '未检测到可提交的修改。');
-  assert.doesNotMatch(message, /database|internal/);
-});
-
-test('routes every audit action to its dedicated same-origin endpoint', () => {
-  assert.equal(submissionEndpoint('CREATE', ''), '/api/site-submissions/create');
-  assert.equal(submissionEndpoint('UPDATE', 'A1b2C3d4E'), '/api/site-submissions/A1b2C3d4E/update');
-  assert.equal(submissionEndpoint('DELETE', 'A1b2C3d4E'), '/api/site-submissions/A1b2C3d4E/delete');
-  assert.equal(
-    submissionEndpoint('RESTORE', 'A1b2C3d4E'),
-    '/api/site-submissions/A1b2C3d4E/restore',
-  );
 });

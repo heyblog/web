@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { problemDetail } from '@/application/site-submission/site-submission.browser';
+  import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
   import type { PublicAuditResult } from '@/application/site-submission/site-submission.types';
 
   let lookupToken = $state('');

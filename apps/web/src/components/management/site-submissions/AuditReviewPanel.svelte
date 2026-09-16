@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
 
-  import { problemDetail } from '@/application/site-submission/site-submission.browser';
+  import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
   import type { AuditDetail } from '@/application/site-submission/site-submission.types';
 
   interface Props {

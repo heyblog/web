@@ -30,12 +30,13 @@ type problem struct {
 }
 
 type problemDescriptor struct {
-	status int
-	title  string
-	detail string
-	code   string
-	params []apperror.InvalidParam
-	op     string
+	status      int
+	title       string
+	detail      string
+	code        string
+	params      []apperror.InvalidParam
+	op          string
+	diagnostics []apperror.Diagnostic
 }
 
 func errorBoundary(logger *slog.Logger) gin.HandlerFunc {
@@ -101,12 +102,13 @@ func describeError(err error) problemDescriptor {
 		code = fallbackCode
 	}
 	return problemDescriptor{
-		status: status,
-		title:  title,
-		detail: detail,
-		code:   code,
-		params: applicationError.InvalidParams(),
-		op:     applicationError.Operation(),
+		status:      status,
+		title:       title,
+		detail:      detail,
+		code:        code,
+		params:      applicationError.InvalidParams(),
+		op:          applicationError.Operation(),
+		diagnostics: applicationError.Diagnostics(),
 	}
 }
 
@@ -175,6 +177,19 @@ func logRequestError(ctx *gin.Context, logger *slog.Logger, descriptor problemDe
 	}
 	if descriptor.op != "" {
 		attributes = append(attributes, slog.String("operation", descriptor.op))
+	}
+	if len(descriptor.diagnostics) > 0 {
+		diagnostics := append([]apperror.Diagnostic(nil), descriptor.diagnostics...)
+		sort.Slice(diagnostics, func(left, right int) bool { return diagnostics[left].Key < diagnostics[right].Key })
+		diagnosticAttributes := make([]slog.Attr, 0, len(diagnostics))
+		for _, diagnostic := range diagnostics {
+			if diagnostic.Key != "" && diagnostic.Value != "" {
+				diagnosticAttributes = append(diagnosticAttributes, slog.String(diagnostic.Key, diagnostic.Value))
+			}
+		}
+		if len(diagnosticAttributes) > 0 {
+			attributes = append(attributes, slog.Attr{Key: "diagnostic", Value: slog.GroupValue(diagnosticAttributes...)})
+		}
 	}
 	components := dependencyComponents(err)
 	if len(components) == 1 {

@@ -41,6 +41,7 @@ func RegisterRoutes(router *gin.Engine, service *Service, webToken string, redis
 	register(http.MethodPost, "/site-submissions/:shortId/restorations", submitEndpoint(service, ActionRestore), publicMutation...)
 	register(http.MethodPost, "/site-submissions/query", queryEndpoint(service), publicRead...)
 	register(http.MethodGet, "/site-submissions/options", optionsEndpoint(service), publicRead...)
+	register(http.MethodGet, "/site-submissions/site-availability", availabilityEndpoint(service), publicRead...)
 	register(http.MethodGet, "/site-submissions/sites", searchEndpoint(service), publicRead...)
 	register(http.MethodGet, "/site-submissions/sites/:shortId", resolveEndpoint(service), publicRead...)
 	register(http.MethodGet, "/management/site-audits", managementListEndpoint(service), management...)

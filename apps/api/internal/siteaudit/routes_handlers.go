@@ -3,7 +3,6 @@ package siteaudit
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -26,7 +25,7 @@ func submitEndpoint(service *Service, action Action) httpapi.Endpoint {
 		}
 		result, err := service.Submit(ctx.Request.Context(), action, ctx.Param("shortId"), input)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "submit site audit")
 		}
 		return httpapi.JSON(http.StatusCreated, result)
 	}
@@ -40,7 +39,7 @@ func queryEndpoint(service *Service) httpapi.Endpoint {
 		}
 		result, err := service.Query(ctx.Request.Context(), input.LookupToken)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "query site audit")
 		}
 		return httpapi.JSON(http.StatusOK, result)
 	}
@@ -50,7 +49,7 @@ func optionsEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		options, err := service.Options(ctx.Request.Context())
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "list site submission options")
 		}
 		return httpapi.JSON(http.StatusOK, options)
 	}
@@ -64,9 +63,19 @@ func searchEndpoint(service *Service) httpapi.Endpoint {
 		}
 		results, err := service.SearchSites(ctx.Request.Context(), query)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "search sites for submission")
 		}
 		return httpapi.JSON(http.StatusOK, map[string][]SiteSearchResult{"items": results})
+	}
+}
+
+func availabilityEndpoint(service *Service) httpapi.Endpoint {
+	return func(ctx *httpapi.Context) (httpapi.Response, error) {
+		result, err := service.CheckSiteAvailability(ctx.Request.Context(), ctx.Request.URL.Query().Get("url"))
+		if err != nil {
+			return httpapi.Response{}, mapServiceError(err, "check site availability")
+		}
+		return httpapi.JSON(http.StatusOK, result)
 	}
 }
 
@@ -74,7 +83,7 @@ func resolveEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		snapshot, err := service.ResolveSite(ctx.Request.Context(), ctx.Param("shortId"))
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "resolve site for submission")
 		}
 		return httpapi.JSON(http.StatusOK, snapshot)
 	}
@@ -83,7 +92,7 @@ func resolveEndpoint(service *Service) httpapi.Endpoint {
 func managementListEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		if _, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request); err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "authorize site audit listing")
 		}
 		status, action, err := parseFilters(ctx.Request.URL.Query().Get("status"), ctx.Request.URL.Query().Get("action"))
 		if err != nil {
@@ -93,7 +102,7 @@ func managementListEndpoint(service *Service) httpapi.Endpoint {
 		pageSize := boundedInteger(ctx.Request.URL.Query().Get("page_size"), 20, 1, 50)
 		result, err := service.ListAudits(ctx.Request.Context(), status, action, page, pageSize)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "list site audits")
 		}
 		return httpapi.JSON(http.StatusOK, result)
 	}
@@ -102,11 +111,11 @@ func managementListEndpoint(service *Service) httpapi.Endpoint {
 func managementDetailEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		if _, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request); err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "authorize site audit detail")
 		}
 		audit, err := service.AuditDetail(ctx.Request.Context(), ctx.Param("auditId"))
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "get site audit detail")
 		}
 		return httpapi.JSON(http.StatusOK, audit)
 	}
@@ -116,7 +125,7 @@ func managementReviewEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		reviewer, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "authorize site audit review")
 		}
 		var input ReviewInput
 		if err := decodeRequest(ctx.Request, &input); err != nil {
@@ -125,7 +134,7 @@ func managementReviewEndpoint(service *Service) httpapi.Endpoint {
 		input.AuditID = ctx.Param("auditId")
 		audit, err := service.Review(ctx.Request.Context(), reviewer, input)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "review site audit")
 		}
 		return httpapi.JSON(http.StatusOK, audit)
 	}
@@ -135,7 +144,7 @@ func managementSaveReviewDraftEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		reviewer, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "authorize site audit review draft")
 		}
 		var input ReviewDraftInput
 		if err := decodeRequest(ctx.Request, &input); err != nil {
@@ -144,7 +153,7 @@ func managementSaveReviewDraftEndpoint(service *Service) httpapi.Endpoint {
 		input.AuditID = ctx.Param("auditId")
 		audit, err := service.SaveReviewDraft(ctx.Request.Context(), reviewer, input)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "save site audit review draft")
 		}
 		return httpapi.JSON(http.StatusOK, audit)
 	}
@@ -154,7 +163,7 @@ func managementDiscardReviewDraftEndpoint(service *Service) httpapi.Endpoint {
 	return func(ctx *httpapi.Context) (httpapi.Response, error) {
 		reviewer, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "authorize site audit review draft discard")
 		}
 		var input DiscardReviewDraftInput
 		if err := decodeRequest(ctx.Request, &input); err != nil {
@@ -163,7 +172,7 @@ func managementDiscardReviewDraftEndpoint(service *Service) httpapi.Endpoint {
 		input.AuditID = ctx.Param("auditId")
 		audit, err := service.DiscardReviewDraft(ctx.Request.Context(), reviewer, input)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err)
+			return httpapi.Response{}, mapServiceError(err, "discard site audit review draft")
 		}
 		return httpapi.JSON(http.StatusOK, audit)
 	}
@@ -209,14 +218,14 @@ func boundedInteger(raw string, fallback, minimum, maximum int32) int32 {
 	return int32(parsed)
 }
 
-func mapServiceError(err error) error {
+func mapServiceError(err error, operation string) error {
 	var authError *auth.AuthError
 	if errors.As(err, &authError) {
 		kind := apperror.KindUnauthorized
 		if authError.StatusCode == http.StatusForbidden {
 			kind = apperror.KindForbidden
 		}
-		return apperror.New(kind, authError.Code, authError.Message)
+		return apperror.Wrap(err, kind, authError.Code, authError.Message, operation)
 	}
 	var serviceError *ServiceError
 	if errors.As(err, &serviceError) {
@@ -231,10 +240,11 @@ func mapServiceError(err error) error {
 		case http.StatusUnprocessableEntity:
 			kind = apperror.KindValidation
 		}
-		return apperror.New(kind, serviceError.Code, serviceError.Detail)
+		return apperror.Wrap(err, kind, serviceError.Code, serviceError.Detail, operation)
 	}
 	if errors.Is(err, ErrInvalidSubmission) {
-		return apperror.Wrap(err, apperror.KindValidation, "invalid_submission", "the site submission is invalid", "validate site submission")
+		return apperror.Wrap(err, apperror.KindValidation, "invalid_submission", "the site submission is invalid", operation)
 	}
-	return apperror.Wrap(err, apperror.KindInternal, apperror.CodeInternal, "the site audit operation failed", fmt.Sprintf("site audit %T", err))
+	return apperror.Wrap(err, apperror.KindInternal, apperror.CodeInternal, "the site audit operation failed", operation).
+		WithDiagnostics(siteAuditDiagnostics(err))
 }

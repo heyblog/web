@@ -2,8 +2,12 @@ package siteaudit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"net/http"
+
+	"github.com/jackc/pgx/v5"
 
 	dbgen "heyblog-api/internal/database/gen"
 	"heyblog-api/internal/domain/site"
@@ -66,13 +70,62 @@ func (service *Service) SearchSites(ctx context.Context, query string) ([]SiteSe
 	}
 	results := make([]SiteSearchResult, 0, len(rows))
 	for _, row := range rows {
-		urlValue, urlErr := (site.Address{Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath}).HomepageURL()
-		if urlErr != nil {
-			return nil, fmt.Errorf("map searched site address: %w", urlErr)
+		result, mapErr := siteSearchResult(row)
+		if mapErr != nil {
+			return nil, mapErr
 		}
-		results = append(results, SiteSearchResult{ShortID: row.ShortID, Name: row.Name, URL: urlValue, Visibility: row.Visibility})
+		results = append(results, result)
 	}
 	return results, nil
+}
+
+func (service *Service) CheckSiteAvailability(ctx context.Context, rawURL string) (SiteAvailability, error) {
+	address, err := site.NormalizeAddress(rawURL)
+	if err != nil {
+		return SiteAvailability{}, newServiceError("invalid_site_address", http.StatusUnprocessableEntity, "the site address is invalid")
+	}
+	existing, err := service.existingSiteForHost(ctx, address.NormalizedHost)
+	if err != nil {
+		return SiteAvailability{}, err
+	}
+	return SiteAvailability{Available: existing == nil, ExistingSite: existing}, nil
+}
+
+func (service *Service) ensureCreateAddressAvailable(ctx context.Context, action Action, normalizedHost string) error {
+	if action != ActionCreate {
+		return nil
+	}
+	existing, err := service.existingSiteForHost(ctx, normalizedHost)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		return siteAddressConflictError()
+	}
+	return nil
+}
+
+func (service *Service) existingSiteForHost(ctx context.Context, normalizedHost string) (*SiteSearchResult, error) {
+	row, err := service.repository.queries.GetSiteByHost(ctx, normalizedHost)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find site by normalized host: %w", err)
+	}
+	result, err := siteSearchResult(row)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func siteSearchResult(row dbgen.DirectorySite) (SiteSearchResult, error) {
+	urlValue, err := (site.Address{Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath}).HomepageURL()
+	if err != nil {
+		return SiteSearchResult{}, fmt.Errorf("map searched site address: %w", err)
+	}
+	return SiteSearchResult{ShortID: row.ShortID, Name: row.Name, URL: urlValue, Visibility: row.Visibility}, nil
 }
 
 func (service *Service) ResolveSite(ctx context.Context, shortID string) (Snapshot, error) {

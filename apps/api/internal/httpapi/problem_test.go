@@ -138,6 +138,40 @@ func TestErrorBoundaryLogsEveryFailedDependencyComponent(t *testing.T) {
 	}
 }
 
+func TestErrorBoundaryLogsSafeDiagnosticsWithoutExposingCause(t *testing.T) {
+	t.Parallel()
+
+	router, logs := testErrorRouter(t, func(*Context) (Response, error) {
+		return Response{}, apperror.Wrap(
+			errors.New("postgres://user:secret@example.test/private"),
+			apperror.KindInternal,
+			apperror.CodeInternal,
+			"the operation failed",
+			"review site audit",
+		).WithDiagnostics([]apperror.Diagnostic{
+			{Key: "cause_type", Value: "*pgconn.PgError"},
+			{Key: "database_sqlstate", Value: "23505"},
+			{Key: "database_constraint", Value: "sites_normalized_host_unique_idx"},
+		})
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/test", nil))
+
+	for _, expected := range []string{
+		`"operation":"review site audit"`,
+		`"cause_type":"*pgconn.PgError"`,
+		`"database_sqlstate":"23505"`,
+		`"database_constraint":"sites_normalized_host_unique_idx"`,
+	} {
+		if !strings.Contains(logs.String(), expected) {
+			t.Fatalf("logs = %q, want %q", logs.String(), expected)
+		}
+	}
+	if strings.Contains(logs.String(), "secret") || strings.Contains(response.Body.String(), "database_constraint") {
+		t.Fatalf("diagnostics crossed a safe boundary: logs=%q body=%q", logs.String(), response.Body.String())
+	}
+}
+
 func TestErrorBoundaryDoesNotOverwriteCommittedResponse(t *testing.T) {
 	t.Parallel()
 

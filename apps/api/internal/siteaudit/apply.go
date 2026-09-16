@@ -42,6 +42,9 @@ func (service *Service) applySnapshot(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return pgtype.UUID{}, 0, newServiceError("site_revision_changed", http.StatusConflict, "the site changed while the review was being applied")
 		}
+		if isSiteAddressConflict(err) {
+			return pgtype.UUID{}, 0, siteAddressConflictError()
+		}
 		return pgtype.UUID{}, 0, fmt.Errorf("apply reviewed site snapshot: %w", err)
 	}
 	final.Revision = row.Revision
@@ -69,11 +72,26 @@ func (service *Service) createSite(ctx context.Context, queries *dbgen.Queries, 
 			return row, nil
 		}
 		var databaseError *pgconn.PgError
-		if !errors.As(err, &databaseError) || databaseError.ConstraintName != "sites_short_id_unique_idx" {
+		if !errors.As(err, &databaseError) {
+			return dbgen.DirectorySite{}, err
+		}
+		if databaseError.ConstraintName == "sites_normalized_host_unique_idx" {
+			return dbgen.DirectorySite{}, siteAddressConflictError()
+		}
+		if databaseError.ConstraintName != "sites_short_id_unique_idx" {
 			return dbgen.DirectorySite{}, err
 		}
 	}
 	return dbgen.DirectorySite{}, errors.New("site short ID collision retry limit reached")
+}
+
+func isSiteAddressConflict(err error) bool {
+	var databaseError *pgconn.PgError
+	return errors.As(err, &databaseError) && databaseError.Code == "23505" && databaseError.ConstraintName == "sites_normalized_host_unique_idx"
+}
+
+func siteAddressConflictError() *ServiceError {
+	return newServiceError("site_address_conflict", http.StatusConflict, "the site address is already registered")
 }
 
 func syncAssociations(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, snapshot Snapshot, reviewerID pgtype.UUID, createsProgramDependencies bool) error {

@@ -176,3 +176,7 @@ export interface SiteSearchResult {
   readonly url: string;
   readonly visibility: string;
 }
+export interface SiteAvailability {
+  readonly available: boolean;
+  readonly existing_site?: SiteSearchResult;
+}

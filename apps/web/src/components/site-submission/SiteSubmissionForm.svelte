@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
 
   import {
-    applySnapshot,
-    emptySubmission,
     problemDetail,
+    SiteSubmissionProblem,
     submitForm,
-    syncURLSuggestions,
-  } from '@/application/site-submission/site-submission.browser';
+  } from '@/application/site-submission/site-submission.api.browser';
+  import { emptySubmission } from '@/application/site-submission/site-submission.browser';
+  import { applySnapshot } from '@/application/site-submission/site-submission.snapshot.browser';
   import type {
     AuditAction,
     PublicSnapshot,
@@ -21,9 +21,11 @@
 
   import FeedEditor from './FeedEditor.svelte';
   import ProgramPicker from './ProgramPicker.svelte';
+  import SiteDetailsStep from './SiteDetailsStep.svelte';
   import SiteResolver from './SiteResolver.svelte';
   import SubmissionStepper from './SubmissionStepper.svelte';
   import SubmissionSuccess from './SubmissionSuccess.svelte';
+  import SubmissionSummary from './SubmissionSummary.svelte';
   import TagPicker from './TagPicker.svelte';
   interface Props {
     action: AuditAction;
@@ -41,8 +43,12 @@
   let furthestStep = $state(0);
   let pending = $state(false);
   let resolving = $state(false);
+  let checkingSiteAddress = $state(false);
   let error = $state('');
   let result = $state.raw<SubmissionResult | null>(null);
+  let siteDetailsStep = $state<{
+    confirmAvailability: (force?: boolean) => Promise<boolean>;
+  }>();
   let detailAction = $derived(action === 'CREATE' || action === 'UPDATE');
   let labels = $derived(
     detailAction ? ['站点资料', '订阅资源', '分类程序', '确认提交'] : ['选择站点', '确认提交'],
@@ -72,17 +78,18 @@
     }
     applySnapshot(form, (await response.json()) as PublicSnapshot, options);
   }
-  function updateURL(event: Event): void {
-    const input = event.currentTarget;
-    if (!(input instanceof HTMLInputElement)) return;
-    const previous = form.url;
-    form.url = input.value;
-    syncURLSuggestions(form, previous, input.value);
-  }
-  function nextStep(): void {
+  async function nextStep(): Promise<void> {
     const validation = validateSubmissionStep(action, form, currentStep);
     if (!validation.valid) {
       error = validation.message;
+      return;
+    }
+    if (
+      action === 'CREATE' &&
+      currentStep === 0 &&
+      siteDetailsStep &&
+      !(await siteDetailsStep.confirmAvailability())
+    ) {
       return;
     }
     error = '';
@@ -106,6 +113,15 @@
     try {
       result = await submitForm(action, form);
     } catch (caught) {
+      if (
+        action === 'CREATE' &&
+        caught instanceof SiteSubmissionProblem &&
+        caught.code === 'site_address_conflict'
+      ) {
+        currentStep = 0;
+        await tick();
+        await siteDetailsStep?.confirmAvailability(true);
+      }
       error = caught instanceof Error ? caught.message : '提交失败，请稍后重试。';
     } finally {
       pending = false;
@@ -137,32 +153,12 @@
               onresolve={resolveSite}
             />{/if}
           {#if detailAction && (action === 'CREATE' || form.siteShortId)}
-            <div class="grid gap-4">
-              <div>
-                <h2 class="text-xl font-semibold">站点资料</h2>
-                <p class="mt-1 text-sm text-fg-muted">填写站点在目录中展示的基础信息。</p>
-              </div>
-              <label class="grid gap-2 text-sm"
-                >站点名称<input
-                  class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
-                  bind:value={form.name}
-                  maxlength="160"
-                /></label
-              >
-              <label class="grid gap-2 text-sm"
-                >主页地址<input
-                  class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
-                  value={form.url}
-                  oninput={updateURL}
-                /></label
-              >
-              <label class="grid gap-2 text-sm"
-                >站点简介<textarea
-                  class="min-h-28 rounded-sm border border-line-strong bg-surface p-3"
-                  bind:value={form.summary}
-                  maxlength="2000"></textarea></label
-              >
-            </div>
+            <SiteDetailsStep
+              bind:this={siteDetailsStep}
+              {form}
+              checkDuplicates={action === 'CREATE'}
+              oncheckingchange={(checking) => (checkingSiteAddress = checking)}
+            />
           {/if}
         {:else if currentStep === 1 && detailAction}<FeedEditor {form} />
         {:else if currentStep === 2 && detailAction}
@@ -230,8 +226,9 @@
               error = '';
             }}>上一步</button
           >{#if currentStep < stepCount - 1}<button
-              class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg"
+              class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:pointer-events-none disabled:opacity-50"
               type="button"
+              disabled={checkingSiteAddress}
               onclick={nextStep}>下一步</button
             >{:else}<button
               class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
@@ -240,24 +237,6 @@
             >{/if}
         </div>
       </section>
-      <aside
-        class="sticky top-24 hidden rounded-md border border-line bg-subtle p-4 text-sm lg:block"
-      >
-        <h2 class="font-semibold">申请摘要</h2>
-        <dl class="mt-3 grid gap-3">
-          <div>
-            <dt class="text-fg">站点</dt>
-            <dd class="mt-1 wrap-break-word">{form.name || '尚未填写'}</dd>
-          </div>
-          <div>
-            <dt class="text-fg">标签</dt>
-            <dd class="mt-1">{form.tags.length || '尚未选择'}</dd>
-          </div>
-          <div>
-            <dt class="text-fg">程序</dt>
-            <dd class="mt-1">{form.program.kind === 'none' ? '未填写' : form.program.name}</dd>
-          </div>
-        </dl>
-      </aside>
+      <SubmissionSummary {form} />
     </div>
   </form>{/if}

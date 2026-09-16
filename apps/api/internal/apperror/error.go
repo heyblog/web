@@ -37,11 +37,17 @@ type InvalidParam struct {
 	Reason string `json:"reason"`
 }
 
+type Diagnostic struct {
+	Key   string
+	Value string
+}
+
 type Error struct {
 	kind          Kind
 	code          string
 	publicDetail  string
 	invalidParams []InvalidParam
+	diagnostics   []Diagnostic
 	cause         error
 	operation     string
 }
@@ -63,6 +69,12 @@ func Wrap(cause error, kind Kind, code, publicDetail, operation string) *Error {
 func (err *Error) WithInvalidParams(parameters []InvalidParam) *Error {
 	copyOfError := *err
 	copyOfError.invalidParams = slices.Clone(parameters)
+	return &copyOfError
+}
+
+func (err *Error) WithDiagnostics(diagnostics []Diagnostic) *Error {
+	copyOfError := *err
+	copyOfError.diagnostics = slices.Clone(diagnostics)
 	return &copyOfError
 }
 
@@ -97,6 +109,10 @@ func (err *Error) PublicDetail() string {
 
 func (err *Error) InvalidParams() []InvalidParam {
 	return slices.Clone(err.invalidParams)
+}
+
+func (err *Error) Diagnostics() []Diagnostic {
+	return slices.Clone(err.diagnostics)
 }
 
 func (err *Error) Operation() string {
