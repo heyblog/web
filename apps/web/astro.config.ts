@@ -33,7 +33,7 @@ export default defineConfig({
       directives: [
         "default-src 'self'",
         "base-uri 'none'",
-        "connect-src 'self'",
+        "connect-src 'self' https://cloudflareinsights.com",
         "font-src 'self' data:",
         "form-action 'self'",
         "frame-ancestors 'none'",
@@ -43,6 +43,9 @@ export default defineConfig({
         "object-src 'none'",
         'upgrade-insecure-requests',
       ],
+      scriptDirective: {
+        resources: ["'self'", 'https://static.cloudflareinsights.com/beacon.min.js'],
+      },
     },
   },
   vite: {

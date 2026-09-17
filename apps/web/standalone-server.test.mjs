@@ -25,7 +25,7 @@ if (childMode) {
   await runningServer.server.stop();
   process.disconnect();
 } else {
-  test('standalone server starts and serves a static asset', async () => {
+  test('standalone server limits Cloudflare Web Analytics to public pages', async () => {
     // Given: a production build started through the generated standalone entrypoint.
     const child = fork(new URL(import.meta.url), [], {
       env: { ...process.env, HEYBLOG_STANDALONE_SMOKE_CHILD: '1' },
@@ -65,13 +65,35 @@ if (childMode) {
     assert.equal(typeof readyMessage.port, 'number');
 
     try {
-      // When: the running standalone server receives a request for a bundled static asset.
-      const response = await fetch(`http://127.0.0.1:${readyMessage.port}/favicon.ico`, {
-        signal: AbortSignal.timeout(5_000),
-      });
+      // When: the running standalone server serves public and private application pages.
+      const [publicResponse, authResponse, submissionResponse] = await Promise.all([
+        fetch(`http://127.0.0.1:${readyMessage.port}/blog/`, {
+          signal: AbortSignal.timeout(5_000),
+        }),
+        fetch(`http://127.0.0.1:${readyMessage.port}/login`, {
+          signal: AbortSignal.timeout(5_000),
+        }),
+        fetch(`http://127.0.0.1:${readyMessage.port}/site/submissions`, {
+          signal: AbortSignal.timeout(5_000),
+        }),
+      ]);
+      const [publicHtml, authHtml, submissionHtml] = await Promise.all([
+        publicResponse.text(),
+        authResponse.text(),
+        submissionResponse.text(),
+      ]);
 
-      // Then: the production server responds successfully instead of crashing during startup.
-      assert.equal(response.status, 200);
+      // Then: only the public page loads the configured analytics beacon under the required CSP.
+      assert.equal(publicResponse.status, 200);
+      assert.equal(authResponse.status, 200);
+      assert.equal(submissionResponse.status, 200);
+      assert.match(publicHtml, /data-cf-beacon=/u);
+      assert.match(publicHtml, /ef560dfa471541919b19544f5a95c7a4/u);
+      assert.match(publicHtml, /&quot;spa&quot;:false/u);
+      assert.match(publicHtml, /https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js/u);
+      assert.match(publicHtml, /connect-src 'self' https:\/\/cloudflareinsights\.com/u);
+      assert.doesNotMatch(authHtml, /data-cf-beacon=/u);
+      assert.doesNotMatch(submissionHtml, /data-cf-beacon=/u);
     } finally {
       if (child.connected) {
         child.send({ kind: 'stop' });

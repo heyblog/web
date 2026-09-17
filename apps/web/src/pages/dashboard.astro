@@ -14,7 +14,7 @@ const canReviewSiteAudits =
   user.role === 'SYS_ADMIN' || user.permissions.includes('site_audit.review');
 ---
 
-<PublicLayout title="账号 | HeyBlog" robots="noindex, nofollow">
+<PublicLayout title="账号 | HeyBlog" enableWebAnalytics={false} robots="noindex, nofollow">
   <section class="mx-auto w-[min(calc(100%-2rem),64rem)] py-10 sm:py-14">
     <header class="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-line pb-6">
       <div>
