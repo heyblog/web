@@ -11,7 +11,7 @@ import (
 
 var (
 	columnDefinitionPattern = regexp.MustCompile(`^\s{4}([a-z][a-z0-9_]*)\s+.+,\s+--\s+(.+)$`)
-	columnCommentPattern    = regexp.MustCompile(`^COMMENT ON COLUMN ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*) IS '([^']*)';$`)
+	columnCommentPattern    = regexp.MustCompile(`^COMMENT ON COLUMN ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*) IS '([^']*)';(?: -- (.+))?$`)
 	createTablePattern      = regexp.MustCompile(`^CREATE TABLE ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*) \($`)
 	alterTablePattern       = regexp.MustCompile(`^ALTER TABLE ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*)$`)
 	alterColumnPattern      = regexp.MustCompile(`^\s+(?:ADD COLUMN(?: IF NOT EXISTS)?|ALTER COLUMN) ([a-z][a-z0-9_]*) .+[,;]\s+--\s+(.+)$`)
@@ -47,6 +47,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00009_authentication.sql",
 		"00010_site_audits.sql",
 		"00011_tag_taxonomy.sql",
+		"00012_fix_site_audit_rejection.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -307,8 +308,11 @@ func collectColumnComments(content string, inlineComments, catalogComments map[s
 				inlineComments[currentTable+"."+match[1]] = strings.TrimSpace(match[2])
 			}
 		}
-		if match := columnCommentPattern.FindStringSubmatch(line); len(match) == 3 {
+		if match := columnCommentPattern.FindStringSubmatch(line); len(match) == 4 {
 			catalogComments[match[1]] = match[2]
+			if match[3] != "" {
+				inlineComments[match[1]] = match[3]
+			}
 		}
 	}
 }

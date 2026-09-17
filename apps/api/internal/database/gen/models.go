@@ -134,7 +134,7 @@ type DirectorySiteAudit struct {
 	Action string
 	// Review state: PENDING, APPROVED, or REJECTED.
 	Status string
-	// Target site; absent only while a CREATE request is pending.
+	// Target site; a CREATE request requires a site only after approval.
 	SiteID pgtype.UUID
 	// Site revision captured when a non-CREATE request was submitted.
 	BaseRevision *int64

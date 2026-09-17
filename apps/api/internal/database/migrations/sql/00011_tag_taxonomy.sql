@@ -403,11 +403,17 @@ AS $$
 $$;
 -- +goose StatementEnd
 
+-- Goose holds this schema conversion in one transaction. Block concurrent writes
+-- while converting protected snapshots, then restore normal submission immutability.
+ALTER TABLE directory.site_audits DISABLE TRIGGER site_audits_preserve_submission;
+
 UPDATE directory.site_audits
    SET base_snapshot = directory.migrate_site_audit_tag_snapshot(base_snapshot),
        proposed_snapshot = directory.migrate_site_audit_tag_snapshot(proposed_snapshot),
        review_draft_snapshot = directory.migrate_site_audit_tag_snapshot(review_draft_snapshot),
        final_snapshot = directory.migrate_site_audit_tag_snapshot(final_snapshot);
+
+ALTER TABLE directory.site_audits ENABLE TRIGGER site_audits_preserve_submission;
 
 DROP FUNCTION directory.migrate_site_audit_tag_snapshot(jsonb);
 
