@@ -16,14 +16,71 @@ import (
 const (
 	blogsFormat     = "heyblog.data-import.blogs"
 	graphFormat     = "heyblog.data-import.graph"
+	taxonomyFormat  = "heyblog.data-import.tag-taxonomy"
 	contractVersion = 3
 )
 
 var sha256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type Bundles struct {
-	Blogs BlogBundle
-	Graph GraphBundle
+	Blogs    BlogBundle
+	Graph    GraphBundle
+	Taxonomy *TagTaxonomyBundle
+}
+
+type TagTaxonomyBundle struct {
+	Format        string                     `json:"format"`
+	Version       int                        `json:"version"`
+	GeneratedAt   string                     `json:"generated_at"`
+	Inputs        []TagTaxonomyInputMetadata `json:"inputs"`
+	TagCount      int                        `json:"tag_count"`
+	CascadeCount  int                        `json:"cascade_count"`
+	SiteCount     int                        `json:"site_count"`
+	TertiaryCount int                        `json:"tertiary_count"`
+	TrimmedCount  int                        `json:"trimmed_count"`
+	Tags          []TagTaxonomyDefinition    `json:"tags"`
+	Cascades      []TagTaxonomyCascade       `json:"cascades"`
+	Sites         []SiteTagTaxonomyMigration `json:"sites"`
+}
+
+type TagTaxonomyInputMetadata struct {
+	Kind   string `json:"kind"`
+	File   string `json:"file"`
+	SHA256 string `json:"sha256"`
+	Count  int    `json:"count"`
+}
+
+type TagTaxonomyDefinition struct {
+	Source        string  `json:"source"`
+	TagID         string  `json:"tag_id"`
+	Name          string  `json:"name"`
+	Description   *string `json:"description"`
+	TaxonomyLevel *int    `json:"taxonomy_level"`
+	ParentTagID   *string `json:"parent_tag_id"`
+	SortOrder     *int    `json:"sort_order"`
+}
+
+type TagTaxonomyCascade struct {
+	Scope       string `json:"scope"`
+	CascadeKey  string `json:"cascade_key"`
+	Level1TagID string `json:"level1_tag_id"`
+	Level2TagID string `json:"level2_tag_id"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+type SiteTagTaxonomyMigration struct {
+	SiteID       string                `json:"site_id"`
+	SourceURL    string                `json:"source_url"`
+	MatchMethod  string                `json:"match_method"`
+	CascadeKey   string                `json:"cascade_key"`
+	TertiaryTags []TagTaxonomyTertiary `json:"tertiary_tags"`
+}
+
+type TagTaxonomyTertiary struct {
+	Source   string `json:"source"`
+	TagID    string `json:"tag_id"`
+	Name     string `json:"name"`
+	Position int16  `json:"position"`
 }
 
 type BlogBundle struct {
@@ -152,6 +209,75 @@ func DecodeBundles(blogData, graphData []byte) (Bundles, error) {
 		return Bundles{}, err
 	}
 	return bundles, nil
+}
+
+func DecodeTagTaxonomyBundle(data []byte) (TagTaxonomyBundle, error) {
+	var bundle TagTaxonomyBundle
+	if err := decodeStrictJSON(data, &bundle); err != nil {
+		return TagTaxonomyBundle{}, fmt.Errorf("decode tag taxonomy bundle: %w", err)
+	}
+	if bundle.Format != taxonomyFormat || bundle.Version != 1 {
+		return TagTaxonomyBundle{}, errors.New("unsupported tag taxonomy format or version")
+	}
+	if bundle.TagCount != len(bundle.Tags) || bundle.CascadeCount != len(bundle.Cascades) || bundle.SiteCount != len(bundle.Sites) {
+		return TagTaxonomyBundle{}, errors.New("tag taxonomy counts are inconsistent")
+	}
+	if _, err := time.Parse(time.RFC3339Nano, bundle.GeneratedAt); err != nil || len(bundle.Inputs) != 2 {
+		return TagTaxonomyBundle{}, errors.New("tag taxonomy generation metadata is invalid")
+	}
+	tagSources := make(map[string]string, len(bundle.Tags))
+	for _, tag := range bundle.Tags {
+		if tag.TagID == "" || strings.TrimSpace(tag.Name) == "" || (tag.Source != "SQLITE" && tag.Source != "LEGACY") {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy tag definition is invalid")
+		}
+		if _, exists := tagSources[tag.TagID]; exists {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy tag identifiers must be unique")
+		}
+		tagSources[tag.TagID] = tag.Source
+	}
+	cascadeKeys := make(map[string]TagTaxonomyCascade, len(bundle.Cascades))
+	for _, cascade := range bundle.Cascades {
+		if cascade.Scope != "SITE" && cascade.Scope != "ARTICLE" || cascade.CascadeKey == "" || cascade.Level1TagID == "" || cascade.Level2TagID == "" {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy cascade is invalid")
+		}
+		if tagSources[cascade.Level1TagID] != "SQLITE" || tagSources[cascade.Level2TagID] != "SQLITE" {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy cascade references unknown fixed tags")
+		}
+		cascadeKeys[cascade.Scope+"\x00"+cascade.CascadeKey] = cascade
+	}
+	tertiaryCount := 0
+	seenSites := make(map[string]struct{}, len(bundle.Sites))
+	for _, site := range bundle.Sites {
+		if site.SiteID == "" || site.CascadeKey == "" {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy site mapping is invalid")
+		}
+		if len(site.TertiaryTags) > 20 {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy tertiary tags exceed twenty")
+		}
+		if _, exists := seenSites[site.SiteID]; exists {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy site identifiers must be unique")
+		}
+		seenSites[site.SiteID] = struct{}{}
+		cascade, exists := cascadeKeys["SITE\x00"+site.CascadeKey]
+		if !exists {
+			return TagTaxonomyBundle{}, errors.New("tag taxonomy site references an unknown SITE cascade")
+		}
+		seenTags := make(map[string]struct{}, len(site.TertiaryTags))
+		for index, tag := range site.TertiaryTags {
+			if tag.Position != int16(index+1) || tagSources[tag.TagID] != tag.Source || tag.TagID == cascade.Level1TagID || tag.TagID == cascade.Level2TagID {
+				return TagTaxonomyBundle{}, errors.New("tag taxonomy tertiary assignment is invalid")
+			}
+			if _, duplicate := seenTags[tag.TagID]; duplicate {
+				return TagTaxonomyBundle{}, errors.New("tag taxonomy tertiary assignments must be unique")
+			}
+			seenTags[tag.TagID] = struct{}{}
+		}
+		tertiaryCount += len(site.TertiaryTags)
+	}
+	if tertiaryCount != bundle.TertiaryCount {
+		return TagTaxonomyBundle{}, errors.New("tag taxonomy tertiary count is inconsistent")
+	}
+	return bundle, nil
 }
 
 func decodeStrictJSON(data []byte, destination any) error {

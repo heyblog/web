@@ -10,6 +10,10 @@ export type FeedFormat = (typeof feedFormats)[number];
 export interface Option {
   readonly id: string;
   readonly name: string;
+  readonly level?: 1 | 2 | 3;
+  readonly parent_id?: string | null;
+  readonly role?: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'WARNING';
+  readonly is_custom?: boolean;
 }
 export interface ComponentOption extends Option {
   readonly homepage_url: string;
@@ -42,7 +46,9 @@ export interface TagInput {
   readonly suggested_name: string;
   readonly slug: string;
   readonly description: string;
-  readonly role: 'PRIMARY' | 'SECONDARY';
+  readonly role: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
+  readonly level?: 1 | 2 | 3;
+  readonly parent_id?: string | null;
 }
 export interface ComponentInput {
   readonly id: string;
@@ -71,8 +77,15 @@ export interface SubmissionPayload {
     readonly notify_by_email: boolean;
   };
 }
-export interface TagSnapshot extends TagInput {
+export interface TagSnapshot extends Omit<TagInput, 'role'> {
   readonly name: string;
+  readonly role: TagInput['role'] | 'WARNING';
+}
+export interface CascadeSnapshot {
+  readonly id: string;
+  readonly taxonomy_key: string;
+  readonly level1: TagSnapshot;
+  readonly level2: TagSnapshot;
 }
 export interface ComponentSnapshot extends ComponentInput {
   readonly name: string;
@@ -88,6 +101,8 @@ export type Snapshot = Omit<SiteInput, 'url' | 'tags' | 'components' | 'program_
   readonly access_scope: string;
   readonly visibility: string;
   readonly visibility_reason?: string;
+  readonly tag_cascade_id?: string;
+  readonly classification?: CascadeSnapshot;
   readonly tags: readonly TagSnapshot[];
   readonly components: readonly ComponentSnapshot[];
   readonly program_dependencies: readonly ComponentSnapshot[];

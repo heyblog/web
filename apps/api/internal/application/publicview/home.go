@@ -15,10 +15,16 @@ type Home struct {
 
 type SiteCardView struct {
 	SiteCard
-	Topics      []HomeSiteTopic `json:"topics"`
-	Warnings    []Warning       `json:"warnings"`
-	DefaultFeed *HomeSiteFeed   `json:"defaultFeed"`
-	SitemapURL  *string         `json:"sitemapUrl"`
+	Classification *SiteClassification `json:"classification"`
+	TertiaryTags   []HomeSiteTopic     `json:"tertiaryTags"`
+	Warnings       []Warning           `json:"warnings"`
+	DefaultFeed    *HomeSiteFeed       `json:"defaultFeed"`
+	SitemapURL     *string             `json:"sitemapUrl"`
+}
+
+type SiteClassification struct {
+	Level1 HomeSiteTopic `json:"level1"`
+	Level2 HomeSiteTopic `json:"level2"`
 }
 
 type HomeSiteCard = SiteCardView
@@ -26,7 +32,6 @@ type HomeSiteCard = SiteCardView
 type HomeSiteTopic struct {
 	Name string `json:"name"`
 	Slug string `json:"slug"`
-	Role string `json:"role"`
 }
 
 type HomeSiteFeed struct {

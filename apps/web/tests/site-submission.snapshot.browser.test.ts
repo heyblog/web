@@ -142,3 +142,87 @@ test('restores a custom program and its dependencies from an audit snapshot', ()
     ],
   });
 });
+
+test('restores editable taxonomy metadata while excluding warning tags', () => {
+  const form = emptySubmission();
+
+  applySnapshot(
+    form,
+    {
+      name: 'Example',
+      scheme: 'https',
+      normalized_host: 'example.test',
+      base_path: '/',
+      summary: '',
+      access_scope: 'ALL',
+      visibility: 'VISIBLE',
+      feeds: [],
+      resources: [],
+      tags: [
+        {
+          id: 'computer',
+          name: '计算机',
+          suggested_name: '',
+          slug: 'computer',
+          description: '',
+          role: 'PRIMARY',
+          level: 1,
+          parent_id: null,
+        },
+        {
+          id: 'warning',
+          name: '待复核',
+          suggested_name: '',
+          slug: 'warning',
+          description: '',
+          role: 'WARNING',
+          level: 3,
+          parent_id: null,
+        },
+        {
+          id: '',
+          name: '',
+          suggested_name: '编译器',
+          slug: 'compiler',
+          description: '编译器相关内容',
+          role: 'TERTIARY',
+          level: 3,
+          parent_id: null,
+        },
+        {
+          id: '',
+          name: '',
+          suggested_name: '网络研究',
+          slug: '',
+          description: '',
+          role: 'TERTIARY',
+          level: 3,
+          parent_id: null,
+        },
+      ],
+      components: [],
+      program_dependencies: [],
+    },
+    options,
+  );
+
+  assert.deepEqual(
+    form.tags.map((tag) => tag.role),
+    ['PRIMARY', 'TERTIARY', 'TERTIARY'],
+  );
+  assert.notEqual(form.tags[1]?.id, form.tags[2]?.id);
+  assert.ok(form.tags[1]?.id);
+  assert.deepEqual(
+    { ...form.tags[1], id: 'local-draft' },
+    {
+      id: 'local-draft',
+      name: '编译器',
+      role: 'TERTIARY',
+      level: 3,
+      parent_id: null,
+      suggestedName: '编译器',
+      slug: 'compiler',
+      description: '编译器相关内容',
+    },
+  );
+});

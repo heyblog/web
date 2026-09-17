@@ -11,6 +11,7 @@
     readonly options: SiteDirectoryOptions;
     readonly query: SiteDirectoryQuery;
     readonly onToggle: (name: SiteDirectoryFilterName, value: string, selected: boolean) => void;
+    readonly onClassificationChange: (level1: string, level2: string) => void;
     readonly onFeedChange: (feed: SiteDirectoryFeed) => void;
     readonly embedded?: boolean;
   };
@@ -20,10 +21,27 @@
     { value: 'CN_ONLY', label: '仅中国大陆' },
     { value: 'GLOBAL_ONLY', label: '仅海外' },
   ] as const satisfies readonly { value: SiteDirectoryAccess; label: string }[];
-  let { options, query, onToggle, onFeedChange, embedded = false }: Props = $props();
+  let {
+    options,
+    query,
+    onToggle,
+    onClassificationChange,
+    onFeedChange,
+    embedded = false,
+  }: Props = $props();
+  let tertiarySearch = $state('');
+  const selectedClassification = $derived(
+    options.classifications.find((option) => option.value === query.level1),
+  );
+  const tertiaryOptions = $derived(
+    options.tertiaryTags.filter((option) =>
+      option.label.toLocaleLowerCase().includes(tertiarySearch.trim().toLocaleLowerCase()),
+    ),
+  );
   const selectedCount = $derived(
-    query.primary.length +
-      query.secondary.length +
+    (query.level1 ? 1 : 0) +
+      (query.level2 ? 1 : 0) +
+      query.tertiary.length +
       query.warning.length +
       query.technology.length +
       query.access.length +
@@ -51,23 +69,22 @@
   {/if}
 
   <div class="grid gap-1 pt-2">
-    <details open={query.primary.length > 0}>
+    <details open={Boolean(query.level1)}>
       <summary
         class="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-sm px-2 text-sm font-medium hover:bg-subtle sm:min-h-10"
       >
-        主标签
-        <span class="text-xs text-fg-muted">
-          {query.primary.length || options.primaryTags.length}
-        </span>
+        博客分类
+        <span class="text-xs text-fg-muted">{query.level2 ? 2 : query.level1 ? 1 : 0}</span>
       </summary>
       <div class="grid max-h-56 gap-1 overflow-y-auto px-2 pb-3">
-        {#each options.primaryTags as option (option.value)}
+        {#each options.classifications as option (option.value)}
           <label class="flex min-h-11 cursor-pointer items-center gap-2 text-sm sm:min-h-10">
             <input
               class="size-4 rounded-sm border-line-strong text-primary focus:ring-focus"
-              type="checkbox"
-              checked={query.primary.includes(option.value)}
-              onchange={(event) => onToggle('primary', option.value, event.currentTarget.checked)}
+              type="radio"
+              name="directory-level1"
+              checked={query.level1 === option.value}
+              onchange={() => onClassificationChange(option.value, '')}
             />
             <span class="min-w-0 flex-1 truncate">{option.label}</span>
             <span class="font-mono text-xs text-fg-muted">
@@ -78,30 +95,66 @@
       </div>
     </details>
 
-    <details open={query.secondary.length > 0}>
+    {#if selectedClassification}<details open>
+        <summary
+          class="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-sm px-2 text-sm font-medium hover:bg-subtle sm:min-h-10"
+        >
+          二级分类
+          <span class="text-xs text-fg-muted">{query.level2 ? 1 : 0}</span>
+        </summary>
+        <div class="grid max-h-56 gap-1 overflow-y-auto px-2 pb-3">
+          {#each selectedClassification.children as option (option.value)}
+            <label class="flex min-h-11 cursor-pointer items-center gap-2 text-sm sm:min-h-10">
+              <input
+                class="size-4 rounded-sm border-line-strong text-primary focus:ring-focus"
+                type="radio"
+                name="directory-level2"
+                checked={query.level2 === option.value}
+                onchange={() => onClassificationChange(query.level1, option.value)}
+              />
+              <span class="min-w-0 flex-1 truncate">{option.label}</span>
+              <span class="font-mono text-xs text-fg-muted">
+                {optionCount(option.normalCount, option.abnormalCount)}
+              </span>
+            </label>
+          {/each}
+        </div>
+      </details>{/if}
+
+    <details open={query.tertiary.length > 0}>
       <summary
         class="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-sm px-2 text-sm font-medium hover:bg-subtle sm:min-h-10"
       >
-        子标签（需全部匹配）
-        <span class="text-xs text-fg-muted">
-          {query.secondary.length || options.secondaryTags.length}
-        </span>
+        三级标签（需全部匹配）
+        <span class="text-xs text-fg-muted"
+          >{query.tertiary.length || options.tertiaryTags.length}</span
+        >
       </summary>
-      <div class="grid max-h-56 gap-1 overflow-y-auto px-2 pb-3">
-        {#each options.secondaryTags as option (option.value)}
-          <label class="flex min-h-11 cursor-pointer items-center gap-2 text-sm sm:min-h-10">
-            <input
-              class="size-4 rounded-sm border-line-strong text-primary focus:ring-focus"
-              type="checkbox"
-              checked={query.secondary.includes(option.value)}
-              onchange={(event) => onToggle('secondary', option.value, event.currentTarget.checked)}
-            />
-            <span class="min-w-0 flex-1 truncate">{option.label}</span>
-            <span class="font-mono text-xs text-fg-muted">
-              {optionCount(option.normalCount, option.abnormalCount)}
-            </span>
-          </label>
-        {/each}
+      <div class="grid gap-2 px-2 pb-3">
+        <label class="sr-only" for="directory-tertiary-search">搜索三级标签</label>
+        <input
+          id="directory-tertiary-search"
+          class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-sm sm:min-h-10"
+          bind:value={tertiarySearch}
+          placeholder="搜索三级标签"
+        />
+        <div class="grid max-h-56 gap-1 overflow-y-auto">
+          {#each tertiaryOptions as option (option.value)}
+            <label class="flex min-h-11 cursor-pointer items-center gap-2 text-sm sm:min-h-10">
+              <input
+                class="size-4 rounded-sm border-line-strong text-primary focus:ring-focus"
+                type="checkbox"
+                checked={query.tertiary.includes(option.value)}
+                onchange={(event) =>
+                  onToggle('tertiary', option.value, event.currentTarget.checked)}
+              />
+              <span class="min-w-0 flex-1 truncate">{option.label}</span>
+              <span class="font-mono text-xs text-fg-muted"
+                >{optionCount(option.normalCount, option.abnormalCount)}</span
+              >
+            </label>
+          {/each}
+        </div>
       </div>
     </details>
 

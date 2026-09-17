@@ -289,7 +289,7 @@ func TestBuildPlanMapsDirectoryRelationsAndRetriesShortIDCollision(t *testing.T)
 	if len(plan.FriendLinks) != 1 || plan.FriendLinks[0].SourceSiteID != testSiteIDOne || plan.FriendLinks[0].TargetHost != "other.example" {
 		t.Fatalf("friend links = %#v, want both endpoints resolved to registered sites", plan.FriendLinks)
 	}
-	if got := plan.Counts(); got != (Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 2, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 3, Origins: 3, FriendLinks: 1}) {
+	if got := plan.Counts(); got != (Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 0, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 3, Origins: 3, FriendLinks: 1}) {
 		t.Fatalf("Counts() = %#v, want mapped row totals", got)
 	}
 }

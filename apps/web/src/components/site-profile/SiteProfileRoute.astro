@@ -102,7 +102,12 @@ const shortCode = profile ? (Array.from(profile.name.trim())[0]?.toUpperCase() ?
                 <span class="rounded-sm bg-tint px-2 py-1 text-xs font-medium text-tint-fg">
                   {accessScopeLabels[profile.accessScope]}
                 </span>
-                {profile.topics.map((topic) => (
+                {profile.classification ? (
+                  <span class="rounded-sm bg-tint px-2 py-1 text-xs font-medium text-tint-fg">
+                    {profile.classification.level1.name} - {profile.classification.level2.name}
+                  </span>
+                ) : null}
+                {profile.tertiaryTags.map((topic) => (
                   <span class="rounded-sm bg-subtle px-2 py-1 text-xs font-medium text-fg-muted">
                     {topic.name}
                   </span>

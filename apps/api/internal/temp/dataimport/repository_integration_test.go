@@ -103,7 +103,7 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Import() error = %v", err)
 	}
-	wantCounts := Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 2, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 3, Origins: 3, FriendLinks: 1}
+	wantCounts := Counts{Sites: 2, Feeds: 1, Resources: 2, Tags: 2, SiteTags: 0, SoftwareComponents: 2, Dependencies: 1, SiteComponents: 1, Sources: 3, Origins: 3, FriendLinks: 1}
 	if counts != wantCounts {
 		t.Fatalf("Import() counts = %#v, want %#v", counts, wantCounts)
 	}

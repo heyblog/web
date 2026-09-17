@@ -23,12 +23,13 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	const existingShortID = "4Fjw77W5U"
 	insertSite(ctx, t, pool, existingShortID, "Existing Site", "existing-review.example.com")
 	queries := dbgen.New(pool)
-	tag, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Review Conflict", NormalizedName: "review conflict",
-		Slug: "review-conflict", Description: "Site audit address conflict fixture.",
-	})
-	if err != nil {
-		t.Fatalf("create review conflict tag: %v", err)
+	cascades, err := queries.ListEnabledSiteTagCascades(ctx)
+	if err != nil || len(cascades) == 0 {
+		t.Fatalf("list review conflict tag cascades: %v / %d", err, len(cascades))
+	}
+	taxonomy := siteauditConflictTaxonomy{
+		Level1ID: integrationUUIDText(t, cascades[0].Level1ID),
+		Level2ID: integrationUUIDText(t, cascades[0].Level2ID),
 	}
 	program, err := queries.GetSoftwareComponentByNormalizedName(ctx, "其他")
 	if err != nil {
@@ -44,7 +45,6 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 		Repository: siteaudit.NewRepository(pool),
 		NewShortID: func() (string, error) { return "7Pq8Rs9Tu", nil },
 	})
-	tagID := integrationUUIDText(t, tag.ID)
 	programID := integrationUUIDText(t, program.ID)
 	reviewActor := auth.User{ID: integrationUUIDText(t, reviewer.ID), Role: auth.RoleSysAdmin}
 
@@ -60,13 +60,13 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	}
 
 	// When a CREATE submission directly targets the existing host.
-	_, err = service.Submit(ctx, siteaudit.ActionCreate, "", siteauditConflictSubmission("https://existing-review.example.com", tagID, programID))
+	_, err = service.Submit(ctx, siteaudit.ActionCreate, "", siteauditConflictSubmission("https://existing-review.example.com", taxonomy, programID))
 
 	// Then it is rejected as a stable conflict before an audit is created.
 	assertSiteAuditServiceError(t, err, "site_address_conflict", http.StatusConflict)
 
 	// Given a CREATE submission whose host is claimed after submission but before approval.
-	createResult, err := service.Submit(ctx, siteaudit.ActionCreate, "", siteauditConflictSubmission("https://review-race.example.com", tagID, programID))
+	createResult, err := service.Submit(ctx, siteaudit.ActionCreate, "", siteauditConflictSubmission("https://review-race.example.com", taxonomy, programID))
 	if err != nil {
 		t.Fatalf("submit review-race creation: %v", err)
 	}
@@ -82,7 +82,7 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	// Given an UPDATE that changes one site's host to another canonical site's host.
 	const updateShortID = "5Klm6No7P"
 	updateSiteID := insertSite(ctx, t, pool, updateShortID, "Update Source", "update-source.example.com")
-	updateResult, err := service.Submit(ctx, siteaudit.ActionUpdate, updateShortID, siteauditConflictSubmission("https://existing-review.example.com", tagID, programID))
+	updateResult, err := service.Submit(ctx, siteaudit.ActionUpdate, updateShortID, siteauditConflictSubmission("https://existing-review.example.com", taxonomy, programID))
 	if err != nil {
 		t.Fatalf("submit conflicting site update: %v", err)
 	}
@@ -104,7 +104,7 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	}
 
 	// Given a unique CREATE request.
-	successResult, err := service.Submit(ctx, siteaudit.ActionCreate, "", siteauditConflictSubmission("https://review-success.example.com", tagID, programID))
+	successResult, err := service.Submit(ctx, siteaudit.ActionCreate, "", siteauditConflictSubmission("https://review-success.example.com", taxonomy, programID))
 	if err != nil {
 		t.Fatalf("submit successful site creation: %v", err)
 	}
@@ -119,10 +119,18 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	}
 }
 
-func siteauditConflictSubmission(urlValue, tagID, programID string) siteaudit.SubmissionInput {
+type siteauditConflictTaxonomy struct {
+	Level1ID string
+	Level2ID string
+}
+
+func siteauditConflictSubmission(urlValue string, taxonomy siteauditConflictTaxonomy, programID string) siteaudit.SubmissionInput {
 	return siteaudit.SubmissionInput{Site: siteaudit.SiteInput{
 		Name: "Review Address", URL: urlValue,
-		Tags:       []siteaudit.TagInput{{ID: tagID, Role: "PRIMARY"}},
+		Tags: []siteaudit.TagInput{
+			{ID: taxonomy.Level1ID, Role: "PRIMARY", Level: 1},
+			{ID: taxonomy.Level2ID, Role: "SECONDARY", Level: 2, ParentID: taxonomy.Level1ID},
+		},
 		Components: []siteaudit.ComponentInput{{ID: programID, Role: "SITE_PROGRAM"}},
 	}, Reason: "Review address conflict integration scenario."}
 }

@@ -5,13 +5,20 @@ import (
 	"testing"
 )
 
-func TestBuildProposedSnapshotRequiresOneExistingPrimaryTag(t *testing.T) {
+func validTagInputs() []TagInput {
+	return []TagInput{
+		{ID: "level-1", Role: "PRIMARY", Level: 1},
+		{ID: "level-2", Role: "SECONDARY", Level: 2, ParentID: "level-1"},
+	}
+}
+
+func TestBuildProposedSnapshotRequiresOneFixedClassification(t *testing.T) {
 	t.Parallel()
 
 	_, err := BuildProposedSnapshot(SiteInput{
 		Name: "Example",
 		URL:  "https://example.test",
-		Tags: []TagInput{{ID: "tag-id", Role: "SECONDARY"}},
+		Tags: []TagInput{{ID: "tag-id", Role: "SECONDARY", Level: 2}},
 	}, Snapshot{AccessScope: "ALL", Visibility: "VISIBLE"})
 
 	if !errors.Is(err, ErrInvalidSubmission) {
@@ -25,7 +32,7 @@ func TestBuildProposedSnapshotRequiresSiteProgram(t *testing.T) {
 	_, err := BuildProposedSnapshot(SiteInput{
 		Name: "Example",
 		URL:  "https://example.test",
-		Tags: []TagInput{{ID: "tag-id", Role: "PRIMARY"}},
+		Tags: validTagInputs(),
 	}, Snapshot{AccessScope: "ALL", Visibility: "VISIBLE"})
 
 	if !errors.Is(err, ErrInvalidSubmission) {
@@ -49,6 +56,46 @@ func TestNormalizeSubmissionRequiresReasonForNonCreateActions(t *testing.T) {
 	}
 }
 
+func TestNormalizeSubmissionRequiresContactNameAndEmailTogether(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		contact ContactInput
+		valid   bool
+	}{
+		{name: "both empty", contact: ContactInput{}, valid: true},
+		{name: "name only", contact: ContactInput{Name: "Owner"}},
+		{name: "email only", contact: ContactInput{Email: "owner@example.test"}},
+		{name: "both filled", contact: ContactInput{Name: "Owner", Email: "owner@example.test"}, valid: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NormalizeSubmission(ActionCreate, SubmissionInput{Contact: test.contact})
+			if test.valid && err != nil {
+				t.Fatalf("NormalizeSubmission() error = %v, want nil", err)
+			}
+			if !test.valid && !errors.Is(err, ErrInvalidSubmission) {
+				t.Fatalf("NormalizeSubmission() error = %v, want ErrInvalidSubmission", err)
+			}
+		})
+	}
+}
+
+func TestNormalizeTagsRejectsWarningInEditableTaxonomy(t *testing.T) {
+	t.Parallel()
+
+	inputs := append(validTagInputs(), TagInput{ID: "warning", Role: "WARNING", Level: 3})
+	_, err := normalizeTags(inputs)
+
+	if !errors.Is(err, ErrInvalidSubmission) {
+		t.Fatalf("normalizeTags() error = %v, want ErrInvalidSubmission", err)
+	}
+}
+
 func TestBuildProposedSnapshotPreservesNonProgramSiteComponents(t *testing.T) {
 	t.Parallel()
 
@@ -64,7 +111,7 @@ func TestBuildProposedSnapshotPreservesNonProgramSiteComponents(t *testing.T) {
 	proposed, err := BuildProposedSnapshot(SiteInput{
 		Name:       "Example",
 		URL:        "https://example.test",
-		Tags:       []TagInput{{ID: "tag-id", Role: "PRIMARY"}},
+		Tags:       validTagInputs(),
 		Components: []ComponentInput{{ID: "new-program", Role: "SITE_PROGRAM"}},
 	}, base)
 
@@ -86,7 +133,7 @@ func TestBuildProposedSnapshotAllowsCustomProgramFrameworkAndLanguageDependencie
 	proposed, err := BuildProposedSnapshot(SiteInput{
 		Name: "Example",
 		URL:  "https://example.test",
-		Tags: []TagInput{{ID: "tag-id", Role: "PRIMARY"}},
+		Tags: validTagInputs(),
 		Components: []ComponentInput{{
 			SuggestedName: "Example Engine",
 			Role:          "SITE_PROGRAM",
@@ -117,7 +164,7 @@ func TestBuildProposedSnapshotPreservesCustomDependencyMetadata(t *testing.T) {
 	proposed, err := BuildProposedSnapshot(SiteInput{
 		Name: "Example",
 		URL:  "https://example.test",
-		Tags: []TagInput{{ID: "tag-id", Role: "PRIMARY"}},
+		Tags: validTagInputs(),
 		Components: []ComponentInput{{
 			SuggestedName: "Example Engine",
 			Role:          "SITE_PROGRAM",
@@ -152,7 +199,7 @@ func TestBuildProposedSnapshotRejectsRuntimeDependencyFromPublicSubmission(t *te
 	_, err := BuildProposedSnapshot(SiteInput{
 		Name: "Example",
 		URL:  "https://example.test",
-		Tags: []TagInput{{ID: "tag-id", Role: "PRIMARY"}},
+		Tags: validTagInputs(),
 		Components: []ComponentInput{{
 			SuggestedName: "Example Engine",
 			Role:          "SITE_PROGRAM",

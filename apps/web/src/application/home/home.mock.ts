@@ -154,9 +154,20 @@ export function createHomeMockState(mode: HomeMockMode): HomeMockState {
 
 function createMockCard(
   index: number,
-  overrides: Partial<HomeSiteCard> & Pick<HomeSiteCard, 'name' | 'summary'>,
+  overrides: Omit<Partial<HomeSiteCard>, 'classification' | 'tertiaryTags'> &
+    Pick<HomeSiteCard, 'name' | 'summary'> & {
+      readonly topics?: readonly {
+        readonly name: string;
+        readonly slug: string;
+        readonly role: 'PRIMARY' | 'SECONDARY';
+      }[];
+    },
 ): HomeSiteCard {
   const host = `mock-${index}.example`;
+  const { topics = [], ...cardOverrides } = overrides;
+  const level1 = topics.find((topic) => topic.role === 'PRIMARY');
+  const secondary = topics.filter((topic) => topic.role === 'SECONDARY');
+  const level2 = secondary[0];
   return {
     shortId: `Mock${index.toString().padStart(5, '0')}`,
     customId: null,
@@ -165,11 +176,15 @@ function createMockCard(
     accessScope: 'ALL',
     joinedAt: baseJoinedAt,
     updatedAt: baseUpdatedAt,
-    topics: [],
+    classification: {
+      level1: level1 ? { name: level1.name, slug: level1.slug } : { name: '其他', slug: 'other' },
+      level2: level2 ? { name: level2.name, slug: level2.slug } : { name: '综合', slug: 'general' },
+    },
+    tertiaryTags: secondary.slice(1).map((topic) => ({ name: topic.name, slug: topic.slug })),
     warnings: [],
     defaultFeed: null,
     sitemapUrl: null,
-    ...overrides,
+    ...cardOverrides,
     directoryStatus: overrides.directoryStatus ?? 'normal',
   };
 }

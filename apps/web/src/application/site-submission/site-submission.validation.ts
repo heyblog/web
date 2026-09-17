@@ -21,6 +21,15 @@ function isHTTPURL(value: string): boolean {
   }
 }
 
+function resolveHTTPURL(value: string, base: string): string | null {
+  try {
+    const parsed = new URL(value, base);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function validateSubmissionStep(
   action: AuditAction,
   form: EditableSubmission,
@@ -36,21 +45,23 @@ export function validateSubmissionStep(
   }
   if (step === 1 && (action === 'CREATE' || action === 'UPDATE')) {
     const feeds = form.feeds.filter((feed) => feed.url.trim());
-    if (
-      feeds.some((feed) => !feed.name.trim() || !isHTTPURL(new URL(feed.url, form.url).toString()))
-    )
+    const feedURLs = feeds.map((feed) => resolveHTTPURL(feed.url, form.url));
+    if (feeds.some((feed, index) => !feed.name.trim() || feedURLs[index] === null))
       return { valid: false, message: '请补全每个 Feed 的名称和有效地址。' };
     if (feeds.length > 0 && feeds.filter((feed) => feed.isDefault).length !== 1)
       return { valid: false, message: '请选择且仅选择一个默认 Feed。' };
-    if (
-      new Set(feeds.map((feed) => new URL(feed.url, form.url).toString().toLowerCase())).size !==
-      feeds.length
-    )
+    if (new Set(feedURLs.map((url) => url?.toLocaleLowerCase())).size !== feeds.length)
       return { valid: false, message: 'Feed 地址不能重复。' };
   }
   if (step === 2 && (action === 'CREATE' || action === 'UPDATE')) {
-    if (form.tags.length === 0 || form.tags.filter((tag) => tag.role === 'PRIMARY').length !== 1)
-      return { valid: false, message: '请选择至少一个标签，并指定一个主标签。' };
+    const level1Tags = form.tags.filter((tag) => tag.level === 1 && tag.role === 'PRIMARY');
+    const level2Tags = form.tags.filter((tag) => tag.level === 2 && tag.role === 'SECONDARY');
+    if (level1Tags.length !== 1 || level2Tags.length !== 1)
+      return { valid: false, message: '请选择完整的一级和二级分类。' };
+    if (level2Tags[0]?.parent_id !== level1Tags[0]?.id)
+      return { valid: false, message: '所选二级分类不属于当前一级分类。' };
+    if (form.tags.filter((tag) => tag.role === 'TERTIARY').length > 20)
+      return { valid: false, message: '三级标签最多选择 20 个。' };
     if (form.program.kind === 'none') return { valid: false, message: '请选择站点程序。' };
     if (form.program.kind === 'custom') {
       if (!form.program.name.trim() || form.program.name.trim().length > 128)
@@ -77,8 +88,12 @@ export function validateSubmissionStep(
   const isFinalStep = step === submissionStepCount(action) - 1;
   if (isFinalStep && action !== 'CREATE' && !form.reason.trim())
     return { valid: false, message: '请填写申请原因。' };
+  const hasContactName = form.contactName.trim().length > 0;
+  const hasContactEmail = form.contactEmail.trim().length > 0;
+  if (isFinalStep && hasContactName !== hasContactEmail)
+    return { valid: false, message: '称呼和邮箱需要同时填写，或同时留空。' };
   if (isFinalStep && form.notifyByEmail && !form.contactEmail.trim())
-    return { valid: false, message: '接收邮件通知需要填写邮箱。' };
+    return { valid: false, message: '接收邮件通知需要填写称呼和邮箱。' };
   return { valid: true, message: '' };
 }
 

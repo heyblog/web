@@ -23,7 +23,7 @@
   type PickerMode = 'search' | 'custom' | 'other';
   type CustomProgramDraft = Extract<ProgramDraft, { kind: 'custom' }>;
 
-  let { form, options, dependencyRelations, privateProgramID }: Props = $props();
+  let { form = $bindable(), options, dependencyRelations, privateProgramID }: Props = $props();
   const initialProgram = untrack(() => form.program);
   let query = $state('');
   let searchInput: HTMLInputElement;
@@ -106,16 +106,16 @@
   }
 </script>
 
-<section class="grid gap-4">
+<section class="grid min-w-0 gap-4">
   <div>
     <h2 class="text-xl font-semibold">站点程序</h2>
     <p class="mt-1 text-sm text-pretty text-fg-muted">搜索已有程序，或选择程序类型。</p>
   </div>
 
-  <div class="grid items-start gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
-    <div class="grid gap-2" aria-label="程序类型">
+  <div class="grid min-w-0 items-start gap-4">
+    <div class="grid grid-cols-2 gap-2" aria-label="程序类型">
       <button
-        class="min-h-11 rounded-sm border px-3 text-sm"
+        class="min-h-11 rounded-md border px-3 text-sm sm:min-h-10"
         class:border-primary={mode === 'custom'}
         class:bg-tint={mode === 'custom'}
         class:border-line={mode !== 'custom'}
@@ -124,7 +124,7 @@
         onclick={chooseCustom}>自定义程序</button
       >
       <button
-        class="min-h-11 rounded-sm border px-3 text-sm"
+        class="min-h-11 rounded-md border px-3 text-sm sm:min-h-10"
         class:border-primary={mode === 'other'}
         class:bg-tint={mode === 'other'}
         class:border-line={mode !== 'other'}
@@ -135,11 +135,11 @@
       >
     </div>
 
-    <div class="grid gap-3">
-      <label class="grid gap-2 text-sm" for="program-search"
+    <div class="grid min-w-0 gap-3">
+      <label class="grid min-w-0 gap-2 text-sm" for="program-search"
         >选择已有程序<input
           id="program-search"
-          class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 disabled:cursor-not-allowed disabled:border-line disabled:bg-subtle disabled:text-fg-muted"
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3 disabled:cursor-not-allowed disabled:border-line disabled:bg-subtle disabled:text-fg-muted"
           bind:this={searchInput}
           bind:value={query}
           disabled={mode !== 'search'}
@@ -172,7 +172,7 @@
               </p>{/if}
           </div>{/if}
       {:else if form.program.kind === 'custom'}
-        <div class="grid gap-4 rounded-md border border-line p-4">
+        <div class="grid min-w-0 gap-4 rounded-md border border-line p-4">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
             <strong>自定义程序</strong>
             <button
@@ -181,17 +181,17 @@
               onclick={returnToSearch}>返回选择已有程序</button
             >
           </div>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <label class="grid gap-2 text-sm"
+          <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+            <label class="grid min-w-0 gap-2 text-sm"
               >程序名称<input
-                class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+                class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 bind:value={form.program.name}
                 maxlength="128"
               /></label
             >
-            <label class="grid gap-2 text-sm"
+            <label class="grid min-w-0 gap-2 text-sm"
               >开源状态<select
-                class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+                class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 value={form.program.isOpenSource === null ? '' : String(form.program.isOpenSource)}
                 onchange={(event) => setOpenSource(event.currentTarget.value)}
                 ><option value="">请选择</option><option value="true">开源</option><option
@@ -199,15 +199,15 @@
                 ></select
               ></label
             >
-            <label class="grid gap-2 text-sm"
+            <label class="grid min-w-0 gap-2 text-sm"
               >官网<input
-                class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+                class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 bind:value={form.program.homepageURL}
               /></label
             >
-            <label class="grid gap-2 text-sm"
+            <label class="grid min-w-0 gap-2 text-sm"
               >代码仓库<input
-                class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+                class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 bind:value={form.program.repositoryURL}
               /></label
             >

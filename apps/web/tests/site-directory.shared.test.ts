@@ -16,13 +16,13 @@ test('creates the daily directory seed from the China calendar date', () => {
 test('round trips repeated directory filters and stable random state', () => {
   const query = parseSiteDirectorySearchParams(
     new URLSearchParams(
-      'page=3&q=astro&primary=technology&primary=life&secondary=design&warning=slow-access&technology=astro&access=ALL&feed=with&status=abnormal&sort=random&order=desc&seed=site-directory%3Ashared',
+      'page=3&q=astro&level1=technology&level2=design&tertiary=go&tertiary=astro&warning=slow-access&technology=astro&access=ALL&feed=with&status=abnormal&sort=random&order=desc&seed=site-directory%3Ashared',
     ),
   );
 
   assert.equal(
     buildSiteDirectorySearchParams(query).toString(),
-    'page=3&q=astro&feed=with&status=abnormal&sort=random&order=desc&seed=site-directory%3Ashared&primary=technology&primary=life&secondary=design&warning=slow-access&technology=astro&access=ALL',
+    'page=3&q=astro&feed=with&status=abnormal&sort=random&order=desc&seed=site-directory%3Ashared&level1=technology&level2=design&tertiary=go&tertiary=astro&warning=slow-access&technology=astro&access=ALL',
   );
 });
 

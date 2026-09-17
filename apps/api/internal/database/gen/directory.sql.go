@@ -89,9 +89,10 @@ UPDATE directory.sites
        summary = $6,
        access_scope = $7,
        visibility = $8,
-       visibility_reason = $9
- WHERE id = $1 AND revision = $10
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+       visibility_reason = $9,
+       tag_cascade_id = $10
+ WHERE id = $1 AND revision = $11
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
 `
 
 type ApplySiteSnapshotParams struct {
@@ -104,6 +105,7 @@ type ApplySiteSnapshotParams struct {
 	AccessScope      string
 	Visibility       string
 	VisibilityReason *string
+	TagCascadeID     pgtype.UUID
 	Revision         int64
 }
 
@@ -118,6 +120,7 @@ func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotPa
 		arg.AccessScope,
 		arg.Visibility,
 		arg.VisibilityReason,
+		arg.TagCascadeID,
 		arg.Revision,
 	)
 	var i DirectorySite
@@ -136,6 +139,7 @@ func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotPa
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
@@ -195,13 +199,15 @@ INSERT INTO directory.site_tags (
     tag_id,
     role,
     assignment_source,
+    position,
     note
-) VALUES ($1, $2, $3, $4, $5)
+) VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (site_id, tag_id) DO UPDATE
    SET role = EXCLUDED.role,
        assignment_source = EXCLUDED.assignment_source,
+       position = EXCLUDED.position,
        note = EXCLUDED.note
-RETURNING site_id, tag_id, role, assignment_source, note, created_at
+RETURNING site_id, tag_id, role, assignment_source, note, created_at, position
 `
 
 type AssignSiteTagParams struct {
@@ -209,6 +215,7 @@ type AssignSiteTagParams struct {
 	TagID            pgtype.UUID
 	Role             string
 	AssignmentSource string
+	Position         *int16
 	Note             *string
 }
 
@@ -218,6 +225,7 @@ func (q *Queries) AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (D
 		arg.TagID,
 		arg.Role,
 		arg.AssignmentSource,
+		arg.Position,
 		arg.Note,
 	)
 	var i DirectorySiteTag
@@ -228,6 +236,7 @@ func (q *Queries) AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (D
 		&i.AssignmentSource,
 		&i.Note,
 		&i.CreatedAt,
+		&i.Position,
 	)
 	return i, err
 }
@@ -244,34 +253,28 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
            lower($1::text)
        ) > 0
    )
+   AND ($2::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
+         AND tag.merged_into_id IS NULL AND tag.slug = $2::text
+   ))
+   AND ($3::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
+         AND tag.merged_into_id IS NULL AND tag.slug = $3::text
+   ))
+   AND (cardinality($4::text[]) = 0 OR (
+       SELECT count(DISTINCT tag.slug)
+       FROM directory.site_tags AS assignment
+       JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+       WHERE assignment.site_id = site.id AND assignment.role = 'TERTIARY'
+         AND tag.is_enabled AND tag.merged_into_id IS NULL
+         AND tag.slug = ANY($4::text[])
+   ) = cardinality($4::text[]))
    AND (
-       cardinality($2::text[]) = 0
-       OR EXISTS (
-           SELECT 1
-             FROM directory.site_tags AS assignment
-             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
-            WHERE assignment.site_id = site.id
-              AND assignment.role = 'PRIMARY'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($2::text[])
-       )
-   )
-   AND (
-       cardinality($3::text[]) = 0
-       OR (
-           SELECT count(DISTINCT tag.slug)
-             FROM directory.site_tags AS assignment
-             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
-            WHERE assignment.site_id = site.id
-              AND assignment.role = 'SECONDARY'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($3::text[])
-       ) = cardinality($3::text[])
-   )
-   AND (
-       cardinality($4::text[]) = 0
+       cardinality($5::text[]) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
@@ -280,28 +283,28 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
               AND assignment.role = 'WARNING'
               AND tag.is_enabled
               AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($4::text[])
+              AND tag.slug = ANY($5::text[])
        )
    )
    AND (
-       cardinality($5::text[]) = 0
+       cardinality($6::text[]) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_software_components AS assignment
              JOIN directory.software_components AS component ON component.id = assignment.component_id
             WHERE assignment.site_id = site.id
               AND component.is_enabled
-              AND component.normalized_name = ANY($5::text[])
+              AND component.normalized_name = ANY($6::text[])
        )
    )
    AND (
-       cardinality($6::text[]) = 0
-       OR site.access_scope = ANY($6::text[])
+       cardinality($7::text[]) = 0
+       OR site.access_scope = ANY($7::text[])
    )
    AND (
-       $7::text = 'any'
+       $8::text = 'any'
        OR (
-           $7::text = 'with'
+           $8::text = 'with'
            AND EXISTS (
                SELECT 1
                  FROM directory.site_feeds AS feed
@@ -309,7 +312,7 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
            )
        )
        OR (
-           $7::text = 'without'
+           $8::text = 'without'
            AND NOT EXISTS (
                SELECT 1
                  FROM directory.site_feeds AS feed
@@ -320,13 +323,14 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
 `
 
 type CountDirectorySitesByStatusParams struct {
-	QueryText         string
-	PrimaryTagSlugs   []string
-	SecondaryTagSlugs []string
-	WarningSlugs      []string
-	TechnologyNames   []string
-	AccessScopes      []string
-	FeedMode          string
+	QueryText        string
+	Level1TagSlug    string
+	Level2TagSlug    string
+	TertiaryTagSlugs []string
+	WarningSlugs     []string
+	TechnologyNames  []string
+	AccessScopes     []string
+	FeedMode         string
 }
 
 type CountDirectorySitesByStatusRow struct {
@@ -337,8 +341,9 @@ type CountDirectorySitesByStatusRow struct {
 func (q *Queries) CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error) {
 	row := q.db.QueryRow(ctx, countDirectorySitesByStatus,
 		arg.QueryText,
-		arg.PrimaryTagSlugs,
-		arg.SecondaryTagSlugs,
+		arg.Level1TagSlug,
+		arg.Level2TagSlug,
+		arg.TertiaryTagSlugs,
 		arg.WarningSlugs,
 		arg.TechnologyNames,
 		arg.AccessScopes,
@@ -371,9 +376,10 @@ INSERT INTO directory.sites (
     normalized_host,
     base_path,
     summary,
-    access_scope
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+    access_scope,
+    tag_cascade_id
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
 `
 
 type CreateSiteParams struct {
@@ -385,6 +391,7 @@ type CreateSiteParams struct {
 	BasePath       string
 	Summary        string
 	AccessScope    string
+	TagCascadeID   pgtype.UUID
 }
 
 func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error) {
@@ -397,6 +404,7 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Directo
 		arg.BasePath,
 		arg.Summary,
 		arg.AccessScope,
+		arg.TagCascadeID,
 	)
 	var i DirectorySite
 	err := row.Scan(
@@ -414,6 +422,7 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Directo
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
@@ -467,7 +476,7 @@ func (q *Queries) CreateSoftwareComponent(ctx context.Context, arg CreateSoftwar
 const createTag = `-- name: CreateTag :one
 INSERT INTO directory.tags (name, normalized_name, slug, description)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at
+RETURNING id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at, system_key, is_fixed
 `
 
 type CreateTagParams struct {
@@ -497,6 +506,8 @@ func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Directory
 		&i.MergedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SystemKey,
+		&i.IsFixed,
 	)
 	return i, err
 }
@@ -547,8 +558,48 @@ func (q *Queries) DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) e
 	return err
 }
 
+const getEnabledSiteTagCascade = `-- name: GetEnabledSiteTagCascade :one
+SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
+       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
+       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
+  FROM directory.tag_cascades AS cascade
+  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
+  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
+ WHERE cascade.id = $1 AND cascade.scope = 'SITE' AND cascade.is_enabled
+   AND level1.is_enabled AND level2.is_enabled
+`
+
+type GetEnabledSiteTagCascadeRow struct {
+	ID          pgtype.UUID
+	TaxonomyKey string
+	SortOrder   int16
+	Level1ID    pgtype.UUID
+	Level1Name  string
+	Level1Slug  string
+	Level2ID    pgtype.UUID
+	Level2Name  string
+	Level2Slug  string
+}
+
+func (q *Queries) GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetEnabledSiteTagCascadeRow, error) {
+	row := q.db.QueryRow(ctx, getEnabledSiteTagCascade, id)
+	var i GetEnabledSiteTagCascadeRow
+	err := row.Scan(
+		&i.ID,
+		&i.TaxonomyKey,
+		&i.SortOrder,
+		&i.Level1ID,
+		&i.Level1Name,
+		&i.Level1Slug,
+		&i.Level2ID,
+		&i.Level2Name,
+		&i.Level2Slug,
+	)
+	return i, err
+}
+
 const getSiteByCustomID = `-- name: GetSiteByCustomID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE custom_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE custom_id = $1
 `
 
 func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error) {
@@ -569,12 +620,13 @@ func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (Dire
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
 
 const getSiteByHost = `-- name: GetSiteByHost :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE normalized_host = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE normalized_host = $1
 `
 
 func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (DirectorySite, error) {
@@ -595,12 +647,13 @@ func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (Dir
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
 
 const getSiteByID = `-- name: GetSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE id = $1
 `
 
 func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -621,12 +674,13 @@ func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySit
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
 
 const getSiteByShortID = `-- name: GetSiteByShortID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE short_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE short_id = $1
 `
 
 func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error) {
@@ -647,6 +701,7 @@ func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (Directo
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
@@ -737,7 +792,7 @@ func (q *Queries) GetSoftwareComponentByNormalizedName(ctx context.Context, norm
 }
 
 const getTagByNormalizedName = `-- name: GetTagByNormalizedName :one
-SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at FROM directory.tags WHERE normalized_name = $1 AND merged_into_id IS NULL
+SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at, system_key, is_fixed FROM directory.tags WHERE normalized_name = $1 AND merged_into_id IS NULL
 `
 
 func (q *Queries) GetTagByNormalizedName(ctx context.Context, normalizedName string) (DirectoryTag, error) {
@@ -755,6 +810,8 @@ func (q *Queries) GetTagByNormalizedName(ctx context.Context, normalizedName str
 		&i.MergedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SystemKey,
+		&i.IsFixed,
 	)
 	return i, err
 }
@@ -802,7 +859,7 @@ func (q *Queries) ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteI
 }
 
 const listDirectorySites = `-- name: ListDirectorySites :many
-SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id
   FROM directory.sites AS site
  WHERE site.visibility = $1::text
    AND (
@@ -812,34 +869,28 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
            lower($2::text)
        ) > 0
    )
+   AND ($3::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
+         AND tag.merged_into_id IS NULL AND tag.slug = $3::text
+   ))
+   AND ($4::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
+         AND tag.merged_into_id IS NULL AND tag.slug = $4::text
+   ))
+   AND (cardinality($5::text[]) = 0 OR (
+       SELECT count(DISTINCT tag.slug)
+       FROM directory.site_tags AS assignment
+       JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+       WHERE assignment.site_id = site.id AND assignment.role = 'TERTIARY'
+         AND tag.is_enabled AND tag.merged_into_id IS NULL
+         AND tag.slug = ANY($5::text[])
+   ) = cardinality($5::text[]))
    AND (
-       cardinality($3::text[]) = 0
-       OR EXISTS (
-           SELECT 1
-             FROM directory.site_tags AS assignment
-             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
-            WHERE assignment.site_id = site.id
-              AND assignment.role = 'PRIMARY'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($3::text[])
-       )
-   )
-   AND (
-       cardinality($4::text[]) = 0
-       OR (
-           SELECT count(DISTINCT tag.slug)
-             FROM directory.site_tags AS assignment
-             JOIN directory.tags AS tag ON tag.id = assignment.tag_id
-            WHERE assignment.site_id = site.id
-              AND assignment.role = 'SECONDARY'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($4::text[])
-       ) = cardinality($4::text[])
-   )
-   AND (
-       cardinality($5::text[]) = 0
+       cardinality($6::text[]) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
@@ -848,28 +899,28 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
               AND assignment.role = 'WARNING'
               AND tag.is_enabled
               AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($5::text[])
-       )
+              AND tag.slug = ANY($6::text[])
+		   )
    )
    AND (
-       cardinality($6::text[]) = 0
+       cardinality($7::text[]) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_software_components AS assignment
              JOIN directory.software_components AS component ON component.id = assignment.component_id
             WHERE assignment.site_id = site.id
               AND component.is_enabled
-              AND component.normalized_name = ANY($6::text[])
-       )
+			  AND component.normalized_name = ANY($7::text[])
+			   )
    )
    AND (
-       cardinality($7::text[]) = 0
-       OR site.access_scope = ANY($7::text[])
+       cardinality($8::text[]) = 0
+       OR site.access_scope = ANY($8::text[])
    )
    AND (
-       $8::text = 'any'
+       $9::text = 'any'
        OR (
-           $8::text = 'with'
+           $9::text = 'with'
            AND EXISTS (
                SELECT 1
                  FROM directory.site_feeds AS feed
@@ -877,7 +928,7 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
            )
        )
        OR (
-           $8::text = 'without'
+           $9::text = 'without'
            AND NOT EXISTS (
                SELECT 1
                  FROM directory.site_feeds AS feed
@@ -886,48 +937,50 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
        )
    )
  ORDER BY
-       CASE WHEN $9::text = 'random'
-           THEN md5($10::text || ':' || site.short_id)
+       CASE WHEN $10::text = 'random'
+           THEN md5($11::text || ':' || site.short_id)
        END,
-       CASE WHEN $9::text = 'joined' AND $11::text = 'desc'
+       CASE WHEN $10::text = 'joined' AND $12::text = 'desc'
            THEN site.joined_at
        END DESC,
-       CASE WHEN $9::text = 'joined' AND $11::text = 'asc'
+       CASE WHEN $10::text = 'joined' AND $12::text = 'asc'
            THEN site.joined_at
        END ASC,
-       CASE WHEN $9::text = 'updated' AND $11::text = 'desc'
+       CASE WHEN $10::text = 'updated' AND $12::text = 'desc'
            THEN site.updated_at
        END DESC,
-       CASE WHEN $9::text = 'updated' AND $11::text = 'asc'
+       CASE WHEN $10::text = 'updated' AND $12::text = 'asc'
            THEN site.updated_at
        END ASC,
        site.short_id
- LIMIT $13::integer
-OFFSET $12::integer
+ LIMIT $14::integer
+OFFSET $13::integer
 `
 
 type ListDirectorySitesParams struct {
-	SiteVisibility    string
-	QueryText         string
-	PrimaryTagSlugs   []string
-	SecondaryTagSlugs []string
-	WarningSlugs      []string
-	TechnologyNames   []string
-	AccessScopes      []string
-	FeedMode          string
-	SortMode          string
-	Seed              string
-	SortOrder         string
-	PageOffset        int32
-	PageLimit         int32
+	SiteVisibility   string
+	QueryText        string
+	Level1TagSlug    string
+	Level2TagSlug    string
+	TertiaryTagSlugs []string
+	WarningSlugs     []string
+	TechnologyNames  []string
+	AccessScopes     []string
+	FeedMode         string
+	SortMode         string
+	Seed             string
+	SortOrder        string
+	PageOffset       int32
+	PageLimit        int32
 }
 
 func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySitesParams) ([]DirectorySite, error) {
 	rows, err := q.db.Query(ctx, listDirectorySites,
 		arg.SiteVisibility,
 		arg.QueryText,
-		arg.PrimaryTagSlugs,
-		arg.SecondaryTagSlugs,
+		arg.Level1TagSlug,
+		arg.Level2TagSlug,
+		arg.TertiaryTagSlugs,
 		arg.WarningSlugs,
 		arg.TechnologyNames,
 		arg.AccessScopes,
@@ -960,6 +1013,7 @@ func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySites
 			&i.Revision,
 			&i.JoinedAt,
 			&i.UpdatedAt,
+			&i.TagCascadeID,
 		); err != nil {
 			return nil, err
 		}
@@ -972,19 +1026,26 @@ func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySites
 }
 
 const listDirectoryTagOptions = `-- name: ListDirectoryTagOptions :many
+WITH assignments AS (
+	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role
+	  FROM directory.sites AS site
+	  JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
+	UNION ALL
+	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text
+	  FROM directory.sites AS site
+	  JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
+	UNION ALL
+	SELECT assignment.site_id, assignment.tag_id, assignment.role
+	  FROM directory.site_tags AS assignment
+	 WHERE assignment.role IN ('TERTIARY', 'WARNING')
+)
 SELECT tag.name, tag.slug, assignment.role,
-       count(DISTINCT assignment.site_id) FILTER (
-           WHERE site.visibility = 'VISIBLE'
-       )::bigint AS normal_count,
-       count(DISTINCT assignment.site_id) FILTER (
-           WHERE site.visibility = 'HIDDEN'
-       )::bigint AS abnormal_count
-  FROM directory.site_tags AS assignment
+	   count(DISTINCT assignment.site_id) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
+	   count(DISTINCT assignment.site_id) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
+  FROM assignments AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
   JOIN directory.sites AS site ON site.id = assignment.site_id
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
-   AND tag.is_enabled
-   AND tag.merged_into_id IS NULL
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND tag.is_enabled AND tag.merged_into_id IS NULL
  GROUP BY tag.id, tag.name, tag.slug, assignment.role
  ORDER BY assignment.role, normal_count DESC, abnormal_count DESC, tag.name, tag.slug
 `
@@ -1060,6 +1121,60 @@ func (q *Queries) ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDir
 			&i.NormalizedName,
 			&i.NormalCount,
 			&i.AbnormalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEnabledSiteTagCascades = `-- name: ListEnabledSiteTagCascades :many
+SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
+       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
+       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
+  FROM directory.tag_cascades AS cascade
+  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
+  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
+ WHERE cascade.scope = 'SITE' AND cascade.is_enabled
+   AND level1.is_enabled AND level2.is_enabled
+ ORDER BY cascade.sort_order, cascade.id
+`
+
+type ListEnabledSiteTagCascadesRow struct {
+	ID          pgtype.UUID
+	TaxonomyKey string
+	SortOrder   int16
+	Level1ID    pgtype.UUID
+	Level1Name  string
+	Level1Slug  string
+	Level2ID    pgtype.UUID
+	Level2Name  string
+	Level2Slug  string
+}
+
+func (q *Queries) ListEnabledSiteTagCascades(ctx context.Context) ([]ListEnabledSiteTagCascadesRow, error) {
+	rows, err := q.db.Query(ctx, listEnabledSiteTagCascades)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEnabledSiteTagCascadesRow{}
+	for rows.Next() {
+		var i ListEnabledSiteTagCascadesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TaxonomyKey,
+			&i.SortOrder,
+			&i.Level1ID,
+			&i.Level1Name,
+			&i.Level1Slug,
+			&i.Level2ID,
+			&i.Level2Name,
+			&i.Level2Slug,
 		); err != nil {
 			return nil, err
 		}
@@ -1147,7 +1262,7 @@ func (q *Queries) ListEnabledSoftwareComponents(ctx context.Context) ([]Director
 }
 
 const listEnabledTags = `-- name: ListEnabledTags :many
-SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at FROM directory.tags
+SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at, system_key, is_fixed FROM directory.tags
  WHERE is_enabled AND merged_into_id IS NULL
  ORDER BY name, id
 `
@@ -1173,6 +1288,8 @@ func (q *Queries) ListEnabledTags(ctx context.Context) ([]DirectoryTag, error) {
 			&i.MergedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SystemKey,
+			&i.IsFixed,
 		); err != nil {
 			return nil, err
 		}
@@ -1284,13 +1401,23 @@ func (q *Queries) ListPublicSiteSoftwareComponents(ctx context.Context, siteID p
 }
 
 const listPublicSiteTags = `-- name: ListPublicSiteTags :many
-SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
-  FROM directory.site_tags AS assignment
-  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
- WHERE assignment.site_id = $1
+WITH assignments AS (
+	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at
+	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = $1
+	UNION ALL
+	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text, 'SYSTEM'::text, NULL::smallint, NULL::text, site.joined_at
+	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = $1
+	UNION ALL
+	SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at
+	  FROM directory.site_tags AS assignment WHERE assignment.site_id = $1 AND assignment.role IN ('TERTIARY', 'WARNING')
+)
+SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
+	FROM assignments AS assignment
+	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+	WHERE true
    AND tag.is_enabled
    AND tag.merged_into_id IS NULL
- ORDER BY assignment.role, tag.name
+ ORDER BY assignment.role, assignment.position NULLS LAST, tag.name
 `
 
 type ListPublicSiteTagsRow struct {
@@ -1298,6 +1425,7 @@ type ListPublicSiteTagsRow struct {
 	TagID            pgtype.UUID
 	Role             string
 	AssignmentSource string
+	Position         *int16
 	Note             *string
 	CreatedAt        pgtype.Timestamptz
 	Name             string
@@ -1305,8 +1433,8 @@ type ListPublicSiteTagsRow struct {
 	Description      string
 }
 
-func (q *Queries) ListPublicSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteTagsRow, error) {
-	rows, err := q.db.Query(ctx, listPublicSiteTags, siteID)
+func (q *Queries) ListPublicSiteTags(ctx context.Context, id pgtype.UUID) ([]ListPublicSiteTagsRow, error) {
+	rows, err := q.db.Query(ctx, listPublicSiteTags, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1319,6 +1447,7 @@ func (q *Queries) ListPublicSiteTags(ctx context.Context, siteID pgtype.UUID) ([
 			&i.TagID,
 			&i.Role,
 			&i.AssignmentSource,
+			&i.Position,
 			&i.Note,
 			&i.CreatedAt,
 			&i.Name,
@@ -1336,13 +1465,23 @@ func (q *Queries) ListPublicSiteTags(ctx context.Context, siteID pgtype.UUID) ([
 }
 
 const listPublicSiteTagsBySiteIDs = `-- name: ListPublicSiteTagsBySiteIDs :many
-SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
-  FROM directory.site_tags AS assignment
-  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
- WHERE assignment.site_id = ANY($1::uuid[])
+WITH assignments AS (
+	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at
+	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = ANY($1::uuid[])
+	UNION ALL
+	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text, 'SYSTEM'::text, NULL::smallint, NULL::text, site.joined_at
+	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = ANY($1::uuid[])
+	UNION ALL
+	SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at
+	  FROM directory.site_tags AS assignment WHERE assignment.site_id = ANY($1::uuid[]) AND assignment.role IN ('TERTIARY', 'WARNING')
+)
+SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
+	FROM assignments AS assignment
+	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+	WHERE true
    AND tag.is_enabled
    AND tag.merged_into_id IS NULL
- ORDER BY assignment.site_id, assignment.role, tag.name
+ ORDER BY assignment.site_id, assignment.role, assignment.position NULLS LAST, tag.name
 `
 
 type ListPublicSiteTagsBySiteIDsRow struct {
@@ -1350,6 +1489,7 @@ type ListPublicSiteTagsBySiteIDsRow struct {
 	TagID            pgtype.UUID
 	Role             string
 	AssignmentSource string
+	Position         *int16
 	Note             *string
 	CreatedAt        pgtype.Timestamptz
 	Name             string
@@ -1371,6 +1511,7 @@ func (q *Queries) ListPublicSiteTagsBySiteIDs(ctx context.Context, siteIds []pgt
 			&i.TagID,
 			&i.Role,
 			&i.AssignmentSource,
+			&i.Position,
 			&i.Note,
 			&i.CreatedAt,
 			&i.Name,
@@ -1426,11 +1567,11 @@ func (q *Queries) ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgt
 }
 
 const listRandomVisibleSites = `-- name: ListRandomVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
   FROM directory.sites
  WHERE visibility = 'VISIBLE'
  ORDER BY random()
- LIMIT $1
+LIMIT $1
 `
 
 func (q *Queries) ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error) {
@@ -1457,6 +1598,7 @@ func (q *Queries) ListRandomVisibleSites(ctx context.Context, limit int32) ([]Di
 			&i.Revision,
 			&i.JoinedAt,
 			&i.UpdatedAt,
+			&i.TagCascadeID,
 		); err != nil {
 			return nil, err
 		}
@@ -1647,11 +1789,11 @@ func (q *Queries) ListSiteSoftwareComponents(ctx context.Context, siteID pgtype.
 }
 
 const listSiteTags = `-- name: ListSiteTags :many
-SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, tag.name, tag.slug, tag.description
+SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.note, assignment.created_at, assignment.position, tag.name, tag.slug, tag.description
   FROM directory.site_tags AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
  WHERE assignment.site_id = $1
- ORDER BY assignment.role, tag.name
+ ORDER BY assignment.role, assignment.position NULLS LAST, tag.name
 `
 
 type ListSiteTagsRow struct {
@@ -1661,6 +1803,7 @@ type ListSiteTagsRow struct {
 	AssignmentSource string
 	Note             *string
 	CreatedAt        pgtype.Timestamptz
+	Position         *int16
 	Name             string
 	Slug             string
 	Description      string
@@ -1682,6 +1825,7 @@ func (q *Queries) ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListS
 			&i.AssignmentSource,
 			&i.Note,
 			&i.CreatedAt,
+			&i.Position,
 			&i.Name,
 			&i.Slug,
 			&i.Description,
@@ -1754,7 +1898,7 @@ func (q *Queries) ListSoftwareComponentDependencies(ctx context.Context, compone
 }
 
 const listVisibleSites = `-- name: ListVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
   FROM directory.sites
  WHERE visibility = 'VISIBLE'
  ORDER BY joined_at DESC, id DESC
@@ -1790,6 +1934,7 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 			&i.Revision,
 			&i.JoinedAt,
 			&i.UpdatedAt,
+			&i.TagCascadeID,
 		); err != nil {
 			return nil, err
 		}
@@ -1802,7 +1947,7 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 }
 
 const lockSiteByID = `-- name: LockSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at FROM directory.sites WHERE id = $1 FOR UPDATE
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -1823,6 +1968,7 @@ func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySi
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
@@ -1844,7 +1990,7 @@ func (q *Queries) RemoveSoftwareComponentDependency(ctx context.Context, arg Rem
 }
 
 const searchSitesForSubmission = `-- name: SearchSitesForSubmission :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
   FROM directory.sites
  WHERE name ILIKE '%' || $1::text || '%'
     OR normalized_host ILIKE '%' || $1::text || '%'
@@ -1877,6 +2023,7 @@ func (q *Queries) SearchSitesForSubmission(ctx context.Context, query string) ([
 			&i.Revision,
 			&i.JoinedAt,
 			&i.UpdatedAt,
+			&i.TagCascadeID,
 		); err != nil {
 			return nil, err
 		}
@@ -1893,7 +2040,7 @@ UPDATE directory.sites
    SET visibility = $2,
        visibility_reason = $3
  WHERE id = $1 AND revision = $4
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
 `
 
 type SetSiteVisibilityParams struct {
@@ -1926,6 +2073,7 @@ func (q *Queries) SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityPa
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
@@ -1978,13 +2126,22 @@ func (q *Queries) UnassignSiteTag(ctx context.Context, arg UnassignSiteTagParams
 	return err
 }
 
+const unassignSiteTertiaryTags = `-- name: UnassignSiteTertiaryTags :exec
+DELETE FROM directory.site_tags WHERE site_id = $1 AND role = 'TERTIARY'
+`
+
+func (q *Queries) UnassignSiteTertiaryTags(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, unassignSiteTertiaryTags, siteID)
+	return err
+}
+
 const updateSiteAddress = `-- name: UpdateSiteAddress :one
 UPDATE directory.sites
    SET scheme = $2,
        normalized_host = $3,
        base_path = $4
  WHERE id = $1 AND revision = $5
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
 `
 
 type UpdateSiteAddressParams struct {
@@ -2019,6 +2176,7 @@ func (q *Queries) UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressPa
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }
@@ -2030,7 +2188,7 @@ UPDATE directory.sites
        summary = $4,
        access_scope = $5
  WHERE id = $1 AND revision = $6
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
 `
 
 type UpdateSiteDirectoryProfileParams struct {
@@ -2067,6 +2225,7 @@ func (q *Queries) UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSite
 		&i.Revision,
 		&i.JoinedAt,
 		&i.UpdatedAt,
+		&i.TagCascadeID,
 	)
 	return i, err
 }

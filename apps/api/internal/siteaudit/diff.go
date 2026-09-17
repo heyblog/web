@@ -129,6 +129,9 @@ func resourceValues(resources []ResourceSnapshot) map[string]string {
 func tagValues(tags []TagSnapshot) map[string]string {
 	values := make(map[string]string, len(tags))
 	for _, tag := range tags {
+		if tag.Role == "WARNING" {
+			continue
+		}
 		key := tag.ID
 		if key == "" {
 			key = tag.Role + ":" + tag.SuggestedName

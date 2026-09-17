@@ -12,13 +12,15 @@
     readonly options: SiteDirectoryOptions;
     readonly query: SiteDirectoryQuery;
     readonly onToggle: (name: SiteDirectoryFilterName, value: string, selected: boolean) => void;
+    readonly onClassificationChange: (level1: string, level2: string) => void;
     readonly onFeedChange: (feed: SiteDirectoryFeed) => void;
   };
 
-  let { options, query, onToggle, onFeedChange }: Props = $props();
+  let { options, query, onToggle, onClassificationChange, onFeedChange }: Props = $props();
   const selectedCount = $derived(
-    query.primary.length +
-      query.secondary.length +
+    (query.level1 ? 1 : 0) +
+      (query.level2 ? 1 : 0) +
+      query.tertiary.length +
       query.warning.length +
       query.technology.length +
       query.access.length +
@@ -36,10 +38,17 @@
     </span>
   </summary>
   <div class="border-t border-line p-3">
-    <SiteDirectoryFilters {options} {query} {onToggle} {onFeedChange} embedded />
+    <SiteDirectoryFilters
+      {options}
+      {query}
+      {onToggle}
+      {onClassificationChange}
+      {onFeedChange}
+      embedded
+    />
   </div>
 </details>
 
 <div class="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-  <SiteDirectoryFilters {options} {query} {onToggle} {onFeedChange} />
+  <SiteDirectoryFilters {options} {query} {onToggle} {onClassificationChange} {onFeedChange} />
 </div>

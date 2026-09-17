@@ -7,8 +7,9 @@ const endpoint = createApiEndpoint({
   queryParameters: [
     'page',
     'q',
-    'primary',
-    'secondary',
+    'level1',
+    'level2',
+    'tertiary',
     'warning',
     'technology',
     'access',

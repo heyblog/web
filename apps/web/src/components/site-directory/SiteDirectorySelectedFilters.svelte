@@ -9,14 +9,17 @@
 
   type SelectedFilter = {
     readonly key: string;
-    readonly name: SiteDirectoryFilterName | 'feed';
+    readonly name: SiteDirectoryFilterName | 'classification' | 'feed';
     readonly value: string;
     readonly label: string;
   };
   type Props = {
     readonly options: SiteDirectoryOptions;
     readonly query: SiteDirectoryQuery;
-    readonly onRemove: (name: SiteDirectoryFilterName | 'feed', value: string) => void;
+    readonly onRemove: (
+      name: SiteDirectoryFilterName | 'classification' | 'feed',
+      value: string,
+    ) => void;
     readonly onClear: () => void;
   };
 
@@ -28,10 +31,11 @@
   ]);
   const labels = $derived(
     new Map([
-      ...options.primaryTags.map((option) => [`primary:${option.value}`, option.label] as const),
-      ...options.secondaryTags.map(
-        (option) => [`secondary:${option.value}`, option.label] as const,
-      ),
+      ...options.classifications.flatMap((option) => [
+        [`level1:${option.value}`, option.label] as const,
+        ...option.children.map((child) => [`level2:${child.value}`, child.label] as const),
+      ]),
+      ...options.tertiaryTags.map((option) => [`tertiary:${option.value}`, option.label] as const),
       ...options.warnings.map((option) => [`warning:${option.value}`, option.label] as const),
       ...options.technologies.map(
         (option) => [`technology:${option.value}`, option.label] as const,
@@ -40,9 +44,24 @@
   );
   const selected = $derived.by((): readonly SelectedFilter[] => {
     const result: SelectedFilter[] = [];
+    if (query.level1) {
+      result.push({
+        key: `level1:${query.level1}`,
+        name: 'classification',
+        value: 'level1',
+        label: labels.get(`level1:${query.level1}`) ?? query.level1,
+      });
+    }
+    if (query.level2) {
+      result.push({
+        key: `level2:${query.level2}`,
+        name: 'classification',
+        value: 'level2',
+        label: labels.get(`level2:${query.level2}`) ?? query.level2,
+      });
+    }
     const groups = [
-      ['primary', query.primary],
-      ['secondary', query.secondary],
+      ['tertiary', query.tertiary],
       ['warning', query.warning],
       ['technology', query.technology],
       ['access', query.access],

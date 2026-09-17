@@ -1,6 +1,11 @@
 import type { EditableSubmission } from './site-submission.browser';
 import { nextDraftID } from './site-submission.draft-id.browser.ts';
-import type { PublicSnapshot, SubmissionOptions } from './site-submission.types';
+import type {
+  PublicSnapshot,
+  SubmissionOptions,
+  TagInput,
+  TagSnapshot,
+} from './site-submission.types';
 
 export function applySnapshot(
   form: EditableSubmission,
@@ -20,10 +25,19 @@ export function applySnapshot(
   }));
   form.sitemap = snapshot.resources.find((item) => item.kind === 'SITEMAP')?.url ?? '';
   form.linkPage = snapshot.resources.find((item) => item.kind === 'LINK_PAGE')?.url ?? '';
-  form.tags = snapshot.tags.map((tag) => ({
-    id: tag.id,
-    name: tag.name || options.tags.find((option) => option.id === tag.id)?.name || tag.id,
+  form.tags = snapshot.tags.filter(isEditableTagSnapshot).map((tag) => ({
+    id: tag.id || nextDraftID('tag'),
+    name:
+      tag.name ||
+      tag.suggested_name ||
+      options.tags.find((option) => option.id === tag.id)?.name ||
+      tag.id,
     role: tag.role,
+    level: tag.level,
+    parent_id: tag.parent_id,
+    suggestedName: tag.suggested_name || undefined,
+    slug: tag.slug,
+    description: tag.description,
   }));
   const program = snapshot.components.find((item) => item.role === 'SITE_PROGRAM');
   if (!program) {
@@ -66,4 +80,10 @@ export function applySnapshot(
       program.name || options.components.find((item) => item.id === program.id)?.name || program.id,
     dependencies,
   };
+}
+
+function isEditableTagSnapshot(
+  tag: TagSnapshot,
+): tag is TagSnapshot & { readonly role: TagInput['role'] } {
+  return tag.role !== 'WARNING';
 }

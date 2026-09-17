@@ -39,6 +39,15 @@ type TagSnapshot struct {
 	Slug          string `json:"slug,omitempty"`
 	Description   string `json:"description,omitempty"`
 	Role          string `json:"role"`
+	Level         int    `json:"level,omitempty"`
+	ParentID      string `json:"parent_id,omitempty"`
+}
+
+type CascadeSnapshot struct {
+	ID          string      `json:"id"`
+	TaxonomyKey string      `json:"taxonomy_key"`
+	Level1      TagSnapshot `json:"level1"`
+	Level2      TagSnapshot `json:"level2"`
 }
 
 type ComponentSnapshot struct {
@@ -62,6 +71,8 @@ type Snapshot struct {
 	BasePath            string              `json:"base_path"`
 	Summary             string              `json:"summary"`
 	AccessScope         string              `json:"access_scope"`
+	TagCascadeID        string              `json:"tag_cascade_id,omitempty"`
+	Classification      *CascadeSnapshot    `json:"classification,omitempty"`
 	Visibility          string              `json:"visibility"`
 	VisibilityReason    string              `json:"visibility_reason,omitempty"`
 	Feeds               []FeedSnapshot      `json:"feeds"`
@@ -111,6 +122,8 @@ type TagInput struct {
 	Slug          string `json:"slug"`
 	Description   string `json:"description"`
 	Role          string `json:"role"`
+	Level         int    `json:"level,omitempty"`
+	ParentID      string `json:"parent_id,omitempty"`
 }
 
 type ComponentInput struct {
@@ -129,6 +142,7 @@ type SiteInput struct {
 	Feeds               []FeedInput      `json:"feeds"`
 	Resources           []ResourceInput  `json:"resources"`
 	Tags                []TagInput       `json:"tags"`
+	TagCascadeID        string           `json:"tag_cascade_id,omitempty"`
 	Components          []ComponentInput `json:"components"`
 	ProgramDependencies []ComponentInput `json:"program_dependencies"`
 }
@@ -213,14 +227,25 @@ type AuditPage struct {
 
 type SubmissionOptions struct {
 	Tags                []Option                  `json:"tags"`
+	Cascades            []CascadeOption           `json:"cascades,omitempty"`
 	Components          []ComponentOption         `json:"components"`
 	ProgramDependencies []ProgramDependencyOption `json:"program_dependencies"`
 	PrivateProgramID    string                    `json:"private_program_id"`
 }
 
 type Option struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Level    int    `json:"level,omitempty"`
+	ParentID string `json:"parent_id,omitempty"`
+	IsCustom bool   `json:"is_custom,omitempty"`
+}
+
+type CascadeOption struct {
+	ID          string `json:"id"`
+	TaxonomyKey string `json:"taxonomy_key"`
+	Level1      Option `json:"level1"`
+	Level2      Option `json:"level2"`
 }
 
 type ComponentOption struct {

@@ -80,6 +80,9 @@ func validateResolvedArchitecture(snapshot Snapshot) error {
 }
 
 func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag TagSnapshot) (TagSnapshot, error) {
+	if tag.ID == "" && (tag.Level != 3 || tag.Role != "TERTIARY") {
+		return TagSnapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "new tags may only be proposed as tertiary tags")
+	}
 	if tag.ID != "" {
 		id, err := parseUUID(tag.ID)
 		if err != nil {

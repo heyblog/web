@@ -10,15 +10,15 @@ const { snapshot, title } = Astro.props;
 const address = `${snapshot.scheme}://${snapshot.normalized_host}${snapshot.base_path}`;
 const program = snapshot.components.find((item) => item.role === 'SITE_PROGRAM');
 const roleLabels: Readonly<Record<string, string>> = {
-  PRIMARY: '主标签',
-  SECONDARY: '标签',
-  WARNING: '警告',
+  TERTIARY: '三级标签',
   FRAMEWORK: '框架',
   LANGUAGE: '语言',
 };
 ---
 
-<section class="grid gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
+<section
+  class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 wrap-anywhere sm:p-6"
+>
   <header class="border-b border-line pb-4">
     <h2 class="text-lg font-bold">{title}</h2>
   </header>
@@ -46,12 +46,22 @@ const roleLabels: Readonly<Record<string, string>> = {
     <h3 class="text-sm font-semibold">标签</h3>
     <div class="mt-3 flex flex-wrap gap-2">
       {
-        snapshot.tags.map((tag) => (
-          <span class="rounded-sm border border-line bg-subtle px-2.5 py-1 text-sm">
-            {tag.name || tag.suggested_name || tag.id}
-            <span class="ml-1 text-xs text-fg-muted">{roleLabels[tag.role] ?? tag.role}</span>
+        snapshot.classification ? (
+          <span class="rounded-sm border border-line bg-tint px-2.5 py-1 text-sm text-tint-fg">
+            {snapshot.classification.level1.name} - {snapshot.classification.level2.name}
+            <span class="ml-1 text-xs">固定分类</span>
           </span>
-        ))
+        ) : null
+      }
+      {
+        snapshot.tags
+          .filter((tag) => tag.role === 'TERTIARY')
+          .map((tag) => (
+            <span class="rounded-sm border border-line bg-subtle px-2.5 py-1 text-sm">
+              {tag.name || tag.suggested_name || tag.id}
+              <span class="ml-1 text-xs text-fg-muted">{roleLabels[tag.role] ?? tag.role}</span>
+            </span>
+          ))
       }
     </div>
   </section>

@@ -32,10 +32,11 @@ func (service *Service) applySnapshot(
 		row, err = service.createSite(ctx, queries, final)
 		siteID = row.ID
 	} else {
+		cascadeID := rowCascadeID(current, final)
 		row, err = queries.ApplySiteSnapshot(ctx, dbgen.ApplySiteSnapshotParams{
 			ID: siteID, Name: final.Name, Scheme: final.Scheme, NormalizedHost: final.NormalizedHost,
 			BasePath: final.BasePath, Summary: final.Summary, AccessScope: final.AccessScope,
-			Visibility: final.Visibility, VisibilityReason: stringPointer(final.VisibilityReason), Revision: current.Revision,
+			Visibility: final.Visibility, VisibilityReason: stringPointer(final.VisibilityReason), TagCascadeID: cascadeID, Revision: current.Revision,
 		})
 	}
 	if err != nil {
@@ -62,12 +63,13 @@ func (service *Service) applySnapshot(
 }
 
 func (service *Service) createSite(ctx context.Context, queries *dbgen.Queries, snapshot Snapshot) (dbgen.DirectorySite, error) {
+	cascadeID, _ := parseOptionalUUID(snapshot.TagCascadeID)
 	for range site.ShortIDCollisionRetries {
 		shortID, err := service.newShortID()
 		if err != nil {
 			return dbgen.DirectorySite{}, fmt.Errorf("generate site short ID: %w", err)
 		}
-		row, err := queries.CreateSite(ctx, dbgen.CreateSiteParams{ShortID: shortID, Name: snapshot.Name, Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath, Summary: snapshot.Summary, AccessScope: snapshot.AccessScope})
+		row, err := queries.CreateSite(ctx, dbgen.CreateSiteParams{ShortID: shortID, Name: snapshot.Name, Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath, Summary: snapshot.Summary, AccessScope: snapshot.AccessScope, TagCascadeID: cascadeID})
 		if err == nil {
 			return row, nil
 		}
@@ -140,19 +142,42 @@ func syncResources(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UU
 }
 
 func syncTags(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, tags []TagSnapshot) error {
-	if err := queries.UnassignAllSiteTags(ctx, siteID); err != nil {
+	if err := queries.UnassignSiteTertiaryTags(ctx, siteID); err != nil {
 		return fmt.Errorf("replace reviewed tags: %w", err)
 	}
+	position := int16(0)
 	for _, tag := range tags {
+		if tag.Level == 1 || tag.Level == 2 || tag.Role != "TERTIARY" {
+			continue
+		}
 		tagID, err := parseUUID(tag.ID)
 		if err != nil {
 			return err
 		}
-		if _, err := queries.AssignSiteTag(ctx, dbgen.AssignSiteTagParams{SiteID: siteID, TagID: tagID, Role: tag.Role, AssignmentSource: "MANUAL"}); err != nil {
+		var tagPosition *int16
+		position++
+		tagPosition = &position
+		if _, err := queries.AssignSiteTag(ctx, dbgen.AssignSiteTagParams{SiteID: siteID, TagID: tagID, Role: tag.Role, AssignmentSource: "MANUAL", Position: tagPosition}); err != nil {
 			return fmt.Errorf("assign reviewed tag: %w", err)
 		}
 	}
 	return nil
+}
+
+func parseOptionalUUID(value string) (pgtype.UUID, error) {
+	if value == "" {
+		return pgtype.UUID{}, nil
+	}
+	return parseUUID(value)
+}
+
+func rowCascadeID(current, final Snapshot) pgtype.UUID {
+	value := final.TagCascadeID
+	if value == "" {
+		value = current.TagCascadeID
+	}
+	parsed, _ := parseOptionalUUID(value)
+	return parsed
 }
 
 func syncComponents(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, components []ComponentSnapshot, reviewerID pgtype.UUID) error {

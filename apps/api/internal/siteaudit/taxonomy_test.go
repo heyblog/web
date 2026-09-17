@@ -52,7 +52,7 @@ func TestResolveTagMapsSuggestionToExistingEntryWithoutTaxonomyPermission(t *tes
 		context.Background(),
 		existingTagQueries{tag: dbgen.DirectoryTag{ID: existingID, Name: "Astro", NormalizedName: "astro", IsEnabled: true}},
 		reviewer,
-		TagSnapshot{SuggestedName: "Astro", Role: "SECONDARY"},
+		TagSnapshot{SuggestedName: "Astro", Role: "TERTIARY", Level: 3},
 	)
 
 	if err != nil {
@@ -67,6 +67,21 @@ func TestResolveTagMapsSuggestionToExistingEntryWithoutTaxonomyPermission(t *tes
 	}
 	if resolved.SuggestedName != "" {
 		t.Errorf("resolved.SuggestedName = %q, want empty", resolved.SuggestedName)
+	}
+}
+
+func TestResolveTagRejectsCustomNonTertiaryTag(t *testing.T) {
+	t.Parallel()
+
+	_, err := resolveTag(
+		context.Background(),
+		existingTagQueries{},
+		auth.User{Role: auth.RoleSysAdmin},
+		TagSnapshot{SuggestedName: "分类", Slug: "classification", Description: "说明", Role: "PRIMARY", Level: 1},
+	)
+
+	if err == nil {
+		t.Fatal("resolveTag() error = nil, want custom classification rejected")
 	}
 }
 

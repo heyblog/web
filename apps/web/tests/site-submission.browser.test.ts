@@ -6,41 +6,12 @@ import {
   addFeed,
   buildSubmissionPayload,
   emptySubmission,
-  makePrimaryTag,
   removeFeed,
-  removeTag,
-  selectTag,
   setDefaultFeed,
   syncURLSuggestions,
 } from '../src/application/site-submission/site-submission.browser.ts';
 import { matchesSubmissionOption } from '../src/application/site-submission/site-submission.search.ts';
-import type { SubmissionOptions } from '../src/application/site-submission/site-submission.types.ts';
 import { isSiteShortID } from '../src/application/site-submission/site-submission.validation.ts';
-
-const options: SubmissionOptions = {
-  tags: [
-    { id: 'tag-primary', name: '中文博客' },
-    { id: 'tag-secondary', name: '独立开发' },
-  ],
-  components: [
-    {
-      id: 'component-program',
-      name: 'Astro',
-      homepage_url: 'https://astro.build',
-      repository_url: 'https://github.com/withastro/astro',
-      is_open_source: true,
-    },
-    {
-      id: 'private-program',
-      name: '其他',
-      homepage_url: '',
-      repository_url: '',
-      is_open_source: false,
-    },
-  ],
-  program_dependencies: [],
-  private_program_id: 'private-program',
-};
 
 test('keeps the submission stepper compatible with the production CSP', async () => {
   const source = await readFile(
@@ -135,15 +106,6 @@ test('omits the reason field for a create submission', () => {
   const payload = buildSubmissionPayload(form, 'CREATE');
 
   assert.equal('reason' in payload, false);
-});
-
-test('maintains exactly one primary tag while selecting and removing tags', () => {
-  const form = emptySubmission();
-  selectTag(form, options.tags[0]);
-  selectTag(form, options.tags[1]);
-  makePrimaryTag(form, 'tag-secondary');
-  removeTag(form, 'tag-secondary');
-  assert.deepEqual(form.tags, [{ id: 'tag-primary', name: '中文博客', role: 'PRIMARY' }]);
 });
 
 test('maintains exactly one default feed while adding and removing feeds', () => {

@@ -30,8 +30,9 @@ type importResponse struct {
 }
 
 type importHashes struct {
-	Blogs string `json:"blogs"`
-	Graph string `json:"graph"`
+	Blogs    string `json:"blogs,omitempty"`
+	Graph    string `json:"graph,omitempty"`
+	Taxonomy string `json:"taxonomy,omitempty"`
 }
 
 func BodyLimitOverrides() map[httpapi.Route]int64 {
@@ -65,13 +66,14 @@ func RegisterRoutes(router *gin.Engine, operation ImportOperation, token string,
 			"event", "temp_data_import_completed",
 			"blogs_sha256", upload.BlogsSHA256,
 			"graph_sha256", upload.GraphSHA256,
+			"taxonomy_sha256", upload.TaxonomySHA256,
 			"sites", counts.Sites,
 			"friend_links", counts.FriendLinks,
 			"duration_ms", time.Since(started).Milliseconds(),
 		)
 		response, responseErr := httpapi.JSON(http.StatusOK, importResponse{
 			Status: "imported",
-			Hashes: importHashes{Blogs: upload.BlogsSHA256, Graph: upload.GraphSHA256},
+			Hashes: importHashes{Blogs: upload.BlogsSHA256, Graph: upload.GraphSHA256, Taxonomy: upload.TaxonomySHA256},
 			Counts: counts,
 		})
 		return response.WithHeader("Cache-Control", "no-store"), responseErr

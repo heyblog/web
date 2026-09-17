@@ -4,7 +4,6 @@ import type {
   ComponentInput,
   DependencyRole,
   FeedFormat,
-  Option,
   SiteInput,
   SubmissionPayload,
 } from './site-submission.types';
@@ -19,7 +18,12 @@ export interface FeedDraft {
 export interface SelectedTag {
   id: string;
   name: string;
-  role: 'PRIMARY' | 'SECONDARY';
+  role: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
+  level?: 1 | 2 | 3;
+  parent_id?: string | null;
+  suggestedName?: string;
+  slug?: string;
+  description?: string;
 }
 export interface DependencyDraft {
   id: string;
@@ -93,23 +97,6 @@ export function removeFeed(form: EditableSubmission, id: string): void {
   form.feeds = form.feeds.filter((feed) => feed.id !== id);
   if (removedDefault && form.feeds[0]) setDefaultFeed(form, form.feeds[0].id);
 }
-export function selectTag(form: EditableSubmission, option: Option): void {
-  if (form.tags.length >= 12 || form.tags.some((tag) => tag.id === option.id)) return;
-  form.tags.push({
-    id: option.id,
-    name: option.name,
-    role: form.tags.length === 0 ? 'PRIMARY' : 'SECONDARY',
-  });
-}
-export function makePrimaryTag(form: EditableSubmission, id: string): void {
-  for (const tag of form.tags) tag.role = tag.id === id ? 'PRIMARY' : 'SECONDARY';
-}
-export function removeTag(form: EditableSubmission, id: string): void {
-  const removedPrimary = form.tags.find((tag) => tag.id === id)?.role === 'PRIMARY';
-  form.tags = form.tags.filter((tag) => tag.id !== id);
-  if (removedPrimary && form.tags[0]) makePrimaryTag(form, form.tags[0].id);
-}
-
 export function syncURLSuggestions(
   form: EditableSubmission,
   previousURL: string,
@@ -201,11 +188,13 @@ export function buildSubmissionPayload(
       ...(form.linkPage.trim() ? [{ kind: 'LINK_PAGE' as const, url: form.linkPage.trim() }] : []),
     ],
     tags: form.tags.map((tag) => ({
-      id: tag.id,
-      suggested_name: '',
-      slug: '',
-      description: '',
+      id: tag.suggestedName ? '' : tag.id,
+      suggested_name: tag.suggestedName ?? '',
+      slug: tag.slug?.trim() ?? '',
+      description: tag.description?.trim() ?? '',
       role: tag.role,
+      ...(tag.level === undefined ? {} : { level: tag.level }),
+      ...(tag.parent_id === undefined ? {} : { parent_id: tag.parent_id }),
     })),
     components,
     program_dependencies: dependencies,

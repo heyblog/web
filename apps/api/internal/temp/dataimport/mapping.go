@@ -119,12 +119,16 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 			})
 		}
 		if blog.MainTag != nil {
-			if err := addTag(&plan, tags, blog.ID, *blog.MainTag, "PRIMARY"); err != nil {
+			if err := addTag(&plan, tags, blog.ID, *blog.MainTag, "PRIMARY", 0); err != nil {
 				return Plan{}, fmt.Errorf("map blogs[%d].main_tag: %w", index, err)
 			}
 		}
 		for tagIndex, tag := range blog.SubTags {
-			if err := addTag(&plan, tags, blog.ID, tag, "SECONDARY"); err != nil {
+			position := int16(tagIndex + 2)
+			if position > 20 {
+				break
+			}
+			if err := addTag(&plan, tags, blog.ID, tag, "SECONDARY", 0); err != nil {
 				return Plan{}, fmt.Errorf("map blogs[%d].sub_tags[%d]: %w", index, tagIndex, err)
 			}
 		}
@@ -298,7 +302,7 @@ func feedFormat(value string) (string, error) {
 	return format, nil
 }
 
-func addTag(plan *Plan, tags map[string]TagRow, siteID string, legacy LegacyTag, role string) error {
+func addTag(plan *Plan, tags map[string]TagRow, siteID string, legacy LegacyTag, role string, position int16) error {
 	if err := validateUUIDv7(legacy.ID, "tag id"); err != nil {
 		return err
 	}
@@ -320,7 +324,9 @@ func addTag(plan *Plan, tags map[string]TagRow, siteID string, legacy LegacyTag,
 		return fmt.Errorf("tag %s has inconsistent definitions", legacy.ID)
 	}
 	tags[legacy.ID] = row
-	plan.SiteTags = append(plan.SiteTags, SiteTagRow{SiteID: siteID, TagID: legacy.ID, Role: role})
+	plan.SiteTags = append(plan.SiteTags, SiteTagRow{
+		SiteID: siteID, TagID: legacy.ID, Role: role, Position: position,
+	})
 	return nil
 }
 
@@ -381,7 +387,11 @@ func sortPlan(plan *Plan) {
 	})
 	sort.Slice(plan.Tags, func(i, j int) bool { return plan.Tags[i].ID < plan.Tags[j].ID })
 	sort.Slice(plan.SiteTags, func(i, j int) bool {
-		return plan.SiteTags[i].SiteID+plan.SiteTags[i].Role+plan.SiteTags[i].TagID < plan.SiteTags[j].SiteID+plan.SiteTags[j].Role+plan.SiteTags[j].TagID
+		left, right := plan.SiteTags[i], plan.SiteTags[j]
+		if left.SiteID != right.SiteID {
+			return left.SiteID < right.SiteID
+		}
+		return left.Position < right.Position
 	})
 	sort.Slice(plan.Dependencies, func(i, j int) bool {
 		left := plan.Dependencies[i]

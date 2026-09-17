@@ -120,6 +120,8 @@ type DirectorySite struct {
 	JoinedAt pgtype.Timestamptz
 	// Last site update time maintained with revision by trigger.
 	UpdatedAt pgtype.Timestamptz
+	// Required SITE taxonomy path.
+	TagCascadeID pgtype.UUID
 }
 
 // Anonymous site lifecycle requests with immutable aggregate evidence and reviewed outcomes.
@@ -302,7 +304,7 @@ type DirectorySiteTag struct {
 	SiteID pgtype.UUID
 	// Assigned global tag.
 	TagID pgtype.UUID
-	// Assignment role: PRIMARY, SECONDARY, or WARNING.
+	// Assignment role: TERTIARY or WARNING.
 	Role string
 	// Evidence source: MANUAL, IMPORTED, or SYSTEM.
 	AssignmentSource string
@@ -310,6 +312,8 @@ type DirectorySiteTag struct {
 	Note *string
 	// Assignment creation time.
 	CreatedAt pgtype.Timestamptz
+	// Ordered tertiary slot from 1 through 20; warnings are unordered.
+	Position *int16
 }
 
 // Unified catalog for site programs and technology components.
@@ -372,6 +376,10 @@ type DirectoryTag struct {
 	CreatedAt pgtype.Timestamptz
 	// Last tag metadata or merge update time maintained by trigger.
 	UpdatedAt pgtype.Timestamptz
+	// Stable SQLite taxonomy key for fixed entries; flexible tags use null.
+	SystemKey *string
+	// Whether the tag participates in a migration-owned fixed cascade.
+	IsFixed bool
 }
 
 // Short-lived hashed email verification codes for local accounts.

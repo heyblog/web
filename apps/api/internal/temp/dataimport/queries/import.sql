@@ -10,7 +10,7 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_feeds
     UNION ALL SELECT 1 FROM directory.site_resources
     UNION ALL SELECT 1 FROM directory.site_icons
-    UNION ALL SELECT 1 FROM directory.tags
+    UNION ALL SELECT 1 FROM directory.tags WHERE NOT is_fixed
     UNION ALL SELECT 1 FROM directory.site_tags
     -- The private-program placeholder is shipped by migrations and does not
     -- represent imported directory content.
@@ -34,6 +34,7 @@ INSERT INTO directory.sites (
     access_scope,
     visibility,
     visibility_reason,
+    tag_cascade_id,
     joined_at,
     updated_at
 ) VALUES (
@@ -47,6 +48,8 @@ INSERT INTO directory.sites (
     sqlc.arg(access_scope),
     sqlc.arg(visibility),
     sqlc.narg(visibility_reason)::text,
+    (SELECT id FROM directory.tag_cascades
+      WHERE scope = 'SITE' AND taxonomy_key = 'other/topic-other-other'),
     sqlc.arg(joined_at)::timestamptz,
     sqlc.arg(updated_at)::timestamptz
 );
@@ -114,12 +117,14 @@ INSERT INTO directory.site_tags (
     tag_id,
     role,
     assignment_source,
+    position,
     note
 ) VALUES (
     sqlc.arg(site_id)::uuid,
     sqlc.arg(tag_id)::uuid,
     sqlc.arg(role),
     'IMPORTED',
+    sqlc.arg(position),
     sqlc.narg(note)
 );
 

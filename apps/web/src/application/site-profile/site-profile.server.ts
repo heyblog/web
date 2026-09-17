@@ -5,7 +5,11 @@ export interface SiteTopic {
   name: string;
   slug: string;
   description: string;
-  role: 'PRIMARY' | 'SECONDARY';
+}
+
+export interface SiteClassification {
+  level1: SiteTopic;
+  level2: SiteTopic;
 }
 
 export interface SiteWarning {
@@ -35,7 +39,8 @@ export interface SiteTechnology {
 }
 
 export interface SiteProfile extends SiteCardBase {
-  topics: SiteTopic[];
+  classification: SiteClassification | null;
+  tertiaryTags: SiteTopic[];
   warnings: SiteWarning[];
   feeds: SiteFeed[];
   resources: SiteResource[];

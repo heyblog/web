@@ -18,11 +18,13 @@
     submissionStepCount,
     validateSubmissionStep,
   } from '@/application/site-submission/site-submission.validation';
+  import InlineAlert from '@/components/feedback/InlineAlert.svelte';
 
   import FeedEditor from './FeedEditor.svelte';
   import ProgramPicker from './ProgramPicker.svelte';
   import SiteDetailsStep from './SiteDetailsStep.svelte';
   import SiteResolver from './SiteResolver.svelte';
+  import SubmissionConfirmation from './SubmissionConfirmation.svelte';
   import SubmissionStepper from './SubmissionStepper.svelte';
   import SubmissionSuccess from './SubmissionSuccess.svelte';
   import SubmissionSummary from './SubmissionSummary.svelte';
@@ -45,6 +47,7 @@
   let resolving = $state(false);
   let checkingSiteAddress = $state(false);
   let error = $state('');
+  let showFinalValidation = $state(false);
   let result = $state.raw<SubmissionResult | null>(null);
   let siteDetailsStep = $state<{
     confirmAvailability: (force?: boolean) => Promise<boolean>;
@@ -78,10 +81,20 @@
     }
     applySnapshot(form, (await response.json()) as PublicSnapshot, options);
   }
+  function clearError(): void {
+    error = '';
+    showFinalValidation = false;
+  }
+  async function presentError(message: string, finalValidation = false): Promise<void> {
+    error = message;
+    showFinalValidation = finalValidation;
+    await tick();
+    document.querySelector<HTMLElement>('[data-submission-alert]')?.focus();
+  }
   async function nextStep(): Promise<void> {
     const validation = validateSubmissionStep(action, form, currentStep);
     if (!validation.valid) {
-      error = validation.message;
+      await presentError(validation.message);
       return;
     }
     if (
@@ -92,7 +105,7 @@
     ) {
       return;
     }
-    error = '';
+    clearError();
     currentStep = Math.min(currentStep + 1, stepCount - 1);
     furthestStep = Math.max(furthestStep, currentStep);
     document.querySelector<HTMLElement>('[data-submission-workspace]')?.focus();
@@ -104,12 +117,12 @@
       if (!validation.valid) {
         currentStep = step;
         furthestStep = Math.max(furthestStep, step);
-        error = validation.message;
+        await presentError(validation.message, step === stepCount - 1);
         return;
       }
     }
     pending = true;
-    error = '';
+    clearError();
     try {
       result = await submitForm(action, form);
     } catch (caught) {
@@ -120,9 +133,9 @@
       ) {
         currentStep = 0;
         await tick();
-        await siteDetailsStep?.confirmAvailability(true);
+        if (siteDetailsStep && !(await siteDetailsStep.confirmAvailability(true))) return;
       }
-      error = caught instanceof Error ? caught.message : '提交失败，请稍后重试。';
+      await presentError(caught instanceof Error ? caught.message : '提交失败，请稍后重试。');
     } finally {
       pending = false;
     }
@@ -130,19 +143,19 @@
 </script>
 
 {#if result}<SubmissionSuccess {result} />{:else}
-  <form class="grid gap-6" onsubmit={handleSubmit}>
+  <form class="grid min-w-0 gap-6" onsubmit={handleSubmit}>
     <SubmissionStepper
       {labels}
       current={currentStep}
       furthest={furthestStep}
       onchange={(step) => {
         currentStep = step;
-        error = '';
+        clearError();
       }}
     />
-    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
+    <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
       <section
-        class="grid gap-6 rounded-md border border-line bg-surface p-5 sm:p-6"
+        class="grid min-w-0 gap-6 rounded-md border border-line bg-surface p-5 sm:p-6"
         tabindex="-1"
         data-submission-workspace
       >
@@ -155,75 +168,39 @@
           {#if detailAction && (action === 'CREATE' || form.siteShortId)}
             <SiteDetailsStep
               bind:this={siteDetailsStep}
-              {form}
+              bind:form
               checkDuplicates={action === 'CREATE'}
               oncheckingchange={(checking) => (checkingSiteAddress = checking)}
             />
           {/if}
-        {:else if currentStep === 1 && detailAction}<FeedEditor {form} />
+        {:else if currentStep === 1 && detailAction}<FeedEditor bind:form />
         {:else if currentStep === 2 && detailAction}
-          <TagPicker {form} options={options.tags} />
+          <TagPicker bind:form options={options.tags} />
           <div class="border-t border-line pt-6">
             <ProgramPicker
-              {form}
+              bind:form
               options={options.components}
               dependencyRelations={options.program_dependencies}
               privateProgramID={options.private_program_id}
             />
           </div>
         {:else}
-          <div class="grid gap-4">
-            <div>
-              <h2 class="text-xl font-semibold">{action === 'CREATE' ? '提交确认' : '申请说明'}</h2>
-              <p class="mt-1 text-sm text-fg-muted">
-                {action === 'CREATE'
-                  ? '确认联系人信息，提交后进入审核。'
-                  : '说明申请原因，并确认联系方式。'}
-              </p>
-            </div>
-            {#if action !== 'CREATE'}<label class="grid gap-2 text-sm"
-                >申请原因<textarea
-                  class="min-h-28 rounded-sm border border-line-strong bg-surface p-3"
-                  bind:value={form.reason}
-                  maxlength="2000"></textarea></label
-              >{/if}
-            <div class="grid gap-4 sm:grid-cols-2">
-              <label class="grid gap-2 text-sm"
-                >称呼（选填）<input
-                  class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
-                  bind:value={form.contactName}
-                /></label
-              ><label class="grid gap-2 text-sm"
-                >邮箱（选填）<input
-                  class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
-                  type="email"
-                  bind:value={form.contactEmail}
-                /></label
-              >
-            </div>
-            <label class="flex min-h-11 items-center gap-3 text-sm"
-              ><input
-                class="size-4 accent-primary"
-                type="checkbox"
-                bind:checked={form.notifyByEmail}
-              />通过邮件接收审核结果</label
-            >
-          </div>
+          <SubmissionConfirmation
+            {action}
+            bind:form
+            validationVisible={showFinalValidation}
+            onchange={clearError}
+          />
         {/if}
-        {#if error}<p
-            class="rounded-sm border border-danger bg-danger-bg p-3 text-sm text-danger-fg"
-            role="alert"
-          >
-            {error}
-          </p>{/if}
-        <div class="flex justify-between gap-3 border-t border-line pt-5">
+        {#if error}<InlineAlert tone="danger">{error}</InlineAlert>{/if}
+        <div class="flex flex-wrap justify-between gap-3 border-t border-line pt-5">
           <button
             class="min-h-11 rounded-sm border border-line-strong px-4 font-medium disabled:opacity-50"
             type="button"
             disabled={currentStep === 0}
             onclick={() => {
               currentStep -= 1;
-              error = '';
+              clearError();
             }}>上一步</button
           >{#if currentStep < stepCount - 1}<button
               class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:pointer-events-none disabled:opacity-50"

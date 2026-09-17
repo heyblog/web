@@ -49,6 +49,7 @@ type Querier interface {
 	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
 	GetActiveBannerAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
+	GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetEnabledSiteTagCascadeRow, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
 	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
@@ -76,6 +77,7 @@ type Querier interface {
 	ListDirectorySites(ctx context.Context, arg ListDirectorySitesParams) ([]DirectorySite, error)
 	ListDirectoryTagOptions(ctx context.Context) ([]ListDirectoryTagOptionsRow, error)
 	ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDirectoryTechnologyOptionsRow, error)
+	ListEnabledSiteTagCascades(ctx context.Context) ([]ListEnabledSiteTagCascadesRow, error)
 	ListEnabledSoftwareComponentDependencies(ctx context.Context) ([]ListEnabledSoftwareComponentDependenciesRow, error)
 	ListEnabledSoftwareComponents(ctx context.Context) ([]DirectorySoftwareComponent, error)
 	ListEnabledTags(ctx context.Context) ([]DirectoryTag, error)
@@ -83,7 +85,7 @@ type Querier interface {
 	ListPublicAnnouncementArchive(ctx context.Context, arg ListPublicAnnouncementArchiveParams) ([]ContentAnnouncement, error)
 	ListPublicSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListPublicSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteSoftwareComponentsRow, error)
-	ListPublicSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteTagsRow, error)
+	ListPublicSiteTags(ctx context.Context, id pgtype.UUID) ([]ListPublicSiteTagsRow, error)
 	ListPublicSiteTagsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]ListPublicSiteTagsBySiteIDsRow, error)
 	ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error)
 	ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error)
@@ -117,6 +119,7 @@ type Querier interface {
 	UnassignAllSiteTags(ctx context.Context, siteID pgtype.UUID) error
 	UnassignSiteSoftwareComponent(ctx context.Context, arg UnassignSiteSoftwareComponentParams) error
 	UnassignSiteTag(ctx context.Context, arg UnassignSiteTagParams) error
+	UnassignSiteTertiaryTags(ctx context.Context, siteID pgtype.UUID) error
 	UnlinkOAuthIdentity(ctx context.Context, arg UnlinkOAuthIdentityParams) error
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (ContentAnnouncement, error)
 	UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressParams) (DirectorySite, error)

@@ -45,6 +45,7 @@ type Queries interface {
 	ListDefaultPublicSiteFeedsBySiteIDs(context.Context, []pgtype.UUID) ([]dbgen.DirectorySiteFeed, error)
 	ListDirectorySites(context.Context, dbgen.ListDirectorySitesParams) ([]dbgen.DirectorySite, error)
 	ListDirectoryTagOptions(context.Context) ([]dbgen.ListDirectoryTagOptionsRow, error)
+	ListEnabledSiteTagCascades(context.Context) ([]dbgen.ListEnabledSiteTagCascadesRow, error)
 	ListDirectoryTechnologyOptions(context.Context) ([]dbgen.ListDirectoryTechnologyOptionsRow, error)
 	ListPublicSiteFeeds(context.Context, pgtype.UUID) ([]dbgen.DirectorySiteFeed, error)
 	ListPublicSiteSoftwareComponents(context.Context, pgtype.UUID) ([]dbgen.ListPublicSiteSoftwareComponentsRow, error)
@@ -74,18 +75,23 @@ type SiteCard struct {
 
 type SiteProfile struct {
 	SiteCard
-	Topics       []Topic      `json:"topics"`
-	Warnings     []Warning    `json:"warnings"`
-	Feeds        []Feed       `json:"feeds"`
-	Resources    []Resource   `json:"resources"`
-	Technologies []Technology `json:"technologies"`
+	Classification *SiteProfileClassification `json:"classification"`
+	TertiaryTags   []Topic                    `json:"tertiaryTags"`
+	Warnings       []Warning                  `json:"warnings"`
+	Feeds          []Feed                     `json:"feeds"`
+	Resources      []Resource                 `json:"resources"`
+	Technologies   []Technology               `json:"technologies"`
+}
+
+type SiteProfileClassification struct {
+	Level1 Topic `json:"level1"`
+	Level2 Topic `json:"level2"`
 }
 
 type Topic struct {
 	Name        string `json:"name"`
 	Slug        string `json:"slug"`
 	Description string `json:"description"`
-	Role        string `json:"role"`
 }
 
 type Warning struct {
@@ -190,22 +196,34 @@ func (service *Service) loadProfile(
 	}
 	profile := SiteProfile{
 		SiteCard:     card,
-		Topics:       []Topic{},
+		TertiaryTags: []Topic{},
 		Warnings:     []Warning{},
 		Feeds:        make([]Feed, 0, len(feeds)),
 		Resources:    make([]Resource, 0, len(resources)),
 		Technologies: make([]Technology, 0, len(technologies)),
 	}
 	for _, tag := range tags {
-		if tag.Role == "WARNING" {
+		topic := Topic{Name: tag.Name, Slug: tag.Slug, Description: tag.Description}
+		switch tag.Role {
+		case "PRIMARY":
+			if profile.Classification == nil {
+				profile.Classification = &SiteProfileClassification{}
+			}
+			profile.Classification.Level1 = topic
+		case "SECONDARY":
+			if profile.Classification == nil {
+				profile.Classification = &SiteProfileClassification{}
+			}
+			profile.Classification.Level2 = topic
+		case "TERTIARY":
+			profile.TertiaryTags = append(profile.TertiaryTags, topic)
+		case "WARNING":
 			profile.Warnings = append(profile.Warnings, Warning{
 				Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
 			})
-			continue
+		default:
+			return SiteProfile{}, internalError(errors.New("tag has unsupported role"), "map public site tags")
 		}
-		profile.Topics = append(profile.Topics, Topic{
-			Name: tag.Name, Slug: tag.Slug, Description: tag.Description, Role: tag.Role,
-		})
 	}
 	for _, feed := range feeds {
 		locationURL, mapErr := address.LocationURL(

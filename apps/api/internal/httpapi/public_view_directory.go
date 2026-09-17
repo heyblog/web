@@ -22,7 +22,7 @@ const (
 
 var (
 	directoryAllowedParameters = map[string]struct{}{
-		"page": {}, "q": {}, "primary": {}, "secondary": {}, "warning": {},
+		"page": {}, "q": {}, "level1": {}, "level2": {}, "tertiary": {}, "warning": {},
 		"technology": {}, "access": {}, "feed": {}, "status": {}, "sort": {},
 		"order": {}, "seed": {},
 	}
@@ -67,11 +67,18 @@ func parseDirectoryQuery(values url.Values, now time.Time) (publicview.Directory
 		}
 	}
 
-	query.PrimaryTags, err = readDirectorySlugs(values, "primary")
+	query.Level1, err = readDirectorySlug(values, "level1")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
 	}
-	query.SecondaryTags, err = readDirectorySlugs(values, "secondary")
+	query.Level2, err = readDirectorySlug(values, "level2")
+	if err != nil {
+		return publicview.DirectoryQuery{}, err
+	}
+	if query.Level2 != "" && query.Level1 == "" {
+		return publicview.DirectoryQuery{}, invalidDirectoryQuery("level2", "requires level1")
+	}
+	query.TertiaryTags, err = readDirectorySlugs(values, "tertiary")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
 	}
@@ -91,6 +98,18 @@ func parseDirectoryQuery(values url.Values, now time.Time) (publicview.Directory
 		return publicview.DirectoryQuery{}, err
 	}
 	return query, nil
+}
+
+func readDirectorySlug(values url.Values, name string) (string, error) {
+	value, exists, err := readDirectorySingle(values, name)
+	if err != nil || !exists {
+		return "", err
+	}
+	value = strings.TrimSpace(value)
+	if !directorySlugPattern.MatchString(value) {
+		return "", invalidDirectoryQuery(name, "contains an invalid value")
+	}
+	return value, nil
 }
 
 func readDirectorySingle(values url.Values, name string) (string, bool, error) {

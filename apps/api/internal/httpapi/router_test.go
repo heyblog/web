@@ -106,10 +106,11 @@ func TestPublicViewRoutesUseWebAuthenticationAndTypedReader(t *testing.T) {
 		},
 		directoryOptions: func(context.Context) (publicview.DirectoryOptions, error) {
 			return publicview.DirectoryOptions{
-				PrimaryTags: []publicview.DirectoryOption{{
-					Value: "technology", Label: "技术", NormalCount: 2,
+				Classifications: []publicview.DirectoryClassificationOption{{
+					DirectoryOption: publicview.DirectoryOption{Value: "technology", Label: "技术", NormalCount: 2},
+					Children:        []publicview.DirectoryOption{},
 				}},
-				SecondaryTags: []publicview.DirectoryOption{}, Warnings: []publicview.DirectoryOption{},
+				TertiaryTags: []publicview.DirectoryOption{}, Warnings: []publicview.DirectoryOption{},
 				Technologies: []publicview.DirectoryOption{},
 			}, nil
 		},
@@ -620,7 +621,7 @@ func (stub publicViewReaderStub) DirectoryOptions(
 		return stub.directoryOptions(ctx)
 	}
 	return publicview.DirectoryOptions{
-		PrimaryTags: []publicview.DirectoryOption{}, SecondaryTags: []publicview.DirectoryOption{},
+		Classifications: []publicview.DirectoryClassificationOption{}, TertiaryTags: []publicview.DirectoryOption{},
 		Warnings: []publicview.DirectoryOption{}, Technologies: []publicview.DirectoryOption{},
 	}, nil
 }

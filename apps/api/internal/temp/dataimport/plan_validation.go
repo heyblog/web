@@ -104,7 +104,8 @@ func validatePlan(plan Plan) error {
 		tagSlugs[row.Slug] = struct{}{}
 	}
 	siteTagKeys := make(map[string]struct{}, len(plan.SiteTags))
-	primaryTags := make(map[string]int)
+	positions := make(map[string]map[int16]struct{})
+	primarySites := make(map[string]struct{})
 	for _, row := range plan.SiteTags {
 		if _, exists := siteIDs[row.SiteID]; !exists {
 			return fmt.Errorf("site tag references unknown site %q", row.SiteID)
@@ -116,18 +117,32 @@ func validatePlan(plan Plan) error {
 		if _, exists := siteTagKeys[key]; exists {
 			return fmt.Errorf("duplicate site tag assignment %q", key)
 		}
-		if !slices.Contains([]string{"PRIMARY", "SECONDARY", "WARNING"}, row.Role) {
+		if !slices.Contains([]string{"PRIMARY", "SECONDARY", "TERTIARY", "WARNING"}, row.Role) {
 			return fmt.Errorf("site tag has invalid role %q", row.Role)
+		}
+		if row.Role == "TERTIARY" && (row.Position < 1 || row.Position > 20) || row.Role != "TERTIARY" && row.Position != 0 {
+			return fmt.Errorf("site tag %q has invalid position %d", row.Role, row.Position)
+		}
+		if row.Role == "PRIMARY" {
+			if _, exists := primarySites[row.SiteID]; exists {
+				return fmt.Errorf("site %q has multiple primary tags", row.SiteID)
+			}
+			primarySites[row.SiteID] = struct{}{}
 		}
 		if row.Note != "" && strings.TrimSpace(row.Note) == "" {
 			return fmt.Errorf("site tag note must not contain only whitespace")
 		}
-		if row.Role == "PRIMARY" {
-			primaryTags[row.SiteID]++
-			if primaryTags[row.SiteID] > 1 {
-				return fmt.Errorf("site %q has multiple primary tags", row.SiteID)
-			}
+		if row.Role != "TERTIARY" {
+			siteTagKeys[key] = struct{}{}
+			continue
 		}
+		if positions[row.SiteID] == nil {
+			positions[row.SiteID] = make(map[int16]struct{})
+		}
+		if _, exists := positions[row.SiteID][row.Position]; exists {
+			return fmt.Errorf("site %q has duplicate tertiary tag position %d", row.SiteID, row.Position)
+		}
+		positions[row.SiteID][row.Position] = struct{}{}
 		siteTagKeys[key] = struct{}{}
 	}
 

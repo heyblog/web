@@ -35,18 +35,19 @@ const (
 )
 
 type DirectoryQuery struct {
-	Page          int32           `json:"page"`
-	Query         string          `json:"q"`
-	PrimaryTags   []string        `json:"primary"`
-	SecondaryTags []string        `json:"secondary"`
-	Warnings      []string        `json:"warning"`
-	Technologies  []string        `json:"technology"`
-	AccessScopes  []string        `json:"access"`
-	Feed          DirectoryFeed   `json:"feed"`
-	Status        DirectoryStatus `json:"status"`
-	Sort          DirectorySort   `json:"sort"`
-	Order         DirectoryOrder  `json:"order"`
-	Seed          string          `json:"seed"`
+	Page         int32           `json:"page"`
+	Query        string          `json:"q"`
+	Level1       string          `json:"level1"`
+	Level2       string          `json:"level2"`
+	TertiaryTags []string        `json:"tertiary"`
+	Warnings     []string        `json:"warning"`
+	Technologies []string        `json:"technology"`
+	AccessScopes []string        `json:"access"`
+	Feed         DirectoryFeed   `json:"feed"`
+	Status       DirectoryStatus `json:"status"`
+	Sort         DirectorySort   `json:"sort"`
+	Order        DirectoryOrder  `json:"order"`
+	Seed         string          `json:"seed"`
 }
 
 type DirectoryView struct {
@@ -64,26 +65,27 @@ type DirectoryPagination struct {
 }
 
 type directoryDatabaseParameters struct {
-	SiteVisibility    string
-	QueryText         string
-	PrimaryTagSlugs   []string
-	SecondaryTagSlugs []string
-	WarningSlugs      []string
-	TechnologyNames   []string
-	AccessScopes      []string
-	FeedMode          string
-	SortMode          string
-	Seed              string
-	SortOrder         string
-	Offset            int32
-	Limit             int32
-	Page              int32
+	SiteVisibility   string
+	QueryText        string
+	Level1TagSlug    string
+	Level2TagSlug    string
+	TertiaryTagSlugs []string
+	WarningSlugs     []string
+	TechnologyNames  []string
+	AccessScopes     []string
+	FeedMode         string
+	SortMode         string
+	Seed             string
+	SortOrder        string
+	Offset           int32
+	Limit            int32
+	Page             int32
 }
 
 func DefaultDirectoryQuery(now time.Time) DirectoryQuery {
 	chinaTime := now.In(time.FixedZone("China Standard Time", 8*60*60))
 	return DirectoryQuery{
-		Page: 1, PrimaryTags: []string{}, SecondaryTags: []string{}, Warnings: []string{},
+		Page: 1, TertiaryTags: []string{}, Warnings: []string{},
 		Technologies: []string{}, AccessScopes: []string{}, Feed: DirectoryFeedAny,
 		Status: DirectoryStatusNormal, Sort: DirectorySortRandom,
 		Order: DirectoryOrderDescending, Seed: "site-directory:" + chinaTime.Format(time.DateOnly),
@@ -134,8 +136,8 @@ func (service *Service) Directory(ctx context.Context, query DirectoryQuery) (Di
 
 func (query DirectoryQuery) countParameters() dbgen.CountDirectorySitesByStatusParams {
 	return dbgen.CountDirectorySitesByStatusParams{
-		QueryText: query.Query, PrimaryTagSlugs: query.PrimaryTags,
-		SecondaryTagSlugs: query.SecondaryTags, WarningSlugs: query.Warnings,
+		QueryText: query.Query, Level1TagSlug: query.Level1,
+		Level2TagSlug: query.Level2, TertiaryTagSlugs: query.TertiaryTags, WarningSlugs: query.Warnings,
 		TechnologyNames: query.Technologies, AccessScopes: query.AccessScopes, FeedMode: string(query.Feed),
 	}
 }
@@ -147,8 +149,8 @@ func (query DirectoryQuery) databaseParameters(totalItems int64, visibility stri
 		page = totalPages
 	}
 	return directoryDatabaseParameters{
-		SiteVisibility: visibility, QueryText: query.Query, PrimaryTagSlugs: query.PrimaryTags,
-		SecondaryTagSlugs: query.SecondaryTags, WarningSlugs: query.Warnings,
+		SiteVisibility: visibility, QueryText: query.Query, Level1TagSlug: query.Level1,
+		Level2TagSlug: query.Level2, TertiaryTagSlugs: query.TertiaryTags, WarningSlugs: query.Warnings,
 		TechnologyNames: query.Technologies, AccessScopes: query.AccessScopes, FeedMode: string(query.Feed),
 		SortMode: string(query.Sort), Seed: query.Seed,
 		SortOrder: string(query.Order), Offset: (page - 1) * directoryPageSize,
@@ -159,8 +161,9 @@ func (query DirectoryQuery) databaseParameters(totalItems int64, visibility stri
 func (parameters directoryDatabaseParameters) listParameters() dbgen.ListDirectorySitesParams {
 	return dbgen.ListDirectorySitesParams{
 		SiteVisibility: parameters.SiteVisibility, QueryText: parameters.QueryText,
-		PrimaryTagSlugs: parameters.PrimaryTagSlugs, SecondaryTagSlugs: parameters.SecondaryTagSlugs,
-		WarningSlugs: parameters.WarningSlugs, TechnologyNames: parameters.TechnologyNames,
+		Level1TagSlug: parameters.Level1TagSlug, Level2TagSlug: parameters.Level2TagSlug,
+		TertiaryTagSlugs: parameters.TertiaryTagSlugs,
+		WarningSlugs:     parameters.WarningSlugs, TechnologyNames: parameters.TechnologyNames,
 		AccessScopes: parameters.AccessScopes, FeedMode: parameters.FeedMode,
 		SortMode: parameters.SortMode, Seed: parameters.Seed, SortOrder: parameters.SortOrder,
 		PageOffset: parameters.Offset, PageLimit: parameters.Limit,

@@ -73,10 +73,10 @@ const statusLabels = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '�
   <div
     class:list={[
       'grid items-start gap-6',
-      detail.status === 'PENDING' && 'lg:grid-cols-[minmax(0,1fr)_19rem]',
+      detail.status === 'PENDING' && 'xl:grid-cols-[minmax(0,1fr)_19rem]',
     ]}
   >
-    <AuditActionView {detail} />
+    <div class="min-w-0"><AuditActionView {detail} /></div>
     {
       detail.status === 'PENDING' ? (
         <AuditReviewPanel client:load {detail} {returnPath} {canManageTaxonomy} />

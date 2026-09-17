@@ -55,6 +55,15 @@ func TestBuildDiffViewsIncludesProgramDependencies(t *testing.T) {
 	assertDiffFields(t, views.Requested, []string{"program_dependencies"})
 }
 
+func TestBuildDiffViewsExcludesWarningAssignments(t *testing.T) {
+	t.Parallel()
+
+	base := Snapshot{Tags: []TagSnapshot{{ID: "warning", Name: "访问较慢", Role: "WARNING"}}}
+	views := BuildDiffViews(base, Snapshot{}, base, nil)
+
+	assertDiffFields(t, views.Requested, nil)
+}
+
 func TestBuildDiffViewsKeepsMultipleCustomDependenciesDistinct(t *testing.T) {
 	t.Parallel()
 

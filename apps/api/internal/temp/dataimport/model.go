@@ -65,10 +65,11 @@ type TagRow struct {
 }
 
 type SiteTagRow struct {
-	SiteID string
-	TagID  string
-	Role   string
-	Note   string
+	SiteID   string
+	TagID    string
+	Role     string
+	Position int16
+	Note     string
 }
 
 type ComponentRow struct {
@@ -129,9 +130,15 @@ type Counts struct {
 }
 
 func (plan Plan) Counts() Counts {
+	siteTagCount := 0
+	for _, tag := range plan.SiteTags {
+		if tag.Role == "WARNING" {
+			siteTagCount++
+		}
+	}
 	return Counts{
 		Sites: len(plan.Sites), Feeds: len(plan.Feeds), Resources: len(plan.Resources),
-		Tags: len(plan.Tags), SiteTags: len(plan.SiteTags), SoftwareComponents: len(plan.Components),
+		Tags: len(plan.Tags), SiteTags: siteTagCount, SoftwareComponents: len(plan.Components),
 		Dependencies: len(plan.Dependencies), SiteComponents: len(plan.SiteComponents),
 		Sources: len(plan.Sources), Origins: len(plan.Origins), FriendLinks: len(plan.FriendLinks),
 	}

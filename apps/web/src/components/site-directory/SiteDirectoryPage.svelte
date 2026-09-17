@@ -127,11 +127,8 @@
     selected: boolean,
   ): void {
     switch (name) {
-      case 'primary':
-        updateQuery({ primary: toggleValues(query.primary, value, selected) }, 'filter');
-        break;
-      case 'secondary':
-        updateQuery({ secondary: toggleValues(query.secondary, value, selected) }, 'filter');
+      case 'tertiary':
+        updateQuery({ tertiary: toggleValues(query.tertiary, value, selected) }, 'filter');
         break;
       case 'warning':
         updateQuery({ warning: toggleValues(query.warning, value, selected) }, 'filter');
@@ -156,9 +153,16 @@
     );
   }
 
-  function removeFilter(name: SiteDirectoryFilterName | 'feed', value: string): void {
+  function removeFilter(
+    name: SiteDirectoryFilterName | 'classification' | 'feed',
+    value: string,
+  ): void {
     if (name === 'feed') {
       updateQuery({ feed: 'any' }, 'filter');
+      return;
+    }
+    if (name === 'classification') {
+      updateQuery(value === 'level1' ? { level1: '', level2: '' } : { level2: '' }, 'filter');
       return;
     }
     handleFilterToggle(name, value, false);
@@ -166,7 +170,15 @@
 
   function clearFilters(): void {
     updateQuery(
-      { primary: [], secondary: [], warning: [], technology: [], access: [], feed: 'any' },
+      {
+        level1: '',
+        level2: '',
+        tertiary: [],
+        warning: [],
+        technology: [],
+        access: [],
+        feed: 'any',
+      },
       'filter',
     );
   }
@@ -196,6 +208,8 @@
     {options}
     {query}
     onToggle={handleFilterToggle}
+    onClassificationChange={(level1: string, level2: string) =>
+      updateQuery({ level1, level2 }, 'filter')}
     onFeedChange={(feed: SiteDirectoryFeed) => updateQuery({ feed }, 'filter')}
   />
 

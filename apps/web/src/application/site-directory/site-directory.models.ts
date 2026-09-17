@@ -5,13 +5,14 @@ export type SiteDirectorySort = 'random' | 'joined' | 'updated';
 export type SiteDirectoryOrder = 'asc' | 'desc';
 export type SiteDirectoryAccess = 'ALL' | 'CN_ONLY' | 'GLOBAL_ONLY';
 export type SiteDirectoryStatus = 'normal' | 'abnormal';
-export type SiteDirectoryFilterName = 'primary' | 'secondary' | 'warning' | 'technology' | 'access';
+export type SiteDirectoryFilterName = 'tertiary' | 'warning' | 'technology' | 'access';
 
 export type SiteDirectoryQuery = {
   readonly page: number;
   readonly q: string;
-  readonly primary: readonly string[];
-  readonly secondary: readonly string[];
+  readonly level1: string;
+  readonly level2: string;
+  readonly tertiary: readonly string[];
   readonly warning: readonly string[];
   readonly technology: readonly string[];
   readonly access: readonly SiteDirectoryAccess[];
@@ -43,9 +44,13 @@ export type SiteDirectoryOption = {
   readonly abnormalCount: number;
 };
 
+export type SiteDirectoryClassificationOption = SiteDirectoryOption & {
+  readonly children: readonly SiteDirectoryOption[];
+};
+
 export type SiteDirectoryOptions = {
-  readonly primaryTags: readonly SiteDirectoryOption[];
-  readonly secondaryTags: readonly SiteDirectoryOption[];
+  readonly classifications: readonly SiteDirectoryClassificationOption[];
+  readonly tertiaryTags: readonly SiteDirectoryOption[];
   readonly warnings: readonly SiteDirectoryOption[];
   readonly technologies: readonly SiteDirectoryOption[];
 };

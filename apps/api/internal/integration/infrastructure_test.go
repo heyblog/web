@@ -134,7 +134,7 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	}
 
 	filters := dbgen.CountDirectorySitesByStatusParams{
-		QueryText: "directory fixture", PrimaryTagSlugs: []string{}, SecondaryTagSlugs: []string{},
+		QueryText: "directory fixture", Level1TagSlug: "", Level2TagSlug: "", TertiaryTagSlugs: []string{},
 		WarningSlugs: []string{}, TechnologyNames: []string{}, AccessScopes: []string{"ALL"},
 		FeedMode: "without",
 	}
@@ -148,8 +148,9 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 
 	base := dbgen.ListDirectorySitesParams{
 		SiteVisibility: "VISIBLE", QueryText: filters.QueryText,
-		PrimaryTagSlugs: filters.PrimaryTagSlugs, SecondaryTagSlugs: filters.SecondaryTagSlugs,
-		WarningSlugs: filters.WarningSlugs, TechnologyNames: filters.TechnologyNames,
+		Level1TagSlug: filters.Level1TagSlug, Level2TagSlug: filters.Level2TagSlug,
+		TertiaryTagSlugs: filters.TertiaryTagSlugs,
+		WarningSlugs:     filters.WarningSlugs, TechnologyNames: filters.TechnologyNames,
 		AccessScopes: filters.AccessScopes, FeedMode: filters.FeedMode,
 		SortMode: "random", Seed: "site-directory:integration", SortOrder: "desc", PageLimit: 24,
 	}
@@ -184,33 +185,25 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 		}
 	}
 
-	primaryOne, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Directory Primary One", NormalizedName: "directory primary one",
-		Slug: "directory-primary-one", Description: "integration fixture",
-	})
-	if err != nil {
-		t.Fatalf("create first directory primary tag: %v", err)
+	cascades, err := queries.ListEnabledSiteTagCascades(ctx)
+	if err != nil || len(cascades) < 2 {
+		t.Fatalf("list directory cascade fixtures: %v / %d", err, len(cascades))
 	}
-	primaryTwo, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Directory Primary Two", NormalizedName: "directory primary two",
-		Slug: "directory-primary-two", Description: "integration fixture",
+	firstCascade := cascades[0]
+	secondCascade := cascades[1]
+	tertiaryOne, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
+		Name: "Directory Tertiary One", NormalizedName: "directory tertiary one",
+		Slug: "directory-tertiary-one", Description: "integration fixture",
 	})
 	if err != nil {
-		t.Fatalf("create second directory primary tag: %v", err)
+		t.Fatalf("create first directory tertiary tag: %v", err)
 	}
-	secondaryOne, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Directory Secondary One", NormalizedName: "directory secondary one",
-		Slug: "directory-secondary-one", Description: "integration fixture",
+	tertiaryTwo, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
+		Name: "Directory Tertiary Two", NormalizedName: "directory tertiary two",
+		Slug: "directory-tertiary-two", Description: "integration fixture",
 	})
 	if err != nil {
-		t.Fatalf("create first directory secondary tag: %v", err)
-	}
-	secondaryTwo, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Directory Secondary Two", NormalizedName: "directory secondary two",
-		Slug: "directory-secondary-two", Description: "integration fixture",
-	})
-	if err != nil {
-		t.Fatalf("create second directory secondary tag: %v", err)
+		t.Fatalf("create second directory tertiary tag: %v", err)
 	}
 	visibleBoth := insertSite(ctx, t, connection, "F00000001", "Role Fixture Visible Both", "role-visible-both.example.com")
 	visiblePartial := insertSite(ctx, t, connection, "F00000002", "Role Fixture Visible Partial", "role-visible-partial.example.com")
@@ -222,46 +215,53 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET visibility = 'REMOVED', visibility_reason = 'fixture' WHERE id = $1`, removedBoth); err != nil {
 		t.Fatalf("remove directory role fixture: %v", err)
 	}
-	assign := func(siteID, tagID pgtype.UUID, role string) {
+	for _, siteID := range []pgtype.UUID{visibleBoth, hiddenBoth, removedBoth} {
+		if _, updateErr := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2 WHERE id = $1`, siteID, firstCascade.ID); updateErr != nil {
+			t.Fatalf("assign first directory cascade: %v", updateErr)
+		}
+	}
+	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2 WHERE id = $1`, visiblePartial, secondCascade.ID); err != nil {
+		t.Fatalf("assign second directory cascade: %v", err)
+	}
+	assign := func(siteID, tagID pgtype.UUID, position int16) {
 		t.Helper()
 		if _, assignErr := queries.AssignSiteTag(ctx, dbgen.AssignSiteTagParams{
-			SiteID: siteID, TagID: tagID, Role: role, AssignmentSource: "SYSTEM",
+			SiteID: siteID, TagID: tagID, Role: "TERTIARY", AssignmentSource: "SYSTEM", Position: &position,
 		}); assignErr != nil {
-			t.Fatalf("assign %s directory role fixture: %v", role, assignErr)
+			t.Fatalf("assign tertiary directory fixture: %v", assignErr)
 		}
 	}
 	for _, siteID := range []pgtype.UUID{visibleBoth, hiddenBoth, removedBoth} {
-		assign(siteID, primaryOne.ID, "PRIMARY")
-		assign(siteID, secondaryOne.ID, "SECONDARY")
-		assign(siteID, secondaryTwo.ID, "SECONDARY")
+		assign(siteID, tertiaryOne.ID, 1)
+		assign(siteID, tertiaryTwo.ID, 2)
 	}
-	assign(visiblePartial, primaryTwo.ID, "PRIMARY")
-	assign(visiblePartial, secondaryOne.ID, "SECONDARY")
+	assign(visiblePartial, tertiaryOne.ID, 1)
 
 	roleFilters := dbgen.CountDirectorySitesByStatusParams{
-		QueryText: "role fixture", PrimaryTagSlugs: []string{primaryOne.Slug, primaryTwo.Slug},
-		SecondaryTagSlugs: []string{secondaryOne.Slug}, WarningSlugs: []string{},
+		QueryText: "role fixture", Level1TagSlug: firstCascade.Level1Slug,
+		Level2TagSlug: firstCascade.Level2Slug, TertiaryTagSlugs: []string{tertiaryOne.Slug}, WarningSlugs: []string{},
 		TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any",
 	}
 	roleCounts, err := queries.CountDirectorySitesByStatus(ctx, roleFilters)
 	if err != nil {
-		t.Fatalf("count primary OR directory fixtures: %v", err)
+		t.Fatalf("count cascade directory fixtures: %v", err)
 	}
-	if roleCounts.NormalCount != 2 || roleCounts.AbnormalCount != 1 {
-		t.Fatalf("primary OR status counts = %#v, want normal=2 abnormal=1", roleCounts)
+	if roleCounts.NormalCount != 1 || roleCounts.AbnormalCount != 1 {
+		t.Fatalf("cascade status counts = %#v, want normal=1 abnormal=1", roleCounts)
 	}
-	roleFilters.SecondaryTagSlugs = []string{secondaryOne.Slug, secondaryTwo.Slug}
+	roleFilters.TertiaryTagSlugs = []string{tertiaryOne.Slug, tertiaryTwo.Slug}
 	roleCounts, err = queries.CountDirectorySitesByStatus(ctx, roleFilters)
 	if err != nil {
-		t.Fatalf("count secondary AND directory fixtures: %v", err)
+		t.Fatalf("count tertiary AND directory fixtures: %v", err)
 	}
 	if roleCounts.NormalCount != 1 || roleCounts.AbnormalCount != 1 {
 		t.Fatalf("secondary AND status counts = %#v, want normal=1 abnormal=1", roleCounts)
 	}
 	hiddenRows, err := queries.ListDirectorySites(ctx, dbgen.ListDirectorySitesParams{
 		SiteVisibility: "HIDDEN", QueryText: roleFilters.QueryText,
-		PrimaryTagSlugs: roleFilters.PrimaryTagSlugs, SecondaryTagSlugs: roleFilters.SecondaryTagSlugs,
-		WarningSlugs: []string{}, TechnologyNames: []string{}, AccessScopes: []string{},
+		Level1TagSlug: roleFilters.Level1TagSlug, Level2TagSlug: roleFilters.Level2TagSlug,
+		TertiaryTagSlugs: roleFilters.TertiaryTagSlugs,
+		WarningSlugs:     []string{}, TechnologyNames: []string{}, AccessScopes: []string{},
 		FeedMode: "any", SortMode: "joined", Seed: "integration", SortOrder: "desc", PageLimit: 24,
 	})
 	if err != nil {
@@ -274,21 +274,15 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	if err != nil {
 		t.Fatalf("list directory tag options: %v", err)
 	}
-	var primaryOption, secondaryOption *dbgen.ListDirectoryTagOptionsRow
+	var tertiaryOption *dbgen.ListDirectoryTagOptionsRow
 	for index := range optionRows {
 		row := &optionRows[index]
-		if row.Slug == primaryOne.Slug && row.Role == "PRIMARY" {
-			primaryOption = row
-		}
-		if row.Slug == secondaryTwo.Slug && row.Role == "SECONDARY" {
-			secondaryOption = row
+		if row.Slug == tertiaryTwo.Slug && row.Role == "TERTIARY" {
+			tertiaryOption = row
 		}
 	}
-	if primaryOption == nil || primaryOption.NormalCount != 1 || primaryOption.AbnormalCount != 1 {
-		t.Fatalf("primary directory option = %#v, want normal=1 abnormal=1", primaryOption)
-	}
-	if secondaryOption == nil || secondaryOption.NormalCount != 1 || secondaryOption.AbnormalCount != 1 {
-		t.Fatalf("secondary directory option = %#v, want normal=1 abnormal=1", secondaryOption)
+	if tertiaryOption == nil || tertiaryOption.NormalCount != 1 || tertiaryOption.AbnormalCount != 1 {
+		t.Fatalf("tertiary directory option = %#v, want normal=1 abnormal=1", tertiaryOption)
 	}
 }
 
@@ -621,8 +615,8 @@ func verifyDatabaseCatalog(ctx context.Context, t *testing.T, connection *pgx.Co
 	`, []string{"identity", "directory", "content"}).Scan(&tableCount); err != nil {
 		t.Fatalf("query business tables: %v", err)
 	}
-	if tableCount != 19 {
-		t.Fatalf("business table count = %d, want 19", tableCount)
+	if tableCount != 22 {
+		t.Fatalf("business table count = %d, want 22", tableCount)
 	}
 
 	var graphExists bool
@@ -962,14 +956,21 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	if err != nil {
 		t.Fatalf("list public site tags: %v", err)
 	}
-	if len(tags) != 1 || tags[0].TagID != enabledTagID || tags[0].Name != "Public Topic" {
+	if len(tags) != 3 || !containsPublicTag(tags, visibleSiteID, enabledTagID, "WARNING") ||
+		!containsPublicTagRole(tags, visibleSiteID, "PRIMARY") || !containsPublicTagRole(tags, visibleSiteID, "SECONDARY") {
 		t.Fatalf("public site tags = %#v", tags)
 	}
 	batchTags, err := queries.ListPublicSiteTagsBySiteIDs(ctx, []pgtype.UUID{visibleSiteID, hiddenSiteID})
 	if err != nil {
 		t.Fatalf("list public site tags by site IDs: %v", err)
 	}
-	if len(batchTags) != 1 || batchTags[0].SiteID != visibleSiteID || batchTags[0].TagID != enabledTagID {
+	batchWarning, batchPrimary, batchSecondary := false, false, false
+	for _, row := range batchTags {
+		batchWarning = batchWarning || row.SiteID == visibleSiteID && row.TagID == enabledTagID && row.Role == "WARNING"
+		batchPrimary = batchPrimary || row.SiteID == hiddenSiteID && row.Role == "PRIMARY"
+		batchSecondary = batchSecondary || row.SiteID == hiddenSiteID && row.Role == "SECONDARY"
+	}
+	if len(batchTags) != 5 || !batchWarning || !batchPrimary || !batchSecondary {
 		t.Fatalf("batch public site tags = %#v", batchTags)
 	}
 
@@ -1007,6 +1008,24 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	if len(technologies) != 1 || technologies[0].ComponentID != enabledComponentID || technologies[0].Name != "Public Runtime" {
 		t.Fatalf("public site software components = %#v", technologies)
 	}
+}
+
+func containsPublicTag(rows []dbgen.ListPublicSiteTagsRow, siteID, tagID pgtype.UUID, role string) bool {
+	for _, row := range rows {
+		if row.SiteID == siteID && row.TagID == tagID && row.Role == role {
+			return true
+		}
+	}
+	return false
+}
+
+func containsPublicTagRole(rows []dbgen.ListPublicSiteTagsRow, siteID pgtype.UUID, role string) bool {
+	for _, row := range rows {
+		if row.SiteID == siteID && row.Role == role {
+			return true
+		}
+	}
+	return false
 }
 
 func verifyAnnouncementConstraints(

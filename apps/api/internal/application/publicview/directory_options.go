@@ -13,10 +13,15 @@ type DirectoryOption struct {
 }
 
 type DirectoryOptions struct {
-	PrimaryTags   []DirectoryOption `json:"primaryTags"`
-	SecondaryTags []DirectoryOption `json:"secondaryTags"`
-	Warnings      []DirectoryOption `json:"warnings"`
-	Technologies  []DirectoryOption `json:"technologies"`
+	Classifications []DirectoryClassificationOption `json:"classifications"`
+	TertiaryTags    []DirectoryOption               `json:"tertiaryTags"`
+	Warnings        []DirectoryOption               `json:"warnings"`
+	Technologies    []DirectoryOption               `json:"technologies"`
+}
+
+type DirectoryClassificationOption struct {
+	DirectoryOption
+	Children []DirectoryOption `json:"children"`
 }
 
 func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions, error) {
@@ -24,14 +29,19 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 	if err != nil {
 		return DirectoryOptions{}, internalError(err, "list directory tag options")
 	}
+	cascades, err := service.queries.ListEnabledSiteTagCascades(ctx)
+	if err != nil {
+		return DirectoryOptions{}, internalError(err, "list directory classifications")
+	}
 	technologies, err := service.queries.ListDirectoryTechnologyOptions(ctx)
 	if err != nil {
 		return DirectoryOptions{}, internalError(err, "list directory technology options")
 	}
 	options := DirectoryOptions{
-		PrimaryTags: []DirectoryOption{}, SecondaryTags: []DirectoryOption{},
+		Classifications: []DirectoryClassificationOption{}, TertiaryTags: []DirectoryOption{},
 		Warnings: []DirectoryOption{}, Technologies: []DirectoryOption{},
 	}
+	counts := make(map[string]DirectoryOption, len(tags))
 	for _, tag := range tags {
 		option := DirectoryOption{
 			Value: tag.Slug, Label: tag.Name,
@@ -39,9 +49,11 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 		}
 		switch tag.Role {
 		case "PRIMARY":
-			options.PrimaryTags = append(options.PrimaryTags, option)
+			counts["PRIMARY:"+tag.Slug] = option
 		case "SECONDARY":
-			options.SecondaryTags = append(options.SecondaryTags, option)
+			counts["SECONDARY:"+tag.Slug] = option
+		case "TERTIARY":
+			options.TertiaryTags = append(options.TertiaryTags, option)
 		case "WARNING":
 			options.Warnings = append(options.Warnings, option)
 		default:
@@ -50,6 +62,22 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 				"map directory tag option",
 			)
 		}
+	}
+	classificationIndex := make(map[string]int)
+	for _, cascade := range cascades {
+		level1 := counts["PRIMARY:"+cascade.Level1Slug]
+		level1.Value, level1.Label = cascade.Level1Slug, cascade.Level1Name
+		level2 := counts["SECONDARY:"+cascade.Level2Slug]
+		level2.Value, level2.Label = cascade.Level2Slug, cascade.Level2Name
+		index, exists := classificationIndex[level1.Value]
+		if !exists {
+			index = len(options.Classifications)
+			classificationIndex[level1.Value] = index
+			options.Classifications = append(options.Classifications, DirectoryClassificationOption{
+				DirectoryOption: level1, Children: []DirectoryOption{},
+			})
+		}
+		options.Classifications[index].Children = append(options.Classifications[index].Children, level2)
 	}
 	for _, technology := range technologies {
 		options.Technologies = append(options.Technologies, DirectoryOption{

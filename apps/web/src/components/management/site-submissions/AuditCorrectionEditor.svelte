@@ -12,6 +12,7 @@
     SubmissionOptions,
   } from '@/application/site-submission/site-submission.types';
   import { validateSubmissionStep } from '@/application/site-submission/site-submission.validation';
+  import InlineAlert from '@/components/feedback/InlineAlert.svelte';
   import FeedEditor from '@/components/site-submission/FeedEditor.svelte';
   import ProgramPicker from '@/components/site-submission/ProgramPicker.svelte';
   import TagPicker from '@/components/site-submission/TagPicker.svelte';
@@ -20,9 +21,10 @@
     detail: AuditDetail;
     options: SubmissionOptions;
     returnPath: string;
+    canManageTaxonomy: boolean;
   }
 
-  let { detail, options, returnPath }: Props = $props();
+  let { detail, options, returnPath, canManageTaxonomy }: Props = $props();
   const initialDetail = untrack(() => detail);
   let form = $state(emptySubmission());
   let pending = $state(false);
@@ -62,42 +64,42 @@
   }
 </script>
 
-<div class="grid gap-6">
-  <section class="grid gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
+<div class="grid min-w-0 gap-6">
+  <section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
     <header class="border-b border-line pb-4">
       <p class="text-xs font-medium text-tint-fg">批准前修正</p>
       <h2 class="mt-2 text-xl font-semibold">站点资料</h2>
     </header>
-    <label class="grid gap-2 text-sm"
+    <label class="grid min-w-0 gap-2 text-sm"
       >站点名称<input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
         bind:value={form.name}
         maxlength="160"
       /></label
     >
-    <label class="grid gap-2 text-sm"
+    <label class="grid min-w-0 gap-2 text-sm"
       >主页地址<input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
         bind:value={form.url}
       /></label
     >
-    <label class="grid gap-2 text-sm"
+    <label class="grid min-w-0 gap-2 text-sm"
       >站点简介<textarea
-        class="min-h-28 rounded-sm border border-line-strong bg-surface p-3 text-sm text-pretty sm:text-base"
+        class="min-h-28 min-w-0 rounded-sm border border-line-strong bg-surface p-3 text-sm text-pretty sm:text-base"
         bind:value={form.summary}
         maxlength="2000"></textarea></label
     >
   </section>
 
-  <section class="rounded-md border border-line bg-surface p-5 sm:p-6">
-    <FeedEditor {form} />
+  <section class="min-w-0 rounded-md border border-line bg-surface p-5 sm:p-6">
+    <FeedEditor bind:form />
   </section>
 
-  <section class="grid gap-6 rounded-md border border-line bg-surface p-5 sm:p-6">
-    <TagPicker {form} options={options.tags} />
+  <section class="grid min-w-0 gap-6 rounded-md border border-line bg-surface p-5 sm:p-6">
+    <TagPicker bind:form options={options.tags} {canManageTaxonomy} />
     <div class="border-t border-line pt-6">
       <ProgramPicker
-        {form}
+        bind:form
         options={options.components}
         dependencyRelations={options.program_dependencies}
         privateProgramID={options.private_program_id}
@@ -105,12 +107,7 @@
     </div>
   </section>
 
-  {#if error}<p
-      class="rounded-sm border border-danger bg-danger-bg p-3 text-sm text-danger-fg"
-      role="alert"
-    >
-      {error}
-    </p>{/if}
+  {#if error}<InlineAlert tone="danger">{error}</InlineAlert>{/if}
 
   <div class="flex flex-wrap justify-end gap-3 border-t border-line pt-5">
     <a

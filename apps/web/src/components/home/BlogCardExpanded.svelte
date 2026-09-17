@@ -215,7 +215,7 @@
   tabindex="-1"
   id={dialogId}
   data-blog-card-dialog
-  class="fixed m-0 max-w-none overflow-y-auto overscroll-contain rounded-md border border-line-strong bg-surface p-0 text-fg shadow-md outline-none backdrop:bg-slate-950/60 dark:backdrop:bg-zinc-950/70"
+  class="fixed m-0 max-h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-md border border-line-strong bg-surface p-0 text-fg shadow-md outline-none backdrop:bg-slate-950/60 dark:backdrop:bg-zinc-950/70"
   class:[--card-content-duration:var(--motion-fast)]={phase === 'closing'}
   data-phase={phase}
   aria-labelledby={titleId}

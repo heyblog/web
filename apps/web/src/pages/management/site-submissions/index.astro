@@ -65,7 +65,7 @@ const statusLabels: Readonly<Record<AuditStatus, string>> = {
     kind="success"
   />
   <form
-    class="mb-6 grid gap-3 rounded-md border border-line p-4 sm:grid-cols-[1fr_1fr_auto]"
+    class="mb-6 grid gap-3 rounded-md border border-line p-4 sm:grid-cols-2 md:grid-cols-[1fr_1fr_auto]"
     method="get"
   >
     <label class="grid gap-2 text-sm"
@@ -95,7 +95,7 @@ const statusLabels: Readonly<Record<AuditStatus, string>> = {
       ></label
     >
     <button
-      class="min-h-11 self-end rounded-sm border border-line-strong px-4 font-medium"
+      class="min-h-11 self-end rounded-sm border border-line-strong px-4 font-medium sm:col-span-2 sm:justify-self-end md:col-span-1"
       type="submit">筛选</button
     >
   </form>
@@ -179,7 +179,7 @@ const statusLabels: Readonly<Record<AuditStatus, string>> = {
       </section>
     ) : null
   }
-  <nav class="mt-6 flex items-center justify-between text-sm" aria-label="分页">
+  <nav class="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm" aria-label="分页">
     <a
       class:list={[
         'rounded-sm border border-line-strong px-3 py-2',
@@ -187,7 +187,7 @@ const statusLabels: Readonly<Record<AuditStatus, string>> = {
       ]}
       href={`?${new URLSearchParams({ ...(status ? { status } : {}), ...(action ? { action } : {}), page: String(Math.max(1, payload.page - 1)) })}`}
       >上一页</a
-    ><span
+    ><span class="order-first w-full text-center sm:order-0 sm:w-auto"
       >第 {payload.page} / {Math.max(1, payload.total_pages)} 页，共 {payload.total_items} 条</span
     ><a
       class:list={[

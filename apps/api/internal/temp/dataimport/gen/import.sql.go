@@ -17,7 +17,7 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_feeds
     UNION ALL SELECT 1 FROM directory.site_resources
     UNION ALL SELECT 1 FROM directory.site_icons
-    UNION ALL SELECT 1 FROM directory.tags
+    UNION ALL SELECT 1 FROM directory.tags WHERE NOT is_fixed
     UNION ALL SELECT 1 FROM directory.site_tags
     -- The private-program placeholder is shipped by migrations and does not
     -- represent imported directory content.
@@ -204,6 +204,7 @@ INSERT INTO directory.sites (
     access_scope,
     visibility,
     visibility_reason,
+    tag_cascade_id,
     joined_at,
     updated_at
 ) VALUES (
@@ -217,6 +218,8 @@ INSERT INTO directory.sites (
     $8,
     $9,
     $10::text,
+    (SELECT id FROM directory.tag_cascades
+      WHERE scope = 'SITE' AND taxonomy_key = 'other/topic-other-other'),
     $11::timestamptz,
     $12::timestamptz
 )
@@ -296,21 +299,24 @@ INSERT INTO directory.site_tags (
     tag_id,
     role,
     assignment_source,
+    position,
     note
 ) VALUES (
     $1::uuid,
     $2::uuid,
     $3,
     'IMPORTED',
-    $4
+    $4,
+    $5
 )
 `
 
 type InsertSiteTagParams struct {
-	SiteID pgtype.UUID
-	TagID  pgtype.UUID
-	Role   string
-	Note   *string
+	SiteID   pgtype.UUID
+	TagID    pgtype.UUID
+	Role     string
+	Position *int16
+	Note     *string
 }
 
 func (q *Queries) InsertSiteTag(ctx context.Context, arg InsertSiteTagParams) error {
@@ -318,6 +324,7 @@ func (q *Queries) InsertSiteTag(ctx context.Context, arg InsertSiteTagParams) er
 		arg.SiteID,
 		arg.TagID,
 		arg.Role,
+		arg.Position,
 		arg.Note,
 	)
 	return err

@@ -61,7 +61,7 @@ test('provides more than six mock cards with distinct optional field states', ()
     new Set(['RSS', 'ATOM', 'JSON']),
   );
   assert.ok(sites.some((site) => site.summary === ''));
-  assert.ok(sites.some((site) => site.topics.length === 0));
+  assert.ok(sites.every((site) => site.classification !== null));
   assert.ok(sites.some((site) => site.warnings.length > 0));
   assert.ok(sites.some((site) => site.defaultFeed === null && site.sitemapUrl !== null));
 });
@@ -101,31 +101,31 @@ test('rejects failed home refresh responses without exposing their body', async 
   );
 });
 
-test('orders blog card tags by warning, primary, and secondary roles', () => {
+test('orders blog card tags by warning, classification, and tertiary tags', () => {
   const tags = createBlogCardTags({
     warnings: [{ name: '访问较慢', slug: 'slow-access', description: '部分网络访问较慢。' }],
-    topics: [
-      { name: '写作', slug: 'writing', role: 'SECONDARY' },
-      { name: '技术', slug: 'technology', role: 'PRIMARY' },
-      { name: '开源', slug: 'open-source', role: 'SECONDARY' },
-    ],
+    classification: {
+      level1: { name: '技术', slug: 'technology' },
+      level2: { name: '写作', slug: 'writing' },
+    },
+    tertiaryTags: [{ name: '开源', slug: 'open-source' }],
   });
 
   assert.deepEqual(
     tags.map((tag) => [tag.label, tag.tone]),
     [
       ['访问较慢', 'warning'],
-      ['技术', 'primary'],
-      ['写作', 'secondary'],
+      ['技术 - 写作', 'primary'],
       ['开源', 'secondary'],
     ],
   );
 });
 
-test('uses the uncategorized tag after warnings when a primary topic is absent', () => {
+test('uses the uncategorized tag after warnings when classification is absent', () => {
   const tags = createBlogCardTags({
     warnings: [{ name: '仅英文', slug: 'english-only', description: '' }],
-    topics: [{ name: '随笔', slug: 'essay', role: 'SECONDARY' }],
+    classification: null,
+    tertiaryTags: [{ name: '随笔', slug: 'essay' }],
   });
 
   assert.deepEqual(

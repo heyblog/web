@@ -11,12 +11,12 @@
   interface Props {
     form: EditableSubmission;
   }
-  let { form }: Props = $props();
+  let { form = $bindable() }: Props = $props();
 </script>
 
-<section class="grid gap-4">
-  <header class="flex items-start justify-between gap-4">
-    <div>
+<section class="grid min-w-0 gap-4">
+  <header class="flex min-w-0 flex-wrap items-start justify-between gap-4">
+    <div class="min-w-0">
       <h2 class="text-xl font-semibold">Feed 与站点资源</h2>
       <p class="mt-1 text-sm text-fg-muted">最多添加 8 个 Feed；添加后必须指定一个默认项。</p>
     </div>
@@ -33,26 +33,26 @@
       没有 Feed 也可以继续。
     </p>{/if}
   {#each form.feeds as feed (feed.id)}
-    <fieldset class="grid gap-3 rounded-md border border-line p-4 sm:grid-cols-2">
+    <fieldset class="grid min-w-0 gap-3 rounded-md border border-line p-4 sm:grid-cols-2">
       <legend class="px-1 text-sm font-semibold">Feed</legend>
-      <label class="grid gap-2 text-sm"
+      <label class="grid min-w-0 gap-2 text-sm"
         >名称<input
-          class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
           bind:value={feed.name}
           placeholder="默认订阅"
         /></label
       >
-      <label class="grid gap-2 text-sm"
+      <label class="grid min-w-0 gap-2 text-sm"
         >格式<select
-          class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
           bind:value={feed.format}
           >{#each feedFormats as format (format)}<option value={format}>{format}</option
             >{/each}</select
         ></label
       >
-      <label class="grid gap-2 text-sm sm:col-span-2"
+      <label class="grid min-w-0 gap-2 text-sm sm:col-span-2"
         >地址<input
-          class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
           bind:value={feed.url}
           placeholder="https://example.com/feed.xml"
         /></label
@@ -75,16 +75,16 @@
     </fieldset>
   {/each}
   <div class="grid gap-4 sm:grid-cols-2">
-    <label class="grid gap-2 text-sm"
+    <label class="grid min-w-0 gap-2 text-sm"
       >Sitemap<input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
         bind:value={form.sitemap}
         placeholder="https://example.com/sitemap.xml"
       /></label
     >
-    <label class="grid gap-2 text-sm"
+    <label class="grid min-w-0 gap-2 text-sm"
       >友链页<input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
         bind:value={form.linkPage}
         placeholder="https://example.com/friends"
       /></label

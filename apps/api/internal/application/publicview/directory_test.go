@@ -64,8 +64,8 @@ func TestDirectoryClampsPageAndBuildsCurrentSiteCards(t *testing.T) {
 	if card.DefaultFeed == nil || card.DefaultFeed.URL != "https://example.com/blog/feed.xml" {
 		t.Fatalf("card default feed = %#v", card.DefaultFeed)
 	}
-	if len(card.Topics) != 1 || len(card.Warnings) != 1 {
-		t.Fatalf("card tags = %#v / %#v", card.Topics, card.Warnings)
+	if card.Classification == nil || len(card.Warnings) != 1 {
+		t.Fatalf("card tags = %#v / %#v", card.Classification, card.Warnings)
 	}
 }
 
@@ -73,6 +73,9 @@ func TestDirectoryOptionsSeparateTagRolesAndTechnologies(t *testing.T) {
 	t.Parallel()
 
 	service := New(queryStub{
+		directoryCascades: []dbgen.ListEnabledSiteTagCascadesRow{{
+			Level1Name: "技术", Level1Slug: "technology", Level2Name: "写作", Level2Slug: "writing",
+		}},
 		directoryTags: []dbgen.ListDirectoryTagOptionsRow{
 			{Name: "技术", Slug: "technology", Role: "PRIMARY", NormalCount: 8, AbnormalCount: 1},
 			{Name: "写作", Slug: "writing", Role: "SECONDARY", NormalCount: 5},
@@ -88,11 +91,11 @@ func TestDirectoryOptionsSeparateTagRolesAndTechnologies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DirectoryOptions() error = %v", err)
 	}
-	if len(options.PrimaryTags) != 1 || len(options.SecondaryTags) != 1 ||
+	if len(options.Classifications) != 1 || len(options.Classifications[0].Children) != 1 ||
 		len(options.Warnings) != 1 || len(options.Technologies) != 1 {
 		t.Fatalf("DirectoryOptions() = %#v", options)
 	}
-	if options.Technologies[0].Value != "astro" || options.PrimaryTags[0].AbnormalCount != 1 {
+	if options.Technologies[0].Value != "astro" || options.Classifications[0].AbnormalCount != 1 {
 		t.Fatalf("technology option = %#v", options.Technologies[0])
 	}
 }
@@ -101,17 +104,18 @@ func TestDirectoryQueryParametersKeepStableRandomState(t *testing.T) {
 	t.Parallel()
 
 	query := DirectoryQuery{
-		Page:          3,
-		Query:         "astro",
-		PrimaryTags:   []string{"technology", "life"},
-		SecondaryTags: []string{"writing", "design"},
-		Warnings:      []string{"slow-access"},
-		Technologies:  []string{"astro"},
-		AccessScopes:  []string{"ALL"},
-		Feed:          DirectoryFeedWith,
-		Sort:          DirectorySortRandom,
-		Order:         DirectoryOrderDescending,
-		Seed:          "site-directory:shuffle:alpha",
+		Page:         3,
+		Query:        "astro",
+		Level1:       "technology",
+		Level2:       "writing",
+		TertiaryTags: []string{"go", "astro"},
+		Warnings:     []string{"slow-access"},
+		Technologies: []string{"astro"},
+		AccessScopes: []string{"ALL"},
+		Feed:         DirectoryFeedWith,
+		Sort:         DirectorySortRandom,
+		Order:        DirectoryOrderDescending,
+		Seed:         "site-directory:shuffle:alpha",
 	}
 
 	parameters := query.databaseParameters(96, "VISIBLE")

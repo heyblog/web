@@ -64,6 +64,9 @@ func NormalizeSubmission(action Action, input SubmissionInput) (SubmissionInput,
 	if len(input.Contact.Name) > 100 {
 		return SubmissionInput{}, fmt.Errorf("%w: contact name must not exceed 100 characters", ErrInvalidSubmission)
 	}
+	if (input.Contact.Name == "") != (input.Contact.Email == "") {
+		return SubmissionInput{}, fmt.Errorf("%w: contact name and email must be supplied together", ErrInvalidSubmission)
+	}
 	if input.Contact.Email != "" {
 		address, err := mail.ParseAddress(input.Contact.Email)
 		if err != nil || address.Address != input.Contact.Email || address.Name != "" {
@@ -138,33 +141,82 @@ func normalizeResources(inputs []ResourceInput, address site.Address) ([]Resourc
 }
 
 func normalizeTags(inputs []TagInput) ([]TagSnapshot, error) {
-	if len(inputs) == 0 || len(inputs) > 12 {
-		return nil, fmt.Errorf("%w: between one and twelve existing tags are required", ErrInvalidSubmission)
+	if len(inputs) < 2 || len(inputs) > 22 {
+		return nil, fmt.Errorf("%w: one first-level, one second-level, and at most twenty tertiary tags are required", ErrInvalidSubmission)
 	}
 	tags := make([]TagSnapshot, 0, len(inputs))
-	primaryCount := 0
+	levelCounts := map[int]int{}
 	seen := make(map[string]struct{}, len(inputs))
 	for _, input := range inputs {
 		role := strings.ToUpper(strings.TrimSpace(input.Role))
-		if role != "PRIMARY" && role != "SECONDARY" {
-			return nil, fmt.Errorf("%w: public submissions may use only topic tag roles", ErrInvalidSubmission)
+		level := input.Level
+		if level == 0 {
+			switch role {
+			case "PRIMARY":
+				level = 1
+			case "SECONDARY":
+				level = 2
+			case "TERTIARY":
+				level = 3
+			}
 		}
-		if role == "PRIMARY" {
-			primaryCount++
+		if level < 1 || level > 3 {
+			return nil, fmt.Errorf("%w: every topic tag requires a valid level", ErrInvalidSubmission)
 		}
+		expectedRole := map[int]string{1: "PRIMARY", 2: "SECONDARY", 3: "TERTIARY"}[level]
+		if role != expectedRole {
+			return nil, fmt.Errorf("%w: tag roles must match their taxonomy levels", ErrInvalidSubmission)
+		}
+		levelCounts[level]++
 		id := strings.TrimSpace(input.ID)
 		name := strings.TrimSpace(input.SuggestedName)
-		if id == "" || name != "" {
-			return nil, fmt.Errorf("%w: public submissions may select only existing tags", ErrInvalidSubmission)
+		if level < 3 && (id == "" || name != "") {
+			return nil, fmt.Errorf("%w: first- and second-level tags must select fixed options", ErrInvalidSubmission)
 		}
-		if _, exists := seen[id]; exists {
+		if level == 3 && (id == "") == (name == "") {
+			return nil, fmt.Errorf("%w: each tertiary tag must select an existing tag or propose one name", ErrInvalidSubmission)
+		}
+		if level == 3 && name != "" {
+			id = ""
+			if len([]rune(name)) > 100 {
+				return nil, fmt.Errorf("%w: tertiary tag proposals must not exceed 100 characters", ErrInvalidSubmission)
+			}
+		}
+		key := id
+		if key == "" {
+			key = "name:" + strings.ToLower(name)
+		}
+		if _, exists := seen[key]; exists {
 			return nil, fmt.Errorf("%w: selected tags must be unique", ErrInvalidSubmission)
 		}
-		seen[id] = struct{}{}
-		tags = append(tags, TagSnapshot{ID: id, SuggestedName: name, Slug: strings.TrimSpace(input.Slug), Description: strings.TrimSpace(input.Description), Role: role})
+		seen[key] = struct{}{}
+		tags = append(tags, TagSnapshot{ID: id, SuggestedName: name, Slug: strings.TrimSpace(input.Slug), Description: strings.TrimSpace(input.Description), Role: expectedRole, Level: level, ParentID: strings.TrimSpace(input.ParentID)})
 	}
-	if primaryCount != 1 {
-		return nil, fmt.Errorf("%w: exactly one primary tag is required", ErrInvalidSubmission)
+	if levelCounts[1] != 1 || levelCounts[2] != 1 || levelCounts[3] > 20 {
+		return nil, fmt.Errorf("%w: exactly one first-level and one second-level tag are required; tertiary tags are limited to twenty", ErrInvalidSubmission)
+	}
+	var level1ID string
+	for _, tag := range tags {
+		if tag.Level == 1 {
+			level1ID = tag.ID
+		}
+	}
+	for _, tag := range tags {
+		if tag.Level == 2 && tag.ParentID != "" && tag.ParentID != level1ID {
+			return nil, fmt.Errorf("%w: the second-level tag does not belong to the selected first-level tag", ErrInvalidSubmission)
+		}
+		if tag.Level == 3 && tag.ID != "" && (tag.ID == level1ID || anyTagIDAtLevel(tags, 2, tag.ID)) {
+			return nil, fmt.Errorf("%w: tertiary tags must not repeat the selected classification", ErrInvalidSubmission)
+		}
 	}
 	return tags, nil
+}
+
+func anyTagIDAtLevel(tags []TagSnapshot, level int, id string) bool {
+	for _, tag := range tags {
+		if tag.Level == level && tag.ID == id {
+			return true
+		}
+	}
+	return false
 }

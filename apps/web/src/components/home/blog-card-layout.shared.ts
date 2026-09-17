@@ -75,20 +75,19 @@ export function resolveAnchoredDialogLayout({
   };
 }
 
-export function createBlogCardTags(site: Pick<HomeSiteCard, 'topics' | 'warnings'>): BlogCardTag[] {
-  const primaryTopic = site.topics.find((topic) => topic.role === 'PRIMARY');
-  const secondaryTopics = site.topics.filter((topic) => topic.role === 'SECONDARY');
-
+export function createBlogCardTags(
+  site: Pick<HomeSiteCard, 'classification' | 'tertiaryTags' | 'warnings'>,
+): BlogCardTag[] {
   return [
     ...site.warnings.map((warning) => ({
       key: `warning:${warning.slug}`,
       label: warning.name,
       tone: 'warning' as const,
     })),
-    primaryTopic
+    site.classification
       ? {
-          key: `primary:${primaryTopic.slug}`,
-          label: primaryTopic.name,
+          key: `classification:${site.classification.level1.slug}:${site.classification.level2.slug}`,
+          label: `${site.classification.level1.name} - ${site.classification.level2.name}`,
           tone: 'primary' as const,
         }
       : {
@@ -96,8 +95,8 @@ export function createBlogCardTags(site: Pick<HomeSiteCard, 'topics' | 'warnings
           label: '未分类',
           tone: 'secondary' as const,
         },
-    ...secondaryTopics.map((topic) => ({
-      key: `secondary:${topic.slug}`,
+    ...site.tertiaryTags.map((topic) => ({
+      key: `tertiary:${topic.slug}`,
       label: topic.name,
       tone: 'secondary' as const,
     })),

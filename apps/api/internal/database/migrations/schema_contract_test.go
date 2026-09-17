@@ -13,6 +13,8 @@ var (
 	columnDefinitionPattern = regexp.MustCompile(`^\s{4}([a-z][a-z0-9_]*)\s+.+,\s+--\s+(.+)$`)
 	columnCommentPattern    = regexp.MustCompile(`^COMMENT ON COLUMN ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*) IS '([^']*)';$`)
 	createTablePattern      = regexp.MustCompile(`^CREATE TABLE ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*) \($`)
+	alterTablePattern       = regexp.MustCompile(`^ALTER TABLE ([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*)$`)
+	alterColumnPattern      = regexp.MustCompile(`^\s+(?:ADD COLUMN(?: IF NOT EXISTS)?|ALTER COLUMN) ([a-z][a-z0-9_]*) .+[,;]\s+--\s+(.+)$`)
 )
 
 func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
@@ -44,6 +46,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00008_directory_registered_friend_links.sql",
 		"00009_authentication.sql",
 		"00010_site_audits.sql",
+		"00011_tag_taxonomy.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -52,6 +55,8 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 	wantTables := []string{
 		"content.announcement_revisions",
 		"content.announcements",
+		"content.article_tags",
+		"content.articles",
 		"directory.site_audits",
 		"directory.site_feeds",
 		"directory.site_icons",
@@ -63,6 +68,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"directory.sites",
 		"directory.software_component_dependencies",
 		"directory.software_components",
+		"directory.tag_cascades",
 		"directory.tags",
 		"identity.email_verification_codes",
 		"identity.oauth_identities",
@@ -73,6 +79,37 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 	gotTables := collectCreatedTables(t, migrationFS)
 	if strings.Join(gotTables, "\n") != strings.Join(wantTables, "\n") {
 		t.Fatalf("created tables = %v, want %v", gotTables, wantTables)
+	}
+}
+
+func TestTagTaxonomyMigrationDefinesSharedCascadesAndArticlePreparation(t *testing.T) {
+	t.Parallel()
+
+	migrationFS, err := Filesystem()
+	if err != nil {
+		t.Fatalf("Filesystem() error = %v", err)
+	}
+	content, err := fs.ReadFile(migrationFS, "00011_tag_taxonomy.sql")
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	schema := string(content)
+
+	for _, required := range []string{
+		"CREATE TABLE directory.tag_cascades (",
+		"scope text NOT NULL",
+		"level1_tag_id uuid NOT NULL",
+		"level2_tag_id uuid NOT NULL",
+		"tag_cascade_id uuid NOT NULL",
+		"CREATE TABLE content.articles (",
+		"CREATE TABLE content.article_tags (",
+		"CHECK (role IN ('TERTIARY', 'WARNING'))",
+		"position BETWEEN 1 AND 20",
+		"ADD COLUMN IF NOT EXISTS review_draft_snapshot jsonb",
+	} {
+		if !strings.Contains(schema, required) {
+			t.Errorf("tag taxonomy schema is missing %q", required)
+		}
 	}
 }
 
@@ -242,11 +279,24 @@ func collectCreatedTables(t *testing.T, migrationFS fs.FS) []string {
 func collectColumnComments(content string, inlineComments, catalogComments map[string]string) {
 	scanner := bufio.NewScanner(strings.NewReader(strings.Split(content, "-- +goose Down")[0]))
 	currentTable := ""
+	alteredTable := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		if match := createTablePattern.FindStringSubmatch(line); len(match) == 2 {
 			currentTable = match[1]
 			continue
+		}
+		if match := alterTablePattern.FindStringSubmatch(line); len(match) == 2 {
+			alteredTable = match[1]
+			continue
+		}
+		if alteredTable != "" {
+			if match := alterColumnPattern.FindStringSubmatch(line); len(match) == 3 {
+				inlineComments[alteredTable+"."+match[1]] = strings.TrimSpace(match[2])
+			}
+			if strings.HasSuffix(strings.TrimSpace(line), ";") {
+				alteredTable = ""
+			}
 		}
 		if currentTable != "" {
 			if line == ");" {

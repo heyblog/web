@@ -61,7 +61,8 @@ func TestHomeLoadsFreshRandomCardsWithPublicResources(t *testing.T) {
 		t.Fatalf("ListRandomVisibleSites() calls = %d, want 2", randomCalls)
 	}
 	card := view.Sites[0]
-	if card.HomepageURL != "https://example.com/blog" || len(card.Topics) != 2 || len(card.Warnings) != 1 {
+	if card.HomepageURL != "https://example.com/blog" || card.Classification == nil ||
+		card.Classification.Level1.Name != "技术" || card.Classification.Level2.Name != "生活" || len(card.Warnings) != 1 {
 		t.Fatalf("card profile = %#v", card)
 	}
 	if card.UpdatedAt != first.UpdatedAt.Time {
@@ -319,8 +320,8 @@ func TestSiteProfileMapsOnlyPublicReadModel(t *testing.T) {
 	if profile.HomepageURL != "https://example.com/blog" || profile.Feeds[0].URL != "https://example.com/feed.xml" {
 		t.Fatalf("profile URLs = homepage:%q feed:%#v", profile.HomepageURL, profile.Feeds)
 	}
-	if len(profile.Topics) != 1 || profile.Topics[0].Role != "PRIMARY" || len(profile.Warnings) != 1 {
-		t.Fatalf("profile tags = topics:%#v warnings:%#v", profile.Topics, profile.Warnings)
+	if profile.Classification == nil || profile.Classification.Level1.Name != "技术" || len(profile.Warnings) != 1 {
+		t.Fatalf("profile tags = classification:%#v warnings:%#v", profile.Classification, profile.Warnings)
 	}
 	if len(profile.Resources) != 1 || profile.Resources[0].URL != resourceURL || len(profile.Technologies) != 1 {
 		t.Fatalf("profile resources = %#v technologies = %#v", profile.Resources, profile.Technologies)
@@ -420,6 +421,7 @@ type queryStub struct {
 	listDirectory            func(context.Context, dbgen.ListDirectorySitesParams) ([]dbgen.DirectorySite, error)
 	directoryTags            []dbgen.ListDirectoryTagOptionsRow
 	directoryTagsErr         error
+	directoryCascades        []dbgen.ListEnabledSiteTagCascadesRow
 	directoryTechnologies    []dbgen.ListDirectoryTechnologyOptionsRow
 	directoryTechnologiesErr error
 	listRandom               func(context.Context, int32) ([]dbgen.DirectorySite, error)
@@ -478,6 +480,12 @@ func (stub queryStub) ListDirectoryTagOptions(
 	context.Context,
 ) ([]dbgen.ListDirectoryTagOptionsRow, error) {
 	return stub.directoryTags, stub.directoryTagsErr
+}
+
+func (stub queryStub) ListEnabledSiteTagCascades(
+	context.Context,
+) ([]dbgen.ListEnabledSiteTagCascadesRow, error) {
+	return stub.directoryCascades, nil
 }
 
 func (stub queryStub) ListDirectoryTechnologyOptions(

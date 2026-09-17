@@ -24,7 +24,8 @@ export interface SiteCardBase {
 }
 
 export interface SiteCardView extends SiteCardBase {
-  topics: HomeSiteTopic[];
+  classification: HomeSiteClassification | null;
+  tertiaryTags: HomeSiteTopic[];
   warnings: HomeSiteWarning[];
   defaultFeed: HomeSiteFeed | null;
   sitemapUrl: string | null;
@@ -38,7 +39,11 @@ export type HomeSiteCard = SiteCardView;
 export interface HomeSiteTopic {
   name: string;
   slug: string;
-  role: 'PRIMARY' | 'SECONDARY';
+}
+
+export interface HomeSiteClassification {
+  level1: HomeSiteTopic;
+  level2: HomeSiteTopic;
 }
 
 export interface HomeSiteWarning {

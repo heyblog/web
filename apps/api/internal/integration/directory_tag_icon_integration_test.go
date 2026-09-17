@@ -17,17 +17,16 @@ func verifyTagAndIconConstraints(ctx context.Context, t *testing.T, connection *
 
 	siteID := insertSite(ctx, t, connection, "6Aa7Bb8Cc", "Tag and Icon", "tag-icon.example.com")
 	otherSiteID := insertSite(ctx, t, connection, "7Aa8Bb9Cc", "Invalid Tag Role", "tag-role.example.com")
-	var primaryTagID, secondaryTagID, warningTagID, alternatePrimaryTagID pgtype.UUID
+	var tertiaryTagID, warningTagID, alternateTertiaryTagID pgtype.UUID
 	for _, tag := range []struct {
 		name           string
 		normalizedName string
 		slug           string
 		destination    *pgtype.UUID
 	}{
-		{name: "Technology", normalizedName: "technology", slug: "technology", destination: &primaryTagID},
-		{name: "Open source", normalizedName: "open source", slug: "open-source", destination: &secondaryTagID},
+		{name: "Technology", normalizedName: "technology", slug: "technology", destination: &tertiaryTagID},
 		{name: "Sensitive", normalizedName: "sensitive", slug: "sensitive", destination: &warningTagID},
-		{name: "Personal", normalizedName: "personal", slug: "personal", destination: &alternatePrimaryTagID},
+		{name: "Personal", normalizedName: "personal", slug: "personal", destination: &alternateTertiaryTagID},
 	} {
 		if err := connection.QueryRow(ctx, `
 			INSERT INTO directory.tags (name, normalized_name, slug)
@@ -49,44 +48,45 @@ func verifyTagAndIconConstraints(ctx context.Context, t *testing.T, connection *
 	`); err == nil {
 		t.Fatal("duplicate tag slug unexpectedly succeeded")
 	}
+	firstPosition := int16(1)
 	for _, assignment := range []struct {
-		tagID pgtype.UUID
-		role  string
-		note  *string
+		tagID    pgtype.UUID
+		role     string
+		note     *string
+		position *int16
 	}{
-		{tagID: primaryTagID, role: "PRIMARY"},
-		{tagID: secondaryTagID, role: "SECONDARY"},
+		{tagID: tertiaryTagID, role: "TERTIARY", position: &firstPosition},
 		{tagID: warningTagID, role: "WARNING", note: stringPointer("Sensitive topic")},
 	} {
 		if _, err := connection.Exec(ctx, `
-			INSERT INTO directory.site_tags (site_id, tag_id, role, assignment_source, note)
-			VALUES ($1, $2, $3, 'SYSTEM', $4)
-		`, siteID, assignment.tagID, assignment.role, assignment.note); err != nil {
+			INSERT INTO directory.site_tags (site_id, tag_id, role, assignment_source, note, position)
+			VALUES ($1, $2, $3, 'SYSTEM', $4, $5)
+		`, siteID, assignment.tagID, assignment.role, assignment.note, assignment.position); err != nil {
 			t.Fatalf("assign %s tag: %v", assignment.role, err)
 		}
 	}
 	if _, err := connection.Exec(ctx, `
-		INSERT INTO directory.site_tags (site_id, tag_id, role)
-		VALUES ($1, $2, 'PRIMARY')
-	`, siteID, alternatePrimaryTagID); err == nil {
-		t.Fatal("second primary tag unexpectedly succeeded")
+		INSERT INTO directory.site_tags (site_id, tag_id, role, position)
+		VALUES ($1, $2, 'TERTIARY', 1)
+	`, siteID, alternateTertiaryTagID); err == nil {
+		t.Fatal("duplicate tertiary position unexpectedly succeeded")
 	} else {
 		var databaseError *pgconn.PgError
 		if !errors.As(err, &databaseError) || databaseError.Code != "23505" ||
-			databaseError.ConstraintName != "site_tags_primary_unique_idx" {
-			t.Fatalf("second primary tag error = %v, want SQLSTATE 23505 from site_tags_primary_unique_idx", err)
+			databaseError.ConstraintName != "site_tags_tertiary_position_unique_idx" {
+			t.Fatalf("duplicate tertiary position error = %v", err)
 		}
 	}
 	if _, err := connection.Exec(ctx, `
 		INSERT INTO directory.site_tags (site_id, tag_id, role)
 		VALUES ($1, $2, 'INVALID')
-	`, otherSiteID, secondaryTagID); err == nil {
+	`, otherSiteID, alternateTertiaryTagID); err == nil {
 		t.Fatal("invalid tag role unexpectedly succeeded")
 	}
 	if _, err := connection.Exec(ctx, `
 		INSERT INTO directory.site_tags (site_id, tag_id, role)
 		VALUES ($1, $2, 'WARNING')
-	`, siteID, primaryTagID); err == nil {
+	`, siteID, tertiaryTagID); err == nil {
 		t.Fatal("second role for one site tag unexpectedly succeeded")
 	} else {
 		var databaseError *pgconn.PgError

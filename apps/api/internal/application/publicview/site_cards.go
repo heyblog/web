@@ -37,9 +37,9 @@ func (service *Service) loadSiteCards(
 			return nil, internalError(err, "map site card")
 		}
 		cards[index] = HomeSiteCard{
-			SiteCard: card,
-			Topics:   []HomeSiteTopic{},
-			Warnings: []Warning{},
+			SiteCard:     card,
+			TertiaryTags: []HomeSiteTopic{},
+			Warnings:     []Warning{},
 		}
 		siteIDs[index] = row.ID
 		cardIndex[row.ID] = index
@@ -76,15 +76,27 @@ func (service *Service) attachSiteCardTags(
 		if !exists {
 			return internalError(errors.New("tag references an unexpected site"), "map site card tags")
 		}
-		if tag.Role == "WARNING" {
+		topic := HomeSiteTopic{Name: tag.Name, Slug: tag.Slug}
+		switch tag.Role {
+		case "PRIMARY":
+			if batch.cards[index].Classification == nil {
+				batch.cards[index].Classification = &SiteClassification{}
+			}
+			batch.cards[index].Classification.Level1 = topic
+		case "SECONDARY":
+			if batch.cards[index].Classification == nil {
+				batch.cards[index].Classification = &SiteClassification{}
+			}
+			batch.cards[index].Classification.Level2 = topic
+		case "TERTIARY":
+			batch.cards[index].TertiaryTags = append(batch.cards[index].TertiaryTags, topic)
+		case "WARNING":
 			batch.cards[index].Warnings = append(batch.cards[index].Warnings, Warning{
 				Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
 			})
-			continue
+		default:
+			return internalError(errors.New("tag has unsupported role"), "map site card tags")
 		}
-		batch.cards[index].Topics = append(batch.cards[index].Topics, HomeSiteTopic{
-			Name: tag.Name, Slug: tag.Slug, Role: tag.Role,
-		})
 	}
 	return nil
 }

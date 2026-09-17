@@ -26,6 +26,9 @@ func (service *Service) prepareSubmissionTaxonomy(ctx context.Context, snapshot 
 		tagsByID[id] = tag
 	}
 	for index, tag := range snapshot.Tags {
+		if tag.ID == "" && tag.Level == 3 {
+			continue
+		}
 		canonical, exists := tagsByID[tag.ID]
 		if !exists {
 			return Snapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "a selected tag is no longer available")
@@ -34,6 +37,39 @@ func (service *Service) prepareSubmissionTaxonomy(ctx context.Context, snapshot 
 		snapshot.Tags[index].SuggestedName = ""
 		snapshot.Tags[index].Slug = canonical.Slug
 		snapshot.Tags[index].Description = canonical.Description
+	}
+	if hasStructuredTags(snapshot.Tags) {
+		var level1, level2 TagSnapshot
+		for _, tag := range snapshot.Tags {
+			switch tag.Level {
+			case 1:
+				level1 = tag
+			case 2:
+				level2 = tag
+			}
+		}
+		cascades, cascadeErr := service.repository.queries.ListEnabledSiteTagCascades(ctx)
+		if cascadeErr != nil {
+			return Snapshot{}, fmt.Errorf("list site tag cascades: %w", cascadeErr)
+		}
+		matched := false
+		for _, cascade := range cascades {
+			level1ID, _ := uuidString(cascade.Level1ID)
+			level2ID, _ := uuidString(cascade.Level2ID)
+			if level1ID != level1.ID || level2ID != level2.ID {
+				continue
+			}
+			snapshot.TagCascadeID, _ = uuidString(cascade.ID)
+			snapshot.Classification = &CascadeSnapshot{
+				ID: snapshot.TagCascadeID, TaxonomyKey: cascade.TaxonomyKey,
+				Level1: level1, Level2: level2,
+			}
+			matched = true
+			break
+		}
+		if !matched {
+			return Snapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "the selected first- and second-level tags do not form an enabled site classification")
+		}
 	}
 
 	programIndex := -1
@@ -107,6 +143,15 @@ func (service *Service) prepareSubmissionTaxonomy(ctx context.Context, snapshot 
 		}
 	}
 	return snapshot, nil
+}
+
+func hasStructuredTags(tags []TagSnapshot) bool {
+	for _, tag := range tags {
+		if tag.Level != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func canonicalSubmissionComponent(ctx context.Context, queries *dbgen.Queries, component ComponentSnapshot) (ComponentSnapshot, error) {

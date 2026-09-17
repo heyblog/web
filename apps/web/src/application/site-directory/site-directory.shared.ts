@@ -24,8 +24,9 @@ export function parseSiteDirectorySearchParams(parameters: URLSearchParams): Sit
   return {
     page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
     q: (parameters.get('q') ?? '').trim().slice(0, 100),
-    primary: uniqueValues(parameters.getAll('primary')),
-    secondary: uniqueValues(parameters.getAll('secondary')),
+    level1: parameters.get('level1')?.trim() ?? '',
+    level2: parameters.has('level1') ? (parameters.get('level2')?.trim() ?? '') : '',
+    tertiary: uniqueValues(parameters.getAll('tertiary')),
     warning: uniqueValues(parameters.getAll('warning')),
     technology: uniqueValues(parameters.getAll('technology')),
     access: uniqueValues(parameters.getAll('access')).filter(isDirectoryAccess),
@@ -47,8 +48,9 @@ export function buildSiteDirectorySearchParams(query: SiteDirectoryQuery): URLSe
     order: query.order,
     seed: query.seed,
   });
-  appendValues(parameters, 'primary', query.primary);
-  appendValues(parameters, 'secondary', query.secondary);
+  if (query.level1) parameters.set('level1', query.level1);
+  if (query.level1 && query.level2) parameters.set('level2', query.level2);
+  appendValues(parameters, 'tertiary', query.tertiary);
   appendValues(parameters, 'warning', query.warning);
   appendValues(parameters, 'technology', query.technology);
   appendValues(parameters, 'access', query.access);

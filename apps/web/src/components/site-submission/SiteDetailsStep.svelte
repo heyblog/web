@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
 
   import {
     checkSiteAvailability,
@@ -10,6 +10,7 @@
     syncURLSuggestions,
   } from '@/application/site-submission/site-submission.browser';
   import type { SiteSearchResult } from '@/application/site-submission/site-submission.types';
+  import InlineAlert from '@/components/feedback/InlineAlert.svelte';
 
   interface Props {
     form: EditableSubmission;
@@ -19,7 +20,7 @@
 
   type AvailabilityState = 'idle' | 'checking' | 'available' | 'duplicate' | 'failed';
 
-  let { form, checkDuplicates, oncheckingchange }: Props = $props();
+  let { form = $bindable(), checkDuplicates, oncheckingchange }: Props = $props();
   let state = $state<AvailabilityState>('idle');
   let existingSite = $state.raw<SiteSearchResult | null>(null);
   let checkedURL = '';
@@ -87,7 +88,12 @@
   }
 
   export async function confirmAvailability(force = false): Promise<boolean> {
-    return verifyAvailability(force);
+    const available = await verifyAvailability(force);
+    if (!available) {
+      await tick();
+      document.querySelector<HTMLElement>('#site-address-availability [role="alert"]')?.focus();
+    }
+    return available;
   }
 </script>
 
@@ -109,48 +115,45 @@
     <input
       class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
       value={form.url}
-      aria-describedby={checkDuplicates ? 'site-address-availability' : undefined}
+      aria-describedby={checkDuplicates && state !== 'idle' && state !== 'available'
+        ? 'site-address-availability'
+        : undefined}
       oninput={updateURL}
-      onblur={() => void verifyAvailability()}
     />
   </label>
-  {#if checkDuplicates && state !== 'idle'}
+  {#if checkDuplicates && state !== 'idle' && state !== 'available'}
     <div id="site-address-availability" aria-busy={state === 'checking'}>
       {#if state === 'checking'}
         <p class="text-sm text-fg-muted" role="status">正在检查站点地址…</p>
-      {:else if state === 'available'}
-        <p class="text-sm text-success-fg" role="status">该站点地址可以提交。</p>
       {:else if state === 'duplicate' && existingSite}
-        <div
-          class="grid gap-2 rounded-sm border border-warning-border bg-warning-bg p-3 text-sm text-warning-fg"
-          role="alert"
-        >
+        <InlineAlert tone="warning">
           <p>
             {existingSite.visibility === 'REMOVED'
               ? '该站点已移除，请提交恢复申请。'
               : '该站点已在目录中，请改为提交更新申请。'}
           </p>
-          <a
-            class="inline-flex min-h-11 w-fit items-center font-semibold underline underline-offset-4"
-            href={siteAvailabilityTarget(existingSite)}
-          >
-            {existingSite.visibility === 'REMOVED' ? '申请恢复站点' : '填写更新申请'}
-          </a>
-        </div>
+          {#snippet actions()}
+            <a
+              class="inline-flex min-h-11 w-fit items-center font-semibold underline underline-offset-4 sm:min-h-10"
+              href={siteAvailabilityTarget(existingSite)}
+            >
+              {existingSite.visibility === 'REMOVED' ? '申请恢复站点' : '填写更新申请'}
+            </a>
+          {/snippet}
+        </InlineAlert>
       {:else if state === 'failed'}
-        <div
-          class="flex flex-wrap items-center gap-3 rounded-sm border border-danger bg-danger-bg p-3 text-sm text-danger-fg"
-          role="alert"
-        >
+        <InlineAlert tone="danger">
           <p>暂时无法检查站点地址，请稍后重试。</p>
-          <button
-            class="inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
-            type="button"
-            onclick={verifyAvailability}
-          >
-            重新检查
-          </button>
-        </div>
+          {#snippet actions()}
+            <button
+              class="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-10"
+              type="button"
+              onclick={() => confirmAvailability(true)}
+            >
+              重新检查
+            </button>
+          {/snippet}
+        </InlineAlert>
       {/if}
     </div>
   {/if}

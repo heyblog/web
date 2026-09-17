@@ -16,8 +16,9 @@ func TestParseDirectoryQueryAcceptsSupportedFilters(t *testing.T) {
 	values := url.Values{
 		"page":       {"3"},
 		"q":          {"  Astro  "},
-		"primary":    {"technology", "life", "technology"},
-		"secondary":  {"design", "writing"},
+		"level1":     {"technology"},
+		"level2":     {"writing"},
+		"tertiary":   {"design", "astro"},
 		"warning":    {"slow-access"},
 		"technology": {"astro"},
 		"access":     {"ALL", "CN_ONLY"},
@@ -37,7 +38,7 @@ func TestParseDirectoryQueryAcceptsSupportedFilters(t *testing.T) {
 		query.Status != publicview.DirectoryStatusAbnormal {
 		t.Fatalf("query = %#v", query)
 	}
-	if len(query.PrimaryTags) != 2 || len(query.SecondaryTags) != 2 ||
+	if query.Level1 != "technology" || query.Level2 != "writing" || len(query.TertiaryTags) != 2 ||
 		query.Sort != publicview.DirectorySortUpdated || query.Order != publicview.DirectoryOrderAscending {
 		t.Fatalf("normalized query = %#v", query)
 	}
@@ -54,6 +55,7 @@ func TestParseDirectoryQueryRejectsUnknownAndInvalidParameters(t *testing.T) {
 		{"status": {"removed"}},
 		{"seed": {"contains spaces"}},
 		{"sort": {"random", "joined"}},
+		{"level2": {"writing"}},
 	}
 	for _, values := range tests {
 		_, err := parseDirectoryQuery(values, time.Now())

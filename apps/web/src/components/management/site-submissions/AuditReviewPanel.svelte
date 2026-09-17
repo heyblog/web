@@ -22,9 +22,13 @@
   let approvalSnapshot = $derived(detail.review_draft_snapshot ?? detail.proposed_snapshot);
   let hasNewTaxonomy = $derived(
     approvalSnapshot.components.some((component) => !component.id) ||
-      approvalSnapshot.program_dependencies.some((component) => !component.id),
+      approvalSnapshot.program_dependencies.some((component) => !component.id) ||
+      approvalSnapshot.tags.some((tag) => !tag.id),
   );
-  let approveBlocked = $derived(hasNewTaxonomy && !canManageTaxonomy);
+  let hasIncompleteTagMetadata = $derived(
+    approvalSnapshot.tags.some((tag) => !tag.id && (!tag.slug || !tag.description.trim())),
+  );
+  let approveBlocked = $derived((hasNewTaxonomy && !canManageTaxonomy) || hasIncompleteTagMetadata);
 
   function requestAction(action: PendingAction): void {
     error = '';
@@ -84,7 +88,7 @@
   }
 </script>
 
-<section class="grid gap-5 rounded-md border border-line bg-surface p-5 lg:sticky lg:top-6">
+<section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 xl:sticky xl:top-6">
   <header>
     <h2 class="text-lg font-bold">处理申请</h2>
     <p class="mt-1 text-sm text-fg-muted">批准会立即写入正式数据，驳回不会修改站点。</p>
@@ -101,7 +105,9 @@
       class="rounded-sm border border-warning-border bg-warning-bg p-3 text-sm text-warning-fg"
       role="status"
     >
-      申请包含新程序或技术。请改为已有目录项，或由拥有分类维护权限的审核者批准。
+      {hasIncompleteTagMetadata
+        ? '新增三级标签需要先补全 slug 和说明。'
+        : '申请包含新标签、程序或技术。请改为已有目录项，或由拥有分类维护权限的审核者批准。'}
     </p>{/if}
 
   {#if canCorrect}<div class="grid gap-2">
