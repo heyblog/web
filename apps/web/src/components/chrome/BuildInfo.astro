@@ -16,7 +16,7 @@ const formatTimestamp = (value: string) => (value ? formatter.format(new Date(va
 
 <div class="max-w-full">
   <button
-    class="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-md border border-line-strong bg-surface px-3 font-mono text-xs font-medium text-fg-muted transition-[border-color,background-color,color,scale] duration-(--motion-fast) ease-standard hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 motion-reduce:transition-colors sm:min-h-10"
+    class="group inline-flex min-h-11 max-w-full cursor-pointer items-center rounded-sm bg-transparent p-0 text-fg-muted transition-colors duration-(--motion-color) ease-standard hover:text-tint-fg sm:min-h-10"
     id={triggerId}
     type="button"
     aria-controls={popoverId}
@@ -24,9 +24,13 @@ const formatTimestamp = (value: string) => (value ? formatter.format(new Date(va
     aria-haspopup="dialog"
     popovertarget={popoverId}
   >
-    <span class="shrink-0">构建信息</span>
-    <span aria-hidden="true">·</span>
-    <span class="truncate">v{buildInfo.version} · {buildInfo.shortCommit}</span>
+    <span class="inline-flex min-w-0 items-center gap-1.5 font-sans text-xs font-medium">
+      <span class="shrink-0 underline-offset-4 group-hover:underline group-focus-visible:underline"
+        >构建信息</span
+      >
+      <span aria-hidden="true">·</span>
+      <span class="truncate font-mono">v{buildInfo.version} · {buildInfo.shortCommit}</span>
+    </span>
   </button>
 
   <div
