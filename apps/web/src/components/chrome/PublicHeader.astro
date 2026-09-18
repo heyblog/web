@@ -1,32 +1,25 @@
 ---
-import { IconChevronDown, IconMenu2, IconX } from '@tabler/icons-svelte';
-
+import {
+  activeNavigationHref,
+  navigationRankClasses,
+  sortNavigation,
+} from '@/shared/public-header.shared';
 import { siteConfig } from '@/site.config';
 
 import PublicAccountEntry from './PublicAccountEntry.astro';
+import PublicNavigationMenu from './PublicNavigationMenu.astro';
 import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
   currentPath: string;
 }
-
 const { currentPath } = Astro.props;
-const normalizePath = (value: string) =>
-  value.length > 1 && value.endsWith('/') ? value.slice(0, -1) : value || '/';
-const activePath = normalizePath(currentPath);
-const isHome = activePath === '/';
-const isActive = (href: string, match: 'exact' | 'prefix') => {
-  const target = normalizePath(href);
-
-  return match === 'exact'
-    ? activePath === target
-    : activePath === target || activePath.startsWith(`${target}/`);
-};
+const isHome = currentPath === '/';
+const primary = sortNavigation(siteConfig.navigation.primary);
+const submission = sortNavigation(siteConfig.navigation.submission);
+const activeHref = activeNavigationHref([...primary, ...submission], currentPath);
 const navigationLinkClass =
-  "relative inline-flex min-w-10 items-center justify-center px-3 text-sm font-medium text-fg-muted transition-[color,background-color] duration-(--motion-color) ease-standard after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:scale-x-50 after:bg-primary after:opacity-0 after:transition-[opacity,transform] after:duration-(--motion-base) after:ease-standard after:content-[''] after:motion-reduce:duration-0 hover:text-fg";
-const activeNavigationLinkClass = 'text-fg after:scale-x-100 after:opacity-100';
-const iconButtonClass =
-  'inline-flex size-11 cursor-pointer appearance-none items-center justify-center rounded-md border border-line-strong bg-surface p-0 text-fg-muted transition-[border-color,background-color,color,scale] ease-standard [transition-duration:var(--motion-color),var(--motion-color),var(--motion-color),var(--motion-fast)] hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 sm:size-10';
+  "relative min-h-16 items-center justify-center px-3 text-sm font-medium whitespace-nowrap transition-colors duration-(--motion-color) hover:text-fg after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:scale-x-50 after:bg-primary after:opacity-0 after:transition-[opacity,scale] after:duration-(--motion-base) after:ease-standard after:content-[''] after:motion-reduce:transition-none";
 ---
 
 <header
@@ -36,184 +29,63 @@ const iconButtonClass =
   data-home={isHome ? 'true' : 'false'}
 >
   <div
-    class="mx-auto flex min-h-16 w-[min(calc(100%-2rem),80rem)] items-center gap-6 sm:w-[min(calc(100%-3rem),80rem)]"
+    class="mx-auto flex min-h-16 w-[min(calc(100%-2rem),80rem)] items-center justify-between gap-1 xs:gap-3 sm:w-[min(calc(100%-3rem),80rem)] sm:gap-6"
   >
-    <a
-      class="inline-flex min-w-0 items-center gap-3 text-base font-semibold"
-      href="/"
-      aria-label={`${siteConfig.name} 首页`}
-    >
-      <img
-        class="size-10 shrink-0 rounded-md sm:size-9"
-        src="/favicon.svg"
-        alt=""
-        width="40"
-        height="40"
-      />
-      <span
-        class="max-w-48 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,transform] duration-(--motion-base) ease-standard data-[visible=false]:max-w-0 data-[visible=false]:translate-x-2 data-[visible=false]:opacity-0 motion-reduce:transform-none motion-reduce:transition-none"
-        data-public-brand
-        data-visible={isHome ? 'false' : 'true'}
-        aria-hidden="true"
+    <div class="flex min-w-0 items-center xs:gap-2 sm:gap-6">
+      <a
+        class="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-sm text-sm font-semibold xs:gap-3 xs:text-base sm:min-h-10"
+        href="/"
+        aria-label={`${siteConfig.name} 首页`}
       >
-        {siteConfig.name}
-      </span>
-    </a>
-
-    <nav class="hidden self-stretch md:flex" aria-label="主导航">
-      {
-        siteConfig.navigation.map((item) =>
-          item.children ? (
-            <div class="group/submenu relative flex items-stretch">
-              <a
-                class:list={[
-                  navigationLinkClass,
-                  { [activeNavigationLinkClass]: isActive(item.href, item.match) },
-                ]}
-                href={item.href}
-                aria-current={activePath === item.href ? 'page' : undefined}
-              >
-                {item.label}
-              </a>
-              <details
-                class="group flex items-stretch"
-                data-public-menu
-                data-details-state="closed"
-              >
-                <summary
-                  class="flex min-w-10 cursor-pointer list-none items-center justify-center text-fg-muted transition-colors duration-(--motion-color) hover:text-fg [&::-webkit-details-marker]:hidden"
-                  data-public-menu-trigger
-                  aria-label={`展开${item.label}菜单`}
-                  aria-expanded="false"
-                >
-                  <IconChevronDown
-                    class="transition-transform duration-(--motion-base) group-open:rotate-180 motion-reduce:transform-none"
-                    size={16}
-                    aria-hidden="true"
-                  />
-                </summary>
-                <div
-                  class="pointer-events-none absolute top-full right-0 z-40 grid min-w-48 -translate-y-1 gap-1 rounded-md border border-line bg-surface p-1 opacity-0 shadow-sm transition-[transform,opacity] duration-(--motion-base) group-open:pointer-events-auto group-open:translate-y-0 group-open:opacity-100 group-hover/submenu:pointer-events-auto group-hover/submenu:translate-y-0 group-hover/submenu:opacity-100 motion-reduce:transform-none motion-reduce:transition-opacity"
-                  data-public-menu-panel
-                >
-                  {item.children.map((child) => (
-                    <a
-                      class:list={[
-                        'flex min-h-10 items-center rounded-sm px-3 text-sm text-fg-muted hover:bg-subtle hover:text-fg',
-                        { 'bg-tint text-tint-fg': activePath === child.href },
-                      ]}
-                      href={child.href}
-                      aria-current={activePath === child.href ? 'page' : undefined}
-                    >
-                      {child.label}
-                    </a>
-                  ))}
-                </div>
-              </details>
-            </div>
-          ) : (
+        <img
+          class="size-8 shrink-0 rounded-md xs:size-10 sm:size-9"
+          src="/favicon.svg"
+          alt=""
+          width="40"
+          height="40"
+        />
+        <span
+          class="max-w-48 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,transform] duration-(--motion-base) ease-standard data-[visible=false]:max-w-0 data-[visible=false]:translate-x-2 data-[visible=false]:opacity-0 motion-reduce:transform-none motion-reduce:transition-none"
+          data-public-brand
+          data-visible={isHome ? 'false' : 'true'}
+          aria-hidden="true">{siteConfig.name}</span
+        >
+      </a>
+      <nav class="flex shrink-0 items-center gap-1" aria-label="主导航">
+        {
+          primary.map((item, index) => (
             <a
               class:list={[
                 navigationLinkClass,
-                { [activeNavigationLinkClass]: isActive(item.href, item.match) },
+                navigationRankClasses[index]?.direct ?? 'hidden',
+                activeHref === item.href
+                  ? 'text-fg after:scale-x-100 after:opacity-100'
+                  : 'text-fg-muted',
               ]}
               href={item.href}
-              aria-current={isActive(item.href, item.match) ? 'page' : undefined}
-              rel={item.external ? 'noreferrer' : undefined}
-              target={item.external ? '_blank' : undefined}
+              aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
             >
               {item.label}
             </a>
-          ),
-        )
-      }
-    </nav>
-
-    <div class="ml-auto flex items-center gap-2">
-      <PublicAccountEntry server:defer variant="desktop">
-        <PublicAccountEntry slot="fallback" hasSession={false} variant="desktop" />
+          ))
+        }
+        <PublicNavigationMenu items={primary} {activeHref} {currentPath} variant="overflow" />
+      </nav>
+    </div>
+    <div
+      class="flex shrink-0 items-center border-l border-line pl-1 xs:gap-1 xs:pl-2 sm:gap-2 sm:pl-4"
+      aria-label="站点操作"
+    >
+      <PublicNavigationMenu items={submission} {activeHref} {currentPath} variant="submission" />
+      <PublicAccountEntry server:defer>
+        <PublicAccountEntry slot="fallback" hasSession={false} />
       </PublicAccountEntry>
       <ThemeToggle />
-      <details
-        class="group relative size-11 shrink-0 sm:size-10 md:hidden"
-        data-public-menu
-        data-public-mobile-menu
-        data-details-state="closed"
-      >
-        <summary
-          class:list={[
-            iconButtonClass,
-            'relative flex list-none [&::-webkit-details-marker]:hidden',
-          ]}
-          data-public-menu-trigger
-          aria-label="打开导航"
-          aria-expanded="false"
-        >
-          <IconMenu2
-            class="absolute size-4.5 transition-[opacity,transform] duration-(--motion-base) ease-out group-open:scale-96 group-open:-rotate-45 group-open:opacity-0 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-150"
-            data-public-menu-icon="menu"
-            aria-hidden="true"
-            size={19}
-            stroke={1.75}
-          />
-          <IconX
-            class="absolute size-4.5 scale-96 -rotate-45 opacity-0 transition-[opacity,transform] duration-(--motion-base) ease-out group-open:scale-100 group-open:rotate-0 group-open:opacity-100 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-150"
-            data-public-menu-icon="close"
-            aria-hidden="true"
-            size={19}
-            stroke={1.75}
-          />
-        </summary>
-        <nav
-          class="pointer-events-none fixed inset-x-0 top-16 z-20 grid -translate-y-2 gap-1 border-b border-line bg-canvas px-4 pt-3 pb-6 opacity-0 blur-[2px] transition-[transform,opacity,filter] duration-(--motion-medium) ease-out group-open:will-change-[transform,opacity,filter] group-data-[details-state=open]:pointer-events-auto group-data-[details-state=open]:translate-y-0 group-data-[details-state=open]:opacity-100 group-data-[details-state=open]:blur-none group-data-[details-state=open]:duration-(--motion-slow) motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:blur-none motion-reduce:transition-none motion-reduce:duration-0!"
-          data-public-menu-panel
-          aria-label="移动端主导航"
-        >
-          {
-            siteConfig.navigation.map((item) => (
-              <div class="grid">
-                <a
-                  class:list={[
-                    'flex min-h-11 items-center rounded-sm px-3 text-sm font-medium text-fg-muted transition-[background-color,color] duration-(--motion-color) ease-standard hover:bg-tint hover:text-tint-fg',
-                    { 'bg-tint text-tint-fg': isActive(item.href, item.match) },
-                  ]}
-                  href={item.href}
-                  aria-current={activePath === item.href ? 'page' : undefined}
-                  rel={item.external ? 'noreferrer' : undefined}
-                  target={item.external ? '_blank' : undefined}
-                >
-                  {item.label}
-                </a>
-                {item.children ? (
-                  <div class="grid border-l border-line pl-3">
-                    {item.children.map((child) => (
-                      <a
-                        class:list={[
-                          'flex min-h-11 items-center rounded-sm px-3 text-sm text-fg-muted hover:bg-subtle hover:text-fg',
-                          { 'bg-tint text-tint-fg': activePath === child.href },
-                        ]}
-                        href={child.href}
-                        aria-current={activePath === child.href ? 'page' : undefined}
-                      >
-                        {child.label}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))
-          }
-          <PublicAccountEntry server:defer variant="mobile">
-            <PublicAccountEntry slot="fallback" hasSession={false} variant="mobile" />
-          </PublicAccountEntry>
-        </nav>
-      </details>
     </div>
   </div>
 </header>
 
 <script>
   import { initPublicHeader } from '@/shared/public-header.browser';
-
   initPublicHeader();
 </script>

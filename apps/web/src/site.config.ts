@@ -15,25 +15,21 @@ export const siteConfig: SiteConfig = {
     imageAlt: 'HeyBlog 分享卡片',
   },
   twitterCard: 'summary_large_image',
-  navigation: [
-    { label: '首页', href: '/', match: 'exact' },
-    { label: '博客列表', href: '/site', match: 'prefix' },
-    { label: '项目动态', href: '/blog', match: 'prefix' },
-    // { label: '文档', href: '/docs', match: 'prefix' },
-    { label: '成员', href: '/members', match: 'prefix' },
-    {
-      label: '提交博客',
-      href: '/site/submissions',
-      match: 'prefix',
-      children: [
-        { label: '提交新站点', href: '/site/submissions/new' },
-        { label: '修订站点', href: '/site/submissions/update' },
-        { label: '删除站点', href: '/site/submissions/delete' },
-        { label: '恢复站点', href: '/site/submissions/restore' },
-        { label: '查询申请', href: '/site/submissions/query' },
-      ],
-    },
-  ],
+  navigation: {
+    primary: [
+      { label: '博客列表', href: '/site', match: 'prefix', sort: 10 },
+      { label: '项目动态', href: '/blog', match: 'prefix', sort: 20 },
+      { label: '成员', href: '/members', match: 'prefix', sort: 30 },
+    ],
+    submission: [
+      { label: '申请中心', href: '/site/submissions', match: 'exact', sort: 10 },
+      { label: '提交新站点', href: '/site/submissions/new', match: 'exact', sort: 20 },
+      { label: '查询申请', href: '/site/submissions/query', match: 'exact', sort: 30 },
+      { label: '修订站点', href: '/site/submissions/update', match: 'exact', sort: 40 },
+      { label: '删除站点', href: '/site/submissions/delete', match: 'exact', sort: 50 },
+      { label: '恢复站点', href: '/site/submissions/restore', match: 'exact', sort: 60 },
+    ],
+  },
   footer: {
     copyrightStartYear: 2022,
     copyrightOwner: 'HeyBlog',

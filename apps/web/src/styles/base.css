@@ -12,7 +12,7 @@ html {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--sem-canvas);
   color: var(--sem-fg);
@@ -48,11 +48,6 @@ svg {
 ::selection {
   background: var(--selection-bg);
   color: var(--selection-fg);
-}
-
-:focus-visible {
-  outline: 2px solid var(--sem-focus);
-  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

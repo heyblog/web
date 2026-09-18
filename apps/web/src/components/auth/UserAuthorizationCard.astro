@@ -12,9 +12,9 @@ const canEditRole = actor.role === 'SYS_ADMIN' && actor.id !== user.id;
 const canEditPermissions = user.role === 'ADMIN' && actor.id !== user.id;
 ---
 
-<article class="rounded-md border border-line bg-surface p-4">
+<article class="min-w-0 rounded-md border border-line bg-surface p-4">
   <header class="mb-4 border-b border-line pb-4">
-    <strong class="block font-medium">{user.display_name}</strong>
+    <strong class="block font-medium wrap-anywhere">{user.display_name}</strong>
     <span class="text-xs break-all text-fg-muted">{user.email}</span>
     <p class="mt-2 text-xs text-fg-muted">
       {user.active ? '可用' : '停用'} · {user.email_verified ? '已验证' : '未验证'}
@@ -44,7 +44,7 @@ const canEditPermissions = user.role === 'ADMIN' && actor.id !== user.id;
       <legend class="mb-2 text-xs font-medium text-fg-muted">模块权限</legend>
       {
         managementPermissions.map((permission) => (
-          <label class="flex min-h-9 items-center gap-2">
+          <label class="flex min-h-11 items-center gap-2 sm:min-h-10">
             <input
               class="size-4 accent-primary"
               type="checkbox"

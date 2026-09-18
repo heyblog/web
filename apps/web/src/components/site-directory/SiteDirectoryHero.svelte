@@ -41,7 +41,7 @@
           stroke={1.8}
         />
         <input
-          class="min-h-11 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-10 text-sm transition-colors duration-(--motion-fast) outline-none placeholder:text-fg-muted focus:border-focus focus:ring-2 focus:ring-focus/30 sm:min-h-10"
+          class="min-h-11 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-10 text-base transition-colors duration-(--motion-fast) placeholder:text-fg-muted focus:border-focus sm:min-h-10 sm:text-sm"
           type="search"
           value={searchDraft}
           maxlength="100"
@@ -50,7 +50,7 @@
         />
       </label>
       <button
-        class="inline-flex min-h-11 items-center justify-center rounded-md bg-primary-hover px-5 text-sm font-semibold text-white transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-active active:scale-96 disabled:pointer-events-none disabled:opacity-50 sm:min-h-10"
+        class="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-fg transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-hover active:scale-96 disabled:pointer-events-none disabled:opacity-50 sm:min-h-10"
         type="submit"
         disabled={pending}
       >

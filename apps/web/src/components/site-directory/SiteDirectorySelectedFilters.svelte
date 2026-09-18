@@ -96,7 +96,7 @@
     <div class="mb-2 flex items-center justify-between gap-3">
       <h2 class="text-xs font-medium text-fg-muted" id="selected-filters-title">已选筛选</h2>
       <button
-        class="min-h-10 rounded-md px-2 text-xs font-medium text-fg-muted hover:bg-subtle hover:text-fg"
+        class="min-h-11 rounded-md px-2 text-xs font-medium text-fg-muted hover:bg-subtle hover:text-fg sm:min-h-10"
         type="button"
         onclick={onClear}
       >
@@ -106,11 +106,11 @@
     <div class="flex flex-wrap gap-2">
       {#each selected as item (item.key)}
         <span
-          class="inline-flex min-h-8 items-center rounded-sm bg-tint pl-2 text-xs font-medium text-tint-fg"
+          class="inline-flex min-h-8 max-w-full min-w-0 items-center rounded-sm bg-tint pl-2 text-xs font-medium text-tint-fg"
         >
-          {item.label}
+          <span class="min-w-0 wrap-anywhere">{item.label}</span>
           <button
-            class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm hover:bg-primary/10 sm:min-h-10 sm:min-w-10"
+            class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm hover:bg-primary/10 sm:min-h-10 sm:min-w-10"
             type="button"
             aria-label={`移除筛选：${item.label}`}
             onclick={() => onRemove(item.name, item.value)}

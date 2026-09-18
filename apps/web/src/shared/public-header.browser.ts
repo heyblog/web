@@ -1,17 +1,11 @@
-import {
-  type AnimatedDetailsController,
-  setupAnimatedDetails,
-} from '@/shared/animated-details.browser';
-import { resolveBrandVisibility } from '@/shared/public-header.shared';
+import { type AnimatedDetailsController, setupAnimatedDetails } from './animated-details.browser';
+import { resolveBrandVisibility } from './public-header.shared';
 
 const initializedHeaders = new WeakSet<HTMLElement>();
-const menuControllers = new WeakMap<HTMLDetailsElement, AnimatedDetailsController>();
 
 export function initPublicHeader(): void {
   document.querySelectorAll<HTMLElement>('[data-public-header]').forEach((header) => {
-    if (initializedHeaders.has(header)) {
-      return;
-    }
+    if (initializedHeaders.has(header)) return;
     initializedHeaders.add(header);
     setupHeader(header);
   });
@@ -35,11 +29,6 @@ function setupHeader(header: HTMLElement): void {
     },
     { once: true },
   );
-  document.addEventListener('astro:before-swap', () => lifecycle.abort(), {
-    once: true,
-    signal,
-  });
-
   const setBrandVisible = (visible: boolean) => {
     if (brand) {
       brand.dataset.visible = String(visible);
@@ -92,71 +81,105 @@ function setupHeader(header: HTMLElement): void {
   } else {
     setBrandVisible(true);
   }
+  const controllers = new Map<HTMLDetailsElement, AnimatedDetailsController>();
+  const closeOthers = (except?: HTMLDetailsElement) => {
+    controllers.forEach((controller, menu) => {
+      if (menu !== except) controller.close();
+    });
+  };
 
   header.querySelectorAll<HTMLDetailsElement>('[data-public-menu]').forEach((menu) => {
     const panel = menu.querySelector<HTMLElement>('[data-public-menu-panel]');
     const trigger = menu.querySelector<HTMLElement>('[data-public-menu-trigger]');
-
-    if (!panel || !trigger) {
-      return;
-    }
-
-    menuControllers.set(
-      menu,
-      setupAnimatedDetails(menu, {
-        panel,
-        onExpandedChange: (expanded) => {
-          trigger.setAttribute('aria-label', expanded ? '关闭导航' : '打开导航');
-        },
-      }),
+    if (!panel || !trigger) return;
+    const controller = setupAnimatedDetails(menu, {
+      panel,
+      onExpandedChange: (expanded) => {
+        if (expanded) closeOthers(menu);
+      },
+    });
+    controllers.set(menu, controller);
+    menu.addEventListener(
+      'keydown',
+      (event) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape'].includes(event.key)) return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          controller.close({ restoreFocus: true });
+          return;
+        }
+        event.preventDefault();
+        controller.open();
+        const links = [...panel.querySelectorAll<HTMLAnchorElement>('a[href]')].filter(
+          (link) => link.getClientRects().length > 0,
+        );
+        const current = links.findIndex((link) => link === document.activeElement);
+        let next: number;
+        switch (event.key) {
+          case 'ArrowDown':
+            next = (current + 1) % links.length;
+            break;
+          case 'ArrowUp':
+            next = current <= 0 ? links.length - 1 : current - 1;
+            break;
+          case 'Home':
+            next = 0;
+            break;
+          case 'End':
+            next = links.length - 1;
+            break;
+          default:
+            return;
+        }
+        links[next]?.focus();
+      },
+      { signal },
+    );
+    menu.addEventListener(
+      'focusout',
+      (event) => {
+        if (event.relatedTarget instanceof Node && !menu.contains(event.relatedTarget))
+          controller.close();
+      },
+      { signal },
     );
   });
-
-  const closeMenu = (menu: HTMLDetailsElement, restoreFocus = false, immediate = false) => {
-    menuControllers.get(menu)?.close({ immediate, restoreFocus });
-  };
-  const desktopNavigation = window.matchMedia('(min-width: 64rem)');
-  const closeMenusAtDesktop = () => {
-    if (!desktopNavigation.matches) {
-      return;
-    }
-    header
-      .querySelectorAll<HTMLDetailsElement>('[data-public-mobile-menu][open]')
-      .forEach((menu) => {
-        closeMenu(menu, false, true);
-      });
-  };
-
-  desktopNavigation.addEventListener('change', closeMenusAtDesktop, { signal });
-  closeMenusAtDesktop();
 
   document.addEventListener(
     'click',
     (event) => {
+      if (!(event.target instanceof Element)) return;
       const target = event.target;
-
-      if (!(target instanceof Element)) {
-        return;
-      }
-      header.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
-        if (!menu.contains(target) || target.closest('a')) {
-          closeMenu(menu);
-        }
+      controllers.forEach((controller, menu) => {
+        if (!menu.contains(target) || target.closest('a')) controller.close();
       });
     },
     { signal },
   );
-
+  ['30rem', '48rem', '64rem', '80rem'].forEach((width) => {
+    window.matchMedia(`(min-width: ${width})`).addEventListener(
+      'change',
+      () => {
+        const focused = document.activeElement;
+        controllers.forEach((controller) => controller.close({ immediate: true }));
+        if (
+          focused instanceof HTMLElement &&
+          header.contains(focused) &&
+          !focused.checkVisibility()
+        ) {
+          header.querySelector<HTMLElement>('a[href="/"]')?.focus();
+        }
+      },
+      { signal },
+    );
+  });
   document.addEventListener(
-    'keydown',
-    (event) => {
-      if (event.key !== 'Escape') {
-        return;
-      }
-      header.querySelectorAll<HTMLDetailsElement>('[data-public-menu][open]').forEach((menu) => {
-        closeMenu(menu, true);
-      });
+    'astro:before-swap',
+    () => {
+      controllers.forEach((controller) => controller.close({ immediate: true }));
+      lifecycle.abort();
+      initializedHeaders.delete(header);
     },
-    { signal },
+    { once: true, signal },
   );
 }

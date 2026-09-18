@@ -31,7 +31,7 @@ const { title, heading, currentPath, eyebrow = '管理中心', identity, navigat
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
-<BaseLayout {title} enableAnalytics={false} bodyClass="min-h-screen">
+<BaseLayout {title} enableAnalytics={false} bodyClass="min-h-dvh">
   <header class="flex min-h-16 items-center border-b border-line px-4" data-page-header>
     <a
       class="inline-flex min-w-0 items-center gap-3 text-base font-semibold"
@@ -50,7 +50,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
   </header>
 
   <div
-    class="grid min-h-[calc(100vh-4rem)] grid-rows-[auto_1fr] lg:grid-cols-[17rem_minmax(0,1fr)] lg:grid-rows-1"
+    class="grid min-h-[calc(100dvh-4rem)] grid-rows-[auto_1fr] lg:grid-cols-[17rem_minmax(0,1fr)] lg:grid-rows-1"
   >
     <aside class="border-b border-line bg-surface lg:border-r lg:border-b-0">
       <details
@@ -127,7 +127,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
     >
       <header class="mb-8 border-b border-line pb-6">
         <p class="mb-4 font-mono text-xs font-medium text-tint-fg">{eyebrow}</p>
-        <h1 class="text-[2rem] leading-tight font-bold sm:text-4xl">{heading}</h1>
+        <h1 class="text-3xl/tight font-bold sm:text-4xl">{heading}</h1>
       </header>
       <slot />
     </main>

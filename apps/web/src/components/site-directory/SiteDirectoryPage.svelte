@@ -201,7 +201,7 @@
   onSearchSubmit={submitSearch}
 />
 
-<main
+<div
   class="mx-auto grid w-[min(calc(100%-2rem),80rem)] gap-6 py-6 sm:w-[min(calc(100%-3rem),80rem)] lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start lg:gap-8 lg:py-10"
 >
   <SiteDirectoryFilterShell
@@ -255,6 +255,6 @@
       />
     {/key}
   </div>
-</main>
+</div>
 
 <p class="sr-only" aria-live="polite" aria-atomic="true">{statusMessage}</p>

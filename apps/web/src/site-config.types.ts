@@ -5,8 +5,8 @@ export interface SiteLink {
 }
 
 export interface SiteNavigationItem extends SiteLink {
+  readonly sort: number;
   match: 'exact' | 'prefix';
-  children?: readonly SiteLink[];
 }
 
 export interface SiteConfig {
@@ -24,7 +24,10 @@ export interface SiteConfig {
     imageAlt: string;
   };
   twitterCard: 'summary' | 'summary_large_image';
-  navigation: readonly SiteNavigationItem[];
+  navigation: {
+    readonly primary: readonly SiteNavigationItem[];
+    readonly submission: readonly SiteNavigationItem[];
+  };
   footer: {
     copyrightStartYear: number;
     copyrightOwner: string;

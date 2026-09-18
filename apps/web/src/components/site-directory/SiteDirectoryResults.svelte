@@ -14,11 +14,17 @@
   let expandedSiteId = $state<string | null>(null);
 </script>
 
-<section aria-labelledby="directory-results-title" aria-busy={pending}>
+<div
+  id="site-directory-results"
+  role="tabpanel"
+  tabindex="0"
+  aria-labelledby="directory-results-title"
+  aria-busy={pending}
+>
   <div class="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
     <div>
       <p class="font-mono text-xs font-medium text-tint-fg">目录结果</p>
-      <h2 class="mt-1 text-xl/snug font-semibold" id="directory-results-title">
+      <h2 class="mt-1 scroll-mt-24 text-xl/snug font-semibold" id="directory-results-title">
         {view.pagination.totalItems.toLocaleString('zh-CN')} 个博客
       </h2>
     </div>
@@ -33,7 +39,6 @@
         'mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
         pending && 'pointer-events-none opacity-60',
       ]}
-      id="site-directory-results"
     >
       {#each view.items as site (site.shortId)}
         <BlogCard
@@ -83,4 +88,4 @@
       </button>
     </nav>
   {/if}
-</section>
+</div>

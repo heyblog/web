@@ -7,6 +7,7 @@
     SiteDirectoryStatus,
     SiteDirectoryView,
   } from '@/application/site-directory/site-directory.models';
+  import { nextTabIndex } from '@/shared/tab-navigation';
 
   type Props = {
     readonly view: SiteDirectoryView;
@@ -22,23 +23,8 @@
 
   function handleTabKeydown(event: KeyboardEvent, status: SiteDirectoryStatus): void {
     const currentIndex = statuses.indexOf(status);
-    let nextIndex: number;
-    switch (event.key) {
-      case 'ArrowLeft':
-        nextIndex = (currentIndex - 1 + statuses.length) % statuses.length;
-        break;
-      case 'ArrowRight':
-        nextIndex = (currentIndex + 1) % statuses.length;
-        break;
-      case 'Home':
-        nextIndex = 0;
-        break;
-      case 'End':
-        nextIndex = statuses.length - 1;
-        break;
-      default:
-        return;
-    }
+    const nextIndex = nextTabIndex(event.key, currentIndex, statuses.length);
+    if (nextIndex === undefined) return;
     event.preventDefault();
     const nextStatus = statuses[nextIndex];
     if (!nextStatus) return;
@@ -59,12 +45,12 @@
 
 <div class="border-b border-line">
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-    <div class="flex min-h-10 items-end gap-5" role="tablist" aria-label="站点状态">
+    <div class="flex min-h-11 items-end gap-5 sm:min-h-10" role="tablist" aria-label="站点状态">
       {#each statuses as status (status)}
         {@const active = view.query.status === status}
         <button
           class={[
-            'relative min-h-10 px-1 text-sm font-medium transition-colors duration-(--motion-fast)',
+            'relative min-h-11 px-1 text-sm font-medium transition-colors duration-(--motion-fast) sm:min-h-10',
             active ? 'text-fg' : 'text-fg-muted hover:text-fg',
           ]}
           type="button"
@@ -72,7 +58,6 @@
           aria-selected={active}
           aria-controls="site-directory-results"
           tabindex={active ? 0 : -1}
-          disabled={pending}
           onclick={() => onStatusChange(status)}
           onkeydown={(event) => handleTabKeydown(event, status)}
         >
@@ -90,7 +75,7 @@
     <div class="flex flex-wrap items-center gap-2 pb-3 sm:pb-2">
       <label class="sr-only" for="directory-sort">排序方式</label>
       <select
-        class="min-h-11 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium transition-colors duration-(--motion-fast) outline-none focus:border-focus focus:ring-2 focus:ring-focus/30 sm:min-h-10"
+        class="min-h-11 max-w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-base font-medium transition-colors duration-(--motion-fast) focus:border-focus sm:min-h-10 sm:text-sm"
         id="directory-sort"
         value={view.query.sort}
         onchange={(event) => onSortChange(parseSort(event.currentTarget.value))}
@@ -112,7 +97,7 @@
       {:else}
         <label class="sr-only" for="directory-order">排序方向</label>
         <select
-          class="min-h-11 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium transition-colors duration-(--motion-fast) outline-none focus:border-focus focus:ring-2 focus:ring-focus/30 sm:min-h-10"
+          class="min-h-11 max-w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-base font-medium transition-colors duration-(--motion-fast) focus:border-focus sm:min-h-10 sm:text-sm"
           id="directory-order"
           value={view.query.order}
           onchange={(event) => onOrderChange(parseOrder(event.currentTarget.value))}

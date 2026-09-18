@@ -58,7 +58,10 @@ const permissionLabels: Readonly<Record<(typeof managementPermissions)[number], 
     }
   </div>
   <div class="hidden overflow-x-auto border-y border-line md:block">
-    <table class="w-full min-w-220 border-collapse text-left text-sm">
+    <table class="w-full min-w-220 table-fixed border-collapse text-left text-sm">
+      <colgroup>
+        <col class="w-1/4" /><col class="w-28" /><col class="w-48" /><col />
+      </colgroup>
       <thead
         ><tr class="bg-subtle text-xs text-fg-muted"
           ><th class="p-3 font-medium">用户</th><th class="p-3 font-medium">状态</th><th
@@ -72,8 +75,8 @@ const permissionLabels: Readonly<Record<(typeof managementPermissions)[number], 
             <tr class="align-top">
               <td class="px-3 py-4">
                 <>
-                  <strong class="block font-medium">{user.display_name}</strong>
-                  <span class="text-xs text-fg-muted">{user.email}</span>
+                  <strong class="block font-medium wrap-anywhere">{user.display_name}</strong>
+                  <span class="text-xs wrap-anywhere text-fg-muted">{user.email}</span>
                 </>
               </td>
               <td class="px-3 py-4 text-xs">
@@ -120,7 +123,7 @@ const permissionLabels: Readonly<Record<(typeof managementPermissions)[number], 
                   >
                     <legend class="sr-only">{user.display_name} 的模块权限</legend>
                     {managementPermissions.map((permission) => (
-                      <label class="flex min-h-8 items-center gap-2">
+                      <label class="flex min-h-10 items-center gap-2">
                         <input
                           class="size-4 accent-primary"
                           type="checkbox"

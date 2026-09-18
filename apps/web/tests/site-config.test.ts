@@ -16,22 +16,22 @@ test('aligns the management sidebar CSS with its 80rem desktop controller', asyn
 
 test('keeps documents available without exposing them in the public navigation', () => {
   assert.deepEqual(
-    siteConfig.navigation.map((item) => item.label),
-    ['首页', '博客列表', '项目动态', '成员', '提交博客'],
+    siteConfig.navigation.primary.map((item) => item.label),
+    ['博客列表', '项目动态', '成员'],
   );
   assert.equal(
-    siteConfig.navigation.some((item) => item.href === '/docs'),
+    siteConfig.navigation.primary.some((item) => item.href === '/docs' || item.href === '/'),
     false,
   );
-  const submissions = siteConfig.navigation.find((item) => item.href === '/site/submissions');
   assert.deepEqual(
-    submissions?.children?.map((item) => item.href),
+    siteConfig.navigation.submission.map((item) => item.href),
     [
+      '/site/submissions',
       '/site/submissions/new',
+      '/site/submissions/query',
       '/site/submissions/update',
       '/site/submissions/delete',
       '/site/submissions/restore',
-      '/site/submissions/query',
     ],
   );
 });

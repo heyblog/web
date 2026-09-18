@@ -1,0 +1,101 @@
+---
+import { IconExternalLink } from '@tabler/icons-svelte';
+
+import type { SiteProfile } from '@/application/site-profile/site-profile.server';
+interface Props {
+  profile: SiteProfile;
+}
+const { profile } = Astro.props;
+const accessScopeLabels: Record<SiteProfile['accessScope'], string> = {
+  ALL: '全球可访问',
+  CN_ONLY: '仅中国大陆可访问',
+  GLOBAL_ONLY: '仅海外可访问',
+};
+const shortCode = Array.from(profile.name.trim())[0]?.toUpperCase() ?? 'H';
+const dateLabel = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? '日期未知'
+    : date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+};
+const badgeClass =
+  'inline-flex min-h-5 items-center rounded-sm px-2 text-xs font-medium wrap-anywhere';
+---
+
+<section aria-labelledby="site-profile-title">
+  <div class="grid min-w-0 gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+    <div class="min-w-0">
+      <div class="flex min-w-0 items-start gap-4">
+        <span
+          class="inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-tint text-lg font-semibold text-tint-fg"
+          aria-hidden="true">{shortCode}</span
+        >
+        <div class="min-w-0">
+          <h1 class="text-3xl/tight font-bold wrap-anywhere sm:text-4xl" id="site-profile-title">
+            {profile.name}
+          </h1>
+          <p class="mt-2 font-mono text-sm wrap-anywhere text-fg-muted">{profile.host}</p>
+        </div>
+      </div>
+      {
+        profile.summary ? (
+          <p class="mt-6 max-w-176 text-base/normal wrap-anywhere text-fg-muted">
+            {profile.summary}
+          </p>
+        ) : null
+      }
+      <div class="mt-4 flex min-w-0 flex-wrap gap-2">
+        {
+          profile.directoryStatus === 'abnormal' ? (
+            <span class:list={[badgeClass, 'bg-warning-bg text-warning-fg']}>异常状态</span>
+          ) : null
+        }
+        <span class:list={[badgeClass, 'bg-tint text-tint-fg']}
+          >{accessScopeLabels[profile.accessScope]}</span
+        >
+        {
+          profile.classification ? (
+            <span class:list={[badgeClass, 'bg-tint text-tint-fg']}>
+              {profile.classification.level1.name} · {profile.classification.level2.name}
+            </span>
+          ) : null
+        }
+        {
+          profile.tertiaryTags.map((topic) => (
+            <span class:list={[badgeClass, 'bg-subtle text-fg-muted']}>{topic.name}</span>
+          ))
+        }
+      </div>
+    </div>
+    <a
+      class="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium whitespace-nowrap text-primary-fg transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-hover active:scale-96 active:bg-primary-active motion-reduce:scale-100 motion-reduce:transform-none sm:min-h-10"
+      href={profile.homepageUrl}
+      rel="noreferrer"
+      target="_blank"
+    >
+      访问博客<IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
+    </a>
+  </div>
+  <dl
+    class="mt-6 grid min-w-0 gap-4 border-y border-line py-4 text-sm sm:mt-8 sm:grid-cols-3 sm:gap-6 sm:py-6"
+  >
+    <div class="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2 sm:block">
+      <dt class="text-xs font-medium text-fg-muted">加入目录</dt>
+      <dd class="font-medium wrap-anywhere sm:mt-2">{dateLabel(profile.joinedAt)}</dd>
+    </div>
+    <div
+      class="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2 sm:block sm:border-l sm:border-line sm:pl-6"
+    >
+      <dt class="text-xs font-medium text-fg-muted">资料更新</dt>
+      <dd class="font-medium wrap-anywhere sm:mt-2">{dateLabel(profile.updatedAt)}</dd>
+    </div>
+    <div
+      class="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2 sm:block sm:border-l sm:border-line sm:pl-6"
+    >
+      <dt class="text-xs font-medium text-fg-muted">目录标识</dt>
+      <dd class="font-mono font-medium wrap-anywhere sm:mt-2">
+        {profile.customId ?? profile.shortId}
+      </dd>
+    </div>
+  </dl>
+</section>

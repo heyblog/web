@@ -1,3 +1,14 @@
 @import 'tailwindcss';
 @import './theme.css';
-@import './base.css';
+@import './base.css' layer(base);
+
+:focus-visible {
+  outline: 2px solid var(--sem-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a):active {
+    scale: 1;
+  }
+}

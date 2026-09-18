@@ -79,7 +79,7 @@
         >
           <span class="flex min-h-10 items-center justify-between gap-2"
             ><strong>{dependency.name}</strong><button
-              class="inline-flex size-10 items-center justify-center"
+              class="inline-flex size-11 shrink-0 items-center justify-center rounded-sm hover:bg-tint sm:size-10"
               type="button"
               aria-label={`移除 ${dependency.name}`}
               onclick={() => remove(index)}><IconX size={16} aria-hidden="true" /></button

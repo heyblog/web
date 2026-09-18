@@ -32,6 +32,7 @@
   --color-primary-active: var(--sem-primary-active);
   --color-primary-fg: var(--sem-primary-fg);
   --color-danger: var(--sem-danger-border);
+  --color-danger-solid: var(--sem-danger-solid);
   --color-danger-bg: var(--sem-danger-bg);
   --color-danger-fg: var(--sem-danger-fg);
   --color-success: var(--sem-success-border);
@@ -45,6 +46,7 @@
   --color-warning-border: var(--sem-warning-border);
   --color-info-bg: var(--sem-info-bg);
   --color-info-fg: var(--sem-info-fg);
+  --color-overlay: var(--sem-overlay);
 }
 
 :root {
@@ -63,6 +65,7 @@
   --sem-primary-active: #0b5357;
   --sem-primary-fg: #fff;
   --sem-danger-border: #f43f5e;
+  --sem-danger-solid: #e11d48;
   --sem-danger-bg: #fff1f2;
   --sem-danger-fg: #be123c;
   --sem-success-border: #10b981;
@@ -76,6 +79,7 @@
   --sem-warning-border: #f59e0b;
   --sem-info-bg: #f0f9ff;
   --sem-info-fg: #0369a1;
+  --sem-overlay: rgb(15 23 42 / 60%);
   --selection-bg: #b3dee0;
   --selection-fg: #062d2f;
   --motion-fast: 150ms;
@@ -103,10 +107,10 @@
   --sem-primary: #158187;
   --sem-primary-hover: #0f7b80;
   --sem-primary-fg: #fff;
-  --sem-danger-border: #fb7185;
-  --sem-danger-bg: #4c0519;
-  --sem-danger-fg: #fda4af;
-  --sem-success-border: #34d399;
+  --sem-danger-border: #f43f5e;
+  --sem-danger-bg: rgb(76 5 25 / 30%);
+  --sem-danger-fg: #fb7185;
+  --sem-success-border: #10b981;
   --sem-primary-active: #0c666b;
   --sem-tint: rgb(10 67 70 / 40%);
   --sem-tint-hover: rgb(11 83 87 / 50%);
@@ -118,6 +122,7 @@
   --sem-success-fg: #34d399;
   --sem-info-bg: rgb(8 47 73 / 30%);
   --sem-info-fg: #38bdf8;
+  --sem-overlay: rgb(9 9 11 / 70%);
   --selection-bg: #0b5357;
   --selection-fg: #d9eeef;
 }

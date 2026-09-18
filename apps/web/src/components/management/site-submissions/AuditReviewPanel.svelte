@@ -158,7 +158,7 @@
 </section>
 
 <dialog
-  class="m-auto w-[min(calc(100%-2rem),30rem)] rounded-md border border-line bg-surface p-0 text-fg shadow-md backdrop:bg-black/60"
+  class="m-auto w-[min(calc(100%-2rem),30rem)] rounded-md border border-line bg-surface p-0 text-fg shadow-md backdrop:bg-overlay"
   bind:this={confirmDialog}
   oncancel={cancelAction}
   aria-labelledby="audit-confirm-title"
@@ -187,8 +187,12 @@
         onclick={cancelAction}>取消</button
       >
       <button
-        class="min-h-11 rounded-sm bg-primary px-4 font-semibold text-primary-fg"
-        class:bg-danger={pendingAction === 'REJECTED' || pendingAction === 'DISCARD'}
+        class={[
+          'min-h-11 rounded-sm px-4 font-semibold text-primary-fg',
+          pendingAction === 'REJECTED' || pendingAction === 'DISCARD'
+            ? 'bg-danger-solid'
+            : 'bg-primary',
+        ]}
         type="button"
         onclick={confirmAction}>确认</button
       >
