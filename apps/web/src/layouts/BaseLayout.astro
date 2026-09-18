@@ -1,6 +1,7 @@
 ---
 import LegacyDomainNotice from '@/components/feedback/LegacyDomainNotice.astro';
 import CloudflareWebAnalytics from '@/components/integrations/CloudflareWebAnalytics.astro';
+import GoogleAnalytics from '@/components/integrations/GoogleAnalytics.astro';
 import { resolvePageMetadata } from '@/shared/seo';
 import { siteConfig } from '@/site.config';
 
@@ -17,7 +18,7 @@ interface Props {
   publishedTime?: string | Date;
   modifiedTime?: string | Date;
   bodyClass?: string;
-  enableWebAnalytics?: boolean;
+  enableAnalytics?: boolean;
 }
 
 const {
@@ -31,7 +32,7 @@ const {
   publishedTime,
   modifiedTime,
   bodyClass,
-  enableWebAnalytics = false,
+  enableAnalytics = true,
 } = Astro.props;
 const metadata = resolvePageMetadata({
   pathname: Astro.url.pathname,
@@ -133,7 +134,14 @@ const metadata = resolvePageMetadata({
 
       syncThemeControls();
     </script>
-    {enableWebAnalytics && import.meta.env.PROD ? <CloudflareWebAnalytics /> : null}
+    {
+      enableAnalytics && import.meta.env.PROD ? (
+        <>
+          <CloudflareWebAnalytics />
+          <GoogleAnalytics />
+        </>
+      ) : null
+    }
   </body>
 </html>
 

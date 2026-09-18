@@ -15,13 +15,13 @@ interface Props {
   publishedTime?: string | Date;
   modifiedTime?: string | Date;
   showFooter?: boolean;
-  enableWebAnalytics: boolean;
+  enableAnalytics?: boolean;
 }
 
-const { enableWebAnalytics, showFooter = true, ...metadata } = Astro.props;
+const { enableAnalytics = true, showFooter = true, ...metadata } = Astro.props;
 ---
 
-<BaseLayout {...metadata} {enableWebAnalytics} bodyClass="flex min-h-screen flex-col">
+<BaseLayout {...metadata} {enableAnalytics} bodyClass="flex min-h-screen flex-col">
   <PublicHeader currentPath={Astro.url.pathname} />
   <main class="flex w-full flex-1 flex-col">
     <slot />

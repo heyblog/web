@@ -31,7 +31,7 @@ const { title, heading, currentPath, eyebrow = '管理中心', identity, navigat
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
-<BaseLayout {title} bodyClass="min-h-screen">
+<BaseLayout {title} enableAnalytics={false} bodyClass="min-h-screen">
   <header class="flex min-h-16 items-center border-b border-line px-4" data-page-header>
     <a
       class="inline-flex min-w-0 items-center gap-3 text-base font-semibold"

@@ -10,7 +10,7 @@ interface Props {
 const { title, heading, description } = Astro.props;
 ---
 
-<PublicLayout {title} enableWebAnalytics={false} showFooter={false} robots="noindex, nofollow">
+<PublicLayout {title} enableAnalytics={false} showFooter={false} robots="noindex, nofollow">
   <section class="mx-auto flex w-[min(calc(100%-2rem),30rem)] flex-1 items-center py-10 sm:py-16">
     <div class="w-full rounded-md border border-line bg-surface p-6 shadow-2xs sm:p-8">
       <header class="mb-6 grid gap-2">

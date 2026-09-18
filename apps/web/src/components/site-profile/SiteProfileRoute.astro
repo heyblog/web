@@ -59,7 +59,6 @@ const shortCode = profile ? (Array.from(profile.name.trim())[0]?.toUpperCase() ?
 <PublicLayout
   {title}
   {description}
-  enableWebAnalytics={true}
   canonicalPath={profile ? canonicalSitePath(profile) : requestedPath}
   robots={profile ? undefined : 'noindex, nofollow'}
   publishedTime={profile?.joinedAt}
