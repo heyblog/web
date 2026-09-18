@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 
 	"heyblog-api/internal/apperror"
 	"heyblog-api/internal/httpapi"
@@ -23,8 +23,23 @@ type ImportOperation interface {
 	Import(context.Context, Bundles) (Counts, error)
 }
 
+type importForm struct {
+	Blogs    huma.FormFile `form:"blogs" contentType:"application/json, application/octet-stream" required:"false"`
+	Graph    huma.FormFile `form:"graph" contentType:"application/json, application/octet-stream" required:"false"`
+	Taxonomy huma.FormFile `form:"taxonomy" contentType:"application/json, application/octet-stream" required:"false"`
+}
+
+type importInput struct {
+	RawBody huma.MultipartFormFiles[importForm]
+}
+
+type importOutput struct {
+	CacheControl string `header:"Cache-Control"`
+	Body         importResponse
+}
+
 type importResponse struct {
-	Status string       `json:"status"`
+	Status string       `json:"status" enum:"imported"`
 	Hashes importHashes `json:"hashes"`
 	Counts Counts       `json:"counts"`
 }
@@ -39,28 +54,48 @@ func BodyLimitOverrides() map[httpapi.Route]int64 {
 	return map[httpapi.Route]int64{{Method: http.MethodPost, Path: Path}: TotalBodyLimit}
 }
 
-func RegisterRoutes(router *gin.Engine, operation ImportOperation, token string, logger *slog.Logger) {
+func RegisterRoutes(api huma.API, operation ImportOperation, token string, logger *slog.Logger) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	endpoint := func(ctx *httpapi.Context) (httpapi.Response, error) {
+	httpapi.Register(api, huma.Operation{
+		OperationID:     "import-temporary-data",
+		Method:          http.MethodPost,
+		Path:            Path,
+		Summary:         "Import temporary migration data",
+		Tags:            []string{"internal migration"},
+		MaxBodyBytes:    TotalBodyLimit,
+		BodyReadTimeout: ImportTimeout,
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusConflict,
+			http.StatusRequestEntityTooLarge,
+			http.StatusUnprocessableEntity,
+			http.StatusServiceUnavailable,
+		},
+		Security: []map[string][]string{{"importBearer": {}}},
+		Middlewares: huma.Middlewares{
+			httpapi.HumaBearerAuthorization(token, "heyblog-temp-import"),
+		},
+	}, func(ctx context.Context, input *importInput) (*importOutput, error) {
 		started := time.Now()
 		deadline := started.Add(ImportTimeout)
-		if err := ctx.SetReadDeadline(deadline); err != nil {
-			return httpapi.Response{}, unavailableError(err, "set import read deadline")
+		if err := httpapi.SetDeadlines(ctx, deadline); err != nil {
+			return nil, unavailableError(err, "set import request deadlines")
 		}
-		if err := ctx.SetWriteDeadline(deadline); err != nil {
-			return httpapi.Response{}, unavailableError(err, "set import write deadline")
+		if input.RawBody.Form != nil {
+			defer cleanupImportForm(input.RawBody.Data(), input.RawBody.Form.RemoveAll, logger)
 		}
-		upload, err := decodeUpload(ctx.Request)
+		upload, err := decodeFormUpload(input.RawBody.Data())
 		if err != nil {
-			return httpapi.Response{}, mapImportError(err)
+			return nil, mapImportError(err)
 		}
-		operationContext, cancel := context.WithDeadline(ctx.Request.Context(), deadline)
+		operationContext, cancel := context.WithDeadline(ctx, deadline)
 		defer cancel()
 		counts, err := operation.Import(operationContext, upload.Bundles)
 		if err != nil {
-			return httpapi.Response{}, mapImportError(err)
+			return nil, mapImportError(err)
 		}
 		logger.InfoContext(operationContext, "temporary data import completed",
 			"event", "temp_data_import_completed",
@@ -71,17 +106,64 @@ func RegisterRoutes(router *gin.Engine, operation ImportOperation, token string,
 			"friend_links", counts.FriendLinks,
 			"duration_ms", time.Since(started).Milliseconds(),
 		)
-		response, responseErr := httpapi.JSON(http.StatusOK, importResponse{
-			Status: "imported",
-			Hashes: importHashes{Blogs: upload.BlogsSHA256, Graph: upload.GraphSHA256, Taxonomy: upload.TaxonomySHA256},
-			Counts: counts,
-		})
-		return response.WithHeader("Cache-Control", "no-store"), responseErr
+		return &importOutput{
+			CacheControl: "no-store",
+			Body: importResponse{
+				Status: "imported",
+				Hashes: importHashes{
+					Blogs: upload.BlogsSHA256, Graph: upload.GraphSHA256, Taxonomy: upload.TaxonomySHA256,
+				},
+				Counts: counts,
+			},
+		}, nil
+	})
+}
+
+func cleanupImportForm(form *importForm, removeAll func() error, logger *slog.Logger) {
+	var cleanupErr error
+	if form != nil {
+		for _, file := range []huma.FormFile{form.Blogs, form.Graph, form.Taxonomy} {
+			if file.IsSet {
+				cleanupErr = errors.Join(cleanupErr, file.Close())
+			}
+		}
 	}
-	router.POST(Path, httpapi.Adapt(httpapi.Chain(
-		endpoint,
-		httpapi.BearerAuthorization(token, "heyblog-temp-import"),
-	)))
+	cleanupErr = errors.Join(cleanupErr, removeAll())
+	if cleanupErr != nil {
+		logger.Warn("temporary data import upload cleanup failed", slog.Any("error", cleanupErr))
+	}
+}
+
+func decodeFormUpload(form *importForm) (uploadedBundles, error) {
+	if form == nil {
+		return uploadedBundles{}, errMalformedUpload
+	}
+	files := make(map[string][]byte, 3)
+	for _, file := range []struct {
+		name  string
+		value huma.FormFile
+		limit int64
+	}{
+		{name: "blogs", value: form.Blogs, limit: BlogsFileLimit},
+		{name: "graph", value: form.Graph, limit: GraphFileLimit},
+		{name: "taxonomy", value: form.Taxonomy, limit: TaxonomyFileLimit},
+	} {
+		if !file.value.IsSet {
+			continue
+		}
+		if file.value.Filename == "" || file.value.Size > file.limit {
+			return uploadedBundles{}, errUploadTooLarge
+		}
+		contents, err := io.ReadAll(io.LimitReader(file.value, file.limit+1))
+		if err != nil {
+			return uploadedBundles{}, errMalformedUpload
+		}
+		if int64(len(contents)) > file.limit {
+			return uploadedBundles{}, errUploadTooLarge
+		}
+		files[file.name] = contents
+	}
+	return decodeUploadedFiles(files)
 }
 
 func mapImportError(err error) error {

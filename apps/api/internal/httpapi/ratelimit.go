@@ -51,6 +51,35 @@ func EnforceRateLimitDecision(ctx *Context, decision ratelimit.Decision, err err
 	)
 }
 
+func EnforceRateLimitDecisionForRequest(ctx context.Context, decision ratelimit.Decision, err error) error {
+	native := NativeContext(ctx)
+	if err != nil {
+		return apperror.Wrap(
+			err,
+			apperror.KindUnavailable,
+			apperror.CodeServiceUnavailable,
+			"request rate limit is temporarily unavailable",
+			"apply request rate limit",
+		)
+	}
+	if native != nil {
+		native.Header("RateLimit-Limit", strconv.FormatInt(decision.Limit, 10))
+		native.Header("RateLimit-Remaining", strconv.FormatInt(decision.Remaining, 10))
+		native.Header("RateLimit-Reset", durationSeconds(decision.ResetAfter))
+	}
+	if decision.Allowed {
+		return nil
+	}
+	if native != nil {
+		native.Header("Retry-After", durationSeconds(decision.RetryAfter))
+	}
+	return apperror.New(
+		apperror.KindRateLimited,
+		apperror.CodeRateLimited,
+		"request rate limit exceeded",
+	)
+}
+
 func setRateLimitHeaders(ctx *Context, decision ratelimit.Decision) {
 	ctx.Header("RateLimit-Limit", strconv.FormatInt(decision.Limit, 10))
 	ctx.Header("RateLimit-Remaining", strconv.FormatInt(decision.Remaining, 10))

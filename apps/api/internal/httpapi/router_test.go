@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -20,6 +21,59 @@ import (
 	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 )
+
+func TestOpenAPIIsOnlyExposedInDevelopment(t *testing.T) {
+	t.Parallel()
+
+	development := newRouterWithMode(t, config.ModeDevelopment)
+	response := httptest.NewRecorder()
+	development.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("development OpenAPI status = %d, want %d", response.Code, http.StatusOK)
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
+		t.Fatalf("decode OpenAPI document: %v", err)
+	}
+	var version string
+	if err := json.Unmarshal(document["openapi"], &version); err != nil || !strings.HasPrefix(version, "3.1.") {
+		t.Fatalf("OpenAPI version = %q, want 3.1.x", version)
+	}
+	if _, exists := document["swagger"]; exists {
+		t.Fatal("OpenAPI document unexpectedly contains a Swagger 2.0 version field")
+	}
+
+	for _, path := range []string{"/openapi.yaml", "/swagger"} {
+		response = httptest.NewRecorder()
+		development.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("development %s status = %d, want %d", path, response.Code, http.StatusOK)
+		}
+		if path == "/swagger" && (strings.Contains(response.Body.String(), "unpkg.com") ||
+			!strings.Contains(response.Body.String(), "/swagger/swagger-ui.css")) {
+			t.Fatal("Swagger UI must use locally embedded assets")
+		}
+	}
+	response = httptest.NewRecorder()
+	development.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/swagger/swagger-ui.css", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Type"), "text/css") {
+		t.Fatalf("embedded Swagger UI asset response = (%d, %q), want local CSS", response.Code, response.Header().Get("Content-Type"))
+	}
+	response = httptest.NewRecorder()
+	development.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi-3.0.json", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("OpenAPI 3.0 compatibility status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+
+	production := newRouterWithMode(t, config.ModeProduction)
+	for _, path := range []string{"/openapi.json", "/openapi.yaml", "/swagger", "/swagger/swagger-ui.css"} {
+		response = httptest.NewRecorder()
+		production.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("production %s status = %d, want %d", path, response.Code, http.StatusNotFound)
+		}
+	}
+}
 
 const testHealthcheckToken = "test-healthcheck-token-0123456789abcdef"
 const testWebToken = "test-web-service-token-0123456789abcdef"
@@ -523,12 +577,29 @@ func TestAccessLogDoesNotIncludeQueryString(t *testing.T) {
 	}
 }
 
-func newTestRouter(t *testing.T, health *Health) *gin.Engine {
+func newTestRouter(t *testing.T, health *Health) *Router {
 	t.Helper()
 	return newRouterWithConfig(t, testHTTPConfig(), health, io.Discard)
 }
 
-func newRouterWithConfig(t *testing.T, configuration config.HTTPConfig, health *Health, output io.Writer) *gin.Engine {
+func newRouterWithMode(t *testing.T, mode config.Mode) *Router {
+	t.Helper()
+	router, err := NewRouter(Options{
+		Mode:             mode,
+		HTTP:             testHTTPConfig(),
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Health:           NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second),
+		HealthcheckToken: testHealthcheckToken,
+		WebToken:         testWebToken,
+		PublicViews:      publicViewReaderStub{},
+	})
+	if err != nil {
+		t.Fatalf("NewRouter() error = %v", err)
+	}
+	return router
+}
+
+func newRouterWithConfig(t *testing.T, configuration config.HTTPConfig, health *Health, output io.Writer) *Router {
 	t.Helper()
 	return newRouterWithDependencies(t, configuration, health, output, publicViewReaderStub{})
 }
@@ -537,7 +608,7 @@ func newRouterWithViews(
 	t *testing.T,
 	configuration config.HTTPConfig,
 	views publicview.Reader,
-) *gin.Engine {
+) *Router {
 	t.Helper()
 	return newRouterWithDependencies(
 		t,
@@ -554,7 +625,7 @@ func newRouterWithDependencies(
 	health *Health,
 	output io.Writer,
 	views publicview.Reader,
-) *gin.Engine {
+) *Router {
 	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(output, nil))
 	router, err := NewRouter(Options{

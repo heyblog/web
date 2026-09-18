@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"mime"
-	"net/http"
 )
 
 const (
@@ -31,53 +28,7 @@ var (
 	errInvalidContract = errors.New("invalid cleaned data contract")
 )
 
-func decodeUpload(request *http.Request) (uploadedBundles, error) {
-	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
-	if err != nil || mediaType != "multipart/form-data" {
-		return uploadedBundles{}, errMalformedUpload
-	}
-	reader, err := request.MultipartReader()
-	if err != nil {
-		return uploadedBundles{}, fmt.Errorf("%w: multipart reader", errMalformedUpload)
-	}
-	files := make(map[string][]byte, 3)
-	for {
-		part, nextErr := reader.NextPart()
-		if errors.Is(nextErr, io.EOF) {
-			break
-		}
-		if nextErr != nil {
-			var tooLarge *http.MaxBytesError
-			if errors.As(nextErr, &tooLarge) {
-				return uploadedBundles{}, errUploadTooLarge
-			}
-			return uploadedBundles{}, fmt.Errorf("%w: read multipart part", errMalformedUpload)
-		}
-		name := part.FormName()
-		limit, known := map[string]int64{"blogs": BlogsFileLimit, "graph": GraphFileLimit, "taxonomy": TaxonomyFileLimit}[name]
-		if !known || part.FileName() == "" {
-			_ = part.Close()
-			return uploadedBundles{}, fmt.Errorf("%w: unexpected multipart field", errMalformedUpload)
-		}
-		if _, exists := files[name]; exists {
-			_ = part.Close()
-			return uploadedBundles{}, fmt.Errorf("%w: duplicate multipart field", errMalformedUpload)
-		}
-		contents, readErr := io.ReadAll(io.LimitReader(part, limit+1))
-		closeErr := part.Close()
-		var readTooLarge *http.MaxBytesError
-		var closeTooLarge *http.MaxBytesError
-		if errors.As(readErr, &readTooLarge) || errors.As(closeErr, &closeTooLarge) {
-			return uploadedBundles{}, errUploadTooLarge
-		}
-		if readErr != nil || closeErr != nil {
-			return uploadedBundles{}, fmt.Errorf("%w: read multipart file", errMalformedUpload)
-		}
-		if int64(len(contents)) > limit {
-			return uploadedBundles{}, errUploadTooLarge
-		}
-		files[name] = contents
-	}
+func decodeUploadedFiles(files map[string][]byte) (uploadedBundles, error) {
 	blogs, hasBlogs := files["blogs"]
 	graph, hasGraph := files["graph"]
 	taxonomy, hasTaxonomy := files["taxonomy"]

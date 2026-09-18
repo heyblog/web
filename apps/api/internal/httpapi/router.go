@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 
 	"heyblog-api/internal/apperror"
@@ -36,7 +38,7 @@ const (
 	endpointAudiencePublic
 )
 
-func NewRouter(options Options) (*gin.Engine, error) {
+func NewRouter(options Options) (*Router, error) {
 	if options.HealthcheckToken == "" {
 		return nil, fmt.Errorf("healthcheck token is required")
 	}
@@ -54,40 +56,79 @@ func NewRouter(options Options) (*gin.Engine, error) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	router := gin.New()
-	router.HandleMethodNotAllowed = true
-	if err := router.SetTrustedProxies(options.HTTP.TrustedProxies); err != nil {
+	engine := gin.New()
+	engine.HandleMethodNotAllowed = true
+	if err := engine.SetTrustedProxies(options.HTTP.TrustedProxies); err != nil {
 		return nil, fmt.Errorf("configure trusted proxies: %w", err)
 	}
-	router.Use(
+	engine.Use(
 		errorBoundary(logger),
 		requestIDMiddleware(),
 		securityHeadersMiddleware(),
 		corsMiddleware(options.HTTP.CORS),
 		bodyLimitMiddleware(options.HTTP.MaxBodyBytes, options.BodyLimitOverrides),
 	)
+	router := &Router{Engine: engine, API: newContractAPI(engine, logger)}
 
 	health := options.Health
 	if health == nil {
 		health = NewHealth(nil, 0)
 	}
-	ping, err := adaptApplicationEndpoint(endpointAudienceWeb, options.WebToken, func(*Context) (Response, error) {
-		return JSON(http.StatusOK, map[string]string{"message": "pong"})
+	type pingInput struct{}
+	type pingOutput struct {
+		Body struct {
+			Message string `json:"message"`
+		}
+	}
+	Register(router.API, huma.Operation{
+		OperationID: "ping",
+		Method:      http.MethodGet,
+		Path:        "/ping",
+		Summary:     "Ping the API",
+		Tags:        []string{"system"},
+		Errors:      []int{http.StatusUnauthorized},
+		Security:    []map[string][]string{{"webToken": {}}},
+		Middlewares: huma.Middlewares{HumaWebAuthorization(options.WebToken)},
+	}, func(context.Context, *pingInput) (*pingOutput, error) {
+		output := &pingOutput{}
+		output.Body.Message = "pong"
+		return output, nil
 	})
-	if err != nil {
-		return nil, err
+	registerPublicViewRoutes(router.API, options.WebToken, options.PublicViews)
+
+	type healthInput struct{}
+	type healthOutput struct {
+		Status       int    `status:"204"`
+		CacheControl string `header:"Cache-Control"`
 	}
-	router.GET("/ping", ping)
-	if err := registerPublicViewRoutes(router, options.WebToken, options.PublicViews); err != nil {
-		return nil, err
-	}
-	healthAuth := healthAuthorization(options.HealthcheckToken)
-	router.GET("/health/live", Adapt(Chain(func(*Context) (Response, error) {
-		return NoContent(http.StatusNoContent).WithHeader("Cache-Control", "no-store"), nil
-	}, healthAuth)))
-	router.GET("/health/ready", Adapt(Chain(func(ctx *Context) (Response, error) {
-		if err := health.Ready(ctx.Request.Context()); err != nil {
-			return Response{}, apperror.Wrap(
+	healthMiddleware := huma.Middlewares{HumaBearerAuthorization(options.HealthcheckToken, "heyblog-health")}
+	healthSecurity := []map[string][]string{{"healthBearer": {}}}
+	Register(router.API, huma.Operation{
+		OperationID:   "get-health-liveness",
+		Method:        http.MethodGet,
+		Path:          "/health/live",
+		DefaultStatus: http.StatusNoContent,
+		Summary:       "Check process liveness",
+		Tags:          []string{"health"},
+		Errors:        []int{http.StatusUnauthorized},
+		Security:      healthSecurity,
+		Middlewares:   healthMiddleware,
+	}, func(context.Context, *healthInput) (*healthOutput, error) {
+		return &healthOutput{Status: http.StatusNoContent, CacheControl: "no-store"}, nil
+	})
+	Register(router.API, huma.Operation{
+		OperationID:   "get-health-readiness",
+		Method:        http.MethodGet,
+		Path:          "/health/ready",
+		DefaultStatus: http.StatusNoContent,
+		Summary:       "Check dependency readiness",
+		Tags:          []string{"health"},
+		Errors:        []int{http.StatusUnauthorized, http.StatusServiceUnavailable},
+		Security:      healthSecurity,
+		Middlewares:   healthMiddleware,
+	}, func(ctx context.Context, _ *healthInput) (*healthOutput, error) {
+		if err := health.Ready(ctx); err != nil {
+			return nil, apperror.Wrap(
 				err,
 				apperror.KindUnavailable,
 				apperror.CodeServiceUnavailable,
@@ -95,8 +136,8 @@ func NewRouter(options Options) (*gin.Engine, error) {
 				"check service readiness",
 			)
 		}
-		return NoContent(http.StatusNoContent).WithHeader("Cache-Control", "no-store"), nil
-	}, healthAuth)))
+		return &healthOutput{Status: http.StatusNoContent, CacheControl: "no-store"}, nil
+	})
 
 	router.NoRoute(Adapt(func(*Context) (Response, error) {
 		return Response{}, apperror.New(apperror.KindNotFound, apperror.CodeNotFound, "the requested resource was not found")
@@ -104,6 +145,7 @@ func NewRouter(options Options) (*gin.Engine, error) {
 	router.NoMethod(Adapt(func(*Context) (Response, error) {
 		return Response{}, apperror.New(apperror.KindMethodNotAllowed, apperror.CodeMethodNotAllowed, "the method is not allowed for this resource")
 	}))
+	registerOpenAPIRoutes(router, options.Mode)
 	return router, nil
 }
 

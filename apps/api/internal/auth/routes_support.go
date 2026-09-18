@@ -1,15 +1,12 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"heyblog-api/internal/apperror"
-	"heyblog-api/internal/httpapi"
 	"heyblog-api/internal/mail"
 )
 
@@ -29,25 +26,57 @@ func readGithubStateCookie(request *http.Request, stateToken string) (string, bo
 	return "", false
 }
 
-type loginRequest struct{ Identifier, Password string }
-type registerRequest struct{ Username, Email, Password string }
-type verifyRequest struct{ Email, Code string }
-type emailRequest struct{ Email string }
-type resetRequest struct{ Token, Password string }
+type loginRequest struct {
+	Identifier string `json:"identifier"`
+	Password   string `json:"password"`
+}
+type registerRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email" format:"email"`
+	Password string `json:"password"`
+}
+type verifyRequest struct {
+	Email string `json:"email" format:"email"`
+	Code  string `json:"code"`
+}
+type emailRequest struct {
+	Email string `json:"email" format:"email"`
+}
+type resetRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
 type setPasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NextPassword    string `json:"next_password"`
 }
-type roleRequest struct{ Role Role }
-type permissionsRequest struct{ Permissions []Permission }
+type roleRequest struct {
+	Role Role `json:"role"`
+}
+type permissionsRequest struct {
+	Permissions []Permission `json:"permissions"`
+}
 
-func decodeJSON(request *http.Request, destination any) error {
-	decoder := json.NewDecoder(io.LimitReader(request.Body, 64<<10))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(destination); err != nil {
-		return apperror.New(apperror.KindValidation, apperror.CodeValidationFailed, "request body is invalid")
+func cookieValues(cookies []string, config Config) []string {
+	values := make([]string, 0, len(cookies))
+	names := []string{"heyblog_access_token", "heyblog_refresh_token"}
+	ttls := []time.Duration{config.AccessTTL, config.RefreshTTL}
+	for index, token := range cookies {
+		if index >= len(names) {
+			break
+		}
+		ttl := ttls[index]
+		values = append(values, authCookie(config, names[index], token, "/", int(ttl.Seconds()), time.Now().Add(ttl)).String())
 	}
-	return nil
+	return values
+}
+
+func clearedCookieValues(config Config) []string {
+	values := make([]string, 0, 2)
+	for _, name := range []string{"heyblog_access_token", "heyblog_refresh_token"} {
+		values = append(values, authCookie(config, name, "", "/", -1, time.Unix(1, 0)).String())
+	}
+	return values
 }
 
 func mapError(err error) error {
@@ -74,26 +103,6 @@ func mapError(err error) error {
 		return apperror.New(kind, authErr.Code, authErr.Message)
 	}
 	return apperror.Wrap(err, apperror.KindInternal, apperror.CodeInternal, "authentication service is unavailable", "authentication request")
-}
-
-func addCookies(response httpapi.Response, cookies []string, config Config) httpapi.Response {
-	names := []string{"heyblog_access_token", "heyblog_refresh_token"}
-	ttls := []time.Duration{config.AccessTTL, config.RefreshTTL}
-	for index, token := range cookies {
-		if index >= len(names) {
-			break
-		}
-		ttl := ttls[index]
-		response = response.WithHeader("Set-Cookie", authCookie(config, names[index], token, "/", int(ttl.Seconds()), time.Now().Add(ttl)).String())
-	}
-	return response.WithHeader("Cache-Control", "no-store")
-}
-
-func clearCookies(response httpapi.Response, config Config) httpapi.Response {
-	for _, name := range []string{"heyblog_access_token", "heyblog_refresh_token"} {
-		response = response.WithHeader("Set-Cookie", authCookie(config, name, "", "/", -1, time.Unix(1, 0)).String())
-	}
-	return response.WithHeader("Cache-Control", "no-store")
 }
 
 func authCookie(config Config, name, value, path string, maxAge int, expires time.Time) *http.Cookie {

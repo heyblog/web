@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humagin"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -17,7 +19,12 @@ func TestRegisterRoutesUsesShortIDForPublicMaintenancePaths(t *testing.T) {
 	t.Parallel()
 
 	router := gin.New()
-	if err := RegisterRoutes(router, &Service{}, "test-web-token", nil); err != nil {
+	configuration := huma.DefaultConfig("test", "1.0.0")
+	configuration.OpenAPIPath = ""
+	configuration.DocsPath = ""
+	configuration.SchemasPath = ""
+	api := humagin.New(router, configuration)
+	if err := RegisterRoutes(api, &Service{}, "test-web-token", nil); err != nil {
 		t.Fatalf("RegisterRoutes() error = %v", err)
 	}
 

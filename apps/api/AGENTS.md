@@ -64,6 +64,10 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 ## Stack and Growth Path
 
 - Use the Go toolchain and Gin versions declared by `go.mod`; do not hardcode versions elsewhere.
+- Keep Gin as the HTTP router and middleware host. Register business endpoints through Huma typed
+  operations so request and response Go types generate the runtime OpenAPI 3.1 contract. Expose
+  `/openapi.json`, `/openapi.yaml`, and the embedded Swagger UI at `/swagger` only in development;
+  do not commit generated contract files or expose an OpenAPI 3.0 downgrade.
 - Outbound email uses the official AWS SDK v2 SES v2 client. `internal/mail` owns the transport,
   message validation, and purpose-specific templates; callers provide content through its typed
   interfaces instead of constructing SES requests directly.

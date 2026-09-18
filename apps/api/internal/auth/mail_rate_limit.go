@@ -38,7 +38,7 @@ func allowMailRequest(ctx context.Context, limiter mailRateLimiter, email string
 	return decision, nil
 }
 
-func enforceMailRequest(ctx *httpapi.Context, limiter mailRateLimiter, email string) error {
-	decision, err := allowMailRequest(ctx.Request.Context(), limiter, email)
-	return httpapi.EnforceRateLimitDecision(ctx, decision, err)
+func enforceMailRequest(ctx context.Context, limiter mailRateLimiter, email string) error {
+	decision, err := allowMailRequest(ctx, limiter, email)
+	return httpapi.EnforceRateLimitDecisionForRequest(ctx, decision, err)
 }

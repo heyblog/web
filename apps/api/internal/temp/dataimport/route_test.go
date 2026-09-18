@@ -16,8 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/httpapi"
@@ -205,7 +203,7 @@ func TestRouteMapsImportFailuresWithoutLeakingDiagnostics(t *testing.T) {
 	}
 }
 
-func newImportTestRouter(t *testing.T, operation ImportOperation) *gin.Engine {
+func newImportTestRouter(t *testing.T, operation ImportOperation) *httpapi.Router {
 	t.Helper()
 	router, err := httpapi.NewRouter(httpapi.Options{
 		Mode:               config.ModeDevelopment,
@@ -219,7 +217,7 @@ func newImportTestRouter(t *testing.T, operation ImportOperation) *gin.Engine {
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)
 	}
-	RegisterRoutes(router, operation, testImportToken, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	RegisterRoutes(router.API, operation, testImportToken, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return router
 }
 

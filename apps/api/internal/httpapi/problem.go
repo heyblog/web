@@ -18,7 +18,7 @@ import (
 
 const ProblemMediaType = "application/problem+json"
 
-type problem struct {
+type Problem struct {
 	Type          string                  `json:"type"`
 	Title         string                  `json:"title"`
 	Status        int                     `json:"status"`
@@ -27,6 +27,17 @@ type problem struct {
 	Code          string                  `json:"code"`
 	RequestID     string                  `json:"request_id"`
 	InvalidParams []apperror.InvalidParam `json:"invalid_params,omitempty"`
+}
+
+func (problem *Problem) Error() string { return problem.Detail }
+
+func (problem *Problem) GetStatus() int { return problem.Status }
+
+func (problem *Problem) ContentType(contentType string) string {
+	if contentType == "application/json" {
+		return ProblemMediaType
+	}
+	return contentType
 }
 
 type problemDescriptor struct {
@@ -142,7 +153,7 @@ func kindHTTP(kind apperror.Kind) (int, string, string, string) {
 }
 
 func writeProblem(ctx *gin.Context, descriptor problemDescriptor) {
-	payload := problem{
+	payload := Problem{
 		Type:          "urn:heyblog:problem:" + descriptor.code,
 		Title:         descriptor.title,
 		Status:        descriptor.status,

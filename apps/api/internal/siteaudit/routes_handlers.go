@@ -1,9 +1,8 @@
 package siteaudit
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,181 +12,163 @@ import (
 	"heyblog-api/internal/httpapi"
 )
 
+type bodyInput[T any] struct {
+	Body T
+}
+
+type shortIDBodyInput[T any] struct {
+	ShortID string `path:"shortId"`
+	Body    T
+}
+
+type auditIDBodyInput[T any] struct {
+	AuditID string `path:"auditId"`
+	Body    T
+}
+
+type shortIDInput struct {
+	ShortID string `path:"shortId"`
+}
+
+type auditIDInput struct {
+	AuditID string `path:"auditId"`
+}
+
+type searchInput struct {
+	Query string `query:"q" required:"true" minLength:"1" maxLength:"160"`
+}
+
+type availabilityInput struct {
+	URL string `query:"url" required:"true"`
+}
+
+type managementListInput struct {
+	Status   string `query:"status" enum:"PENDING,APPROVED,REJECTED"`
+	Action   string `query:"action" enum:"CREATE,UPDATE,DELETE,RESTORE"`
+	Page     string `query:"page"`
+	PageSize string `query:"page_size"`
+}
+
 type lookupRequest struct {
 	LookupToken string `json:"lookup_token"`
 }
 
-func submitEndpoint(service *Service, action Action) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		var input SubmissionInput
-		if err := decodeRequest(ctx.Request, &input); err != nil {
-			return httpapi.Response{}, err
-		}
-		result, err := service.Submit(ctx.Request.Context(), action, ctx.Param("shortId"), input)
+type bodyOutput[T any] struct {
+	Body T
+}
+
+type searchResponse struct {
+	Items []SiteSearchResult `json:"items"`
+}
+
+func submitHandler(service *Service, action Action) func(context.Context, *shortIDBodyInput[SubmissionInput]) (*bodyOutput[SubmissionResult], error) {
+	return func(ctx context.Context, input *shortIDBodyInput[SubmissionInput]) (*bodyOutput[SubmissionResult], error) {
+		result, err := service.Submit(ctx, action, input.ShortID, input.Body)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "submit site audit")
+			return nil, mapServiceError(err, "submit site audit")
 		}
-		return httpapi.JSON(http.StatusCreated, result)
+		return &bodyOutput[SubmissionResult]{Body: result}, nil
 	}
 }
 
-func queryEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		var input lookupRequest
-		if err := decodeRequest(ctx.Request, &input); err != nil {
-			return httpapi.Response{}, err
-		}
-		result, err := service.Query(ctx.Request.Context(), input.LookupToken)
+func createSubmitHandler(service *Service) func(context.Context, *bodyInput[SubmissionInput]) (*bodyOutput[SubmissionResult], error) {
+	return func(ctx context.Context, input *bodyInput[SubmissionInput]) (*bodyOutput[SubmissionResult], error) {
+		result, err := service.Submit(ctx, ActionCreate, "", input.Body)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "query site audit")
+			return nil, mapServiceError(err, "submit site audit")
 		}
-		return httpapi.JSON(http.StatusOK, result)
+		return &bodyOutput[SubmissionResult]{Body: result}, nil
 	}
 }
 
-func optionsEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		options, err := service.Options(ctx.Request.Context())
+func queryHandler(service *Service) func(context.Context, *bodyInput[lookupRequest]) (*bodyOutput[PublicAuditResult], error) {
+	return func(ctx context.Context, input *bodyInput[lookupRequest]) (*bodyOutput[PublicAuditResult], error) {
+		result, err := service.Query(ctx, input.Body.LookupToken)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "list site submission options")
+			return nil, mapServiceError(err, "query site audit")
 		}
-		return httpapi.JSON(http.StatusOK, options)
+		return &bodyOutput[PublicAuditResult]{Body: result}, nil
 	}
 }
 
-func searchEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		query := strings.TrimSpace(ctx.Request.URL.Query().Get("q"))
+func optionsHandler(service *Service) func(context.Context, *struct{}) (*bodyOutput[SubmissionOptions], error) {
+	return func(ctx context.Context, _ *struct{}) (*bodyOutput[SubmissionOptions], error) {
+		options, err := service.Options(ctx)
+		if err != nil {
+			return nil, mapServiceError(err, "list site submission options")
+		}
+		return &bodyOutput[SubmissionOptions]{Body: options}, nil
+	}
+}
+
+func searchHandler(service *Service) func(context.Context, *searchInput) (*bodyOutput[searchResponse], error) {
+	return func(ctx context.Context, input *searchInput) (*bodyOutput[searchResponse], error) {
+		query := strings.TrimSpace(input.Query)
 		if query == "" || len(query) > 160 {
-			return httpapi.Response{}, apperror.New(apperror.KindValidation, "invalid_search", "the site search query is invalid")
+			return nil, apperror.New(apperror.KindValidation, "invalid_search", "the site search query is invalid")
 		}
-		results, err := service.SearchSites(ctx.Request.Context(), query)
+		results, err := service.SearchSites(ctx, query)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "search sites for submission")
+			return nil, mapServiceError(err, "search sites for submission")
 		}
-		return httpapi.JSON(http.StatusOK, map[string][]SiteSearchResult{"items": results})
+		return &bodyOutput[searchResponse]{Body: searchResponse{Items: results}}, nil
 	}
 }
 
-func availabilityEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		result, err := service.CheckSiteAvailability(ctx.Request.Context(), ctx.Request.URL.Query().Get("url"))
+func availabilityHandler(service *Service) func(context.Context, *availabilityInput) (*bodyOutput[SiteAvailability], error) {
+	return func(ctx context.Context, input *availabilityInput) (*bodyOutput[SiteAvailability], error) {
+		result, err := service.CheckSiteAvailability(ctx, input.URL)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "check site availability")
+			return nil, mapServiceError(err, "check site availability")
 		}
-		return httpapi.JSON(http.StatusOK, result)
+		return &bodyOutput[SiteAvailability]{Body: result}, nil
 	}
 }
 
-func resolveEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		snapshot, err := service.ResolveSite(ctx.Request.Context(), ctx.Param("shortId"))
+func resolveHandler(service *Service) func(context.Context, *shortIDInput) (*bodyOutput[Snapshot], error) {
+	return func(ctx context.Context, input *shortIDInput) (*bodyOutput[Snapshot], error) {
+		snapshot, err := service.ResolveSite(ctx, input.ShortID)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "resolve site for submission")
+			return nil, mapServiceError(err, "resolve site for submission")
 		}
-		return httpapi.JSON(http.StatusOK, snapshot)
+		return &bodyOutput[Snapshot]{Body: snapshot}, nil
 	}
 }
 
-func managementListEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		if _, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request); err != nil {
-			return httpapi.Response{}, mapServiceError(err, "authorize site audit listing")
+func managementListHandler(service *Service) func(context.Context, *managementListInput) (*bodyOutput[AuditPage], error) {
+	return func(ctx context.Context, input *managementListInput) (*bodyOutput[AuditPage], error) {
+		if _, err := service.CurrentReviewer(ctx, httpapi.Request(ctx)); err != nil {
+			return nil, mapServiceError(err, "authorize site audit listing")
 		}
-		status, action, err := parseFilters(ctx.Request.URL.Query().Get("status"), ctx.Request.URL.Query().Get("action"))
+		status, action, err := parseFilters(input.Status, input.Action)
 		if err != nil {
-			return httpapi.Response{}, err
+			return nil, err
 		}
-		page := boundedInteger(ctx.Request.URL.Query().Get("page"), 1, 1, 1_000_000)
-		pageSize := boundedInteger(ctx.Request.URL.Query().Get("page_size"), 20, 1, 50)
-		result, err := service.ListAudits(ctx.Request.Context(), status, action, page, pageSize)
+		result, err := service.ListAudits(
+			ctx,
+			status,
+			action,
+			boundedInteger(input.Page, 1, 1, 1_000_000),
+			boundedInteger(input.PageSize, 20, 1, 50),
+		)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "list site audits")
+			return nil, mapServiceError(err, "list site audits")
 		}
-		return httpapi.JSON(http.StatusOK, result)
+		return &bodyOutput[AuditPage]{Body: result}, nil
 	}
 }
 
-func managementDetailEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		if _, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request); err != nil {
-			return httpapi.Response{}, mapServiceError(err, "authorize site audit detail")
+func managementDetailHandler(service *Service) func(context.Context, *auditIDInput) (*bodyOutput[Audit], error) {
+	return func(ctx context.Context, input *auditIDInput) (*bodyOutput[Audit], error) {
+		if _, err := service.CurrentReviewer(ctx, httpapi.Request(ctx)); err != nil {
+			return nil, mapServiceError(err, "authorize site audit detail")
 		}
-		audit, err := service.AuditDetail(ctx.Request.Context(), ctx.Param("auditId"))
+		audit, err := service.AuditDetail(ctx, input.AuditID)
 		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "get site audit detail")
+			return nil, mapServiceError(err, "get site audit detail")
 		}
-		return httpapi.JSON(http.StatusOK, audit)
+		return &bodyOutput[Audit]{Body: audit}, nil
 	}
-}
-
-func managementReviewEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		reviewer, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request)
-		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "authorize site audit review")
-		}
-		var input ReviewInput
-		if err := decodeRequest(ctx.Request, &input); err != nil {
-			return httpapi.Response{}, err
-		}
-		input.AuditID = ctx.Param("auditId")
-		audit, err := service.Review(ctx.Request.Context(), reviewer, input)
-		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "review site audit")
-		}
-		return httpapi.JSON(http.StatusOK, audit)
-	}
-}
-
-func managementSaveReviewDraftEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		reviewer, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request)
-		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "authorize site audit review draft")
-		}
-		var input ReviewDraftInput
-		if err := decodeRequest(ctx.Request, &input); err != nil {
-			return httpapi.Response{}, err
-		}
-		input.AuditID = ctx.Param("auditId")
-		audit, err := service.SaveReviewDraft(ctx.Request.Context(), reviewer, input)
-		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "save site audit review draft")
-		}
-		return httpapi.JSON(http.StatusOK, audit)
-	}
-}
-
-func managementDiscardReviewDraftEndpoint(service *Service) httpapi.Endpoint {
-	return func(ctx *httpapi.Context) (httpapi.Response, error) {
-		reviewer, err := service.CurrentReviewer(ctx.Request.Context(), ctx.Request)
-		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "authorize site audit review draft discard")
-		}
-		var input DiscardReviewDraftInput
-		if err := decodeRequest(ctx.Request, &input); err != nil {
-			return httpapi.Response{}, err
-		}
-		input.AuditID = ctx.Param("auditId")
-		audit, err := service.DiscardReviewDraft(ctx.Request.Context(), reviewer, input)
-		if err != nil {
-			return httpapi.Response{}, mapServiceError(err, "discard site audit review draft")
-		}
-		return httpapi.JSON(http.StatusOK, audit)
-	}
-}
-
-func decodeRequest(request *http.Request, destination any) error {
-	decoder := json.NewDecoder(request.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(destination); err != nil {
-		return apperror.Wrap(err, apperror.KindBadRequest, "invalid_json", "the request body is not valid JSON", "decode site audit request")
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return apperror.New(apperror.KindBadRequest, "invalid_json", "the request body must contain one JSON value")
-	}
-	return nil
 }
 
 func parseFilters(rawStatus, rawAction string) (*Status, *Action, error) {

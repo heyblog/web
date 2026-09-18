@@ -166,14 +166,14 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		return nil, err
 	}
 	service := dataimport.NewService(dataimport.NewRepository(dependencies.DatabasePool()), site.NewShortID)
-	dataimport.RegisterRoutes(router, service, importToken, options.Logger)
+	dataimport.RegisterRoutes(router.API, service, importToken, options.Logger)
 	authService := auth.NewService(auth.Dependencies{Pool: dependencies.DatabasePool(), Redis: dependencies.RedisClient(), MailSender: dependencies.Mail(), VerificationMailer: dependencies.Verification(), Config: auth.Config{
 		AccessSecret: configuration.Auth.AccessSecret, RefreshSecret: configuration.Auth.RefreshSecret, AccessTTL: configuration.Auth.AccessTTL, RefreshTTL: configuration.Auth.RefreshTTL,
 		VerificationTTL: configuration.Auth.VerificationTTL, PasswordResetTTL: configuration.Auth.PasswordResetTTL, WebBaseURL: configuration.Auth.WebBaseURL, CookieDomain: configuration.Auth.CookieDomain,
 		GithubClientID: configuration.Auth.GithubClientID, GithubClientSecret: configuration.Auth.GithubClientSecret, GithubScope: configuration.Auth.GithubScope,
 		MailFrom: configuration.Mail.Senders.Verification.Address,
 	}})
-	if err := auth.RegisterRoutes(router, authService, options.WebToken); err != nil {
+	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
 		return nil, err
 	}
 	auditService := siteaudit.NewService(siteaudit.Dependencies{
@@ -183,7 +183,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		Mailer:     mail.NewSubmissionMailer(dependencies.Mail(), configuration.Mail.Senders.Submission.Address),
 		Logger:     options.Logger,
 	})
-	if err := siteaudit.RegisterRoutes(router, auditService, options.WebToken, dependencies.RedisClient()); err != nil {
+	if err := siteaudit.RegisterRoutes(router.API, auditService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err
 	}
 	return router, nil
