@@ -102,3 +102,17 @@ func TestMapServiceErrorReturnsConflictForRegisteredSiteAddress(t *testing.T) {
 		t.Fatalf("operation = %q, want review site audit", applicationErr.Operation())
 	}
 }
+
+func TestMapServiceErrorReturnsValidationForSiteURLPurposeConflict(t *testing.T) {
+	t.Parallel()
+
+	err := mapServiceError(ErrSiteURLPurposeConflict, "submit site audit")
+
+	var applicationErr *apperror.Error
+	if !errors.As(err, &applicationErr) {
+		t.Fatalf("mapped error type = %T, want *apperror.Error", err)
+	}
+	if applicationErr.Kind() != apperror.KindValidation || applicationErr.Code() != "site_url_purpose_conflict" {
+		t.Fatalf("mapped error = (%q, %q), want validation site_url_purpose_conflict", applicationErr.Kind(), applicationErr.Code())
+	}
+}

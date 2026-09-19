@@ -3,7 +3,9 @@
 package integration_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -47,6 +49,41 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	})
 	programID := integrationUUIDText(t, program.ID)
 	reviewActor := auth.User{ID: integrationUUIDText(t, reviewer.ID), Role: auth.RoleSysAdmin}
+
+	// Given a historical pending audit that reused the homepage for two resource purposes.
+	invalidSnapshot, err := json.Marshal(siteaudit.Snapshot{
+		Name: "Invalid Resource Review", Scheme: "https", NormalizedHost: "invalid-resource-review.example.com", BasePath: "/",
+		AccessScope: "ALL", Visibility: "VISIBLE",
+		Resources: []siteaudit.ResourceSnapshot{
+			{Kind: "SITEMAP", URL: "https://invalid-resource-review.example.com"},
+			{Kind: "LINK_PAGE", URL: "https://invalid-resource-review.example.com"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("encode invalid resource snapshot: %v", err)
+	}
+	invalidAudit, err := queries.CreateSiteAudit(ctx, dbgen.CreateSiteAuditParams{
+		LookupSecretHash: bytes.Repeat([]byte{0x7f}, 32), Action: string(siteaudit.ActionCreate),
+		ProposedSnapshot: invalidSnapshot, RequestReason: "",
+	})
+	if err != nil {
+		t.Fatalf("create invalid resource audit: %v", err)
+	}
+	invalidAuditID := integrationUUIDText(t, invalidAudit.ID)
+
+	// When the historical audit is approved, then validation prevents partial writes and keeps it correctable.
+	_, err = service.Review(ctx, reviewActor, siteaudit.ReviewInput{AuditID: invalidAuditID, Decision: siteaudit.DecisionApprove})
+	if !errors.Is(err, siteaudit.ErrSiteURLPurposeConflict) {
+		t.Fatalf("invalid resource review error = %v, want ErrSiteURLPurposeConflict", err)
+	}
+	assertSiteAuditStatus(t, ctx, pool, invalidAuditID, siteaudit.StatusPending)
+	var invalidSiteCount int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM directory.sites WHERE normalized_host = 'invalid-resource-review.example.com'`).Scan(&invalidSiteCount); err != nil {
+		t.Fatalf("count invalid resource sites: %v", err)
+	}
+	if invalidSiteCount != 0 {
+		t.Fatalf("invalid resource site count = %d, want 0", invalidSiteCount)
+	}
 
 	// When availability is checked with another URL form for the existing host.
 	availability, err := service.CheckSiteAvailability(ctx, "http://existing-review.example.com/blog")

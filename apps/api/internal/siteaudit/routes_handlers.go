@@ -223,6 +223,9 @@ func mapServiceError(err error, operation string) error {
 		}
 		return apperror.Wrap(err, kind, serviceError.Code, serviceError.Detail, operation)
 	}
+	if errors.Is(err, ErrSiteURLPurposeConflict) {
+		return apperror.Wrap(err, apperror.KindValidation, "site_url_purpose_conflict", "a site URL cannot be reused for a different purpose", operation)
+	}
 	if errors.Is(err, ErrInvalidSubmission) {
 		return apperror.Wrap(err, apperror.KindValidation, "invalid_submission", "the site submission is invalid", operation)
 	}

@@ -135,10 +135,18 @@ func syncResources(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UU
 			return err
 		}
 		if _, err := queries.UpsertSiteResource(ctx, dbgen.UpsertSiteResourceParams{SiteID: siteID, Kind: resource.Kind, LocationType: location.Type, UrlRef: stringPointer(location.URLRef), ExternalUrl: stringPointer(location.ExternalURL), UrlKey: location.URLKey}); err != nil {
+			if isSiteResourceURLConflict(err) {
+				return siteURLPurposeConflict("resource addresses must be unique")
+			}
 			return fmt.Errorf("write reviewed resource: %w", err)
 		}
 	}
 	return nil
+}
+
+func isSiteResourceURLConflict(err error) bool {
+	var databaseError *pgconn.PgError
+	return errors.As(err, &databaseError) && databaseError.Code == "23505" && databaseError.ConstraintName == "site_resources_site_url_unique"
 }
 
 func syncTags(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, tags []TagSnapshot) error {

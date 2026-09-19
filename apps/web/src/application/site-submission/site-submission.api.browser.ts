@@ -10,6 +10,8 @@ const fallbackProblemMessage = '请求失败，请稍后重试。';
 
 const problemMessages: Readonly<Record<string, string>> = {
   invalid_submission: '请检查当前步骤中标出的内容。',
+  site_url_purpose_conflict:
+    '主页、Feed、Sitemap 和友链页不能使用同一地址，请修改地址或清空可选项。',
   invalid_site_address: '请填写有效的 HTTP 或 HTTPS 主页地址。',
   site_address_conflict: '该站点已在目录中，请改为提交更新申请。',
   audit_not_found: '查询凭证无效或申请不存在。',

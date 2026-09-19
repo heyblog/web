@@ -5,10 +5,7 @@
     checkSiteAvailability,
     siteAvailabilityTarget,
   } from '@/application/site-submission/site-submission.api.browser';
-  import {
-    type EditableSubmission,
-    syncURLSuggestions,
-  } from '@/application/site-submission/site-submission.browser';
+  import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
   import type { SiteSearchResult } from '@/application/site-submission/site-submission.types';
   import InlineAlert from '@/components/feedback/InlineAlert.svelte';
 
@@ -49,9 +46,7 @@
   function updateURL(event: Event): void {
     const input = event.currentTarget;
     if (!(input instanceof HTMLInputElement)) return;
-    const previous = form.url;
     form.url = input.value;
-    syncURLSuggestions(form, previous, input.value);
     controller?.abort();
     requestSequence += 1;
     checkedURL = '';

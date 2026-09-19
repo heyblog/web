@@ -3,6 +3,8 @@ package siteaudit
 import (
 	"errors"
 	"testing"
+
+	"heyblog-api/internal/domain/site"
 )
 
 func validTagInputs() []TagInput {
@@ -82,6 +84,72 @@ func TestNormalizeSubmissionRequiresContactNameAndEmailTogether(t *testing.T) {
 				t.Fatalf("NormalizeSubmission() error = %v, want ErrInvalidSubmission", err)
 			}
 		})
+	}
+}
+
+func TestNormalizeFeedsRejectsHomepageURL(t *testing.T) {
+	t.Parallel()
+
+	address := site.Address{Scheme: "https", NormalizedHost: "example.test", BasePath: "/blog"}
+	_, err := normalizeFeeds([]FeedInput{{Name: "Main", URL: "http://example.test/blog#latest", Format: "RSS", IsDefault: true}}, address)
+
+	if !errors.Is(err, ErrSiteURLPurposeConflict) || !errors.Is(err, ErrInvalidSubmission) {
+		t.Fatalf("normalizeFeeds() error = %v, want URL purpose and invalid submission errors", err)
+	}
+}
+
+func TestNormalizeFeedsKeepsDuplicateURLsAsInvalidSubmission(t *testing.T) {
+	t.Parallel()
+
+	address := site.Address{Scheme: "https", NormalizedHost: "example.test", BasePath: "/blog"}
+	_, err := normalizeFeeds([]FeedInput{
+		{Name: "Main", URL: "/feed.xml", Format: "RSS", IsDefault: true},
+		{Name: "Mirror", URL: "https://example.test/feed.xml#latest", Format: "RSS"},
+	}, address)
+
+	if !errors.Is(err, ErrInvalidSubmission) || errors.Is(err, ErrSiteURLPurposeConflict) {
+		t.Fatalf("normalizeFeeds() error = %v, want only ErrInvalidSubmission", err)
+	}
+}
+
+func TestNormalizeResourcesRejectsHomepageAndDuplicateURLs(t *testing.T) {
+	t.Parallel()
+
+	address := site.Address{Scheme: "https", NormalizedHost: "example.test", BasePath: "/blog"}
+	tests := []struct {
+		name      string
+		resources []ResourceInput
+	}{
+		{name: "homepage", resources: []ResourceInput{{Kind: "SITEMAP", URL: "/blog"}}},
+		{name: "duplicate", resources: []ResourceInput{
+			{Kind: "SITEMAP", URL: "/sitemap.xml"},
+			{Kind: "LINK_PAGE", URL: "https://example.test/sitemap.xml#navigation"},
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := normalizeResources(test.resources, address)
+			if !errors.Is(err, ErrSiteURLPurposeConflict) || !errors.Is(err, ErrInvalidSubmission) {
+				t.Fatalf("normalizeResources() error = %v, want URL purpose and invalid submission errors", err)
+			}
+		})
+	}
+}
+
+func TestNormalizeLocationsAllowsOmittedOrDistinctURLs(t *testing.T) {
+	t.Parallel()
+
+	address := site.Address{Scheme: "https", NormalizedHost: "example.test", BasePath: "/blog"}
+	if _, err := normalizeFeeds(nil, address); err != nil {
+		t.Fatalf("normalizeFeeds(nil) error = %v", err)
+	}
+	if _, err := normalizeResources([]ResourceInput{
+		{Kind: "SITEMAP", URL: "sitemap.xml"},
+		{Kind: "LINK_PAGE", URL: "/friends"},
+	}, address); err != nil {
+		t.Fatalf("normalizeResources() error = %v", err)
 	}
 }
 

@@ -23,6 +23,15 @@ test('maps stable API problem codes without exposing upstream detail text', asyn
   assert.doesNotMatch(message, /database|internal/);
 });
 
+test('maps URL purpose conflicts to actionable form guidance', async () => {
+  const response = Response.json({ code: 'site_url_purpose_conflict' }, { status: 422 });
+
+  assert.equal(
+    await problemDetail(response),
+    '主页、Feed、Sitemap 和友链页不能使用同一地址，请修改地址或清空可选项。',
+  );
+});
+
 test('routes every audit action to its dedicated same-origin endpoint', () => {
   assert.equal(submissionEndpoint('CREATE', ''), '/api/site-submissions/create');
   assert.equal(

@@ -109,6 +109,11 @@ func (service *Service) approve(
 	if len(conflicts) > 0 && audit.ReviewDraftSnapshot == nil {
 		return newServiceError("audit_conflicts_unresolved", http.StatusConflict, "the three-way diff contains unresolved conflicts")
 	}
+	if audit.Action == ActionCreate || audit.Action == ActionUpdate {
+		if err := validateSnapshotLocations(final); err != nil {
+			return err
+		}
+	}
 	createsProgramDependencies := false
 	for _, component := range final.Components {
 		if component.Role == "SITE_PROGRAM" && component.ID == "" {

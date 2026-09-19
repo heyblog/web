@@ -8,7 +8,6 @@ import {
   emptySubmission,
   removeFeed,
   setDefaultFeed,
-  syncURLSuggestions,
 } from '../src/application/site-submission/site-submission.browser.ts';
 import { matchesSubmissionOption } from '../src/application/site-submission/site-submission.search.ts';
 import { isSiteShortID } from '../src/application/site-submission/site-submission.validation.ts';
@@ -120,24 +119,14 @@ test('maintains exactly one default feed while adding and removing feeds', () =>
   assert.equal(form.feeds[0]?.isDefault, true);
 });
 
-test('updates URL suggestions without overwriting manually edited resources', () => {
+test('does not infer auxiliary resources from the homepage', () => {
   const form = emptySubmission();
-  form.url = 'https://old.example';
-  form.feeds = [
-    {
-      id: 'feed-1',
-      name: '默认订阅',
-      url: 'https://old.example',
-      format: 'UNKNOWN',
-      isDefault: true,
-    },
-  ];
-  form.sitemap = 'https://old.example';
-  form.linkPage = 'https://manual.example/friends';
-  syncURLSuggestions(form, 'https://old.example', 'https://new.example');
-  assert.equal(form.feeds[0]?.url, 'https://new.example');
-  assert.equal(form.sitemap, 'https://new.example');
-  assert.equal(form.linkPage, 'https://manual.example/friends');
+  form.url = 'https://new.example';
+
+  const payload = buildSubmissionPayload(form, 'CREATE');
+
+  assert.deepEqual(payload.site.feeds, []);
+  assert.deepEqual(payload.site.resources, []);
 });
 
 test('matches CJK and punctuation-insensitive submission options', () => {

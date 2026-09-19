@@ -9,7 +9,14 @@ import (
 	"heyblog-api/internal/domain/site"
 )
 
-var ErrInvalidSubmission = errors.New("invalid site submission")
+var (
+	ErrInvalidSubmission      = errors.New("invalid site submission")
+	ErrSiteURLPurposeConflict = errors.New("site URL purpose conflict")
+)
+
+func siteURLPurposeConflict(detail string) error {
+	return fmt.Errorf("%w: %w: %s", ErrInvalidSubmission, ErrSiteURLPurposeConflict, detail)
+}
 
 func BuildProposedSnapshot(input SiteInput, base Snapshot) (Snapshot, error) {
 	name := strings.TrimSpace(input.Name)
@@ -95,6 +102,9 @@ func normalizeFeeds(inputs []FeedInput, address site.Address) ([]FeedSnapshot, e
 		if err != nil {
 			return nil, fmt.Errorf("%w: feed address: %w", ErrInvalidSubmission, err)
 		}
+		if location.URLKey == address.BasePath {
+			return nil, siteURLPurposeConflict("feed address must differ from the site homepage")
+		}
 		if _, exists := seen[location.URLKey]; exists {
 			return nil, fmt.Errorf("%w: feed addresses must be unique", ErrInvalidSubmission)
 		}
@@ -122,22 +132,48 @@ func normalizeResources(inputs []ResourceInput, address site.Address) ([]Resourc
 		return nil, fmt.Errorf("%w: at most two site resources are allowed", ErrInvalidSubmission)
 	}
 	resources := make([]ResourceSnapshot, 0, len(inputs))
-	seen := make(map[string]struct{}, len(inputs))
+	seenKinds := make(map[string]struct{}, len(inputs))
+	seenURLs := make(map[string]struct{}, len(inputs))
 	for _, input := range inputs {
 		kind := strings.ToUpper(strings.TrimSpace(input.Kind))
 		if kind != "SITEMAP" && kind != "LINK_PAGE" {
 			return nil, fmt.Errorf("%w: unsupported resource kind", ErrInvalidSubmission)
 		}
-		if _, exists := seen[kind]; exists {
+		if _, exists := seenKinds[kind]; exists {
 			return nil, fmt.Errorf("%w: resource kinds must be unique", ErrInvalidSubmission)
 		}
-		if _, err := site.NormalizeLocation(input.URL, address, false); err != nil {
+		location, err := site.NormalizeLocation(input.URL, address, false)
+		if err != nil {
 			return nil, fmt.Errorf("%w: resource address: %w", ErrInvalidSubmission, err)
 		}
-		seen[kind] = struct{}{}
+		if location.URLKey == address.BasePath {
+			return nil, siteURLPurposeConflict("resource address must differ from the site homepage")
+		}
+		if _, exists := seenURLs[location.URLKey]; exists {
+			return nil, siteURLPurposeConflict("resource addresses must be unique")
+		}
+		seenKinds[kind] = struct{}{}
+		seenURLs[location.URLKey] = struct{}{}
 		resources = append(resources, ResourceSnapshot{Kind: kind, URL: strings.TrimSpace(input.URL)})
 	}
 	return resources, nil
+}
+
+func validateSnapshotLocations(snapshot Snapshot) error {
+	address := site.Address{Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath}
+	feeds := make([]FeedInput, 0, len(snapshot.Feeds))
+	for _, feed := range snapshot.Feeds {
+		feeds = append(feeds, FeedInput{Name: feed.Name, URL: feed.URL, Format: feed.Format, IsDefault: feed.IsDefault})
+	}
+	if _, err := normalizeFeeds(feeds, address); err != nil {
+		return err
+	}
+	resources := make([]ResourceInput, 0, len(snapshot.Resources))
+	for _, resource := range snapshot.Resources {
+		resources = append(resources, ResourceInput(resource))
+	}
+	_, err := normalizeResources(resources, address)
+	return err
 }
 
 func normalizeTags(inputs []TagInput) ([]TagSnapshot, error) {

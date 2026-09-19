@@ -97,19 +97,6 @@ export function removeFeed(form: EditableSubmission, id: string): void {
   form.feeds = form.feeds.filter((feed) => feed.id !== id);
   if (removedDefault && form.feeds[0]) setDefaultFeed(form, form.feeds[0].id);
 }
-export function syncURLSuggestions(
-  form: EditableSubmission,
-  previousURL: string,
-  nextURL: string,
-): void {
-  const shouldUpdate = (value: string): boolean =>
-    !value.trim() || value.trim() === previousURL.trim();
-  const firstFeed = form.feeds[0];
-  if (firstFeed && shouldUpdate(firstFeed.url)) firstFeed.url = nextURL.trim();
-  if (shouldUpdate(form.sitemap)) form.sitemap = nextURL.trim();
-  if (shouldUpdate(form.linkPage)) form.linkPage = nextURL.trim();
-}
-
 function component(
   id: string,
   name: string,
