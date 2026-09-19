@@ -1,7 +1,5 @@
 ---
 import LegacyDomainNotice from '@/components/feedback/LegacyDomainNotice.astro';
-import CloudflareWebAnalytics from '@/components/integrations/CloudflareWebAnalytics.astro';
-import GoogleAnalytics from '@/components/integrations/GoogleAnalytics.astro';
 import { resolvePageMetadata } from '@/shared/seo';
 import { siteConfig } from '@/site.config';
 
@@ -136,10 +134,7 @@ const metadata = resolvePageMetadata({
     </script>
     {
       enableAnalytics && import.meta.env.PROD ? (
-        <>
-          <CloudflareWebAnalytics />
-          <GoogleAnalytics />
-        </>
+        <script is:inline defer src="/analytics.js" />
       ) : null
     }
   </body>
