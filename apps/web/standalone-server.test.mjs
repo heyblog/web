@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
 import process from 'node:process';
@@ -47,6 +48,10 @@ if (childMode) {
     const apiServer = createServer((request, response) => {
       response.setHeader('Content-Type', 'application/json');
 
+      if (request.url === '/home') {
+        response.end(JSON.stringify({ siteCount: 0, announcement: null, sites: [] }));
+        return;
+      }
       if (request.url === '/auth/me') {
         response.end(JSON.stringify({ user: sessionUser }));
         return;
@@ -109,76 +114,79 @@ if (childMode) {
       assert.equal(typeof readyMessage.port, 'number');
 
       // When: the server renders tracked pages and every excluded page category.
-      const [
-        publicResponse,
-        authResponse,
-        submissionResponse,
-        dashboardResponse,
-        managementResponse,
-      ] = await Promise.all([
-        fetch(`http://127.0.0.1:${readyMessage.port}/blog/`, {
-          signal: AbortSignal.timeout(5_000),
+      const trackedPaths = ['/', '/blog/', '/site/submissions/new'];
+      const excludedPaths = [
+        '/login',
+        '/register',
+        '/forgot-password',
+        '/reset-password',
+        '/verify-email',
+        '/forbidden',
+        '/dashboard',
+        '/management/users',
+      ];
+      const pages = await Promise.all(
+        [...trackedPaths, ...excludedPaths].map(async (path) => {
+          const authenticated = path === '/dashboard' || path.startsWith('/management/');
+          const response = await fetch(`http://127.0.0.1:${readyMessage.port}${path}`, {
+            headers: authenticated ? { Cookie: 'heyblog_session=test' } : {},
+            redirect: 'manual',
+            signal: AbortSignal.timeout(5_000),
+          });
+          assert.equal(response.status, 200, path);
+          return { path, response, html: await response.text() };
         }),
-        fetch(`http://127.0.0.1:${readyMessage.port}/login`, {
-          signal: AbortSignal.timeout(5_000),
-        }),
-        fetch(`http://127.0.0.1:${readyMessage.port}/site/submissions`, {
-          signal: AbortSignal.timeout(5_000),
-        }),
-        fetch(`http://127.0.0.1:${readyMessage.port}/dashboard`, {
-          headers: { Cookie: 'heyblog_session=test' },
-          signal: AbortSignal.timeout(5_000),
-        }),
-        fetch(`http://127.0.0.1:${readyMessage.port}/management/users`, {
-          headers: { Cookie: 'heyblog_session=test' },
-          signal: AbortSignal.timeout(5_000),
-        }),
-      ]);
-      const [publicHtml, authHtml, submissionHtml, dashboardHtml, managementHtml] =
-        await Promise.all([
-          publicResponse.text(),
-          authResponse.text(),
-          submissionResponse.text(),
-          dashboardResponse.text(),
-          managementResponse.text(),
-        ]);
+      );
 
-      // Then: non-sensitive pages load both analytics providers under the required CSP.
-      assert.equal(publicResponse.status, 200);
-      assert.equal(authResponse.status, 200);
-      assert.equal(submissionResponse.status, 200);
-      assert.equal(dashboardResponse.status, 200);
-      assert.equal(managementResponse.status, 200);
-
-      for (const trackedHtml of [publicHtml, submissionHtml]) {
-        assert.match(trackedHtml, /data-cf-beacon=/u);
-        assert.match(trackedHtml, /d76b65b3f55b4b8f96a0ac0ddcd5493e/u);
-        assert.match(trackedHtml, /&quot;spa&quot;:false/u);
+      // Then: both rendering modes authorize their scripts and share one analytics entry.
+      for (const { path, response, html } of pages) {
+        if (!trackedPaths.includes(path)) {
+          assert.doesNotMatch(html, /<script[^>]*src="\/analytics\.js"/u, path);
+          assert.doesNotMatch(html, /data-cf-beacon=|G-PH5EGCPHXH/u, path);
+          continue;
+        }
+        const policy =
+          response.headers.get('content-security-policy') ??
+          html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/iu)?.[1];
+        assert.ok(policy, 'Tracked pages must supply a CSP.');
+        for (const [, attributes, source] of html.matchAll(
+          /<script\b([^>]*)>([\s\S]*?)<\/script>/gu,
+        )) {
+          if (
+            /\bsrc=/u.test(attributes) ||
+            source.trim() === '' ||
+            /type="application\//u.test(attributes)
+          )
+            continue;
+          const hash = createHash('sha256').update(source).digest('base64');
+          assert.ok(
+            policy.includes(`sha256-${hash}`),
+            `Inline script is blocked by CSP: sha256-${hash}`,
+          );
+        }
+        assert.equal([...html.matchAll(/<script\b[^>]*src="\/analytics\.js"/gu)].length, 1);
         assert.match(
-          trackedHtml,
-          /<script(?=[^>]*\basync\b)(?=[^>]*type="module")(?=[^>]*src="https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js")[^>]*>/u,
+          html,
+          /<script(?=[^>]*\bdefer\b)(?=[^>]*src="\/analytics\.js")[^>]*><\/script>/u,
+        );
+        assert.doesNotMatch(html, /data-cf-beacon=|G-PH5EGCPHXH/u);
+        assert.match(
+          policy,
+          /connect-src 'self' https:\/\/cloudflareinsights\.com https:\/\/\*\.google-analytics\.com https:\/\/\*\.analytics\.google\.com https:\/\/\*\.googletagmanager\.com/u,
         );
         assert.match(
-          trackedHtml,
-          /<script(?=[^>]*\basync\b)(?=[^>]*src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-PH5EGCPHXH")[^>]*>/u,
+          policy,
+          /script-src 'self' https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js https:\/\/www\.googletagmanager\.com\/gtag\/js/u,
         );
-        assert.match(trackedHtml, /gtag\('config', 'G-PH5EGCPHXH'\)/u);
+        assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval/u);
       }
 
-      const contentSecurityPolicy = submissionResponse.headers.get('content-security-policy');
-      assert.notEqual(contentSecurityPolicy, null);
-      assert.match(
-        contentSecurityPolicy,
-        /connect-src 'self' https:\/\/cloudflareinsights\.com https:\/\/\*\.google-analytics\.com https:\/\/\*\.analytics\.google\.com https:\/\/\*\.googletagmanager\.com/u,
-      );
-      assert.match(
-        contentSecurityPolicy,
-        /script-src 'self' https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js https:\/\/www\.googletagmanager\.com\/gtag\/js/u,
-      );
-      for (const excludedHtml of [authHtml, dashboardHtml, managementHtml]) {
-        assert.doesNotMatch(excludedHtml, /data-cf-beacon=/u);
-        assert.doesNotMatch(excludedHtml, /G-PH5EGCPHXH/u);
-      }
+      const loader = await fetch(`http://127.0.0.1:${readyMessage.port}/analytics.js`, {
+        signal: AbortSignal.timeout(5_000),
+      });
+      assert.equal(loader.status, 200);
+      assert.match(loader.headers.get('content-type'), /javascript/u);
+      assert.match(await loader.text(), /G-PH5EGCPHXH/u);
     } finally {
       if (child.connected) {
         child.send({ kind: 'stop' });
