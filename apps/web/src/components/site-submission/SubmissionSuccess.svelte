@@ -32,7 +32,7 @@
     >
     <a
       class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 font-medium"
-      href="/site/submissions/query">查询审核结果</a
+      href="/site/submissions/query">查询提交进度</a
     >
   </div>
 </section>

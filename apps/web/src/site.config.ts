@@ -21,14 +21,20 @@ export const siteConfig: SiteConfig = {
       { label: '项目动态', href: '/blog', match: 'prefix', sort: 20 },
       { label: '成员', href: '/members', match: 'prefix', sort: 30 },
     ],
-    submission: [
-      { label: '申请中心', href: '/site/submissions', match: 'exact', sort: 10 },
-      { label: '提交新站点', href: '/site/submissions/new', match: 'exact', sort: 20 },
-      { label: '查询申请', href: '/site/submissions/query', match: 'exact', sort: 30 },
-      { label: '修订站点', href: '/site/submissions/update', match: 'exact', sort: 40 },
-      { label: '删除站点', href: '/site/submissions/delete', match: 'exact', sort: 50 },
-      { label: '恢复站点', href: '/site/submissions/restore', match: 'exact', sort: 60 },
-    ],
+    submission: {
+      primary: {
+        label: '提交博客',
+        href: '/site/submissions/new',
+        match: 'exact',
+        sort: 10,
+      },
+      menu: [
+        { label: '更新收录信息', href: '/site/submissions/update', match: 'exact', sort: 10 },
+        { label: '移除收录', href: '/site/submissions/delete', match: 'exact', sort: 20 },
+        { label: '恢复收录', href: '/site/submissions/restore', match: 'exact', sort: 30 },
+        { label: '查询提交进度', href: '/site/submissions/query', match: 'exact', sort: 40 },
+      ],
+    },
   },
   footer: {
     copyrightStartYear: 2022,

@@ -8,6 +8,7 @@ import { siteConfig } from '@/site.config';
 
 import PublicAccountEntry from './PublicAccountEntry.astro';
 import PublicNavigationMenu from './PublicNavigationMenu.astro';
+import PublicSiteActions from './PublicSiteActions.astro';
 import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
@@ -16,8 +17,9 @@ interface Props {
 const { currentPath } = Astro.props;
 const isHome = currentPath === '/';
 const primary = sortNavigation(siteConfig.navigation.primary);
-const submission = sortNavigation(siteConfig.navigation.submission);
-const activeHref = activeNavigationHref([...primary, ...submission], currentPath);
+const submission = siteConfig.navigation.submission.primary;
+const submissionItems = sortNavigation(siteConfig.navigation.submission.menu);
+const activeHref = activeNavigationHref([...primary, submission, ...submissionItems], currentPath);
 const navigationLinkClass =
   "relative min-h-16 items-center justify-center px-3 text-sm font-medium whitespace-nowrap transition-colors duration-(--motion-color) hover:text-fg after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:scale-x-50 after:bg-primary after:opacity-0 after:transition-[opacity,scale] after:duration-(--motion-base) after:ease-standard after:content-[''] after:motion-reduce:transition-none";
 ---
@@ -29,58 +31,58 @@ const navigationLinkClass =
   data-home={isHome ? 'true' : 'false'}
 >
   <div
-    class="mx-auto flex min-h-16 w-[min(calc(100%-2rem),80rem)] items-center justify-between gap-1 xs:gap-3 sm:w-[min(calc(100%-3rem),80rem)] sm:gap-6"
+    class="mx-auto flex min-h-16 w-[min(calc(100%-0.5rem),80rem)] items-center gap-0 xs:w-[min(calc(100%-2rem),80rem)] xs:gap-2 sm:w-[min(calc(100%-3rem),80rem)] sm:gap-3"
   >
-    <div class="flex min-w-0 items-center xs:gap-2 sm:gap-6">
-      <a
-        class="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-sm text-sm font-semibold xs:gap-3 xs:text-base sm:min-h-10"
-        href="/"
-        aria-label={`${siteConfig.name} 首页`}
+    <a
+      class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm text-sm font-semibold xs:text-base sm:min-h-10 sm:min-w-10"
+      href="/"
+      aria-label={`${siteConfig.name} 首页`}
+    >
+      <img
+        class="size-9 max-w-none shrink-0 rounded-md"
+        src="/favicon.svg"
+        alt=""
+        width="40"
+        height="40"
+      />
+      <span
+        class="ml-2 max-w-0 min-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-(--motion-base) ease-standard motion-reduce:transition-none xs:data-[visible=true]:max-w-18 xs:data-[visible=true]:opacity-100"
+        data-public-brand
+        data-visible={isHome ? 'false' : 'true'}
+        aria-hidden="true"
+        ><span class="block min-w-18 pl-1.5 whitespace-nowrap">{siteConfig.name}</span></span
       >
-        <img
-          class="size-8 shrink-0 rounded-md xs:size-10 sm:size-9"
-          src="/favicon.svg"
-          alt=""
-          width="40"
-          height="40"
-        />
-        <span
-          class="max-w-48 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,transform] duration-(--motion-base) ease-standard data-[visible=false]:max-w-0 data-[visible=false]:translate-x-2 data-[visible=false]:opacity-0 motion-reduce:transform-none motion-reduce:transition-none"
-          data-public-brand
-          data-visible={isHome ? 'false' : 'true'}
-          aria-hidden="true">{siteConfig.name}</span
-        >
-      </a>
-      <nav class="flex shrink-0 items-center gap-1" aria-label="主导航">
-        {
-          primary.map((item, index) => (
-            <a
-              class:list={[
-                navigationLinkClass,
-                navigationRankClasses[index]?.direct ?? 'hidden',
-                activeHref === item.href
-                  ? 'text-fg after:scale-x-100 after:opacity-100'
-                  : 'text-fg-muted',
-              ]}
-              href={item.href}
-              aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
-            >
-              {item.label}
-            </a>
-          ))
-        }
-        <PublicNavigationMenu items={primary} {activeHref} {currentPath} variant="overflow" />
-      </nav>
-    </div>
+    </a>
+    <nav class="contents" aria-label="主导航">
+      {
+        primary.map((item, index) => (
+          <a
+            class:list={[
+              navigationLinkClass,
+              navigationRankClasses[index]?.direct ?? 'hidden',
+              activeHref === item.href
+                ? 'text-fg after:scale-x-100 after:opacity-100'
+                : 'text-fg-muted',
+            ]}
+            href={item.href}
+            aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+      <PublicNavigationMenu items={primary} {activeHref} {currentPath} />
+    </nav>
     <div
-      class="flex shrink-0 items-center border-l border-line pl-1 xs:gap-1 xs:pl-2 sm:gap-2 sm:pl-4"
+      class="order-1 ml-auto flex shrink-0 items-center sm:order-0 sm:gap-1"
+      role="group"
       aria-label="站点操作"
     >
-      <PublicNavigationMenu items={submission} {activeHref} {currentPath} variant="submission" />
+      <ThemeToggle />
+      <PublicSiteActions primary={submission} items={submissionItems} {activeHref} {currentPath} />
       <PublicAccountEntry server:defer>
         <PublicAccountEntry slot="fallback" hasSession={false} />
       </PublicAccountEntry>
-      <ThemeToggle />
     </div>
   </div>
 </header>

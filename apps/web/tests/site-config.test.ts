@@ -23,17 +23,34 @@ test('keeps documents available without exposing them in the public navigation',
     siteConfig.navigation.primary.some((item) => item.href === '/docs' || item.href === '/'),
     false,
   );
+});
+
+test('separates direct blog submission from collection actions', () => {
+  assert.deepEqual(siteConfig.navigation.submission.primary, {
+    label: '提交博客',
+    href: '/site/submissions/new',
+    match: 'exact',
+    sort: 10,
+  });
   assert.deepEqual(
-    siteConfig.navigation.submission.map((item) => item.href),
+    siteConfig.navigation.submission.menu.map(({ label, href }) => ({ label, href })),
     [
-      '/site/submissions',
-      '/site/submissions/new',
-      '/site/submissions/query',
-      '/site/submissions/update',
-      '/site/submissions/delete',
-      '/site/submissions/restore',
+      { label: '更新收录信息', href: '/site/submissions/update' },
+      { label: '移除收录', href: '/site/submissions/delete' },
+      { label: '恢复收录', href: '/site/submissions/restore' },
+      { label: '查询提交进度', href: '/site/submissions/query' },
     ],
   );
+  assert.equal('hub' in siteConfig.navigation.submission, false);
+});
+
+test('permanently redirects the retired submission hub', async () => {
+  const source = await readFile(
+    new URL('../src/pages/site/submissions/index.astro', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /return Astro\.redirect\('\/site\/submissions\/new', 308\);/u);
 });
 
 test('trusts the canonical production origin behind the reverse proxy', async () => {

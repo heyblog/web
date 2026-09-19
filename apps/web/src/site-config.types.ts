@@ -26,7 +26,10 @@ export interface SiteConfig {
   twitterCard: 'summary' | 'summary_large_image';
   navigation: {
     readonly primary: readonly SiteNavigationItem[];
-    readonly submission: readonly SiteNavigationItem[];
+    readonly submission: {
+      readonly primary: SiteNavigationItem;
+      readonly menu: readonly SiteNavigationItem[];
+    };
   };
   footer: {
     copyrightStartYear: number;

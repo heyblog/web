@@ -11,7 +11,7 @@ const deferred = Astro.props.hasSession === undefined;
 const { hasSession = Astro.cookies.has('heyblog_access_token') } = Astro.props;
 const entry = resolvePublicAccountEntry(hasSession);
 const entryClass =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-sm font-medium text-fg-muted transition-colors duration-(--motion-color) hover:bg-subtle hover:text-fg sm:min-h-10 sm:min-w-10 sm:px-3';
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm px-2 text-sm font-medium text-fg-muted transition-colors duration-(--motion-color) hover:text-tint-fg focus-visible:text-tint-fg sm:min-h-10 sm:min-w-10 sm:px-3';
 
 if (deferred) {
   Astro.response.headers.set('Cache-Control', 'private, no-store');
@@ -19,6 +19,6 @@ if (deferred) {
 ---
 
 <a class={entryClass} href={entry.href} aria-label={entry.label} title={entry.label}>
-  <IconUser class="xs:hidden" size={18} stroke={1.8} aria-hidden="true" />
-  <span class="hidden xs:inline">{entry.label}</span>
+  <IconUser class="sm:hidden" size={18} stroke={1.8} aria-hidden="true" />
+  <span class="hidden sm:inline">{entry.label}</span>
 </a>

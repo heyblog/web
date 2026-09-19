@@ -4,4 +4,4 @@ export const prerender = false;
 const initialShortId = Astro.url.searchParams.get('short_id') ?? '';
 ---
 
-<SiteSubmissionRoute action="DELETE" title="删除站点" {initialShortId} />
+<SiteSubmissionRoute action="DELETE" title="移除收录" {initialShortId} />

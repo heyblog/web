@@ -55,8 +55,8 @@
       输入 9 位 short_id 可直接读取；输入站点名称或域名后请从结果中选择。
     </p>
   </div>
-  <div class="flex gap-2">
-    <div class="relative flex-1">
+  <div class="grid gap-2 xs:grid-cols-[minmax(0,1fr)_auto]">
+    <div class="relative min-w-0">
       <IconSearch
         class="pointer-events-none absolute top-3.5 left-3 text-fg-muted"
         size={18}
@@ -70,7 +70,7 @@
       />
     </div>
     <button
-      class="min-h-11 rounded-sm border border-line-strong px-4 font-medium transition-[border-color,background-color,color,scale] duration-(--motion-fast) ease-standard hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-colors"
+      class="min-h-11 w-full rounded-sm border border-line-strong px-4 font-medium transition-[border-color,background-color,color,scale] duration-(--motion-fast) ease-standard hover:border-primary hover:bg-tint hover:text-tint-fg active:scale-96 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-colors xs:w-auto"
       type="button"
       disabled={resolving || !isSiteShortID(query.trim())}
       onclick={() => onresolve(query.trim())}>{resolving ? '读取中…' : '读取'}</button

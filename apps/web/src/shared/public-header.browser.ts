@@ -1,5 +1,6 @@
 import { type AnimatedDetailsController, setupAnimatedDetails } from './animated-details.browser';
 import { resolveBrandVisibility } from './public-header.shared';
+import { setupPublicMenuHighlight } from './public-menu-highlight.browser';
 
 const initializedHeaders = new WeakSet<HTMLElement>();
 
@@ -92,10 +93,16 @@ function setupHeader(header: HTMLElement): void {
     const panel = menu.querySelector<HTMLElement>('[data-public-menu-panel]');
     const trigger = menu.querySelector<HTMLElement>('[data-public-menu-trigger]');
     if (!panel || !trigger) return;
+    const highlight = setupPublicMenuHighlight(menu, signal);
     const controller = setupAnimatedDetails(menu, {
       panel,
       onExpandedChange: (expanded) => {
-        if (expanded) closeOthers(menu);
+        if (expanded) {
+          closeOthers(menu);
+          highlight.sync();
+        } else {
+          highlight.hide();
+        }
       },
     });
     controllers.set(menu, controller);

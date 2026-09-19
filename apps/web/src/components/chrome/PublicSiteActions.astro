@@ -1,0 +1,113 @@
+---
+import {
+  IconChevronDown,
+  IconEdit,
+  IconPlus,
+  IconRestore,
+  IconSearch,
+  IconTrash,
+} from '@tabler/icons-svelte';
+
+import type { SiteNavigationItem } from '@/site-config.types';
+
+interface Props {
+  primary: SiteNavigationItem;
+  items: readonly SiteNavigationItem[];
+  activeHref?: string;
+  currentPath: string;
+}
+
+const { primary, items, activeHref, currentPath } = Astro.props;
+const normalizedPath = currentPath.replace(/\/+$/u, '') || '/';
+const menuActive = items.some((item) => item.href === activeHref);
+const panelId = 'public-submission-panel';
+const menuLabel = '博客收录操作';
+const actionIcons: Readonly<Record<string, typeof IconEdit>> = {
+  '/site/submissions/update': IconEdit,
+  '/site/submissions/delete': IconTrash,
+  '/site/submissions/restore': IconRestore,
+  '/site/submissions/query': IconSearch,
+};
+const segmentClass =
+  'inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-sm text-sm font-medium whitespace-nowrap transition-[color,scale] duration-(--motion-fast) ease-out hover:text-tint-fg active:scale-96 focus-visible:scale-100 focus-visible:text-tint-fg motion-reduce:transform-none sm:min-h-10 sm:min-w-10';
+const primarySegmentClass = `${segmentClass} justify-end pr-1 sm:pl-3`;
+const menuSegmentClass = `${segmentClass} justify-start pl-1 sm:pr-3`;
+const panelClass =
+  'absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-5rem)] origin-top-right overflow-y-auto overscroll-contain border-b border-line bg-surface p-2 shadow-sm transition-[translate,scale,opacity] duration-(--motion-base) ease-out group-data-[details-state=opening]:pointer-events-none group-data-[details-state=opening]:-translate-y-1 group-data-[details-state=opening]:scale-97 group-data-[details-state=opening]:opacity-0 group-data-[details-state=closing]:pointer-events-none group-data-[details-state=closing]:-translate-y-0.5 group-data-[details-state=closing]:scale-99 group-data-[details-state=closing]:opacity-0 group-data-[details-state=closing]:duration-(--motion-fast) motion-reduce:translate-none! motion-reduce:scale-100! motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast) xs:inset-x-auto xs:right-0 xs:mt-2 xs:w-56 xs:rounded-md xs:border xs:p-1';
+const itemClass =
+  'relative z-10 flex min-h-11 items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium wrap-anywhere transition-colors duration-(--motion-fast) hover:text-fg focus-visible:text-fg sm:min-h-10';
+---
+
+<div class="flex items-stretch">
+  <a
+    class:list={[
+      primarySegmentClass,
+      activeHref === primary.href ? 'text-tint-fg' : 'text-fg-muted',
+    ]}
+    href={primary.href}
+    aria-label={primary.label}
+    title={primary.label}
+    aria-current={normalizedPath === primary.href ? 'page' : undefined}
+  >
+    <IconPlus class="shrink-0" size={18} stroke={1.8} aria-hidden="true" />
+    <span class="hidden sm:inline">{primary.label}</span>
+  </a>
+  <details class="group static xs:relative" data-public-menu>
+    <summary
+      class:list={[
+        menuSegmentClass,
+        'cursor-pointer list-none group-data-[details-state=open]:text-tint-fg [&::-webkit-details-marker]:hidden',
+        menuActive ? 'text-tint-fg' : 'text-fg-muted',
+      ]}
+      data-public-menu-trigger
+      aria-label={`更多${menuLabel}`}
+      title={`更多${menuLabel}`}
+      aria-controls={panelId}
+      aria-haspopup="menu"
+    >
+      <IconChevronDown
+        class="transition-transform duration-(--motion-base) ease-out group-data-[details-state=open]:rotate-180 motion-reduce:transform-none"
+        size={16}
+        stroke={1.8}
+        aria-hidden="true"
+      />
+    </summary>
+    <div id={panelId} data-public-menu-panel class={panelClass}>
+      <ul
+        class="relative m-0 grid list-none gap-1 p-0"
+        aria-label={menuLabel}
+        role="menu"
+        data-public-menu-list
+      >
+        <li
+          class="pointer-events-none absolute inset-x-0 top-0 z-0 h-11 translate-y-(--menu-highlight-offset) rounded-sm bg-subtle opacity-0 transition-[transform,opacity,background-color] duration-(--motion-base) ease-standard data-[active=true]:bg-tint data-[visible=true]:opacity-100 motion-reduce:transition-none sm:h-10"
+          data-public-menu-highlight
+          aria-hidden="true"
+        >
+        </li>
+        {
+          items.map((item) => {
+            const Icon = actionIcons[item.href];
+            const itemActive = activeHref === item.href;
+
+            return (
+              <li class="relative z-10">
+                <a
+                  class:list={[itemClass, itemActive ? 'text-tint-fg' : 'text-fg-muted']}
+                  href={item.href}
+                  aria-current={normalizedPath === item.href ? 'page' : undefined}
+                  role="menuitem"
+                  data-public-menu-item
+                  data-menu-active={itemActive ? 'true' : 'false'}
+                >
+                  {Icon && <Icon class="shrink-0" size={18} stroke={1.8} aria-hidden="true" />}
+                  <span>{item.label}</span>
+                </a>
+              </li>
+            );
+          })
+        }
+      </ul>
+    </div>
+  </details>
+</div>

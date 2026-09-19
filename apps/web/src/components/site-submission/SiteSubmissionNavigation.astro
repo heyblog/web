@@ -1,25 +1,20 @@
 ---
+import { sortNavigation } from '@/shared/public-header.shared';
+import { siteConfig } from '@/site.config';
+
 interface Props {
   currentPath: string;
 }
 
 const { currentPath } = Astro.props;
 const items = [
-  { label: '申请中心', href: '/site/submissions' },
-  { label: '提交新站点', href: '/site/submissions/new' },
-  { label: '修订站点', href: '/site/submissions/update' },
-  { label: '删除站点', href: '/site/submissions/delete' },
-  { label: '恢复站点', href: '/site/submissions/restore' },
-  { label: '查询申请', href: '/site/submissions/query' },
-] as const;
+  siteConfig.navigation.submission.primary,
+  ...sortNavigation(siteConfig.navigation.submission.menu),
+];
 ---
 
-<nav
-  class="mb-6 overflow-x-auto border-b border-line"
-  aria-label="站点申请"
-  data-submission-navigation
->
-  <div class="flex w-max min-w-full gap-1">
+<nav class="mb-6 border-b border-line" aria-label="收录表单">
+  <div class="grid grid-cols-5">
     {
       items.map((item) => {
         const active = currentPath === item.href;
@@ -27,12 +22,11 @@ const items = [
         return (
           <a
             class:list={[
-              'inline-flex min-h-11 shrink-0 items-center justify-center border-b-2 px-3 text-sm font-medium transition-colors duration-(--motion-color)',
+              'inline-flex min-h-11 min-w-0 items-center justify-center border-b-2 px-1 text-center text-xs/4 font-medium transition-colors duration-(--motion-color) sm:min-h-10 sm:px-3 sm:text-sm/5',
               active ? 'border-primary text-fg' : 'border-transparent text-fg-muted hover:text-fg',
             ]}
             href={item.href}
             aria-current={active ? 'page' : undefined}
-            data-active={active ? '' : undefined}
           >
             {item.label}
           </a>
@@ -41,10 +35,3 @@ const items = [
     }
   </div>
 </nav>
-
-<script>
-  const navigation = document.querySelector<HTMLElement>('[data-submission-navigation]');
-  const activeItem = navigation?.querySelector<HTMLElement>('[data-active]');
-
-  activeItem?.scrollIntoView({ block: 'nearest', inline: 'center' });
-</script>

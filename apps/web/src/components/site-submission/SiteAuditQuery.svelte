@@ -32,7 +32,7 @@
 <form class="grid gap-6" onsubmit={submit}>
   <header class="border-b border-line pb-5">
     <p class="font-mono text-xs text-tint-fg">audit lookup</p>
-    <h1 class="mt-3 text-3xl font-bold">查询审核结果</h1>
+    <h1 class="mt-3 text-3xl font-bold">查询提交进度</h1>
   </header>
   <label class="grid gap-2 text-sm" for="lookup-token">查询凭证</label>
   <input

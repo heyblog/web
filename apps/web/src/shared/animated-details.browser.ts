@@ -83,14 +83,15 @@ export const setupAnimatedDetails = (
     }
 
     const currentOperation = ++operation;
+    const alreadyRendered = details.open;
     window.clearTimeout(closeTimer);
     expanded = true;
     details.open = true;
-    details.dataset.detailsState = 'closed';
+    details.dataset.detailsState = alreadyRendered ? 'open' : 'opening';
     setPanelInteractive(true);
     syncExpandedState();
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (alreadyRendered || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       details.dataset.detailsState = 'open';
       return;
     }
@@ -110,7 +111,7 @@ export const setupAnimatedDetails = (
     const currentOperation = ++operation;
     window.clearTimeout(closeTimer);
     expanded = false;
-    details.dataset.detailsState = 'closed';
+    details.dataset.detailsState = 'closing';
     setPanelInteractive(false);
     syncExpandedState();
 

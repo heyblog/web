@@ -1,5 +1,12 @@
 ---
-import { IconChevronDown, IconMenu2, IconPlus } from '@tabler/icons-svelte';
+import {
+  IconArticle,
+  IconChevronDown,
+  IconList,
+  IconMenu2,
+  IconUsers,
+  IconX,
+} from '@tabler/icons-svelte';
 
 import { navigationRankClasses } from '@/shared/public-header.shared';
 import type { SiteNavigationItem } from '@/site-config.types';
@@ -8,72 +15,98 @@ interface Props {
   items: readonly SiteNavigationItem[];
   activeHref?: string;
   currentPath: string;
-  variant: 'overflow' | 'submission';
 }
-const { items, activeHref, currentPath, variant } = Astro.props;
-const overflow = variant === 'overflow';
-const label = overflow ? '更多导航' : '提交博客';
-const panelId = `public-${variant}-panel`;
+
+const { items, activeHref, currentPath } = Astro.props;
+const label = '主导航';
+const panelId = 'public-overflow-panel';
 const activeIndex = items.findIndex((item) => item.href === activeHref);
 const active = activeIndex >= 0;
-const activeTriggerClasses = overflow
-  ? [
-      'text-fg after:opacity-100 sm:text-fg-muted sm:after:opacity-0',
-      'text-fg after:opacity-100 md:text-fg-muted md:after:opacity-0',
-      'text-fg after:opacity-100',
-    ][activeIndex]
-  : 'text-fg after:opacity-100';
+const activeTriggerClasses = [
+  'text-fg after:opacity-100 sm:text-fg-muted sm:after:opacity-0',
+  'text-fg after:opacity-100 md:text-fg-muted md:after:opacity-0',
+  'text-fg after:opacity-100',
+][activeIndex];
+const navigationIcons: Readonly<Record<string, typeof IconList>> = {
+  '/site': IconList,
+  '/blog': IconArticle,
+  '/members': IconUsers,
+};
 const triggerClass =
-  "relative inline-flex min-h-16 min-w-11 cursor-pointer list-none items-center justify-center gap-1.5 px-2 text-sm font-medium whitespace-nowrap transition-colors duration-(--motion-color) hover:text-fg after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:bg-primary after:opacity-0 after:content-[''] sm:min-w-10 sm:px-3 sm:after:inset-x-3 [&::-webkit-details-marker]:hidden";
+  "relative inline-flex min-h-16 min-w-11 cursor-pointer list-none items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium whitespace-nowrap transition-[color,scale] duration-(--motion-fast) ease-out hover:text-fg active:scale-96 focus-visible:scale-100 motion-reduce:transform-none sm:min-w-10 sm:px-3 sm:after:absolute sm:after:inset-x-3 sm:after:-bottom-px sm:after:h-0.5 sm:after:bg-primary sm:after:opacity-0 sm:after:content-[''] [&::-webkit-details-marker]:hidden";
+const panelClass =
+  'absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-5rem)] origin-top-right overflow-y-auto overscroll-contain border-b border-line bg-surface p-2 shadow-sm transition-[translate,scale,opacity] duration-(--motion-base) ease-out group-data-[details-state=opening]:pointer-events-none group-data-[details-state=opening]:-translate-y-1 group-data-[details-state=opening]:scale-97 group-data-[details-state=opening]:opacity-0 group-data-[details-state=closing]:pointer-events-none group-data-[details-state=closing]:-translate-y-0.5 group-data-[details-state=closing]:scale-99 group-data-[details-state=closing]:opacity-0 group-data-[details-state=closing]:duration-(--motion-fast) motion-reduce:translate-none! motion-reduce:scale-100! motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast) sm:inset-x-auto sm:left-0 sm:mt-2 sm:w-52 sm:origin-top-left sm:rounded-md sm:border sm:p-1';
+const itemClass =
+  'relative z-10 flex min-h-11 items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium wrap-anywhere transition-colors duration-(--motion-fast) hover:text-fg focus-visible:text-fg sm:min-h-10';
 ---
 
-<details class:list={['group static xs:relative', overflow && 'lg:hidden']} data-public-menu>
+<details class="group static order-2 sm:relative sm:order-0 lg:hidden" data-public-menu>
   <summary
-    class:list={[triggerClass, active ? activeTriggerClasses : 'text-fg-muted']}
+    class:list={[
+      triggerClass,
+      'group-data-[details-state=open]:text-tint-fg',
+      active ? activeTriggerClasses : 'text-fg-muted',
+    ]}
     data-public-menu-trigger
     aria-label={label}
     title={label}
     aria-controls={panelId}
+    aria-haspopup="menu"
   >
-    {
-      overflow ? (
-        <IconMenu2 class="xs:hidden" size={18} stroke={1.8} aria-hidden="true" />
-      ) : (
-        <IconPlus class="xs:hidden" size={18} stroke={1.8} aria-hidden="true" />
-      )
-    }
-    <span class="hidden xs:inline">{overflow ? '更多' : label}</span>
+    <span class="relative grid size-5 place-items-center sm:hidden" aria-hidden="true">
+      <IconMenu2
+        class="absolute transition-[opacity,transform] duration-(--motion-base) ease-out group-data-[details-state=open]:scale-96 group-data-[details-state=open]:rotate-24 group-data-[details-state=open]:opacity-0 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast)"
+        size={18}
+        stroke={1.8}
+      />
+      <IconX
+        class="absolute scale-96 -rotate-24 opacity-0 transition-[opacity,transform] duration-(--motion-base) ease-out group-data-[details-state=open]:scale-100 group-data-[details-state=open]:rotate-0 group-data-[details-state=open]:opacity-100 motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast)"
+        size={18}
+        stroke={1.8}
+      />
+    </span>
+    <span class="hidden sm:inline">更多</span>
     <IconChevronDown
-      class="hidden transition-transform duration-(--motion-base) group-open:rotate-180 motion-reduce:transform-none xs:block"
+      class="hidden transition-transform duration-(--motion-base) ease-out group-data-[details-state=open]:rotate-180 motion-reduce:transform-none sm:block"
       size={16}
       stroke={1.8}
       aria-hidden="true"
     />
   </summary>
-  <div
-    id={panelId}
-    data-public-menu-panel
-    class:list={[
-      'absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain border-b border-line bg-surface p-4 shadow-sm transition-[translate,scale,opacity] duration-(--motion-base) ease-out group-data-[details-state=closed]:pointer-events-none group-data-[details-state=closed]:-translate-y-1 group-data-[details-state=closed]:scale-97 group-data-[details-state=closed]:opacity-0 group-data-[details-state=closed]:duration-(--motion-fast) motion-reduce:translate-none! motion-reduce:scale-100! motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast) xs:inset-x-auto xs:mt-2 xs:w-52 xs:rounded-md xs:border xs:p-1',
-      overflow ? 'origin-top-left xs:left-0' : 'origin-top-right xs:right-0',
-    ]}
-  >
-    <ul class="m-0 grid list-none gap-1 p-0" aria-label={label}>
+  <div id={panelId} data-public-menu-panel class={panelClass}>
+    <ul
+      class="relative m-0 grid list-none gap-1 p-0"
+      aria-label={label}
+      role="menu"
+      data-public-menu-list
+    >
+      <li
+        class="pointer-events-none absolute inset-x-0 top-0 z-0 h-11 translate-y-(--menu-highlight-offset) rounded-sm bg-subtle opacity-0 transition-[transform,opacity,background-color] duration-(--motion-base) ease-standard data-[active=true]:bg-tint data-[visible=true]:opacity-100 motion-reduce:transition-none sm:h-10"
+        data-public-menu-highlight
+        aria-hidden="true"
+      >
+      </li>
       {
-        items.map((item, index) => (
-          <li class={overflow ? navigationRankClasses[index]?.overflow : undefined}>
-            <a
-              class:list={[
-                'flex min-h-11 items-center rounded-sm px-3 py-2 text-sm font-medium wrap-anywhere transition-colors duration-(--motion-color) hover:bg-subtle hover:text-fg focus-visible:bg-subtle sm:min-h-10',
-                activeHref === item.href ? 'bg-tint text-tint-fg' : 'text-fg-muted',
-              ]}
-              href={item.href}
-              aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
-            >
-              {item.label}
-            </a>
-          </li>
-        ))
+        items.map((item, index) => {
+          const Icon = navigationIcons[item.href];
+          const itemActive = activeHref === item.href;
+
+          return (
+            <li class:list={['relative z-10', navigationRankClasses[index]?.overflow]}>
+              <a
+                class:list={[itemClass, itemActive ? 'text-tint-fg' : 'text-fg-muted']}
+                href={item.href}
+                aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
+                role="menuitem"
+                data-public-menu-item
+                data-menu-active={itemActive ? 'true' : 'false'}
+              >
+                {Icon && <Icon class="shrink-0" size={18} stroke={1.8} aria-hidden="true" />}
+                <span>{item.label}</span>
+              </a>
+            </li>
+          );
+        })
       }
     </ul>
   </div>
