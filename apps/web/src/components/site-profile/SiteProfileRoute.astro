@@ -69,13 +69,10 @@ const description =
             </section>
           ) : null}
           <div class="mt-8 sm:mt-12">
-            <SiteProfileTabs client:load />
+            <SiteProfileTabs client:load>
+              <SiteProfileResources {profile} />
+            </SiteProfileTabs>
           </div>
-          {profile.feeds.length > 0 ||
-          profile.resources.length > 0 ||
-          profile.technologies.length > 0 ? (
-            <SiteProfileResources {profile} />
-          ) : null}
         </div>
       ) : (
         <section

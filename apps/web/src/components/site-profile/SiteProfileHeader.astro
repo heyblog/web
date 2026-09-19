@@ -23,7 +23,7 @@ const badgeClass =
 ---
 
 <section aria-labelledby="site-profile-title">
-  <div class="grid min-w-0 gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+  <div class="grid min-w-0 gap-6 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-start sm:gap-8">
     <div class="min-w-0">
       <div class="flex min-w-0 items-start gap-4">
         <span
@@ -67,35 +67,29 @@ const badgeClass =
         }
       </div>
     </div>
-    <a
-      class="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium whitespace-nowrap text-primary-fg transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-hover active:scale-96 active:bg-primary-active motion-reduce:scale-100 motion-reduce:transform-none sm:min-h-10"
-      href={profile.homepageUrl}
-      rel="noreferrer"
-      target="_blank"
-    >
-      访问博客<IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
-    </a>
+    <div class="grid min-w-0 gap-6">
+      <dl class="grid min-w-0 gap-3 text-sm">
+        <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
+          <dt class="text-xs font-medium text-fg-muted">加入时间</dt>
+          <dd class="font-medium wrap-anywhere">{dateLabel(profile.joinedAt)}</dd>
+        </div>
+        <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
+          <dt class="text-xs font-medium text-fg-muted">更新时间</dt>
+          <dd class="font-medium wrap-anywhere">{dateLabel(profile.updatedAt)}</dd>
+        </div>
+        <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
+          <dt class="text-xs font-medium text-fg-muted">标识符</dt>
+          <dd class="font-mono font-medium wrap-anywhere">{profile.customId ?? profile.shortId}</dd>
+        </div>
+      </dl>
+      <a
+        class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium whitespace-nowrap text-primary-fg transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-hover active:scale-96 active:bg-primary-active motion-reduce:scale-100 motion-reduce:transform-none sm:min-h-10"
+        href={profile.homepageUrl}
+        rel="noreferrer"
+        target="_blank"
+      >
+        访问博客<IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
+      </a>
+    </div>
   </div>
-  <dl
-    class="mt-6 grid min-w-0 gap-4 border-y border-line py-4 text-sm sm:mt-8 sm:grid-cols-3 sm:gap-6 sm:py-6"
-  >
-    <div class="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2 sm:block">
-      <dt class="text-xs font-medium text-fg-muted">加入目录</dt>
-      <dd class="font-medium wrap-anywhere sm:mt-2">{dateLabel(profile.joinedAt)}</dd>
-    </div>
-    <div
-      class="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2 sm:block sm:border-l sm:border-line sm:pl-6"
-    >
-      <dt class="text-xs font-medium text-fg-muted">资料更新</dt>
-      <dd class="font-medium wrap-anywhere sm:mt-2">{dateLabel(profile.updatedAt)}</dd>
-    </div>
-    <div
-      class="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2 sm:block sm:border-l sm:border-line sm:pl-6"
-    >
-      <dt class="text-xs font-medium text-fg-muted">目录标识</dt>
-      <dd class="font-mono font-medium wrap-anywhere sm:mt-2">
-        {profile.customId ?? profile.shortId}
-      </dd>
-    </div>
-  </dl>
 </section>

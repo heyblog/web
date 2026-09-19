@@ -3,6 +3,7 @@ import {
   IconBrandGithub,
   IconCode,
   IconExternalLink,
+  IconInfoCircle,
   IconLink,
   IconRss,
   IconSitemap,
@@ -26,7 +27,19 @@ const resourceLabels: Record<SiteProfile['resources'][number]['kind'], string> =
 };
 ---
 
-<div class="grid min-w-0 gap-8 border-t border-line pt-8 md:grid-cols-2">
+<div class="grid min-w-0 gap-8 md:grid-cols-2">
+  {
+    profile.feeds.length === 0 &&
+    profile.resources.length === 0 &&
+    profile.technologies.length === 0 ? (
+      <div class="flex flex-col items-center gap-4 py-4 text-center sm:py-8 md:col-span-2">
+        <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
+          <IconInfoCircle size={22} stroke={1.8} aria-hidden="true" />
+        </span>
+        <p class="text-sm font-semibold text-fg-muted">暂无资源信息</p>
+      </div>
+    ) : null
+  }
   {
     profile.feeds.length > 0 || profile.resources.length > 0 ? (
       <section aria-labelledby="site-resources-title">
