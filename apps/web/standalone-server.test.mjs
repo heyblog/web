@@ -7,6 +7,7 @@ import process from 'node:process';
 import test from 'node:test';
 
 const childMode = process.env.HEYBLOG_STANDALONE_SMOKE_CHILD === '1';
+const inlineScriptPattern = /<script\b([^>]*)>([\s\S]*?)<\/script>/giu;
 
 if (childMode) {
   process.env.ASTRO_NODE_AUTOSTART = 'disabled';
@@ -27,6 +28,16 @@ if (childMode) {
   await runningServer.server.stop();
   process.disconnect();
 } else {
+  test('inline script matching handles HTML tag case variants', () => {
+    const [match] = [
+      ...'<SCRIPT data-test="true">window.test = true;</sCrIpT>'.matchAll(inlineScriptPattern),
+    ];
+
+    assert.ok(match);
+    assert.equal(match[1], ' data-test="true"');
+    assert.equal(match[2], 'window.test = true;');
+  });
+
   test('standalone server limits web analytics to non-sensitive pages', async () => {
     // Given: an authenticated API and production build started on ephemeral ports.
     const sessionUser = {
@@ -149,9 +160,7 @@ if (childMode) {
           response.headers.get('content-security-policy') ??
           html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/iu)?.[1];
         assert.ok(policy, 'Tracked pages must supply a CSP.');
-        for (const [, attributes, source] of html.matchAll(
-          /<script\b([^>]*)>([\s\S]*?)<\/script>/gu,
-        )) {
+        for (const [, attributes, source] of html.matchAll(inlineScriptPattern)) {
           if (
             /\bsrc=/u.test(attributes) ||
             source.trim() === '' ||
