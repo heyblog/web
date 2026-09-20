@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	tempdb "heyblog-api/internal/temp/dataimport/gen"
+	dbgen "heyblog-api/internal/database/gen"
 )
 
 const (
@@ -52,7 +52,7 @@ func (repository *Repository) Import(ctx context.Context, plan Plan) (Counts, er
 		_ = tx.Rollback(rollbackContext)
 	}()
 
-	queries := tempdb.New(tx)
+	queries := dbgen.New(tx)
 	locked, err := queries.TryAcquireImportLock(ctx, importLockName)
 	if err != nil {
 		return Counts{}, errors.Join(ErrDependencyUnavailable, fmt.Errorf("acquire import lock: %w", err))
@@ -67,7 +67,7 @@ func (repository *Repository) Import(ctx context.Context, plan Plan) (Counts, er
 	if lockCapacity < minimumImportLockCapacity {
 		return Counts{}, errors.Join(
 			ErrDependencyUnavailable,
-			fmt.Errorf("max_locks_per_transaction is %d; temporary import requires at least %d", lockCapacity, minimumImportLockCapacity),
+			fmt.Errorf("max_locks_per_transaction is %d; data import requires at least %d", lockCapacity, minimumImportLockCapacity),
 		)
 	}
 	empty, err := queries.DirectoryIsEmpty(ctx)
@@ -149,9 +149,9 @@ func parseUUIDText(value string) (pgtype.UUID, error) {
 	return id, nil
 }
 
-func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
+func insertPlan(ctx context.Context, queries *dbgen.Queries, plan Plan) error {
 	for _, row := range plan.Sites {
-		if err := queries.InsertSite(ctx, tempdb.InsertSiteParams{
+		if err := queries.InsertSite(ctx, dbgen.InsertSiteParams{
 			ID: mustUUID(row.ID), ShortID: row.ShortID, Name: row.Name,
 			Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath,
 			Summary: row.Summary, AccessScope: row.AccessScope, Visibility: row.Visibility,
@@ -162,7 +162,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		}
 	}
 	for _, row := range plan.Feeds {
-		if err := queries.InsertFeed(ctx, tempdb.InsertFeedParams{
+		if err := queries.InsertFeed(ctx, dbgen.InsertFeedParams{
 			SiteID: mustUUID(row.SiteID), Name: row.Name, LocationType: row.LocationType,
 			UrlRef:      nullableLocation(row.LocationType == "RELATIVE", row.URLRef),
 			ExternalUrl: nullableLocation(row.LocationType == "EXTERNAL", row.ExternalURL),
@@ -172,7 +172,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		}
 	}
 	for _, row := range plan.Resources {
-		if err := queries.InsertResource(ctx, tempdb.InsertResourceParams{
+		if err := queries.InsertResource(ctx, dbgen.InsertResourceParams{
 			SiteID: mustUUID(row.SiteID), Kind: row.Kind, LocationType: row.LocationType,
 			UrlRef:      nullableLocation(row.LocationType == "RELATIVE", row.URLRef),
 			ExternalUrl: nullableLocation(row.LocationType == "EXTERNAL", row.ExternalURL),
@@ -182,7 +182,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		}
 	}
 	for _, row := range plan.Tags {
-		if err := queries.InsertTag(ctx, tempdb.InsertTagParams{
+		if err := queries.InsertTag(ctx, dbgen.InsertTagParams{
 			ID: mustUUID(row.ID), Name: row.Name, NormalizedName: row.NormalizedName,
 			Slug: row.Slug, Description: row.Description, IsEnabled: row.IsEnabled,
 		}); err != nil {
@@ -193,7 +193,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		if row.Role != "WARNING" {
 			continue
 		}
-		if err := queries.InsertSiteTag(ctx, tempdb.InsertSiteTagParams{
+		if err := queries.InsertSiteTag(ctx, dbgen.InsertSiteTagParams{
 			SiteID: mustUUID(row.SiteID), TagID: mustUUID(row.TagID), Role: row.Role,
 			Position: nil, Note: nullableText(row.Note),
 		}); err != nil {
@@ -201,7 +201,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		}
 	}
 	for _, row := range plan.Components {
-		if err := queries.InsertSoftwareComponent(ctx, tempdb.InsertSoftwareComponentParams{
+		if err := queries.InsertSoftwareComponent(ctx, dbgen.InsertSoftwareComponentParams{
 			ID: mustUUID(row.ID), Name: row.Name, NormalizedName: row.NormalizedName,
 			Description: row.Description, HomepageUrl: nullableText(row.HomepageURL),
 			RepositoryUrl: nullableText(row.RepositoryURL), IsOpenSource: row.IsOpenSource,
@@ -211,14 +211,14 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		}
 	}
 	for _, row := range plan.Dependencies {
-		if err := queries.InsertSoftwareDependency(ctx, tempdb.InsertSoftwareDependencyParams{
+		if err := queries.InsertSoftwareDependency(ctx, dbgen.InsertSoftwareDependencyParams{
 			ComponentID: mustUUID(row.ComponentID), DependencyComponentID: mustUUID(row.DependencyComponentID), Role: row.Role,
 		}); err != nil {
 			return fmt.Errorf("insert software dependencies: %w", err)
 		}
 	}
 	for _, row := range plan.SiteComponents {
-		if err := queries.InsertSiteSoftwareComponent(ctx, tempdb.InsertSiteSoftwareComponentParams{
+		if err := queries.InsertSiteSoftwareComponent(ctx, dbgen.InsertSiteSoftwareComponentParams{
 			SiteID: mustUUID(row.SiteID), ComponentID: mustUUID(row.ComponentID),
 			Role: row.Role, IdentifiedAt: timestamp(row.IdentifiedAt),
 		}); err != nil {
@@ -227,7 +227,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 	}
 	sourceIDs := make(map[string]pgtype.UUID, len(plan.Sources))
 	for _, row := range plan.Sources {
-		id, err := queries.InsertSource(ctx, tempdb.InsertSourceParams{SourceKey: row.Key, Name: row.Name})
+		id, err := queries.InsertSource(ctx, dbgen.InsertSourceParams{SourceKey: row.Key, Name: row.Name})
 		if err != nil {
 			return fmt.Errorf("insert site sources: %w", err)
 		}
@@ -239,7 +239,7 @@ func insertPlan(ctx context.Context, queries *tempdb.Queries, plan Plan) error {
 		if !exists {
 			return fmt.Errorf("insert site origins: source %q is missing", row.SourceKey)
 		}
-		if err := queries.InsertOrigin(ctx, tempdb.InsertOriginParams{
+		if err := queries.InsertOrigin(ctx, dbgen.InsertOriginParams{
 			SiteID: mustUUID(row.SiteID), SourceID: sourceID,
 			ExternalReference: &externalReference, FirstDiscoveredAt: timestamp(row.FirstDiscoveredAt),
 			Metadata: row.Metadata,

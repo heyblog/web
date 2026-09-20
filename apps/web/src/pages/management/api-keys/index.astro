@@ -1,0 +1,34 @@
+---
+import { listApiClients } from '@/application/api-keys/api-keys.server';
+import type { ApiClientSummary } from '@/application/api-keys/api-keys.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import ApiKeyManager from '@/components/management/api-keys/ApiKeyManager.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fapi-keys');
+if (actor.role !== 'SYS_ADMIN') return Astro.redirect('/forbidden');
+
+let clients: readonly ApiClientSummary[] = [];
+let initialError: string | null = null;
+try {
+  clients = (await listApiClients(Astro.request)).clients;
+} catch (error) {
+  if (!(error instanceof Error)) throw error;
+  initialError = '调用凭证暂时无法加载，请点击刷新重试。';
+}
+---
+
+<ManagementLayout
+  title="API 调用凭证 | HeyBlog"
+  heading="API 调用凭证"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  <ApiKeyManager client:load initialClients={clients} {initialError} />
+</ManagementLayout>

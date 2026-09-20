@@ -129,21 +129,6 @@ func TestLoadRejectsInvalidWebToken(t *testing.T) {
 	}
 }
 
-func TestLoadRejectsInvalidTempImportToken(t *testing.T) {
-	t.Parallel()
-
-	getenv := func(key string) string {
-		if key == "API_TEMP_IMPORT_TOKEN" {
-			return "short-token"
-		}
-		return serviceEnvironment(key)
-	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
-	if err == nil || !strings.Contains(err.Error(), "API_TEMP_IMPORT_TOKEN") {
-		t.Fatalf("load() error = %v, want API_TEMP_IMPORT_TOKEN validation error", err)
-	}
-}
-
 func TestLoadRejectsInvalidPolicyBounds(t *testing.T) {
 	t.Parallel()
 

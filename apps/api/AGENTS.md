@@ -28,8 +28,8 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   required. Never read real secret files during development or tests.
 - API development tasks load the repository-root `.env.development`; tests use isolated fixtures
   and require no environment file. Development mail uses the Mailpit SMTP binding declared by
-  `API_MAIL_SMTP_URL`. Production orchestrators inject the three external service URLs
-  plus `API_HEALTHCHECK_TOKEN`, `API_TEMP_IMPORT_TOKEN`, and `API_WEB_TOKEN` with Docker
+  `API_MAIL_SMTP_URL`. Production orchestrators inject the three external service URLs plus
+  `API_HEALTHCHECK_TOKEN` and `API_WEB_TOKEN` with Docker
   `--env-file` or Compose `env_file`. User authentication additionally requires
   `API_AUTH_ACCESS_SECRET`, `API_AUTH_REFRESH_SECRET`, `API_GITHUB_CLIENT_ID`, and
   `API_GITHUB_CLIENT_SECRET`; the image does not load dotenv files.
@@ -146,8 +146,9 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   sessions.
 - In production, Nginx accepts the EdgeOne-derived client address and the Web service forwards one
   validated address to the API. Configure `http.trusted_proxies` with only the private Web/API
-  Compose subnet, keep it synchronized with `HEYBLOG_NETWORK_SUBNET`, and restrict the public
-  origin to EdgeOne so clients cannot forge `EO-Connecting-IP`.
+  Compose subnet and keep it synchronized with `HEYBLOG_NETWORK_SUBNET`. Client IP metadata is for
+  logging and applicable rate limits, not service API authorization. `/internal/v1/data-import`
+  relies on its scoped INTERNAL API key; origin trust is separate deployment hardening.
 - GitHub OAuth state is single-use in Redis. Login may match only a verified primary GitHub email;
   binding requires that email to match the authenticated account, and unbinding must leave a local
   password login method.
@@ -159,12 +160,24 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   one-time lookup credential; only its SHA-256 digest is persisted. `/management/site-audits*`
   additionally requires `site_audit.review`, and creating new canonical taxonomy entries during
   approval requires `taxonomy.manage`.
-- `POST /internal/temp/data-import` is a temporary authenticated migration endpoint. It requires
-  `Authorization: Bearer <API_TEMP_IMPORT_TOKEN>`, accepts only the two cleaned migration bundles,
-  and owns a ninety-minute request deadline and route-specific upload limit. Its single transaction
+- `POST /internal/v1/data-import` is an internal service endpoint. It requires an INTERNAL API key
+  with `data_import.write`, accepts only the cleaned migration bundles, and owns a ninety-minute
+  request deadline and route-specific upload limit. Its single transaction
   requires PostgreSQL `max_locks_per_transaction >= 512` because existing site and friend-link
   graph wrappers hold transaction-level advisory locks until commit. Keep all removable
-  feature logic, queries, generated access code, and tests under `internal/temp/dataimport`.
+  feature logic and tests under `internal/dataimport`; its sqlc queries belong to the shared database
+  query and generated-code boundary.
+- Machine credentials are opaque, scoped API keys owned by `identity.api_clients`. Only SYS_ADMIN
+  users may create, issue, rotate, disable, or revoke them through Web-authenticated management routes.
+  INTERNAL keys expire within ninety days; EXTERNAL keys may be explicitly permanent. Never log or
+  persist presented key secrets.
+- `/v1/example` supports GET, HEAD, POST, PUT, PATCH, DELETE, and OPTIONS with `example.call` for
+  either INTERNAL or EXTERNAL clients. `data_import.write` remains INTERNAL-only; `sites.read` is
+  not a supported scope. Client scopes must be nonempty and unique.
+- `POST /management/api-clients/{id}/keys` issues a credential only to an enabled client without
+  active keys, under a client row lock shared with rotation and client updates. It returns 201 and
+  the one-time credential, or 409 `api_client_has_active_key` / `api_client_disabled`. Issuance keeps
+  revoked and expired key history and applies the same expiration rules as client creation.
 
 ## Database and Data Access
 
@@ -259,7 +272,7 @@ Run commands from the repository root:
 - `task api:test`: run Go tests.
 - `task api:test:race`: run Go tests with the race detector.
 - `task api:test:integration`: run PostgreSQL/AGE, Redis, and Mailpit container integration tests,
-  including the temporary import transaction, graph boundary, and SMTP delivery path.
+  including the internal import transaction, graph boundary, and SMTP delivery path.
 - `task api:format:check`: check Go formatting and imports.
 - `task api:lint`: run golangci-lint.
 - `task api:build`: invoke the API build from the repository root; the module command runs in

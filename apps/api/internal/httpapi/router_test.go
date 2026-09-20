@@ -530,7 +530,7 @@ func TestCORSAndSecurityHeaders(t *testing.T) {
 	request := httptest.NewRequest(http.MethodOptions, "/ping", nil)
 	request.Header.Set("Origin", "https://web.example.test")
 	request.Header.Set("Access-Control-Request-Method", http.MethodGet)
-	request.Header.Set("Access-Control-Request-Headers", "Authorization, X-Request-ID")
+	request.Header.Set("Access-Control-Request-Headers", "X-Request-ID")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -545,6 +545,25 @@ func TestCORSAndSecurityHeaders(t *testing.T) {
 		if got := response.Header().Get(header); got != want {
 			t.Fatalf("%s = %q, want %q", header, got, want)
 		}
+	}
+}
+
+func TestCORSRejectsBrowserAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
+	configuration := testHTTPConfig()
+	configuration.CORS.AllowOrigins = []string{"https://web.example.test"}
+	router := newRouterWithConfig(t, configuration, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second), io.Discard)
+
+	request := httptest.NewRequest(http.MethodOptions, "/ping", nil)
+	request.Header.Set("Origin", "https://web.example.test")
+	request.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	request.Header.Set("Access-Control-Request-Headers", "Authorization")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("preflight status = %d, want %d", response.Code, http.StatusForbidden)
 	}
 }
 

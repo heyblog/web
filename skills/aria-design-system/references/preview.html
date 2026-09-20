@@ -1072,6 +1072,7 @@
               <button class="btn btn-outline btn-md" data-toast="danger">错误 Toast</button>
               <button class="btn btn-outline btn-md" data-toast="info">信息 Toast</button>
               <button id="modal-open" class="btn btn-primary btn-md">打开 Modal</button>
+              <button type="button" id="detail-sheet-open" class="btn btn-outline btn-md">打开详情侧栏</button>
             </div>
             <div>
               <p class="demo-label mt-2">Banner 横幅</p>
@@ -1179,6 +1180,13 @@
 <!-- Toast 容器 -->
 <div id="toast-region" class="fixed bottom-4 right-4 z-50 flex w-90 max-w-[calc(100vw-2rem)] flex-col gap-2" role="region" aria-label="通知"></div>
 
+<dialog id="detail-sheet" aria-labelledby="detail-sheet-title" class="fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-dvh w-full max-w-full border border-line bg-surface p-0 text-fg shadow-md backdrop:bg-scrim sm:w-120">
+  <div class="flex h-full min-h-0 flex-col">
+    <header class="flex shrink-0 items-center justify-between gap-4 border-b border-line px-6 py-4"><h2 id="detail-sheet-title" class="text-xl font-semibold">调用方详情</h2><button type="button" id="detail-sheet-close" class="btn btn-ghost btn-md" aria-label="关闭详情侧栏">关闭</button></header>
+    <div class="min-h-0 flex-1 overflow-y-auto p-6"><p class="font-semibold">内容同步服务</p><p class="mt-3 text-sm text-fg-muted">内部服务</p><p class="mt-6 text-sm">调用权限</p><span class="mt-2 inline-block rounded-sm bg-tint px-2 py-1 text-xs text-tint-fg">示例接口调用</span></div>
+    <footer class="shrink-0 border-t border-line px-6 py-4 text-sm text-fg-muted">标题与操作区保持可见，内容独立滚动。</footer>
+  </div>
+</dialog>
 <script>
 /* ============================ 交互逻辑（原生 JS）============================ */
 
@@ -1608,6 +1616,22 @@ document.querySelectorAll('.replay').forEach(card => {
 });
 
 /* ---- Lucide 图标渲染 ---- */
+const detailSheet = document.getElementById('detail-sheet');
+const detailSheetOpen = document.getElementById('detail-sheet-open');
+let detailSheetOverflow = '';
+detailSheetOpen.addEventListener('click', () => {
+  detailSheetOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  detailSheet.showModal();
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    detailSheet.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 250, easing: 'cubic-bezier(0.22,1,0.36,1)' });
+  }
+});
+document.getElementById('detail-sheet-close').addEventListener('click', () => detailSheet.close());
+detailSheet.addEventListener('close', () => {
+  document.body.style.overflow = detailSheetOverflow;
+  detailSheetOpen.focus();
+});
 lucide.createIcons();
 </script>
 </body>

@@ -6,6 +6,12 @@ http:
   # Keep this synchronized with HEYBLOG_NETWORK_SUBNET.
   trusted_proxies:
     - 172.31.0.0/24
+  cors:
+    # Browser access to api.heyblog.net is limited to anonymous GET/HEAD requests.
+    # Add external browser origins explicitly; never place API keys in browser code.
+    allow_origins:
+      - https://www.heyblog.net
+    allow_credentials: false
 
 auth:
   # Public HTTPS origin reached by browsers, not the Web container address.

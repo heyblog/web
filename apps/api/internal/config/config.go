@@ -29,7 +29,6 @@ type Config struct {
 	MigrationDatabaseURL string
 	HealthcheckToken     string
 	WebToken             string
-	TempImportToken      string
 	Server               ServerConfig
 	Database             DatabaseConfig
 	Redis                RedisConfig

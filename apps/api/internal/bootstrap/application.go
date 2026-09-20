@@ -12,14 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"heyblog-api/internal/apikey"
 	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/auth"
 	"heyblog-api/internal/config"
+	"heyblog-api/internal/dataimport"
 	"heyblog-api/internal/domain/site"
+	"heyblog-api/internal/exampleapi"
 	"heyblog-api/internal/httpapi"
 	"heyblog-api/internal/mail"
 	"heyblog-api/internal/siteaudit"
-	"heyblog-api/internal/temp/dataimport"
 )
 
 type runtimeDependencies interface {
@@ -41,7 +43,7 @@ type managedHTTPServer interface {
 type applicationOperations struct {
 	listen           func(string, string) (net.Listener, error)
 	openDependencies func(context.Context, config.Config) (runtimeDependencies, error)
-	newHandler       func(httpapi.Options, runtimeDependencies, config.Config, string) (http.Handler, error)
+	newHandler       func(httpapi.Options, runtimeDependencies, config.Config) (http.Handler, error)
 	newServer        func(http.Handler) managedHTTPServer
 }
 
@@ -51,8 +53,8 @@ func Run(ctx context.Context, configuration config.Config, logger *slog.Logger) 
 		openDependencies: func(ctx context.Context, configuration config.Config) (runtimeDependencies, error) {
 			return Open(ctx, configuration)
 		},
-		newHandler: func(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config, importToken string) (http.Handler, error) {
-			return newApplicationHandler(options, dependencies, configuration, importToken)
+		newHandler: func(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config) (http.Handler, error) {
+			return newApplicationHandler(options, dependencies, configuration)
 		},
 		newServer: func(handler http.Handler) managedHTTPServer {
 			return newHTTPServer(ctx, configuration, handler, logger)
@@ -81,7 +83,7 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 		HealthcheckToken: configuration.HealthcheckToken,
 		WebToken:         configuration.WebToken,
 		PublicViews:      dependencies.PublicViews(),
-	}, dependencies, configuration, configuration.TempImportToken)
+	}, dependencies, configuration)
 	if err != nil {
 		return withStage("router_build", err)
 	}
@@ -159,14 +161,16 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 	return resultErr
 }
 
-func newApplicationHandler(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config, importToken string) (http.Handler, error) {
+func newApplicationHandler(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config) (http.Handler, error) {
 	options.BodyLimitOverrides = dataimport.BodyLimitOverrides()
 	router, err := httpapi.NewRouter(options)
 	if err != nil {
 		return nil, err
 	}
+	keyService := apikey.NewService(apikey.NewRepository(dependencies.DatabasePool()), time.Now)
+	exampleapi.RegisterRoutes(router.API, keyService)
 	service := dataimport.NewService(dataimport.NewRepository(dependencies.DatabasePool()), site.NewShortID)
-	dataimport.RegisterRoutes(router.API, service, importToken, options.Logger)
+	dataimport.RegisterRoutes(router.API, service, keyService, options.Logger)
 	authService := auth.NewService(auth.Dependencies{Pool: dependencies.DatabasePool(), Redis: dependencies.RedisClient(), MailSender: dependencies.Mail(), VerificationMailer: dependencies.Verification(), Config: auth.Config{
 		AccessSecret: configuration.Auth.AccessSecret, RefreshSecret: configuration.Auth.RefreshSecret, AccessTTL: configuration.Auth.AccessTTL, RefreshTTL: configuration.Auth.RefreshTTL,
 		VerificationTTL: configuration.Auth.VerificationTTL, PasswordResetTTL: configuration.Auth.PasswordResetTTL, WebBaseURL: configuration.Auth.WebBaseURL, CookieDomain: configuration.Auth.CookieDomain,
@@ -174,6 +178,9 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		MailFrom: configuration.Mail.Senders.Verification.Address,
 	}})
 	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
+		return nil, err
+	}
+	if err := auth.RegisterAPIKeyManagementRoutes(router.API, authService, keyService, options.WebToken, options.Logger); err != nil {
 		return nil, err
 	}
 	auditService := siteaudit.NewService(siteaudit.Dependencies{

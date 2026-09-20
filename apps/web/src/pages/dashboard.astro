@@ -12,6 +12,7 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard');
 const canManageUsers = user.role === 'SYS_ADMIN' || user.permissions.includes('user.manage');
 const canReviewSiteAudits =
   user.role === 'SYS_ADMIN' || user.permissions.includes('site_audit.review');
+const canManageApiKeys = user.role === 'SYS_ADMIN';
 ---
 
 <PublicLayout title="账号 | HeyBlog" enableAnalytics={false} robots="noindex, nofollow">
@@ -132,7 +133,7 @@ const canReviewSiteAudits =
           )
         }
         {
-          canReviewSiteAudits || canManageUsers ? (
+          canReviewSiteAudits || canManageUsers || canManageApiKeys ? (
             <nav class="mt-6 grid gap-2" aria-label="管理入口">
               {canReviewSiteAudits ? (
                 <a
@@ -150,6 +151,15 @@ const canReviewSiteAudits =
                 >
                   <IconShieldLock size={18} stroke={1.8} aria-hidden="true" />
                   用户与授权
+                </a>
+              ) : null}
+              {canManageApiKeys ? (
+                <a
+                  class="flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
+                  href="/management/api-keys"
+                >
+                  <IconShieldLock size={18} stroke={1.8} aria-hidden="true" />
+                  API 调用凭证
                 </a>
               ) : null}
             </nav>
