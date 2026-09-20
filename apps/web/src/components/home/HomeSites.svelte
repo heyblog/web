@@ -3,19 +3,18 @@
   import { onDestroy } from 'svelte';
 
   import { refreshHome } from '@/application/home/home.browser';
-  import type { HomeMockMode, HomeSiteCard } from '@/application/home/home.shared';
+  import type { HomeSiteCard } from '@/application/home/home.shared';
 
   import BlogCard from './BlogCard.svelte';
 
   interface Props {
     sites: HomeSiteCard[];
     unavailable?: boolean;
-    mockMode?: HomeMockMode | null;
   }
 
   type RefreshStatus = 'idle' | 'loading' | 'error';
 
-  let { sites, unavailable = false, mockMode = null }: Props = $props();
+  let { sites, unavailable = false }: Props = $props();
 
   let refreshStatus = $state<RefreshStatus>('idle');
   let expandedSiteId = $state<string | null>(null);
@@ -37,11 +36,6 @@
     refreshStatus = 'loading';
     statusMessage = '';
 
-    if (mockMode !== null) {
-      refreshMockSites(mockMode);
-      return;
-    }
-
     refreshController = new AbortController();
     try {
       const home = await refreshHome(refreshController.signal);
@@ -57,23 +51,6 @@
     } finally {
       refreshController = undefined;
     }
-  }
-
-  function refreshMockSites(mode: HomeMockMode) {
-    expandedSiteId = null;
-    if (mode === 'cards') {
-      const offset = Math.min(3, Math.max(1, sites.length - 1));
-      sites = [...sites.slice(offset), ...sites.slice(0, offset)];
-      unavailable = false;
-      refreshStatus = 'idle';
-      statusMessage = '已换一批博客';
-      return;
-    }
-
-    sites = [];
-    unavailable = mode === 'error';
-    refreshStatus = mode === 'error' ? 'error' : 'idle';
-    statusMessage = mode === 'error' ? '推荐暂时无法加载' : '暂无可展示的博客资料';
   }
 </script>
 

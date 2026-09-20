@@ -64,8 +64,6 @@ export interface HomeView {
   sites: HomeSiteCard[];
 }
 
-export type HomeMockMode = 'cards' | 'empty' | 'error';
-
 interface SiteIdentifier {
   shortId: string;
 }

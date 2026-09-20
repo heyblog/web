@@ -1,5 +1,4 @@
 ---
-import { createHomeMockState, parseHomeMockMode } from '@/application/home/home.mock';
 import { loadHome } from '@/application/home/home.server';
 import { selectHomeProjectBlogs } from '@/application/home/home-project-blogs.shared';
 import {
@@ -15,18 +14,13 @@ import PublicLayout from '@/layouts/PublicLayout.astro';
 
 export const prerender = false;
 
-const mockMode = parseHomeMockMode(
-  Astro.url.searchParams.get('mock'),
-  import.meta.env.DEV || import.meta.env.MODE === 'test',
-);
 const [homeResult, blogs, memberDirectory] = await Promise.all([
-  mockMode ? Promise.resolve(null) : loadHome(Astro.request),
+  loadHome(Astro.request),
   readBlogSummaries(),
   readMemberDirectory(),
 ]);
-const mockState = mockMode ? createHomeMockState(mockMode) : null;
-const home = mockState?.home ?? (homeResult?.kind === 'success' ? homeResult.data : null);
-const unavailable = mockState?.unavailable ?? home === null;
+const home = homeResult.kind === 'success' ? homeResult.data : null;
+const unavailable = home === null;
 const projectBlogs = selectHomeProjectBlogs(blogs);
 const activeMemberCount = memberDirectory.current.filter(
   (member) => member.status === 'ACTIVE',
@@ -49,7 +43,7 @@ if (unavailable) {
         </div>
       ) : null
     }
-    <HomeSites client:load sites={home?.sites ?? []} {unavailable} {mockMode} />
+    <HomeSites client:load sites={home?.sites ?? []} {unavailable} />
     <HomeProjectBlogs blogs={projectBlogs} />
     <HomeCommunity {activeMemberCount} />
   </div>

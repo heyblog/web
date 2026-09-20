@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { refreshHome } from '../src/application/home/home.browser.ts';
-import { createHomeMockState, parseHomeMockMode } from '../src/application/home/home.mock.ts';
 import {
   formatSiteJoinedAt,
   formatSiteUpdatedAt,
@@ -38,49 +37,10 @@ test('always uses the short ID for internal site detail routes', () => {
   assert.equal(siteDetailPath({ shortId: 'A1b2C3d4E' }), '/site/A1b2C3d4E');
 });
 
-test('enables supported home mock modes only when development mocks are allowed', () => {
-  assert.equal(parseHomeMockMode('cards', true), 'cards');
-  assert.equal(parseHomeMockMode('empty', true), 'empty');
-  assert.equal(parseHomeMockMode('error', true), 'error');
-  assert.equal(parseHomeMockMode('unknown', true), null);
-  assert.equal(parseHomeMockMode('cards', false), null);
-});
-
-test('provides more than six mock cards with distinct optional field states', () => {
-  const state = createHomeMockState('cards');
-  const sites = state.home?.sites ?? [];
-
-  assert.equal(state.unavailable, false);
-  assert.equal(sites.length, 12);
-  assert.deepEqual(
-    new Set(sites.map((site) => site.accessScope)),
-    new Set(['ALL', 'CN_ONLY', 'GLOBAL_ONLY']),
-  );
-  assert.deepEqual(
-    new Set(sites.flatMap((site) => (site.defaultFeed ? [site.defaultFeed.format] : []))),
-    new Set(['RSS', 'ATOM', 'JSON']),
-  );
-  assert.ok(sites.some((site) => site.summary === ''));
-  assert.ok(sites.every((site) => site.classification !== null));
-  assert.ok(sites.some((site) => site.warnings.length > 0));
-  assert.ok(sites.some((site) => site.defaultFeed === null && site.sitemapUrl !== null));
-});
-
-test('provides explicit empty and unavailable home mock states', () => {
-  const empty = createHomeMockState('empty');
-  const error = createHomeMockState('error');
-
-  assert.equal(empty.unavailable, false);
-  assert.deepEqual(empty.home?.sites, []);
-  assert.equal(error.unavailable, true);
-  assert.equal(error.home, null);
-});
-
 test('refreshes home data through the same-origin web endpoint', async () => {
   let requestURL: string | URL | Request | undefined;
   let requestInit: RequestInit | undefined;
-  const expected = createHomeMockState('cards').home;
-  assert.ok(expected);
+  const expected = { siteCount: 0, announcement: null, sites: [] };
 
   const result = await refreshHome(undefined, async (input, init) => {
     requestURL = input;
