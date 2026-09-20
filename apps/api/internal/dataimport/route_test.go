@@ -16,12 +16,13 @@ import (
 	"testing"
 	"time"
 
+	"heyblog-api/internal/apikey"
 	"heyblog-api/internal/application/publicview"
 	"heyblog-api/internal/config"
 	"heyblog-api/internal/httpapi"
 )
 
-const testImportToken = "test-temp-import-token-0123456789abcdef"
+const testImportToken = "hbk_abcdefghijkl_0123456789012345678901234567890123456789012"
 
 func TestRouteAuthenticatesBeforeReadingBody(t *testing.T) {
 	t.Parallel()
@@ -40,8 +41,22 @@ func TestRouteAuthenticatesBeforeReadingBody(t *testing.T) {
 	if body.reads != 0 || operation.calls != 0 {
 		t.Fatalf("body reads and operation calls = (%d, %d), want authentication first", body.reads, operation.calls)
 	}
-	if got := response.Header().Get("WWW-Authenticate"); got != `Bearer realm="heyblog-temp-import"` {
-		t.Fatalf("WWW-Authenticate = %q, want temporary import challenge", got)
+	if got := response.Header().Get("WWW-Authenticate"); got != `Bearer realm="heyblog-api", scope="data_import.write"` {
+		t.Fatalf("WWW-Authenticate = %q, want scoped API challenge", got)
+	}
+}
+
+func TestOldTemporaryRouteIsNotRegistered(t *testing.T) {
+	t.Parallel()
+
+	router := newImportTestRouter(t, &recordingOperation{})
+	request := httptest.NewRequest(http.MethodPost, "/internal/temp/data-import", nil)
+	request.Header.Set("Authorization", "Bearer "+testImportToken)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
 }
 
@@ -217,8 +232,17 @@ func newImportTestRouter(t *testing.T, operation ImportOperation) *httpapi.Route
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)
 	}
-	RegisterRoutes(router.API, operation, testImportToken, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	RegisterRoutes(router.API, operation, importTestAuthenticator{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return router
+}
+
+type importTestAuthenticator struct{}
+
+func (importTestAuthenticator) Authenticate(_ context.Context, token string, policy apikey.AccessPolicy) (apikey.Principal, error) {
+	if token != testImportToken || len(policy.Audiences) != 1 || policy.Audiences[0] != apikey.AudienceInternal || policy.Scope != apikey.ScopeDataImportWrite {
+		return apikey.Principal{}, apikey.ErrInvalidToken
+	}
+	return apikey.Principal{ClientID: "client", KeyID: "key", Audience: apikey.AudienceInternal, Scopes: []apikey.Scope{policy.Scope}}, nil
 }
 
 func multipartImportRequest(t *testing.T, blogs, graph []byte) *http.Request {

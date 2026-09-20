@@ -73,7 +73,8 @@ http:
     # Only exact http/https origins are accepted; wildcard origins are not supported.
     # Arrays in conf.yaml replace this list rather than appending to it.
     allow_origins: []
-    allow_credentials: true
+    # Public browser access is anonymous and never receives cookies or service credentials.
+    allow_credentials: false
 
 health:
   # Total deadline for concurrent PostgreSQL and Redis readiness probes.

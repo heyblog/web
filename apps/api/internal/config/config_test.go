@@ -70,7 +70,6 @@ auth:
 
 const testHealthcheckToken = "test-healthcheck-token-0123456789abcdef"
 const testWebToken = "test-web-service-token-0123456789abcdef"
-const testTempImportToken = "test-temp-import-token-0123456789abcdef"
 const testDevelopmentOverrideYAML = "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101\n"
 
 func TestLoadMergesRequiredOverrideAndExternalBindings(t *testing.T) {
@@ -106,8 +105,7 @@ auth:
 		got.Database.URL != serviceEnvironment("API_DATABASE_URL") ||
 		got.Redis.URL != serviceEnvironment("API_REDIS_URL") ||
 		got.HealthcheckToken != serviceEnvironment("API_HEALTHCHECK_TOKEN") ||
-		got.WebToken != serviceEnvironment("API_WEB_TOKEN") ||
-		got.TempImportToken != serviceEnvironment("API_TEMP_IMPORT_TOKEN") {
+		got.WebToken != serviceEnvironment("API_WEB_TOKEN") {
 		t.Fatal("external service bindings were not loaded from the process environment source")
 	}
 	if got.Auth.WebBaseURL != "https://www.heyblog.net" {
@@ -257,7 +255,6 @@ func serviceEnvironment(key string) string {
 		"API_MAIL_SMTP_URL":          "smtp://example.test:1025",
 		"API_HEALTHCHECK_TOKEN":      testHealthcheckToken,
 		"API_WEB_TOKEN":              testWebToken,
-		"API_TEMP_IMPORT_TOKEN":      testTempImportToken,
 		"API_AUTH_ACCESS_SECRET":     "test-auth-access-secret-0123456789abcdef",
 		"API_AUTH_REFRESH_SECRET":    "test-auth-refresh-secret-0123456789abcdef",
 		"API_GITHUB_CLIENT_ID":       "github-client-id",

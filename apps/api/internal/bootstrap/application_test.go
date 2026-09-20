@@ -33,7 +33,7 @@ func TestRunClosesDependenciesWhenListenFails(t *testing.T) {
 				return nil
 			}}, nil
 		},
-		newHandler: func(httpapi.Options, runtimeDependencies, config.Config, string) (http.Handler, error) {
+		newHandler: func(httpapi.Options, runtimeDependencies, config.Config) (http.Handler, error) {
 			return http.NewServeMux(), nil
 		},
 		newServer: func(http.Handler) managedHTTPServer { return &stubHTTPServer{} },
@@ -96,7 +96,6 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	var health *httpapi.Health
 	var healthcheckToken string
 	var webToken string
-	var tempImportToken string
 	wantPool := &pgxpool.Pool{}
 	wantViews := publicview.New(nil)
 	dependencies.pool = wantPool
@@ -104,7 +103,7 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	err := run(ctx, applicationTestConfig(), discardLogger(), applicationOperations{
 		listen:           func(string, string) (net.Listener, error) { return &stubListener{}, nil },
 		openDependencies: func(context.Context, config.Config) (runtimeDependencies, error) { return dependencies, nil },
-		newHandler: func(options httpapi.Options, runtime runtimeDependencies, _ config.Config, importToken string) (http.Handler, error) {
+		newHandler: func(options httpapi.Options, runtime runtimeDependencies, _ config.Config) (http.Handler, error) {
 			health = options.Health
 			healthcheckToken = options.HealthcheckToken
 			webToken = options.WebToken
@@ -114,7 +113,6 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 			if runtime.DatabasePool() != wantPool {
 				t.Fatalf("database pool = %p, want %p", runtime.DatabasePool(), wantPool)
 			}
-			tempImportToken = importToken
 			return http.NewServeMux(), nil
 		},
 		newServer: func(http.Handler) managedHTTPServer { return server },
@@ -134,9 +132,6 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	}
 	if webToken != applicationTestConfig().WebToken {
 		t.Fatalf("web token = %q, want configured token", webToken)
-	}
-	if tempImportToken != applicationTestConfig().TempImportToken {
-		t.Fatalf("temp import token = %q, want configured token", tempImportToken)
 	}
 }
 
@@ -160,7 +155,6 @@ func applicationTestConfig() config.Config {
 		Mode:             config.ModeDevelopment,
 		HealthcheckToken: "test-healthcheck-token-0123456789abcdef",
 		WebToken:         "test-web-service-token-0123456789abcdef",
-		TempImportToken:  "test-temp-import-token-0123456789abcdef",
 		Server:           config.ServerConfig{Host: "127.0.0.1", Port: 10201},
 		HTTP: config.HTTPConfig{
 			ReadHeaderTimeout: time.Second,

@@ -119,6 +119,15 @@ path. Management pages additionally enforce the API-provided role and permission
   cache public reads only with a clear invalidation strategy.
 - For live or partial updates, refresh the affected data region instead of reloading the full page.
 
+API credential management uses a client list with a modal detail sheet and same-origin endpoints
+under `/management/api-keys`. `src/application/api-keys` owns typed response parsing, request
+failures, permission options, key status derivation, and per-island operation state. Internal and
+external clients default to `example.call`; only internal clients may select `data_import.write`.
+Enabled clients without an active key can issue a new key; otherwise use rotation. Keep one-time
+secrets in the result view's memory only and preserve them if a subsequent list refresh fails.
+Metadata updates and rotation responses do not contain complete key history; refresh the list
+without replacing existing history with those partial results.
+
 ## Proxy, Authentication, and Error Rules
 
 - Same-origin endpoints must be purpose-built; never create an unrestricted upstream proxy.

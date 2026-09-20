@@ -89,8 +89,8 @@ func securityHeadersMiddleware() gin.HandlerFunc {
 }
 
 func corsMiddleware(configuration config.CORSConfig) gin.HandlerFunc {
-	allowedMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}
-	allowedHeaders := []string{"Content-Type", "Authorization", RequestIDHeader}
+	allowedMethods := []string{http.MethodGet, http.MethodHead, http.MethodOptions}
+	allowedHeaders := []string{RequestIDHeader}
 	return func(ctx *gin.Context) {
 		origin := ctx.GetHeader("Origin")
 		if origin == "" {

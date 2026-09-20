@@ -34,10 +34,6 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	tempImportToken, err := resolveBearerToken(getenv, "API_TEMP_IMPORT_TOKEN")
-	if err != nil {
-		return Config{}, err
-	}
 	host, err := resolveHost(values.Mode, values.Server.Host)
 	if err != nil {
 		return Config{}, err
@@ -60,7 +56,6 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 		MigrationDatabaseURL: migrationURL,
 		HealthcheckToken:     healthcheckToken,
 		WebToken:             webToken,
-		TempImportToken:      tempImportToken,
 		Server:               ServerConfig{Host: host, Port: values.Server.Port},
 		Database: DatabaseConfig{
 			URL:                   databaseURL,

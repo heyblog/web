@@ -28,6 +28,9 @@ type Querier interface {
 	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
 	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
+	CreateAPIClient(ctx context.Context, arg CreateAPIClientParams) (IdentityApiClient, error)
+	CreateAPIClientScope(ctx context.Context, arg CreateAPIClientScopeParams) error
+	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (IdentityApiKey, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
 	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
 	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error
@@ -37,6 +40,7 @@ type Querier interface {
 	CreateTag(ctx context.Context, arg CreateTagParams) (DirectoryTag, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (IdentityUser, error)
 	CreateUserManagementPermission(ctx context.Context, arg CreateUserManagementPermissionParams) error
+	DeleteAPIClientScopes(ctx context.Context, clientID pgtype.UUID) error
 	DeleteDraftAnnouncement(ctx context.Context, id pgtype.UUID) (int64, error)
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
 	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
@@ -46,11 +50,15 @@ type Querier interface {
 	DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) error
 	DeleteUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) error
 	DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error
+	DirectoryIsEmpty(ctx context.Context) (bool, error)
 	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
+	FindAPIKeyCredential(ctx context.Context, publicID string) (FindAPIKeyCredentialRow, error)
+	GetAPIClient(ctx context.Context, id pgtype.UUID) (IdentityApiClient, error)
 	GetActiveBannerAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetEnabledSiteTagCascadeRow, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
+	GetLatestActiveAPIKey(ctx context.Context, arg GetLatestActiveAPIKeyParams) (IdentityApiKey, error)
 	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
@@ -70,7 +78,23 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserByUsername(ctx context.Context, username string) (IdentityUser, error)
 	GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error)
+	ImportLockCapacity(ctx context.Context) (int32, error)
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
+	InsertFeed(ctx context.Context, arg InsertFeedParams) error
+	InsertFriendLinks(ctx context.Context, links []byte) error
+	InsertOrigin(ctx context.Context, arg InsertOriginParams) error
+	InsertResource(ctx context.Context, arg InsertResourceParams) error
+	InsertSite(ctx context.Context, arg InsertSiteParams) error
+	InsertSiteSoftwareComponent(ctx context.Context, arg InsertSiteSoftwareComponentParams) error
+	InsertSiteTag(ctx context.Context, arg InsertSiteTagParams) error
+	InsertSoftwareComponent(ctx context.Context, arg InsertSoftwareComponentParams) error
+	InsertSoftwareDependency(ctx context.Context, arg InsertSoftwareDependencyParams) error
+	InsertSource(ctx context.Context, arg InsertSourceParams) (pgtype.UUID, error)
+	InsertTag(ctx context.Context, arg InsertTagParams) error
+	ListAPIClientScopes(ctx context.Context) ([]IdentityApiClientScope, error)
+	ListAPIClientScopesByClient(ctx context.Context, clientID pgtype.UUID) ([]string, error)
+	ListAPIClients(ctx context.Context) ([]IdentityApiClient, error)
+	ListAPIKeys(ctx context.Context) ([]ListAPIKeysRow, error)
 	ListActiveMainAnnouncements(ctx context.Context) ([]ContentAnnouncement, error)
 	ListAnnouncementRevisions(ctx context.Context, announcementID pgtype.UUID) ([]ContentAnnouncementRevision, error)
 	ListAnnouncementsForManagement(ctx context.Context, arg ListAnnouncementsForManagementParams) ([]ListAnnouncementsForManagementRow, error)
@@ -109,6 +133,8 @@ type Querier interface {
 	RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams) (DirectorySiteAudit, error)
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error
 	RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	RetireAPIKeyForRotation(ctx context.Context, arg RetireAPIKeyForRotationParams) error
+	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	SaveSiteAuditReviewDraft(ctx context.Context, arg SaveSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
 	SearchSitesForSubmission(ctx context.Context, query string) ([]DirectorySite, error)
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
@@ -116,12 +142,15 @@ type Querier interface {
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
 	SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	TouchAPIKeyUsage(ctx context.Context, arg TouchAPIKeyUsageParams) error
+	TryAcquireImportLock(ctx context.Context, lockName string) (bool, error)
 	UnassignAllSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) error
 	UnassignAllSiteTags(ctx context.Context, siteID pgtype.UUID) error
 	UnassignSiteSoftwareComponent(ctx context.Context, arg UnassignSiteSoftwareComponentParams) error
 	UnassignSiteTag(ctx context.Context, arg UnassignSiteTagParams) error
 	UnassignSiteTertiaryTags(ctx context.Context, siteID pgtype.UUID) error
 	UnlinkOAuthIdentity(ctx context.Context, arg UnlinkOAuthIdentityParams) error
+	UpdateAPIClient(ctx context.Context, arg UpdateAPIClientParams) (IdentityApiClient, error)
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (ContentAnnouncement, error)
 	UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressParams) (DirectorySite, error)
 	UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSiteDirectoryProfileParams) (DirectorySite, error)

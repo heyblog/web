@@ -10,12 +10,13 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"heyblog-api/internal/apikey"
 	"heyblog-api/internal/apperror"
 	"heyblog-api/internal/httpapi"
 )
 
 const (
-	Path          = "/internal/temp/data-import"
+	Path          = "/internal/v1/data-import"
 	ImportTimeout = 90 * time.Minute
 )
 
@@ -54,16 +55,16 @@ func BodyLimitOverrides() map[httpapi.Route]int64 {
 	return map[httpapi.Route]int64{{Method: http.MethodPost, Path: Path}: TotalBodyLimit}
 }
 
-func RegisterRoutes(api huma.API, operation ImportOperation, token string, logger *slog.Logger) {
+func RegisterRoutes(api huma.API, operation ImportOperation, authenticator apikey.Authenticator, logger *slog.Logger) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	httpapi.Register(api, huma.Operation{
-		OperationID:     "import-temporary-data",
+		OperationID:     "import-internal-data",
 		Method:          http.MethodPost,
 		Path:            Path,
-		Summary:         "Import temporary migration data",
-		Tags:            []string{"internal migration"},
+		Summary:         "Import internal migration data",
+		Tags:            []string{"internal data"},
 		MaxBodyBytes:    TotalBodyLimit,
 		BodyReadTimeout: ImportTimeout,
 		Errors: []int{
@@ -74,9 +75,11 @@ func RegisterRoutes(api huma.API, operation ImportOperation, token string, logge
 			http.StatusUnprocessableEntity,
 			http.StatusServiceUnavailable,
 		},
-		Security: []map[string][]string{{"importBearer": {}}},
+		Security: []map[string][]string{{"apiBearer": {string(apikey.ScopeDataImportWrite)}}},
 		Middlewares: huma.Middlewares{
-			httpapi.HumaBearerAuthorization(token, "heyblog-temp-import"),
+			apikey.HumaAuthorization(authenticator, apikey.AccessPolicy{
+				Audiences: []apikey.Audience{apikey.AudienceInternal}, Scope: apikey.ScopeDataImportWrite,
+			}),
 		},
 	}, func(ctx context.Context, input *importInput) (*importOutput, error) {
 		started := time.Now()
@@ -97,8 +100,8 @@ func RegisterRoutes(api huma.API, operation ImportOperation, token string, logge
 		if err != nil {
 			return nil, mapImportError(err)
 		}
-		logger.InfoContext(operationContext, "temporary data import completed",
-			"event", "temp_data_import_completed",
+		logger.InfoContext(operationContext, "internal data import completed",
+			"event", "internal_data_import_completed",
 			"blogs_sha256", upload.BlogsSHA256,
 			"graph_sha256", upload.GraphSHA256,
 			"taxonomy_sha256", upload.TaxonomySHA256,
@@ -130,7 +133,7 @@ func cleanupImportForm(form *importForm, removeAll func() error, logger *slog.Lo
 	}
 	cleanupErr = errors.Join(cleanupErr, removeAll())
 	if cleanupErr != nil {
-		logger.Warn("temporary data import upload cleanup failed", slog.Any("error", cleanupErr))
+		logger.Warn("internal data import upload cleanup failed", slog.Any("error", cleanupErr))
 	}
 }
 
@@ -169,19 +172,19 @@ func decodeFormUpload(form *importForm) (uploadedBundles, error) {
 func mapImportError(err error) error {
 	switch {
 	case errors.Is(err, errMalformedUpload):
-		return apperror.Wrap(err, apperror.KindBadRequest, apperror.CodeBadRequest, "multipart upload is invalid", "decode temporary import upload")
+		return apperror.Wrap(err, apperror.KindBadRequest, apperror.CodeBadRequest, "multipart upload is invalid", "decode internal import upload")
 	case errors.Is(err, errUploadTooLarge):
-		return apperror.Wrap(err, apperror.KindTooLarge, apperror.CodeRequestTooLarge, "uploaded data exceeds the allowed size", "decode temporary import upload")
+		return apperror.Wrap(err, apperror.KindTooLarge, apperror.CodeRequestTooLarge, "uploaded data exceeds the allowed size", "decode internal import upload")
 	case errors.Is(err, errInvalidContract), errors.Is(err, ErrInvalidBundle):
-		return apperror.Wrap(err, apperror.KindValidation, apperror.CodeValidationFailed, "cleaned import data is invalid", "validate temporary import data")
+		return apperror.Wrap(err, apperror.KindValidation, apperror.CodeValidationFailed, "cleaned import data is invalid", "validate internal import data")
 	case errors.Is(err, ErrImportRunning):
-		return apperror.Wrap(err, apperror.KindConflict, apperror.CodeConflict, "a data import is already running", "start temporary import")
+		return apperror.Wrap(err, apperror.KindConflict, apperror.CodeConflict, "a data import is already running", "start internal import")
 	case errors.Is(err, ErrDirectoryNotEmpty):
-		return apperror.Wrap(err, apperror.KindConflict, apperror.CodeConflict, "the directory already contains data", "start temporary import")
+		return apperror.Wrap(err, apperror.KindConflict, apperror.CodeConflict, "the directory already contains data", "start internal import")
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded), errors.Is(err, ErrDependencyUnavailable):
-		return unavailableError(err, "run temporary import")
+		return unavailableError(err, "run internal import")
 	default:
-		return apperror.Wrap(err, apperror.KindInternal, apperror.CodeInternal, "data import failed", "run temporary import")
+		return apperror.Wrap(err, apperror.KindInternal, apperror.CodeInternal, "data import failed", "run internal import")
 	}
 }
 

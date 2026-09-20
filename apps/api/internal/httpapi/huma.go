@@ -31,7 +31,7 @@ func HumaWebAuthorization(expectedToken string) func(huma.Context, func(huma.Con
 	return func(ctx huma.Context, next func(huma.Context)) {
 		actualDigest := sha256.Sum256([]byte(ctx.Header(WebTokenHeader)))
 		if subtle.ConstantTimeCompare(actualDigest[:], expectedDigest[:]) != 1 {
-			rejectHumaRequest(ctx, apperror.New(
+			RejectHumaRequest(ctx, apperror.New(
 				apperror.KindUnauthorized,
 				apperror.CodeUnauthorized,
 				"web service authentication is required",
@@ -51,7 +51,7 @@ func HumaBearerAuthorization(expectedToken, realm string) func(huma.Context, fun
 		if !found || !strings.EqualFold(scheme, "Bearer") ||
 			subtle.ConstantTimeCompare(actualDigest[:], expectedDigest[:]) != 1 {
 			ctx.SetHeader("WWW-Authenticate", challenge)
-			rejectHumaRequest(ctx, apperror.New(
+			RejectHumaRequest(ctx, apperror.New(
 				apperror.KindUnauthorized,
 				apperror.CodeUnauthorized,
 				"authentication is required",
@@ -67,7 +67,7 @@ func HumaRateLimit(limiter RateLimiter, policy ratelimit.Policy) func(huma.Conte
 		native := humagin.Unwrap(ctx)
 		decision, err := limiter.Allow(ctx.Context(), native.ClientIP(), policy)
 		if err != nil {
-			rejectHumaRequest(ctx, apperror.Wrap(
+			RejectHumaRequest(ctx, apperror.Wrap(
 				err,
 				apperror.KindUnavailable,
 				apperror.CodeServiceUnavailable,
@@ -81,7 +81,7 @@ func HumaRateLimit(limiter RateLimiter, policy ratelimit.Policy) func(huma.Conte
 		ctx.SetHeader("RateLimit-Reset", durationSeconds(decision.ResetAfter))
 		if !decision.Allowed {
 			ctx.SetHeader("Retry-After", durationSeconds(decision.RetryAfter))
-			rejectHumaRequest(ctx, apperror.New(
+			RejectHumaRequest(ctx, apperror.New(
 				apperror.KindRateLimited,
 				apperror.CodeRateLimited,
 				"request rate limit exceeded",
@@ -92,7 +92,7 @@ func HumaRateLimit(limiter RateLimiter, policy ratelimit.Policy) func(huma.Conte
 	}
 }
 
-func rejectHumaRequest(ctx huma.Context, err error) {
+func RejectHumaRequest(ctx huma.Context, err error) {
 	native := humagin.Unwrap(ctx)
 	_ = native.Error(err)
 	native.Abort()

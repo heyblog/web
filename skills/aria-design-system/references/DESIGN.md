@@ -277,6 +277,12 @@ minWidth 192px、radius.md、1px 边框 + `shadow.sm`、内边距 4px。菜单�
 
 maxWidth 480px、radius.md、`shadow.md`、内边距 24px。遮罩 `overlay.scrim`（light：slate-900 @60%；dark：zinc-950 @70%）。入场：遮罩 fade，面板 `scale(0.96)`→1 + fade（duration.base / easing.out）；关闭使用 duration.fast。关闭方式：Esc / 点遮罩 / 关闭按钮；打开时锁定 body 滚动，将焦点移入并圈定在面板内，关闭动画完成后隐藏并归还焦点。
 
+#### 7.8.1 详情侧栏 / Detail Sheet
+
+管理端列表的详情使用右侧模态侧栏：`sm` 起宽 480px，低于 `sm` 占满视口，使用动态视口高度。标题与操作区保持可见，内容区独立滚动；内边距 24px，表面、边框、遮罩及阴影复用 Modal 语义。侧栏贴合视口边缘，不使用外圆角。
+
+同一时刻只有一个活动浮层；编辑、确认操作在当前侧栏内切换，创建与一次性结果使用居中 Modal。未保存表单关闭前确认放弃，提交期间防止重复操作。打开与步骤切换时移入焦点，关闭后归还列表触发器；背景不可交互且锁定滚动。入场位移 8px 加淡入（250ms），退出淡出 150ms；减少动态效果时取消位移，仅保留不超过 150ms 的淡出。
+
 ### 7.9 Toast 轻提示
 
 宽 360px、radius.md、`shadow.md`，固定右下角，普通消息使用礼貌播报，错误消息使用即时播报。入场 translateX(16px)→0 + fade（duration.slow / easing.out）；4s 自动消退（出场 duration.base）；状态使用可中断 transition，快速关闭时从当前视觉位置继续；hover 或键盘焦点进入时暂停计时，可手动关闭；多条纵向堆叠 gap 8px。

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +36,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		WebToken:           configuration.WebToken,
 		PublicViews:        dependencies.PublicViews(),
 		BodyLimitOverrides: nil,
-	}, dependencies, configuration, configuration.TempImportToken)
+	}, dependencies, configuration)
 	if err != nil {
 		t.Fatalf("newApplicationHandler() error = %v", err)
 	}
@@ -67,6 +68,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	}
 	wantedPaths := []string{
 		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options",
+		"/v1/example",
 		"/sites/id/{identifier}", "/sites/id/{identifier}/icon", "/sites/custom/{customId}",
 		"/auth/register", "/auth/login", "/auth/me", "/auth/refresh", "/auth/logout",
 		"/auth/verify-email", "/auth/verify-email/resend", "/auth/password/forgot",
@@ -79,7 +81,10 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/site-submissions/sites", "/site-submissions/sites/{shortId}",
 		"/management/site-audits", "/management/site-audits/{auditId}",
 		"/management/site-audits/{auditId}/review-draft",
-		"/management/site-audits/{auditId}/review", "/internal/temp/data-import",
+		"/management/site-audits/{auditId}/review", "/internal/v1/data-import",
+		"/management/api-clients", "/management/api-clients/{id}",
+		"/management/api-clients/{id}/rotate", "/management/api-keys/{id}/revoke",
+		"/management/api-clients/{id}/keys",
 	}
 	if len(raw.Paths) != len(wantedPaths) {
 		t.Fatalf("documented path count = %d, want %d", len(raw.Paths), len(wantedPaths))
@@ -89,7 +94,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			t.Errorf("generated OpenAPI is missing %s", path)
 		}
 	}
-	for _, name := range []string{"webToken", "healthBearer", "importBearer", "accessCookie", "refreshCookie"} {
+	for _, name := range []string{"webToken", "healthBearer", "apiBearer", "accessCookie", "refreshCookie"} {
 		if _, exists := raw.Components.SecuritySchemes[name]; !exists {
 			t.Errorf("generated OpenAPI is missing security scheme %s", name)
 		}
@@ -105,6 +110,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		{method: "delete", path: "/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/management/site-audits/{auditId}/review", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/auth/refresh", schemes: []string{"webToken", "refreshCookie"}},
+		{method: "post", path: "/management/api-clients/{id}/keys", schemes: []string{"webToken", "accessCookie"}},
 	}
 	for _, test := range securityCases {
 		var operation struct {
@@ -123,10 +129,22 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			}
 		}
 	}
-	methods := map[string]struct{}{
-		"get": {}, "post": {}, "put": {}, "patch": {}, "delete": {},
+	exampleMethods := []string{"get", "head", "post", "put", "patch", "delete", "options"}
+	for _, method := range exampleMethods {
+		var operation struct {
+			Security []map[string][]string `json:"security"`
+		}
+		if err := json.Unmarshal(raw.Paths["/v1/example"][method], &operation); err != nil {
+			t.Fatalf("decode %s /v1/example security: %v", method, err)
+		}
+		if len(operation.Security) != 1 || !slices.Equal(operation.Security[0]["apiBearer"], []string{"example.call"}) {
+			t.Errorf("%s /v1/example security = %#v, want apiBearer example.call", method, operation.Security)
+		}
 	}
-	operationIDs := make(map[string]string, 40)
+	methods := map[string]struct{}{
+		"get": {}, "head": {}, "post": {}, "put": {}, "patch": {}, "delete": {}, "options": {},
+	}
+	operationIDs := make(map[string]string, 52)
 	operationCount := 0
 	for path, pathItem := range raw.Paths {
 		for method, encoded := range pathItem {
@@ -150,13 +168,13 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 40 {
-		t.Fatalf("documented operation count = %d, want 40", operationCount)
+	if operationCount != 53 {
+		t.Fatalf("documented operation count = %d, want 53", operationCount)
 	}
-	importOperation := raw.Paths["/internal/temp/data-import"]["post"]
+	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||
 		!strings.Contains(string(importOperation), `"blogs"`) ||
 		!strings.Contains(string(importOperation), `"taxonomy"`) {
-		t.Fatalf("temporary import operation does not contain its typed multipart contract")
+		t.Fatalf("internal import operation does not contain its typed multipart contract")
 	}
 }

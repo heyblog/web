@@ -32,7 +32,6 @@ services:
       API_DATABASE_URL: ${API_DATABASE_URL:?API_DATABASE_URL is required}
       API_REDIS_URL: ${API_REDIS_URL:?API_REDIS_URL is required}
       API_HEALTHCHECK_TOKEN: ${API_HEALTHCHECK_TOKEN:?API_HEALTHCHECK_TOKEN is required}
-      API_TEMP_IMPORT_TOKEN: ${API_TEMP_IMPORT_TOKEN:?API_TEMP_IMPORT_TOKEN is required}
       API_WEB_TOKEN: ${API_WEB_TOKEN:?API_WEB_TOKEN is required}
       API_AUTH_ACCESS_SECRET: ${API_AUTH_ACCESS_SECRET:?API_AUTH_ACCESS_SECRET is required}
       API_AUTH_REFRESH_SECRET: ${API_AUTH_REFRESH_SECRET:?API_AUTH_REFRESH_SECRET is required}
@@ -48,6 +47,8 @@ services:
         condition: service_healthy
     expose:
       - '10201'
+    ports:
+      - '127.0.0.1:${API_HOST_PORT:-10201}:10201'
     volumes:
       - type: bind
         source: ${API_CONFIG_FILE:-../../apps/api/config/conf.yaml}

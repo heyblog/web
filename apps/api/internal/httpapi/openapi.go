@@ -79,9 +79,10 @@ func securitySchemes() map[string]*huma.SecurityScheme {
 			Type:   "http",
 			Scheme: "bearer",
 		},
-		"importBearer": {
-			Type:   "http",
-			Scheme: "bearer",
+		"apiBearer": {
+			Type:        "http",
+			Scheme:      "bearer",
+			Description: "Scoped HeyBlog API key issued by a system administrator.",
 		},
 		"accessCookie": {
 			Type: "apiKey",

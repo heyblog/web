@@ -29,6 +29,7 @@ interface Props {
 
 const { title, heading, currentPath, eyebrow = '管理中心', identity, navigation } = Astro.props;
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
+const activeNavigation = navigation.find((item) => isActive(item.href));
 ---
 
 <BaseLayout {title} enableAnalytics={false} bodyClass="min-h-dvh">
@@ -62,7 +63,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
           class="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold lg:hidden [&::-webkit-details-marker]:hidden"
           data-management-navigation-trigger
         >
-          <span>管理导航</span>
+          <span>{activeNavigation?.label ?? '管理导航'}</span>
           <IconChevronDown
             class="shrink-0 transition-transform duration-(--motion-base) ease-standard group-data-[details-state=open]:rotate-180 motion-reduce:transition-none motion-reduce:duration-0"
             data-management-navigation-chevron
