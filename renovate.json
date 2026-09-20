@@ -129,9 +129,9 @@
         "heyblog/api",
         "heyblog/web",
         "heyblog/worker",
-        "ccr.ccs.tencentyun.com/heyblog/api",
-        "ccr.ccs.tencentyun.com/heyblog/web",
-        "ccr.ccs.tencentyun.com/heyblog/worker"
+        "sgccr.ccs.tencentyun.com/heyblog/api",
+        "sgccr.ccs.tencentyun.com/heyblog/web",
+        "sgccr.ccs.tencentyun.com/heyblog/worker"
       ],
       "enabled": false
     },
