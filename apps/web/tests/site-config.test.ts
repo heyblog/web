@@ -59,3 +59,9 @@ test('trusts the canonical production origin behind the reverse proxy', async ()
   assert.match(source, /allowedDomains:/u);
   assert.match(source, /hostname: 'www\.heyblog\.net'/u);
 });
+
+test('prebundles the CommonJS QR dependency for development SSR', async () => {
+  const source = await readFile(new URL('../astro.config.ts', import.meta.url), 'utf8');
+
+  assert.match(source, /optimizeDeps:\s*\{\s*include:\s*\['qrcode'\]\s*\}/u);
+});

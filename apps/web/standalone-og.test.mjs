@@ -110,6 +110,16 @@ if (process.argv[2] === '--child') {
       assert.ok(html.includes('property="og:image:height" content="630"'));
       const path = imagePath(html);
       assert.ok(path);
+      const cardTrigger = html.match(/<button[^>]*data-site-card-trigger[^>]*>/u)?.[0];
+      assert.ok(cardTrigger);
+      assert.ok(cardTrigger.includes('aria-haspopup="dialog"'));
+      const cardDialog = html.match(
+        /<dialog[^>]*data-site-card-dialog[^>]*>[\s\S]*?<\/dialog>/u,
+      )?.[0];
+      assert.ok(cardDialog);
+      assert.ok(cardDialog.includes(`src="${path}"`));
+      assert.equal(cardDialog.includes('target="_blank"'), false);
+      assert.equal(cardDialog.includes('download='), false);
       const image = await get(path);
       const bytes = new Uint8Array(await image.arrayBuffer());
 

@@ -1,11 +1,15 @@
 ---
 import { IconExternalLink } from '@tabler/icons-svelte';
 
+import { siteOgImagePath } from '@/application/site-og/site-og.model';
 import type { SiteProfile } from '@/application/site-profile/site-profile.server';
+
+import SiteCardPreview from './SiteCardPreview.svelte';
 interface Props {
   profile: SiteProfile;
 }
 const { profile } = Astro.props;
+const cardImagePath = siteOgImagePath(profile);
 const accessScopeLabels: Record<SiteProfile['accessScope'], string> = {
   ALL: '全球可访问',
   CN_ONLY: '仅中国大陆可访问',
@@ -90,6 +94,11 @@ const badgeClass =
       >
         访问博客<IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
       </a>
+      <SiteCardPreview
+        client:load
+        imagePath={cardImagePath}
+        imageAlt={`${profile.name}的博客分享卡片`}
+      />
     </div>
   </div>
 </section>

@@ -54,7 +54,10 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
-    ssr: { noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs'] },
+    ssr: {
+      noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs'],
+      optimizeDeps: { include: ['qrcode'] },
+    },
   },
   integrations: [buildMetadataIntegration(), svelte(), mdx(), sitemap()],
 });
