@@ -130,6 +130,15 @@ func TestOpenExposesMailDependencies(t *testing.T) {
 	}
 }
 
+func TestOpenMailRejectsUnknownTransport(t *testing.T) {
+	t.Parallel()
+
+	_, err := openMail(context.Background(), config.MailConfig{Transport: "unknown"})
+	if err == nil {
+		t.Fatal("openMail() error = nil, want unsupported transport error")
+	}
+}
+
 func TestDependenciesCloseIsIdempotentAndReverseOrder(t *testing.T) {
 	t.Parallel()
 

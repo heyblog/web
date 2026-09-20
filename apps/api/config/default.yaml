@@ -23,6 +23,11 @@ redis:
   write_timeout: 2s
 
 mail:
+  # auto selects local SMTP in development and AWS SES in production.
+  transport: auto
+  smtp:
+    # Total connection and delivery deadline for the development SMTP capture service.
+    timeout: 5s
   ses:
     # AWS SES region. Deployment credentials are resolved through the AWS SDK default chain.
     region: ap-southeast-1

@@ -62,11 +62,13 @@ cp apps/api/config/conf.development.example.yaml apps/api/config/conf.yaml
 | `API_MIGRATION_DATABASE_URL` | `postgres://migrator:migrator_dev@127.0.0.1:5432/heyblog?sslmode=disable` | Goose 迁移连接 |
 | `API_DATABASE_URL` | `postgres://api_runtime:api_runtime_dev@127.0.0.1:5432/heyblog?sslmode=disable` | API 运行时连接池 |
 | `API_REDIS_URL` | `redis://127.0.0.1:6379/0` | Redis 连接 |
+| `API_MAIL_SMTP_URL` | `smtp://127.0.0.1:1025` | Mailpit SMTP 捕获服务 |
 | `API_HEALTHCHECK_TOKEN` | `development-healthcheck-token-0123456789` | API 健康检查认证 |
 | `API_WEB_TOKEN` | `development-web-service-token-0123456789` | Web 到 API 的服务认证 |
 | `WEB_API_BASE_URL` | `http://127.0.0.1:10201` | Web SSR 使用的 API 地址 |
 
-默认密码和令牌仅适用于本机开发。需要测试邮件或 GitHub OAuth 时，再在未跟踪的环境文件中填写模板声明的 AWS 和 GitHub 变量。
+默认密码和令牌仅适用于本机开发。开发邮件默认由 Mailpit 捕获，无需 AWS 凭据；GitHub OAuth
+仍需在未跟踪的环境文件中填写 GitHub 变量。
 
 启动开发依赖：
 
@@ -83,6 +85,11 @@ task web:dev
 
 Web 默认地址为 `http://127.0.0.1:10101`，API 默认地址为 `http://127.0.0.1:10201`。浏览器数据请求通过 Web 同源端点转发到 API。本地 GitHub OAuth callback 为 `http://127.0.0.1:10101/auth/github/callback`。
 
+Mailpit 收件箱位于 `http://127.0.0.1:8025`。注册、重新发送验证码、找回密码和站点审核
+通知都会进入该收件箱；可使用 `developer@example.test` 等本地地址完成完整认证流程。需要直接
+测试 AWS SES 时，在 `config/conf.yaml` 中设置 `mail.transport: ses`，并通过 AWS SDK 标准环境
+变量提供凭据。
+
 停止开发依赖并保留数据：
 
 ```bash
@@ -98,8 +105,10 @@ docker compose -f infra/docker/docker-compose.env.yaml down
 | `POSTGRES_RUNTIME_PASSWORD` | `api_runtime_dev` |
 | `POSTGRES_HOST_PORT` | `5432` |
 | `REDIS_HOST_PORT` | `6379` |
+| `MAILPIT_SMTP_HOST_PORT` | `1025` |
+| `MAILPIT_UI_HOST_PORT` | `8025` |
 
-修改端口或密码时同步更新 `.env.development`。角色密码只在 PostgreSQL 卷首次初始化时生效；已有卷不会随环境变量自动更新。
+修改数据库、Redis 或 Mailpit SMTP 端口时同步更新 `.env.development`。Mailpit UI 端口只影响浏览器访问。角色密码只在 PostgreSQL 卷首次初始化时生效；已有卷不会随环境变量自动更新。
 
 若确认本地 PostgreSQL 数据可以永久删除，可重建开发数据库卷：
 

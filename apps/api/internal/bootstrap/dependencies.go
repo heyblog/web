@@ -53,10 +53,19 @@ func Open(ctx context.Context, configuration config.Config) (*Dependencies, erro
 		closeDatabase: func(pool *pgxpool.Pool) { pool.Close() },
 		openRedis:     cache.OpenRedis,
 		closeRedis:    func(client *redis.Client) error { return client.Close() },
-		openMail: func(ctx context.Context, configuration config.MailConfig) (mail.Sender, error) {
-			return mail.OpenSES(ctx, configuration.SES.Region)
-		},
+		openMail:      openMail,
 	})
+}
+
+func openMail(ctx context.Context, configuration config.MailConfig) (mail.Sender, error) {
+	switch configuration.Transport {
+	case config.MailTransportSMTP:
+		return mail.OpenSMTP(ctx, configuration.SMTP.Address, configuration.SMTP.Timeout)
+	case config.MailTransportSES:
+		return mail.OpenSES(ctx, configuration.SES.Region)
+	default:
+		return nil, fmt.Errorf("unsupported mail transport %q", configuration.Transport)
+	}
 }
 
 func open(ctx context.Context, configuration config.Config, operations dependencyOperations) (*Dependencies, error) {

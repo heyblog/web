@@ -27,13 +27,14 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Keep API-specific configuration under an `API_` prefix when new environment variables are
   required. Never read real secret files during development or tests.
 - API development tasks load the repository-root `.env.development`; tests use isolated fixtures
-  and require no environment file. Production orchestrators inject the three external service URLs
+  and require no environment file. Development mail uses the Mailpit SMTP binding declared by
+  `API_MAIL_SMTP_URL`. Production orchestrators inject the three external service URLs
   plus `API_HEALTHCHECK_TOKEN`, `API_TEMP_IMPORT_TOKEN`, and `API_WEB_TOKEN` with Docker
   `--env-file` or Compose `env_file`. User authentication additionally requires
   `API_AUTH_ACCESS_SECRET`, `API_AUTH_REFRESH_SECRET`, `API_GITHUB_CLIENT_ID`, and
   `API_GITHUB_CLIENT_SECRET`; the image does not load dotenv files.
-  `internal/config/config.go` is the API's only process-environment reader and exports validated
-  typed configuration.
+  `internal/config` is the API's only process-environment reader and exports validated typed
+  configuration.
 - Keep the root development and production environment templates limited to application service
   bindings and tokens required by API and Web, grouped by owning module and shared boundary.
   Development dependency defaults belong in the development Compose file.
@@ -54,10 +55,12 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Environment variables own secrets, credentials, and deployment-injected external resource
   bindings. Non-sensitive server, logging, timeout, pool, CORS, proxy, and health policy belongs in
   YAML.
-- `mail.ses.region` and purpose-specific sender addresses belong in YAML. AWS SES credentials use the
-  AWS SDK standard environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional
-  `AWS_SESSION_TOKEN` for STS); never add credentials to YAML. Missing startup credentials fail API
-  bootstrap, while credentials that expire during runtime make mail operations unavailable.
+- `mail.transport: auto` selects SMTP in development and SES in production. Development SMTP uses
+  `API_MAIL_SMTP_URL`; production rejects SMTP. `mail.smtp.timeout`, `mail.ses.region`, and
+  purpose-specific sender addresses belong in YAML. AWS SES credentials use the AWS SDK standard
+  environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional
+  `AWS_SESSION_TOKEN` for STS); never add credentials to YAML. Missing startup dependencies fail API
+  bootstrap, while dependencies lost during runtime make mail operations unavailable.
 - Production containers use internal port `10201`; host exposure changes through container port
   mapping rather than production YAML overrides.
 
@@ -68,9 +71,10 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   operations so request and response Go types generate the runtime OpenAPI 3.1 contract. Expose
   `/openapi.json`, `/openapi.yaml`, and the embedded Swagger UI at `/swagger` only in development;
   do not commit generated contract files or expose an OpenAPI 3.0 downgrade.
-- Outbound email uses the official AWS SDK v2 SES v2 client. `internal/mail` owns the transport,
-  message validation, and purpose-specific templates; callers provide content through its typed
-  interfaces instead of constructing SES requests directly.
+- Outbound email uses local SMTP in development and the official AWS SDK v2 SES v2 client in
+  production. `internal/mail` owns the transports, message validation, and purpose-specific
+  templates; callers provide content through its typed interfaces instead of constructing SMTP or
+  SES requests directly.
 - Treat the current root `main.go` as a minimal composition root, not a pattern for placing the
   whole application in one file.
 - Keep `main.go` as the only Go source file in the module root. Place all other Go implementation
@@ -123,7 +127,7 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Propagate request cancellation and deadlines through application, database, cache, and outbound
   HTTP calls.
 - Browser authentication routes under `/auth/*` are web-internal and require `X-HeyBlog-Web-Token`.
-  Local authentication uses Argon2id passwords, six-digit SES email verification, one-time password
+  Local authentication uses Argon2id passwords, six-digit email verification, one-time password
   reset links, short-lived access JWTs, and Redis-backed rotating refresh sessions. Verification
   codes expire after ten minutes and password-reset links expire after thirty minutes. Register,
   resend-verification, and forgot-password requests retain their route/IP limits and share Redis
@@ -245,8 +249,8 @@ Run commands from the repository root:
 - `task api:dev`: run the API locally.
 - `task api:test`: run Go tests.
 - `task api:test:race`: run Go tests with the race detector.
-- `task api:test:integration`: run PostgreSQL/AGE and Redis container integration tests, including
-  the temporary import transaction and graph boundary.
+- `task api:test:integration`: run PostgreSQL/AGE, Redis, and Mailpit container integration tests,
+  including the temporary import transaction, graph boundary, and SMTP delivery path.
 - `task api:format:check`: check Go formatting and imports.
 - `task api:lint`: run golangci-lint.
 - `task api:build`: invoke the API build from the repository root; the module command runs in

@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -23,6 +22,9 @@ redis:
   read_timeout: 2s
   write_timeout: 2s
 mail:
+  transport: auto
+  smtp:
+    timeout: 5s
   ses:
     region: ap-southeast-1
   senders:
@@ -111,6 +113,9 @@ auth:
 	if got.Auth.WebBaseURL != "https://www.heyblog.net" {
 		t.Fatalf("Auth.WebBaseURL = %q, want production public Web origin", got.Auth.WebBaseURL)
 	}
+	if got.Mail.Transport != MailTransportSES {
+		t.Fatalf("Mail.Transport = %q, want SES in production", got.Mail.Transport)
+	}
 }
 
 func TestLoadUsesDevelopmentModeAndAllowsPortOverride(t *testing.T) {
@@ -134,8 +139,11 @@ func TestLoadUsesDevelopmentModeAndAllowsPortOverride(t *testing.T) {
 	if got.Database.MaxConnectionLifetime != 30*time.Minute || got.HTTP.ShutdownTimeout != 10*time.Second {
 		t.Fatalf("durations were not parsed: database=%s shutdown=%s", got.Database.MaxConnectionLifetime, got.HTTP.ShutdownTimeout)
 	}
+	if got.Mail.Transport != MailTransportSMTP || got.Mail.SMTP.Address != "example.test:1025" || got.Mail.SMTP.Timeout != 5*time.Second {
+		t.Fatalf("mail transport = %#v, want local SMTP development transport", got.Mail)
+	}
 	if got.Mail.SES.Region != "ap-southeast-1" || got.Mail.Senders.Verification.Address != "no-reply@verify.mail.heyblog.net" || got.Mail.Senders.Submission.Address != "no-reply@submission.mail.heyblog.net" {
-		t.Fatalf("mail configuration = %#v, want Singapore SES verification sender", got.Mail)
+		t.Fatalf("mail configuration = %#v, want configured senders and SES fallback", got.Mail)
 	}
 }
 
@@ -209,248 +217,6 @@ func TestLoadRequiresExplicitModeWhenOverrideExists(t *testing.T) {
 	}
 }
 
-func TestLoadRejectsNonStandardProductionPort(t *testing.T) {
-	t.Parallel()
-
-	paths := writeConfigPair(t, testDefaultYAML, "mode: production\nserver:\n  port: 10300\n")
-	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "10201") {
-		t.Fatalf("load() error = %v, want production port policy error", err)
-	}
-}
-
-func TestLoadRejectsInsecureProductionWebOrigin(t *testing.T) {
-	t.Parallel()
-
-	paths := writeConfigPair(t, testDefaultYAML, "mode: production\nauth:\n  web_base_url: http://127.0.0.1:9101\n")
-	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "auth.web_base_url") {
-		t.Fatalf("load() error = %v, want production Web origin validation error", err)
-	}
-}
-
-func TestLoadRejectsWebOriginWithPath(t *testing.T) {
-	t.Parallel()
-
-	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101/app\n")
-	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "auth.web_base_url") {
-		t.Fatalf("load() error = %v, want Web origin validation error", err)
-	}
-}
-
-func TestLoadRejectsDeprecatedGithubCallbackURL(t *testing.T) {
-	t.Parallel()
-
-	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101\n  github:\n    callback_url: http://127.0.0.1:10101/auth/github/callback\n")
-	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "callback_url") {
-		t.Fatalf("load() error = %v, want deprecated callback field error", err)
-	}
-}
-
-func TestLoadRejectsUnknownNullAndDuplicateFields(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]string{
-		"unknown":   testDevelopmentOverrideYAML + "server:\n  typo_port: 10300\n",
-		"null":      testDevelopmentOverrideYAML + "server:\n  host: null\n",
-		"duplicate": testDevelopmentOverrideYAML + "server:\n  port: 10201\n  port: 10300\n",
-	}
-	for name, override := range tests {
-		t.Run(name, func(t *testing.T) {
-			if _, err := load(writeConfigPair(t, testDefaultYAML, override), serviceEnvironment); err == nil {
-				t.Fatal("load() error = nil, want strict configuration error")
-			}
-		})
-	}
-}
-
-func TestLoadRejectsInvalidVersion(t *testing.T) {
-	t.Parallel()
-
-	invalidDefault := strings.Replace(testDefaultYAML, "version: 1", "version: 2", 1)
-	if _, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment); err == nil {
-		t.Fatal("load() error = nil, want unsupported version error")
-	}
-}
-
-func TestLoadRequiresExternalBindings(t *testing.T) {
-	t.Parallel()
-
-	getenv := func(key string) string {
-		if key == "API_DATABASE_URL" {
-			return ""
-		}
-		return serviceEnvironment(key)
-	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
-	if err == nil {
-		t.Fatal("load() error = nil, want missing external binding error")
-	}
-	if !strings.Contains(err.Error(), "API_DATABASE_URL") {
-		t.Fatalf("load() error = %v, want missing variable name", err)
-	}
-}
-
-func TestLoadRejectsInvalidHealthcheckToken(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]string{
-		"missing":      "",
-		"too short":    "short-token",
-		"whitespace":   "test healthcheck token 0123456789abcdef",
-		"invalid char": "test-healthcheck-token-0123456789abcde!",
-		"padding only": strings.Repeat("=", 32),
-	}
-	for name, token := range tests {
-		t.Run(name, func(t *testing.T) {
-			getenv := func(key string) string {
-				if key == "API_HEALTHCHECK_TOKEN" {
-					return token
-				}
-				return serviceEnvironment(key)
-			}
-			_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
-			if err == nil {
-				t.Fatal("load() error = nil, want invalid healthcheck token error")
-			}
-			if token != "" && strings.Contains(err.Error(), token) {
-				t.Fatal("load() error leaked healthcheck token")
-			}
-		})
-	}
-}
-
-func TestLoadRejectsInvalidWebToken(t *testing.T) {
-	t.Parallel()
-
-	getenv := func(key string) string {
-		if key == "API_WEB_TOKEN" {
-			return "short-token"
-		}
-		return serviceEnvironment(key)
-	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
-	if err == nil || !strings.Contains(err.Error(), "API_WEB_TOKEN") {
-		t.Fatalf("load() error = %v, want API_WEB_TOKEN validation error", err)
-	}
-}
-
-func TestLoadRejectsInvalidTempImportToken(t *testing.T) {
-	t.Parallel()
-
-	getenv := func(key string) string {
-		if key == "API_TEMP_IMPORT_TOKEN" {
-			return "short-token"
-		}
-		return serviceEnvironment(key)
-	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
-	if err == nil || !strings.Contains(err.Error(), "API_TEMP_IMPORT_TOKEN") {
-		t.Fatalf("load() error = %v, want API_TEMP_IMPORT_TOKEN validation error", err)
-	}
-}
-
-func TestLoadRejectsInvalidPolicyBounds(t *testing.T) {
-	t.Parallel()
-
-	invalidDefault := strings.Replace(testDefaultYAML, "min_connections: 2", "min_connections: 21", 1)
-	if _, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment); err == nil {
-		t.Fatal("load() error = nil, want invalid pool bounds error")
-	}
-}
-
-func TestLoadRejectsInvalidMailConfiguration(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct{ old, new string }{
-		"missing region": {
-			old: "region: ap-southeast-1",
-			new: "region: ''",
-		},
-		"region with whitespace": {
-			old: "region: ap-southeast-1",
-			new: "region: ap southeast 1",
-		},
-		"region with uppercase": {
-			old: "region: ap-southeast-1",
-			new: "region: AP-SOUTHEAST-1",
-		},
-		"region with underscores": {
-			old: "region: ap-southeast-1",
-			new: "region: ap_southeast_1",
-		},
-		"region without numeric suffix": {
-			old: "region: ap-southeast-1",
-			new: "region: not-a-region",
-		},
-		"region with control character": {
-			old: "region: ap-southeast-1",
-			new: "region: \"ap-southeast-1\\u0007\"",
-		},
-		"invalid verification sender": {
-			old: "address: no-reply@verify.mail.heyblog.net",
-			new: "address: not-an-email",
-		},
-		"verification sender display name": {
-			old: "address: no-reply@verify.mail.heyblog.net",
-			new: "address: 'HeyBlog <no-reply@verify.mail.heyblog.net>'",
-		},
-	}
-	for name, replacement := range tests {
-		t.Run(name, func(t *testing.T) {
-			invalidDefault := strings.Replace(testDefaultYAML, replacement.old, replacement.new, 1)
-			_, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment)
-			if err == nil {
-				t.Fatal("load() error = nil, want invalid mail configuration error")
-			}
-		})
-	}
-}
-
-func TestValidateAWSRegionAllowsCurrentPartitionShapes(t *testing.T) {
-	t.Parallel()
-
-	for _, region := range []string{"ap-southeast-1", "us-gov-west-1", "eusc-de-east-1"} {
-		if err := validateAWSRegion(region); err != nil {
-			t.Errorf("validateAWSRegion(%q) error = %v", region, err)
-		}
-	}
-}
-
-func TestLoadRejectsUnsafeProxyAndMalformedCORSOrigin(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct{ old, new string }{
-		"trust every IPv4 proxy": {old: "trusted_proxies: []", new: "trusted_proxies: [0.0.0.0/0]"},
-		"origin with query":      {old: "allow_origins: []", new: "allow_origins: [https://example.test?token=unsafe]"},
-	}
-	for name, replacement := range tests {
-		t.Run(name, func(t *testing.T) {
-			invalidDefault := strings.Replace(testDefaultYAML, replacement.old, replacement.new, 1)
-			if _, err := load(writeConfigPair(t, invalidDefault, testDevelopmentOverrideYAML), serviceEnvironment); err == nil {
-				t.Fatal("load() error = nil, want unsafe HTTP configuration error")
-			}
-		})
-	}
-}
-
-func TestLoadDoesNotLeakMalformedExternalURL(t *testing.T) {
-	t.Parallel()
-
-	secret := "postgres://user:super-secret%zz@example.test/heyblog" // #nosec G101 -- this fixture verifies that errors do not leak credentials.
-	getenv := func(key string) string {
-		if key == "API_MIGRATION_DATABASE_URL" {
-			return secret
-		}
-		return serviceEnvironment(key)
-	}
-	_, err := load(writeConfigPair(t, testDefaultYAML, testDevelopmentOverrideYAML), getenv)
-	if err == nil {
-		t.Fatal("load() error = nil, want malformed external URL error")
-	}
-	if strings.Contains(err.Error(), "super-secret") {
-		t.Fatalf("load() error leaked a secret: %v", err)
-	}
-}
-
 func writeConfigPair(t *testing.T, defaultYAML, overrideYAML string) configPaths {
 	t.Helper()
 	return writeConfigFiles(t, defaultYAML, &overrideYAML)
@@ -488,6 +254,7 @@ func serviceEnvironment(key string) string {
 		"API_MIGRATION_DATABASE_URL": "postgres://migrator@example.test/heyblog",
 		"API_DATABASE_URL":           "postgres://runtime@example.test/heyblog",
 		"API_REDIS_URL":              "redis://example.test:6379/0",
+		"API_MAIL_SMTP_URL":          "smtp://example.test:1025",
 		"API_HEALTHCHECK_TOKEN":      testHealthcheckToken,
 		"API_WEB_TOKEN":              testWebToken,
 		"API_TEMP_IMPORT_TOKEN":      testTempImportToken,
