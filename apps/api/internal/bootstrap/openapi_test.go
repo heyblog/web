@@ -67,7 +67,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	}
 	wantedPaths := []string{
 		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options",
-		"/sites/id/{identifier}", "/sites/custom/{customId}",
+		"/sites/id/{identifier}", "/sites/id/{identifier}/icon", "/sites/custom/{customId}",
 		"/auth/register", "/auth/login", "/auth/me", "/auth/refresh", "/auth/logout",
 		"/auth/verify-email", "/auth/verify-email/resend", "/auth/password/forgot",
 		"/auth/password/reset", "/auth/password", "/auth/github/start", "/auth/github/callback",
@@ -126,7 +126,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	methods := map[string]struct{}{
 		"get": {}, "post": {}, "put": {}, "patch": {}, "delete": {},
 	}
-	operationIDs := make(map[string]string, 39)
+	operationIDs := make(map[string]string, 40)
 	operationCount := 0
 	for path, pathItem := range raw.Paths {
 		for method, encoded := range pathItem {
@@ -150,8 +150,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 39 {
-		t.Fatalf("documented operation count = %d, want 39", operationCount)
+	if operationCount != 40 {
+		t.Fatalf("documented operation count = %d, want 40", operationCount)
 	}
 	importOperation := raw.Paths["/internal/temp/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

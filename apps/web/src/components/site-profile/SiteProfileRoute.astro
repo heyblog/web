@@ -2,6 +2,7 @@
 import { IconAlertTriangle, IconArrowLeft, IconRefresh, IconWorldWww } from '@tabler/icons-svelte';
 
 import type { ApiJsonResult } from '@/application/api/client.server';
+import { siteProfileMetadata } from '@/application/site-og/site-og.model';
 import {
   canonicalSitePath,
   type SiteProfile,
@@ -22,11 +23,11 @@ const unavailable = result.kind === 'unavailable';
 const title = profile ? profile.name : unavailable ? '站点资料暂不可用' : '站点不存在';
 const description =
   profile?.summary || (unavailable ? '站点资料暂时无法加载。' : '未找到对应的站点资料。');
+const metadata = profile ? siteProfileMetadata(profile) : { title, description };
 ---
 
 <PublicLayout
-  {title}
-  {description}
+  {...metadata}
   canonicalPath={profile ? canonicalSitePath(profile) : requestedPath}
   robots={profile ? undefined : 'noindex, nofollow'}
   publishedTime={profile?.joinedAt}

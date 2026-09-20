@@ -728,6 +728,17 @@ func (q *Queries) GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (Director
 	return i, err
 }
 
+const getSiteIconHash = `-- name: GetSiteIconHash :one
+SELECT sha256 FROM directory.site_icons WHERE site_id = $1
+`
+
+func (q *Queries) GetSiteIconHash(ctx context.Context, siteID pgtype.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getSiteIconHash, siteID)
+	var sha256 []byte
+	err := row.Scan(&sha256)
+	return sha256, err
+}
+
 const getSiteSourceByKey = `-- name: GetSiteSourceByKey :one
 SELECT id, source_key, name, base_url, is_enabled, created_at, updated_at FROM directory.site_sources WHERE source_key = $1
 `

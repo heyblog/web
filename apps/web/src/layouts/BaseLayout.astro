@@ -7,11 +7,15 @@ import '@/styles/global.css';
 
 interface Props {
   title?: string;
+  siteName?: string;
   description?: string;
   canonicalPath?: string;
   ogType?: 'website' | 'article';
   imagePath?: string;
   imageAlt?: string;
+  imageType?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   robots?: string;
   publishedTime?: string | Date;
   modifiedTime?: string | Date;
@@ -21,11 +25,15 @@ interface Props {
 
 const {
   title,
+  siteName,
   description,
   canonicalPath,
   ogType,
   imagePath,
   imageAlt,
+  imageType,
+  imageWidth,
+  imageHeight,
   robots,
   publishedTime,
   modifiedTime,
@@ -35,11 +43,15 @@ const {
 const metadata = resolvePageMetadata({
   pathname: Astro.url.pathname,
   title,
+  siteName,
   description,
   canonicalPath,
   ogType,
   imagePath,
   imageAlt,
+  imageType,
+  imageWidth,
+  imageHeight,
   robots,
   publishedTime,
   modifiedTime,
@@ -58,13 +70,24 @@ const metadata = resolvePageMetadata({
     <meta name="robots" content={metadata.robots} />
     <link rel="canonical" href={metadata.canonicalUrl} />
     <meta property="og:locale" content={siteConfig.locale} />
-    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:site_name" content={metadata.siteName} />
     <meta property="og:type" content={metadata.ogType} />
     <meta property="og:title" content={metadata.title} />
     <meta property="og:description" content={metadata.description} />
     <meta property="og:url" content={metadata.canonicalUrl} />
     <meta property="og:image" content={metadata.imageUrl} />
     <meta property="og:image:alt" content={metadata.imageAlt} />
+    {metadata.imageType && <meta property="og:image:type" content={metadata.imageType} />}
+    {
+      metadata.imageWidth && (
+        <meta property="og:image:width" content={String(metadata.imageWidth)} />
+      )
+    }
+    {
+      metadata.imageHeight && (
+        <meta property="og:image:height" content={String(metadata.imageHeight)} />
+      )
+    }
     <meta name="twitter:card" content={siteConfig.twitterCard} />
     <meta name="twitter:title" content={metadata.title} />
     <meta name="twitter:description" content={metadata.description} />

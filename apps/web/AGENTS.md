@@ -156,6 +156,21 @@ path. Management pages additionally enforce the API-provided role and permission
 
 ## Commands and Validation
 
+Site share images use the public SSR `/og/site/[identifier].png` route. Identifiers follow the
+site-page short-ID/UUID policy; UUID requests redirect to the short-ID image, and custom IDs have
+no image lookup route. `src/application/site-og` owns metadata, wrapping, rendering, and responses.
+Cards use the visual language of `public/og-default.svg` and include the site's two-level category,
+cached site icon (or first-grapheme fallback), and a QR code for the canonical short-ID page.
+The small HeyBlog mark is a footer signature. The icon adapter calls only the authenticated API
+`/sites/id/{shortId}/icon` endpoint; it checks the PNG bounds and the profile's `iconHash` against
+the icon ETag. Transient icon failures still render a fallback card with `no-store`.
+The server-only renderer embeds `@resvg/resvg-wasm` and the Noto Sans SC fonts from
+`src/assets/site-og`; their license ships in `public/licenses/noto-sans-sc.txt`. Keep these assets
+out of browser bundles and preserve dist-only deployment. Bump the template version in
+`site-og.model.ts` whenever rendering, layout, or fonts change; visible content also versions image
+URLs, including the icon hash and QR destination. Successful images allow five minutes of shared caching and one minute of stale revalidation;
+errors and redirects are not cached. `task web:smoke` includes isolated dist-only HTML/PNG checks.
+
 Run commands from the repository root:
 
 - `task web:dev`: start the Astro development server.

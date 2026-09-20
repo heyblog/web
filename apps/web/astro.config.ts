@@ -54,6 +54,7 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    ssr: { noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs'] },
   },
   integrations: [buildMetadataIntegration(), svelte(), mdx(), sitemap()],
 });

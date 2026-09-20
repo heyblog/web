@@ -2,12 +2,13 @@ package publicview
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"heyblog-api/internal/apperror"
 	dbgen "heyblog-api/internal/database/gen"
 	"heyblog-api/internal/domain/site"
 )
@@ -29,10 +30,13 @@ type Reader interface {
 	Directory(context.Context, DirectoryQuery) (DirectoryView, error)
 	DirectoryOptions(context.Context) (DirectoryOptions, error)
 	SiteByIdentifier(context.Context, SiteIdentifier) (SiteProfile, error)
+	SiteIconByIdentifier(context.Context, SiteIdentifier) (SiteIcon, error)
 	SiteByCustomID(context.Context, string) (SiteProfile, error)
 }
 
 type Queries interface {
+	GetSiteIcon(context.Context, pgtype.UUID) (dbgen.DirectorySiteIcon, error)
+	GetSiteIconHash(context.Context, pgtype.UUID) ([]byte, error)
 	CountDirectorySitesByStatus(
 		context.Context,
 		dbgen.CountDirectorySitesByStatusParams,
@@ -60,66 +64,6 @@ type Service struct {
 	queries Queries
 }
 
-type SiteCard struct {
-	ShortID         string          `json:"shortId"`
-	CustomID        *string         `json:"customId"`
-	Name            string          `json:"name"`
-	Summary         string          `json:"summary"`
-	Host            string          `json:"host"`
-	HomepageURL     string          `json:"homepageUrl"`
-	AccessScope     string          `json:"accessScope"`
-	DirectoryStatus DirectoryStatus `json:"directoryStatus"`
-	JoinedAt        time.Time       `json:"joinedAt"`
-	UpdatedAt       time.Time       `json:"updatedAt"`
-}
-
-type SiteProfile struct {
-	SiteCard
-	Classification *SiteProfileClassification `json:"classification"`
-	TertiaryTags   []Topic                    `json:"tertiaryTags"`
-	Warnings       []Warning                  `json:"warnings"`
-	Feeds          []Feed                     `json:"feeds"`
-	Resources      []Resource                 `json:"resources"`
-	Technologies   []Technology               `json:"technologies"`
-}
-
-type SiteProfileClassification struct {
-	Level1 Topic `json:"level1"`
-	Level2 Topic `json:"level2"`
-}
-
-type Topic struct {
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
-}
-
-type Warning struct {
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
-}
-
-type Feed struct {
-	Name      string `json:"name"`
-	URL       string `json:"url"`
-	Format    string `json:"format"`
-	IsDefault bool   `json:"isDefault"`
-}
-
-type Resource struct {
-	Kind string `json:"kind"`
-	URL  string `json:"url"`
-}
-
-type Technology struct {
-	Name          string  `json:"name"`
-	Role          string  `json:"role"`
-	HomepageURL   *string `json:"homepageUrl"`
-	RepositoryURL *string `json:"repositoryUrl"`
-	IsOpenSource  bool    `json:"isOpenSource"`
-}
-
 func New(queries Queries) *Service {
 	return &Service{queries: queries}
 }
@@ -128,6 +72,15 @@ func (service *Service) SiteByIdentifier(
 	ctx context.Context,
 	identifier SiteIdentifier,
 ) (SiteProfile, error) {
+	row, err := service.siteRowByIdentifier(ctx, identifier)
+	var applicationError *apperror.Error
+	if errors.As(err, &applicationError) {
+		return SiteProfile{}, err
+	}
+	return service.loadProfile(ctx, row, err)
+}
+
+func (service *Service) siteRowByIdentifier(ctx context.Context, identifier SiteIdentifier) (dbgen.DirectorySite, error) {
 	var (
 		row dbgen.DirectorySite
 		err error
@@ -136,18 +89,18 @@ func (service *Service) SiteByIdentifier(
 	case IdentifierUUID:
 		var id pgtype.UUID
 		if scanErr := id.Scan(identifier.Value); scanErr != nil || !id.Valid {
-			return SiteProfile{}, badIdentifier("identifier")
+			return dbgen.DirectorySite{}, badIdentifier("identifier")
 		}
 		row, err = service.queries.GetSiteByID(ctx, id)
 	case IdentifierShortID:
 		if validateErr := site.ValidateShortID(identifier.Value); validateErr != nil {
-			return SiteProfile{}, badIdentifier("identifier")
+			return dbgen.DirectorySite{}, badIdentifier("identifier")
 		}
 		row, err = service.queries.GetSiteByShortID(ctx, identifier.Value)
 	default:
-		return SiteProfile{}, badIdentifier("identifier")
+		return dbgen.DirectorySite{}, badIdentifier("identifier")
 	}
-	return service.loadProfile(ctx, row, err)
+	return row, err
 }
 
 func (service *Service) SiteByCustomID(ctx context.Context, customID string) (SiteProfile, error) {
@@ -201,6 +154,14 @@ func (service *Service) loadProfile(
 		Feeds:        make([]Feed, 0, len(feeds)),
 		Resources:    make([]Resource, 0, len(resources)),
 		Technologies: make([]Technology, 0, len(technologies)),
+	}
+	hash, err := service.queries.GetSiteIconHash(ctx, row.ID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return SiteProfile{}, internalError(err, "load site icon hash")
+	}
+	if err == nil {
+		encoded := hex.EncodeToString(hash)
+		profile.IconHash = &encoded
 	}
 	for _, tag := range tags {
 		topic := Topic{Name: tag.Name, Slug: tag.Slug, Description: tag.Description}

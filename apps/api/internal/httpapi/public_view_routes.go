@@ -49,6 +49,7 @@ type customSiteIdentifierInput struct {
 }
 
 func registerPublicViewRoutes(api huma.API, webToken string, reader publicview.Reader) {
+	registerSiteIconRoute(api, webToken, reader)
 	middleware := huma.Middlewares{HumaWebAuthorization(webToken)}
 	security := []map[string][]string{{"webToken": {}}}
 	register := func(operation huma.Operation) huma.Operation {

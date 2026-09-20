@@ -39,6 +39,7 @@ export interface SiteTechnology {
 }
 
 export interface SiteProfile extends SiteCardBase {
+  readonly iconHash: string | null;
   classification: SiteClassification | null;
   tertiaryTags: SiteTopic[];
   warnings: SiteWarning[];

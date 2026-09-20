@@ -61,6 +61,7 @@ type Querier interface {
 	GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error)
 	GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (DirectorySiteIcon, error)
+	GetSiteIconHash(ctx context.Context, siteID pgtype.UUID) ([]byte, error)
 	GetSiteSourceByKey(ctx context.Context, sourceKey string) (DirectorySiteSource, error)
 	GetSoftwareComponentByID(ctx context.Context, id pgtype.UUID) (DirectorySoftwareComponent, error)
 	GetSoftwareComponentByNormalizedName(ctx context.Context, normalizedName string) (DirectorySoftwareComponent, error)

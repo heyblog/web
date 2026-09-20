@@ -423,6 +423,9 @@ RETURNING *;
 -- name: GetSiteIcon :one
 SELECT * FROM directory.site_icons WHERE site_id = $1;
 
+-- name: GetSiteIconHash :one
+SELECT sha256 FROM directory.site_icons WHERE site_id = $1;
+
 -- name: CreateTag :one
 INSERT INTO directory.tags (name, normalized_name, slug, description)
 VALUES ($1, $2, $3, $4)

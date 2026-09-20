@@ -6,11 +6,15 @@ import BaseLayout from './BaseLayout.astro';
 
 interface Props {
   title?: string;
+  siteName?: string;
   description?: string;
   canonicalPath?: string;
   ogType?: 'website' | 'article';
   imagePath?: string;
   imageAlt?: string;
+  imageType?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   robots?: string;
   publishedTime?: string | Date;
   modifiedTime?: string | Date;

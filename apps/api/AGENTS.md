@@ -116,7 +116,7 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Internal HTTP endpoints require an explicit trust and authentication model; network placement is
   not authorization.
 - `GET /ping`, `GET /home`, `GET /sites`, `GET /sites/options`,
-  `GET /sites/id/:identifier`, and `GET /sites/custom/:customId` are
+  `GET /sites/id/:identifier`, `GET /sites/id/:identifier/icon`, and `GET /sites/custom/:customId` are
   web-internal, have no application rate limit, and require the shared `X-HeyBlog-Web-Token`.
   Future direct third-party routes must be registered explicitly as public instead of weakening
   web-internal authentication. `GET /health/live` and `/health/ready` are
@@ -126,6 +126,15 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   dependencies.
 - Propagate request cancellation and deadlines through application, database, cache, and outbound
   HTTP calls.
+- Site profiles expose nullable `iconHash` containing the cached icon's lowercase SHA-256 hex
+  digest, without icon bytes. The icon endpoint accepts short IDs or UUIDs and reads cached
+  `directory.site_icons` bytes only; visible and hidden sites are readable, removed sites are not.
+  It returns `image/png`, a quoted digest ETag, and `Cache-Control: no-store`. Missing or invalid
+  icons return 404; database failures return 503. Normalization accepts PNG, JPEG, GIF (first
+  frame), WebP, and ICO (largest image), preserves aspect and alpha, and caps output at 128 pixels
+  without upscaling. Input is bounded to 1 MiB, 2048 pixels per axis and four million pixels;
+  ICO entry lengths and palette sizes are checked before decoding. `internal/siteicon` owns
+  normalization using standard image codecs, `golang.org/x/image`, and `go-ico`.
 - Browser authentication routes under `/auth/*` are web-internal and require `X-HeyBlog-Web-Token`.
   Local authentication uses Argon2id passwords, six-digit email verification, one-time password
   reset links, short-lived access JWTs, and Redis-backed rotating refresh sessions. Verification

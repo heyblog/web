@@ -7,6 +7,7 @@ import {
 } from '../src/application/site-profile/site-profile.server.ts';
 
 const profile: SiteProfile = {
+  iconHash: null,
   shortId: '38FycC0ow',
   customId: 'wuke',
   name: '吾柯',
