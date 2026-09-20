@@ -49,7 +49,7 @@ test('reads the release version from the repository VERSION file', () => {
   });
 
   // Then: VERSION remains the only release-version source.
-  assert.equal(metadata.version, '0.2.1');
+  assert.equal(metadata.version, '0.2.2');
 });
 
 test('prefers explicit build inputs over local Git metadata', () => {
@@ -73,7 +73,7 @@ test('prefers explicit build inputs over local Git metadata', () => {
   // Then: the explicit build provenance wins.
   assert.deepEqual(metadata, {
     component: 'heyblog-web',
-    version: '0.2.1',
+    version: '0.2.2',
     ref: 'refs/heads/release',
     commit: '2222222222222222222222222222222222222222',
     shortCommit: '222222222',
@@ -98,7 +98,7 @@ test('falls back to local Git metadata when build inputs are absent', () => {
   // Then: Git and the injected clock supply the missing fields.
   assert.deepEqual(metadata, {
     component: 'heyblog-web',
-    version: '0.2.1',
+    version: '0.2.2',
     ref: 'git-fallback',
     commit: '1111111111111111111111111111111111111111',
     shortCommit: '111111111',
