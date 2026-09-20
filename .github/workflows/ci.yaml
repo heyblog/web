@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  REGISTRY: ccr.ccs.tencentyun.com
+  REGISTRY: sgccr.ccs.tencentyun.com
   NAMESPACE: heyblog
 
 jobs:
