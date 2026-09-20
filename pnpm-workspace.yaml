@@ -3,6 +3,7 @@ packages:
   - packages/node/*
 
 overrides:
+  devalue@<5.9.1: ^5.9.1
   'nanoid@<3.3.18': 3.3.18
 
 enableGlobalVirtualStore: false
