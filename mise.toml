@@ -1,0 +1,19 @@
+min_version = "2026.9.12"
+monorepo_root = true
+
+[monorepo]
+config_roots = ["apps/api", "apps/web", "packages/node/configs"]
+lockfile = true
+
+[task_config]
+cascade = true
+shell = "bash -o errexit -o pipefail -c"
+
+[tools]
+go = "1.26.6"
+golangci-lint = "2.12.2"
+node = "24.21.0"
+pnpm = "12.4.0"
+
+[vars]
+project_version = "0.2.2"

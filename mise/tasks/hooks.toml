@@ -1,0 +1,21 @@
+["commit:lint"]
+description = "Lint the latest commit message"
+run = "pnpm exec commitlint --config ./commitlint.config.cjs --last"
+
+["hooks:install"]
+description = "Install local git hooks"
+run = ["chmod +x .githooks/*", "git config core.hooksPath .githooks"]
+
+["hooks:pre-commit"]
+description = "Format and lint staged code-style files"
+raw_args = true
+run = "node ./scripts/pre-commit.mjs"
+
+["hooks:test"]
+description = "Test Git hook support"
+run = "node --test ./scripts/pre-commit.test.mjs"
+
+["hooks:commit-msg"]
+description = "Lint commit message file"
+usage = 'arg "<message-file>"'
+run = 'pnpm exec commitlint --config ./commitlint.config.cjs --edit "$usage_message_file"'

@@ -11,7 +11,7 @@ Apply current Astro APIs without weakening this repository's module, rendering, 
 
 1. Read every applicable `AGENTS.md`, including `apps/web/AGENTS.md`.
 2. Read `apps/web/package.json` and `apps/web/astro.config.ts` before every Astro task. Treat them as dependency and runtime truth; do not hard-code or assume dependency versions.
-3. Read the relevant Taskfile before choosing commands, then use its narrowest applicable task.
+3. Read the relevant module `mise.toml` before choosing commands, then use its narrowest applicable task.
 
 ## Resolve Astro APIs
 
@@ -32,4 +32,4 @@ No official Astro Skill is suitable for application development. Do not use `ast
 
 ## Validate
 
-Run the focused web checks required by `apps/web/AGENTS.md` and the Taskfile. Confirm SSR versus prerender decisions, browser/server separation, same-origin data flow, and hydration necessity for the affected behavior.
+Run the focused web checks required by `apps/web/AGENTS.md` and its mise configuration. Confirm SSR versus prerender decisions, browser/server separation, same-origin data flow, and hydration necessity for the affected behavior.

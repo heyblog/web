@@ -6,7 +6,7 @@ This file refines the repository-level `AGENTS.md` for `packages/node/configs`.
 
 - `packages/node/configs` owns reusable ESLint and Prettier configuration for Node workspace
   modules.
-- This package inherits the project release version from the repository-root `VERSION` file; its
+- This package inherits the project release version from `mise.toml#vars.project_version`; its
   `package.json` does not declare an independent version.
 - Treat `package.json`, `tsconfig.json`, root wrapper configurations, and files under `shared/` as
   the package contract and implementation truth.
@@ -30,9 +30,9 @@ This file refines the repository-level `AGENTS.md` for `packages/node/configs`.
 
 Run commands from the repository root:
 
-- `task configs:format:check`: check package formatting.
-- `task configs:lint`: lint package sources.
-- `task configs:typecheck`: type-check package sources.
-- `task configs:check`: run all package checks.
-- `task configs:verify`: run the package formatting, lint, and type checks.
-- `task verify`: validate all consumers after changing an exported configuration or shared rule.
+- `mise run //packages/node/configs:format:check`: check package formatting.
+- `mise run //packages/node/configs:lint`: lint package sources.
+- `mise run //packages/node/configs:typecheck`: type-check package sources.
+- `mise run //packages/node/configs:check`: run all package checks.
+- `mise run //packages/node/configs:verify`: run the package formatting, lint, and type checks.
+- `mise run verify`: validate all consumers after changing an exported configuration or shared rule.

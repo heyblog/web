@@ -17,7 +17,7 @@
   "enabledManagers": [
     "npm",
     "gomod",
-    "nvm",
+    "mise",
     "dockerfile",
     "docker-compose",
     "github-actions",
@@ -48,50 +48,27 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.golangci-lint-version$/"],
-      "matchStrings": ["(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
-      "depNameTemplate": "golangci/golangci-lint",
-      "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
-      "description": "Update Go workspace toolchain pins",
-      "managerFilePatterns": ["/^go\\.work$/", "/^\\.go-version$/"],
-      "matchStrings": [
-        "(?:^|\\n)go\\s+(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)",
-        "(?:^|\\n)toolchain\\s+go(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)",
-        "(?:^|\\n)(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)"
+      "description": "Keep the mise bootstrap version synchronized",
+      "managerFilePatterns": [
+        "/^mise\\.toml$/",
+        "/^\\.github\\/actions\\/setup\\/action\\.yaml$/",
+        "/^infra\\/docker\\/Dockerfile\\.builder$/"
       ],
-      "depNameTemplate": "go",
-      "datasourceTemplate": "golang-version",
-      "versioningTemplate": "semver-coerced"
-    },
-    {
-      "customType": "regex",
-      "description": "Update Node.js pins in the builder image",
-      "managerFilePatterns": ["/^infra\\/docker\\/Dockerfile\\.builder$/"],
       "matchStrings": [
-        "(?:nvm (?:install|alias default) |versions/node/v)(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "min_version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "version:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "MISE_VERSION=v(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
-      "depNameTemplate": "node",
-      "datasourceTemplate": "node-version",
-      "versioningTemplate": "node"
-    },
-    {
-      "customType": "regex",
-      "description": "Update the Go pin in the builder image",
-      "managerFilePatterns": ["/^infra\\/docker\\/Dockerfile\\.builder$/"],
-      "matchStrings": ["go(?<currentValue>\\d+\\.\\d+\\.\\d+)\\.linux-amd64\\.tar\\.gz"],
-      "depNameTemplate": "go",
-      "datasourceTemplate": "golang-version",
+      "depNameTemplate": "jdx/mise",
+      "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver-coerced"
     },
     {
       "customType": "regex",
       "description": "Update the pinned Trivy container scanner",
-      "managerFilePatterns": ["/^taskfiles\\/container\\.yaml$/"],
+      "managerFilePatterns": ["/^mise\\/tasks\\/container\\.toml$/"],
       "matchStrings": [
-        "TRIVY_IMAGE:\\s+(?<depName>[^\\s:]+):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[a-f0-9]+)"
+        "TRIVY_IMAGE\\s*=\\s*\"(?<depName>[^\\s:\"]+):(?<currentValue>[^\\s@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
       ],
       "datasourceTemplate": "docker"
     }
@@ -169,14 +146,14 @@
     },
     {
       "description": "Keep Node.js runtime pins synchronized",
-      "matchManagers": ["nvm", "dockerfile", "custom.regex"],
+      "matchManagers": ["mise", "dockerfile"],
       "matchPackageNames": ["node"],
       "matchUpdateTypes": ["major", "minor", "patch"],
       "groupName": "Node.js toolchain"
     },
     {
       "description": "Keep Go toolchain pins synchronized",
-      "matchManagers": ["gomod", "dockerfile", "custom.regex"],
+      "matchManagers": ["gomod", "mise"],
       "matchPackageNames": ["go", "golang"],
       "matchUpdateTypes": ["major", "minor", "patch"],
       "groupName": "Go toolchain"
@@ -198,7 +175,7 @@
     },
     {
       "description": "Group Node.js runtime minor updates",
-      "matchManagers": ["nvm", "dockerfile"],
+      "matchManagers": ["mise", "dockerfile"],
       "matchPackageNames": ["node"],
       "matchUpdateTypes": ["minor"],
       "groupName": "node-y",
@@ -215,7 +192,7 @@
     },
     {
       "description": "Group Node.js runtime patch updates",
-      "matchManagers": ["nvm", "dockerfile"],
+      "matchManagers": ["mise", "dockerfile"],
       "matchPackageNames": ["node"],
       "matchUpdateTypes": ["patch"],
       "groupName": "node-z",
@@ -224,16 +201,7 @@
     },
     {
       "description": "Group Go ecosystem minor updates",
-      "matchManagers": ["gomod", "custom.regex"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "go-y",
-      "groupSlug": "go-y",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Go runtime minor updates",
-      "matchManagers": ["dockerfile"],
-      "matchPackageNames": ["golang"],
+      "matchManagers": ["gomod", "mise"],
       "matchUpdateTypes": ["minor"],
       "groupName": "go-y",
       "groupSlug": "go-y",
@@ -241,16 +209,7 @@
     },
     {
       "description": "Group Go ecosystem patch updates",
-      "matchManagers": ["gomod", "custom.regex"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "go-z",
-      "groupSlug": "go-z",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Go runtime patch updates",
-      "matchManagers": ["dockerfile"],
-      "matchPackageNames": ["golang"],
+      "matchManagers": ["gomod", "mise"],
       "matchUpdateTypes": ["patch"],
       "groupName": "go-z",
       "groupSlug": "go-z",

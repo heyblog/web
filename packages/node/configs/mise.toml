@@ -1,0 +1,27 @@
+[tasks.format]
+description = "Format shared Node configuration"
+run = "pnpm run format"
+
+[tasks."format:check"]
+description = "Check shared Node configuration formatting"
+run = "pnpm run format:check"
+
+[tasks.lint]
+description = "Lint shared Node configuration"
+run = "pnpm run lint"
+
+[tasks."lint:fix"]
+description = "Lint and fix shared Node configuration"
+run = "pnpm run lint:fix"
+
+[tasks.typecheck]
+description = "Type-check shared Node configuration"
+run = "pnpm run typecheck"
+
+[tasks.check]
+description = "Run shared Node configuration checks"
+run = [{ task = ":format:check" }, { task = ":lint" }, { task = ":typecheck" }]
+
+[tasks.verify]
+description = "Verify shared Node configuration"
+run = [{ task = ":check" }]

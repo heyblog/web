@@ -5,12 +5,12 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
 ## Scope and Sources of Truth
 
 - `apps/web` is the browser-facing Astro and Svelte application.
-- The Web application inherits the project release version from the repository-root `VERSION` file;
-  its `package.json` does not declare an independent version.
+- The Web application inherits the project release version from
+  `mise.toml#vars.project_version`; its `package.json` does not declare an independent version.
 - Treat `package.json`, `astro.config.ts`, `src/site.config.ts`, `svelte.config.ts`, and
-  `Taskfile.yaml` as the current dependency, runtime, site metadata, and command truth.
+  `mise.toml` as the current dependency, runtime, site metadata, and command truth.
 - Treat `apps/web/contents` as a generated snapshot of the `contents/` directory from the
-  `heyblog/.github` repository. `task web:prepare` resolves the remote `main` branch to a commit,
+  `heyblog/.github` repository. `mise run //apps/web:prepare` resolves the remote `main` branch to a commit,
   requires every source declared in `content-sources.mjs` and consumed by `content.config.ts` to be
   non-empty, downloads the files from that immutable commit, and records the resolved source in
   `.source-revision`.
@@ -18,14 +18,16 @@ This file refines the repository-level `AGENTS.md` for `apps/web`.
   with the Go API over HTTP.
 - Treat current task requirements, accepted HTTP contracts, current routes, and tests as
   migration behavior truth.
-- `apps/web/Dockerfile` uses the repository root as its Docker build context and invokes the root
-  Taskfile; the Web task commands execute relative to `apps/web`. The production image copies the
+- `apps/web/Dockerfile` uses the repository root as its Docker build context and invokes the module
+  mise task; Web module commands execute relative to `apps/web`. The production image copies the
   default Astro `dist` output without workspace-wide development dependencies.
 - Footer build provenance is compile-time metadata. `WEB_BUILD_COMMIT`, `WEB_BUILD_REF`,
   `WEB_BUILD_COMMIT_TIME`, `WEB_BUILD_REPOSITORY_URL`, and `WEB_BUILD_TIME` are accepted only by the
-  Docker builder stage; `task container:build` derives them from the host checkout because `.git`
+  Docker builder stage; `mise run container:build` derives them from the host checkout because `.git`
   is excluded from the Docker context. They do not change `src/config.server.ts` ownership of Web
   runtime environment configuration and must not be retained in the runner image.
+- `WEB_BUILD_VERSION` is internal compile-time metadata derived from
+  `mise.toml#vars.project_version`; callers do not set it independently.
 
 ## Ownership and Boundaries
 
@@ -178,25 +180,25 @@ The server-only renderer embeds `@resvg/resvg-wasm` and the Noto Sans SC fonts f
 out of browser bundles and preserve dist-only deployment. Bump the template version in
 `site-og.model.ts` whenever rendering, layout, or fonts change; visible content also versions image
 URLs, including the icon hash and QR destination. Successful images allow five minutes of shared caching and one minute of stale revalidation;
-errors and redirects are not cached. `task web:smoke` includes isolated dist-only HTML/PNG checks.
+errors and redirects are not cached. `mise run //apps/web:smoke` includes isolated dist-only HTML/PNG checks.
 
 Run commands from the repository root:
 
-- `task web:dev`: start the Astro development server.
-- `task web:typecheck`: run Astro and TypeScript checks.
-- `task web:check`: run Web formatting, lint, and type checks.
-- `task web:test`: run focused Node tests for Web server infrastructure.
-- `task web:lint`: run ESLint and Stylelint.
-- `task web:format:check`: check formatting.
-- `task web:build`: invoke the Web build from the repository root; the module command runs in
+- `mise run //apps/web:dev`: start the Astro development server.
+- `mise run //apps/web:typecheck`: run Astro and TypeScript checks.
+- `mise run //apps/web:check`: run Web formatting, lint, and type checks.
+- `mise run //apps/web:test`: run focused Node tests for Web server infrastructure.
+- `mise run //apps/web:lint`: run ESLint and Stylelint.
+- `mise run //apps/web:format:check`: check formatting.
+- `mise run //apps/web:build`: invoke the Web build from the repository root; the module command runs in
   `apps/web`.
-- `task web:smoke`: start the built standalone server on an ephemeral port and verify it serves a
+- `mise run //apps/web:smoke`: start the built standalone server on an ephemeral port and verify it serves a
   request successfully.
-- `task web:prepare`: sync generated content from the `heyblog/.github` `main` branch.
-- `task web:verify`: run all current offline web checks.
-- `task container:build`: build the production container image after Dockerfile changes.
+- `mise run //apps/web:prepare`: sync generated content from the `heyblog/.github` `main` branch.
+- `mise run //apps/web:verify`: run all current offline web checks.
+- `mise run container:build`: build the production container image after Dockerfile changes.
 
-Run `task web:prepare` after initial checkout or when the remote content changes. Offline checks
+Run `mise run //apps/web:prepare` after initial checkout or when the remote content changes. Offline checks
 consume the existing generated snapshot and do not update it.
 
 Use the current Node test task for server adapters, authentication, proxying, rendering decisions,
@@ -237,4 +239,4 @@ Consult these guides before working on related tasks:
 - Confirm the route's SSR or prerender decision and its cache behavior.
 - Confirm browser code cannot reach internal service URLs or database concepts.
 - Confirm HTTP forwarding preserves required cookies, statuses, and DTO boundaries.
-- Run `task web:verify` and any focused tests introduced by the change.
+- Run `mise run //apps/web:verify` and any focused tests introduced by the change.

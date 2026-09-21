@@ -2,10 +2,9 @@
   "name": "heyblog-repo",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.4.0+sha512.37536c26ed40ab4134b6511e09f6b27f3ebb45687468f2406ca3805279a4e5ca158c1931350ad9774d6ab2108d71b3dbaeb39943159294375e4d053e8e05685c",
   "scripts": {
-    "format": "prettier --config ./packages/node/configs/prettier.config.ts --write \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"packages/node/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
-    "format:check": "prettier --config ./packages/node/configs/prettier.config.ts --check \".github/**/*.yaml\" \".golangci.yaml\" \"Taskfile.yaml\" \"taskfiles/**/*.yaml\" \"apps/*/Taskfile.yaml\" \"packages/node/*/Taskfile.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
+    "format": "prettier --config ./packages/node/configs/prettier.config.ts --write \".github/**/*.yaml\" \".golangci.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --config ./packages/node/configs/prettier.config.ts --check \".github/**/*.yaml\" \".golangci.yaml\" \"infra/**/*.yaml\" \"*.{cjs,ts,json}\" \"pnpm-workspace.yaml\" \"renovate.json\" \"scripts/**/*.mjs\"",
     "lint": "eslint --config ./eslint.config.ts \"*.{cjs,ts}\" \"scripts/**/*.mjs\"",
     "lint:fix": "eslint --config ./eslint.config.ts \"*.{cjs,ts}\" \"scripts/**/*.mjs\" --fix",
     "typecheck": "tsc --noEmit"

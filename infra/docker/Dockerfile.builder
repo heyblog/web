@@ -4,60 +4,27 @@ FROM debian:13-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c70
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV NVM_DIR=/usr/local/nvm
-
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends bash ca-certificates curl git jq tar xz-utils \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl git tar xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p "${NVM_DIR}" \
-    && curl --fail --silent --show-error --location \
+RUN curl --fail --silent --show-error --location \
       --retry 5 --retry-all-errors --retry-delay 3 \
-      "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh" \
-      --output /tmp/nvm-install.sh \
-    && PROFILE=/dev/null NVM_DIR="${NVM_DIR}" bash /tmp/nvm-install.sh \
-    && source "${NVM_DIR}/nvm.sh" \
-    && nvm install 24.21.0 \
-    && nvm alias default 24.21.0 \
-    && nvm cache clear \
-    && rm /tmp/nvm-install.sh
-
-ENV PATH="${NVM_DIR}/versions/node/v24.21.0/bin:${PATH}"
-
-RUN corepack enable
-
-RUN go_filename="go1.26.6.linux-amd64.tar.gz" \
-    && go_sha256="$(curl --fail --silent --show-error --location \
-      --retry 5 --retry-all-errors --retry-delay 3 \
-      'https://go.dev/dl/?mode=json&include=all' \
-      | jq -r --arg filename "${go_filename}" \
-        '.[].files[] | select(.filename == $filename) | .sha256')" \
-    && test -n "${go_sha256}" \
-    && test "${go_sha256}" != null \
-    && curl --fail --silent --show-error --location \
-      --retry 5 --retry-all-errors --retry-delay 3 \
-      "https://go.dev/dl/${go_filename}" \
-      --output /tmp/go.tar.gz \
-    && echo "${go_sha256}  /tmp/go.tar.gz" | sha256sum --check --status \
-    && tar --extract --file=/tmp/go.tar.gz --directory=/usr/local \
-    && rm /tmp/go.tar.gz
-
-ENV GOPATH=/go \
-    PATH="/usr/local/nvm/versions/node/v24.21.0/bin:/usr/local/go/bin:/go/bin:${PATH}"
-
-COPY .task-version /tmp/task-version
-
-RUN task_version="$(cat /tmp/task-version)" \
-    && curl --fail --silent --show-error --location \
-      --retry 5 --retry-all-errors --retry-delay 3 \
-      https://taskfile.dev/install.sh \
-      --output /tmp/task-install.sh \
-    && bash /tmp/task-install.sh -d -b /usr/local/bin "v${task_version}" \
-    && rm /tmp/task-install.sh \
-    && rm /tmp/task-version \
-    && rm -rf /var/lib/apt/lists/*
+      https://mise.run \
+      --output /tmp/mise-install.sh \
+    && MISE_VERSION=v2026.9.12 MISE_INSTALL_PATH=/usr/local/bin/mise sh /tmp/mise-install.sh \
+    && rm /tmp/mise-install.sh
 
 WORKDIR /workspace
+
+ENV MISE_TRUSTED_CONFIG_PATHS=/workspace \
+    MISE_AUTO_INSTALL=0 \
+    PATH="/root/.local/share/mise/shims:${PATH}"
+
+COPY mise.toml mise.lock ./
+
+RUN mkdir -p apps/api apps/web packages/node/configs \
+    && mise install --locked node go pnpm
 
 LABEL org.opencontainers.image.title="HeyBlog builder"

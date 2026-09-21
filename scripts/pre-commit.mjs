@@ -1,79 +1,24 @@
 import { execFileSync } from 'node:child_process';
-import { relative, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import crossSpawn from 'cross-spawn';
+import {
+  formatGoFiles,
+  formatMiseFiles,
+  formatNodeModuleFiles,
+  formatRootFiles,
+  goModuleConfigs,
+  isMiseTomlFile,
+  isRootPrettierFile,
+  nodeModuleConfigs,
+  runCommand,
+} from './pre-commit-formatters.mjs';
 
 const repoRoot = resolve(import.meta.dirname, '..');
-
-const rootPrettierConfig = {
-  prettierConfig: './packages/node/configs/prettier.config.ts',
-};
-
-const goModuleConfigs = [
-  {
-    dir: 'apps/api',
-    config: '../../.golangci.yaml',
-  },
-];
-
-const nodeModuleConfigs = [
-  {
-    dir: 'apps/web',
-    prettierConfig: './prettier.config.ts',
-    eslintConfig: './eslint.config.ts',
-    stylelintConfig: './stylelint.config.ts',
-  },
-  {
-    dir: 'packages/node/configs',
-    prettierConfig: './prettier.config.ts',
-    eslintConfig: './eslint.config.ts',
-  },
-];
-
 const trackedRoots = [
   ...goModuleConfigs.map((config) => `${config.dir}/`),
   ...nodeModuleConfigs.map((config) => `${config.dir}/`),
 ];
-
-const rootPrettierFileNames = new Set([
-  '.golangci.yaml',
-  'Taskfile.yaml',
-  'commitlint.config.cjs',
-  'package.json',
-  'pnpm-workspace.yaml',
-]);
-
-const prettierExtensions = new Set([
-  '.astro',
-  '.cjs',
-  '.css',
-  '.js',
-  '.json',
-  '.mjs',
-  '.svelte',
-  '.ts',
-]);
-
-const eslintExtensions = new Set(['.astro', '.cjs', '.js', '.mjs', '.svelte', '.ts']);
-const stylelintExtensions = new Set(['.astro', '.css', '.svelte']);
-
-export function runCommand(command, args, cwd = repoRoot, options = {}) {
-  const { env = process.env, runner = crossSpawn } = options;
-  const result = runner.sync(command, args, {
-    cwd,
-    env,
-    stdio: 'inherit',
-  });
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
-}
 
 export function parseGitFileList(output) {
   return output
@@ -102,7 +47,11 @@ function parseCliArgs() {
 }
 
 function isTrackedFile(file) {
-  return isRootPrettierFile(file) || trackedRoots.some((root) => file.startsWith(root));
+  return (
+    isRootPrettierFile(file) ||
+    isMiseTomlFile(file) ||
+    trackedRoots.some((root) => file.startsWith(root))
+  );
 }
 
 export function findPartiallyStagedFiles(files, unstagedFiles) {
@@ -138,132 +87,9 @@ function stageFiles(files) {
   runCommand('git', ['add', '--', ...files]);
 }
 
-function getExtension(filePath) {
-  const lastDotIndex = filePath.lastIndexOf('.');
-  return lastDotIndex === -1 ? '' : filePath.slice(lastDotIndex);
-}
-
 function getModuleFiles(files, moduleDir) {
   const modulePrefix = `${moduleDir}/`;
   return files.filter((file) => file.startsWith(modulePrefix));
-}
-
-export function isRootPrettierFile(file) {
-  if (rootPrettierFileNames.has(file)) {
-    return true;
-  }
-
-  if (/(^|\/)Taskfile\.yaml$/.test(file)) {
-    return true;
-  }
-
-  if (file.startsWith('scripts/')) {
-    return getExtension(file) === '.mjs';
-  }
-
-  if (file.startsWith('taskfiles/')) {
-    return getExtension(file) === '.yaml';
-  }
-
-  return false;
-}
-
-function formatRootFiles(files) {
-  const prettierFiles = files.filter(isRootPrettierFile);
-
-  if (prettierFiles.length === 0) {
-    return [];
-  }
-
-  runCommand(
-    'pnpm',
-    [
-      'exec',
-      'prettier',
-      '--config',
-      rootPrettierConfig.prettierConfig,
-      '--write',
-      ...prettierFiles,
-    ],
-    repoRoot,
-  );
-
-  return prettierFiles;
-}
-
-export function formatGoFiles(files, run = runCommand, root = repoRoot) {
-  const goFiles = files.filter((file) => file.endsWith('.go'));
-
-  if (goFiles.length === 0) {
-    return [];
-  }
-
-  run('go', ['tool', 'goimports', '-w', ...goFiles], root);
-
-  return goFiles;
-}
-
-function formatNodeModuleFiles(files, moduleConfig) {
-  const prettierFiles = files.filter((file) => {
-    return (
-      prettierExtensions.has(getExtension(file)) ||
-      file.endsWith('/package.json') ||
-      file === 'package.json'
-    );
-  });
-
-  const eslintFiles = files.filter((file) => eslintExtensions.has(getExtension(file)));
-  const stylelintFiles = moduleConfig.stylelintConfig
-    ? files.filter((file) => stylelintExtensions.has(getExtension(file)))
-    : [];
-  const moduleDir = resolve(repoRoot, moduleConfig.dir);
-
-  if (eslintFiles.length > 0) {
-    runCommand(
-      'pnpm',
-      [
-        'exec',
-        'eslint',
-        '--config',
-        moduleConfig.eslintConfig,
-        '--fix',
-        ...eslintFiles.map((file) => relative(moduleConfig.dir, file)),
-      ],
-      moduleDir,
-    );
-  }
-
-  if (stylelintFiles.length > 0 && moduleConfig.stylelintConfig) {
-    runCommand(
-      'pnpm',
-      [
-        'exec',
-        'stylelint',
-        '--config',
-        moduleConfig.stylelintConfig,
-        '--fix',
-        ...stylelintFiles.map((file) => relative(moduleConfig.dir, file)),
-      ],
-      moduleDir,
-    );
-  }
-
-  if (prettierFiles.length > 0) {
-    runCommand(
-      'pnpm',
-      [
-        'exec',
-        'prettier',
-        '--config',
-        moduleConfig.prettierConfig,
-        '--write',
-        ...prettierFiles.map((file) => relative(moduleConfig.dir, file)),
-      ],
-      moduleDir,
-    );
-  }
-
-  return [...new Set([...prettierFiles, ...eslintFiles, ...stylelintFiles])];
 }
 
 export function main() {
@@ -289,6 +115,7 @@ export function main() {
 
   const formattedFiles = [];
 
+  formattedFiles.push(...formatMiseFiles(trackedFiles));
   formattedFiles.push(...formatRootFiles(trackedFiles));
 
   for (const moduleConfig of goModuleConfigs) {

@@ -13,14 +13,13 @@ WORKDIR /workspace
 COPY . .
 
 RUN --mount=type=cache,id=heyblog-pnpm-store,target=/root/.local/share/pnpm/store \
-    corepack install \
-    && pnpm install --frozen-lockfile \
+    pnpm install --frozen-lockfile \
     && WEB_BUILD_COMMIT="${WEB_BUILD_COMMIT}" \
        WEB_BUILD_REF="${WEB_BUILD_REF}" \
        WEB_BUILD_COMMIT_TIME="${WEB_BUILD_COMMIT_TIME}" \
        WEB_BUILD_REPOSITORY_URL="${WEB_BUILD_REPOSITORY_URL}" \
        WEB_BUILD_TIME="${WEB_BUILD_TIME}" \
-       task web:build
+       mise run //apps/web:build
 
 FROM node:24.21.0-trixie-slim@sha256:db3ae80f5d8df06e04dabdf7b44cbf008d32de168205fa0294444aabbc08c590 AS runner
 

@@ -4,12 +4,13 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 
 ## Scope and Sources of Truth
 
-- `apps/api` is the repository's unified Go HTTP backend. Invoke its tasks from the repository root;
-  commands in this Taskfile execute relative to `apps/api`.
-- The API inherits the project release version from the repository-root `VERSION` file; it does not
-  maintain a module-specific version file or expose the version at runtime.
-- Treat `go.mod`, `go.sum`, source code, and `Taskfile.yaml` as the current dependency, toolchain, and
-  command truth.
+- `apps/api` is the repository's unified Go HTTP backend. Invoke its tasks from the repository root
+  with `mise run //apps/api:<task>` or from this module with `mise run :<task>`; module commands
+  execute relative to `apps/api`.
+- The API inherits the project release version from `mise.toml#vars.project_version`; it does not
+  maintain a module-specific version or expose the version at runtime.
+- Treat `go.mod`, `go.sum`, source code, and `mise.toml` as the current dependency and command truth;
+  the repository-root `mise.toml` owns the Go toolchain version.
 - Declare API-specific Go CLI dependencies in this module's `go.mod` `tool` block. Repository-wide
   Go tools belong to the root tool module and must not require separate global installations.
 - Treat current task requirements, current HTTP contracts, schema requirements, and tests as
@@ -268,23 +269,23 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 
 Run commands from the repository root:
 
-- `task api:dev`: run the API locally.
-- `task api:test`: run Go tests.
-- `task api:test:race`: run Go tests with the race detector.
-- `task api:test:integration`: run PostgreSQL/AGE, Redis, and Mailpit container integration tests,
+- `mise run //apps/api:dev`: run the API locally.
+- `mise run //apps/api:test`: run Go tests.
+- `mise run //apps/api:test:race`: run Go tests with the race detector.
+- `mise run //apps/api:test:integration`: run PostgreSQL/AGE, Redis, and Mailpit container integration tests,
   including the internal import transaction, graph boundary, and SMTP delivery path.
-- `task api:format:check`: check Go formatting and imports.
-- `task api:lint`: run golangci-lint.
-- `task api:build`: invoke the API build from the repository root; the module command runs in
+- `mise run //apps/api:format:check`: check Go formatting and imports.
+- `mise run //apps/api:lint`: run golangci-lint.
+- `mise run //apps/api:build`: invoke the API build from the repository root; the module command runs in
   `apps/api`.
-- `task api:check`: run API static checks.
-- `task api:security`: run the network-backed API vulnerability check.
-- `task api:verify`: run API checks, race-enabled tests, and the build.
-- `task api:vulncheck`: run the network-backed vulnerability check when dependencies or security
+- `mise run //apps/api:check`: run API static checks.
+- `mise run //apps/api:security`: run the network-backed API vulnerability check.
+- `mise run //apps/api:verify`: run API checks, race-enabled tests, and the build.
+- `mise run //apps/api:vulncheck`: run the network-backed vulnerability check when dependencies or security
   behavior change and network access is available.
 
 Integration tests own the Testcontainers resources they create and clean them up at test completion;
-Task does not start or stop developer-owned Compose services.
+mise does not start or stop developer-owned Compose services.
 
 ## Completion Checks
 
@@ -293,4 +294,5 @@ Task does not start or stop developer-owned Compose services.
 - Confirm handlers contain no domain logic or direct database access.
 - Confirm all data access uses the application-owned pool and has a clear lifecycle.
 - Confirm migrations enforce relational constraints and DTOs do not expose persistence models.
-- Run `task api:verify`, focused integration tests, and `task api:vulncheck` when applicable.
+- Run `mise run //apps/api:verify`, focused integration tests, and
+  `mise run //apps/api:vulncheck` when applicable.

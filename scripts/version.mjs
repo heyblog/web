@@ -1,6 +1,8 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
@@ -16,6 +18,15 @@ const ignoredDirectories = new Set([
   'tmp',
 ]);
 const usage = 'Usage: node scripts/version.mjs <show|check|set X.Y.Z|bump patch|minor|major>';
+const execFileAsync = promisify(execFile);
+
+function miseOptions(root) {
+  return {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, MISE_TRUSTED_CONFIG_PATHS: root },
+  };
+}
 
 export function parseVersion(value) {
   const match = versionPattern.exec(value);
@@ -117,23 +128,20 @@ async function listProjectPackageManifests(root) {
 }
 
 async function readCanonicalVersion(root) {
-  const path = join(root, 'VERSION');
-  let contents;
+  const configPath = join(root, 'mise.toml');
+  let version;
 
   try {
-    contents = await readFile(path, 'utf8');
+    const result = await execFileAsync(
+      'mise',
+      ['config', 'get', '--file', configPath, 'vars.project_version'],
+      miseOptions(root),
+    );
+    version = result.stdout.trim();
   } catch (error) {
-    if (error?.code === 'ENOENT') {
-      throw new Error('VERSION is missing from the repository root.', { cause: error });
-    }
-
-    throw error;
-  }
-
-  const version = contents.endsWith('\n') ? contents.slice(0, -1) : contents;
-
-  if (contents !== `${version}\n`) {
-    throw new Error('VERSION must contain one X.Y.Z value followed by a newline.');
+    throw new Error('Project version in mise.toml [vars].project_version is unavailable.', {
+      cause: error,
+    });
   }
 
   parseVersion(version);
@@ -162,7 +170,7 @@ export async function checkRepositoryVersion(root = repositoryRoot) {
 
   if (violations.length > 0) {
     throw new Error(
-      `Project package manifests must inherit VERSION:\n- ${violations.join('\n- ')}`,
+      `Project package manifests must inherit the mise project version:\n- ${violations.join('\n- ')}`,
     );
   }
 
@@ -172,7 +180,25 @@ export async function checkRepositoryVersion(root = repositoryRoot) {
 export async function setRepositoryVersion(root, version) {
   parseVersion(version);
   const current = await checkRepositoryVersion(root);
-  await writeFile(join(root, 'VERSION'), `${version}\n`);
+
+  try {
+    await execFileAsync(
+      'mise',
+      [
+        'config',
+        'set',
+        '--file',
+        join(root, 'mise.toml'),
+        '--type',
+        'string',
+        'vars.project_version',
+        version,
+      ],
+      miseOptions(root),
+    );
+  } catch (error) {
+    throw new Error('Unable to update mise.toml [vars].project_version.', { cause: error });
+  }
 
   return { previousVersion: current.version, version };
 }

@@ -24,41 +24,31 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Read Task version
-      id: task-version
+    - name: Set up mise
+      uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      with:
+        version: 2026.9.12
+        install: false
+        cache: true
+    - name: Install selected toolchains
       shell: bash
-      run: echo "version=$(<.task-version)" >>"${GITHUB_OUTPUT}"
-    - name: Set up Task
-      uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2
-      with:
-        version: ${{ steps.task-version.outputs.version }}
-    - name: Set up pnpm
-      if: inputs.node == 'true'
-      uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-    - name: Set up Node.js
-      if: inputs.node == 'true'
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version-file: .nvmrc
-        cache: pnpm
-    - name: Set up Go
-      if: inputs.go == 'true'
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-      with:
-        go-version-file: .go-version
-        cache-dependency-path: |
-          go.work
-          go.work.sum
-          go.mod
-          go.sum
-          apps/api/go.mod
-          apps/api/go.sum
-    - name: Set up golangci-lint
-      if: inputs.go == 'true' && inputs.golangci-lint == 'true'
-      uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
-      with:
-        version-file: .golangci-lint-version
-        install-only: true
+      run: |
+        echo "MISE_TRUSTED_CONFIG_PATHS=${GITHUB_WORKSPACE}" >>"${GITHUB_ENV}"
+        export MISE_TRUSTED_CONFIG_PATHS="${GITHUB_WORKSPACE}"
+        tools=()
+        if [[ "${{ inputs.node }}" == 'true' ]]; then
+          tools+=(node pnpm)
+        fi
+        if [[ "${{ inputs.go }}" == 'true' ]]; then
+          tools+=(go)
+        fi
+        if [[ "${{ inputs.go }}" == 'true' && "${{ inputs.golangci-lint }}" == 'true' ]]; then
+          tools+=(golangci-lint)
+        fi
+        if ((${#tools[@]} > 0)); then
+          mise install --locked "${tools[@]}"
+        fi
+        echo 'MISE_AUTO_INSTALL=0' >>"${GITHUB_ENV}"
     - name: Install Node.js dependencies
       if: inputs.node == 'true' && inputs.node-dependencies == 'true'
       shell: bash

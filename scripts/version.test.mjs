@@ -19,7 +19,7 @@ async function createRepositoryFixture({ packageVersion } = {}) {
 
   await mkdir(join(repositoryRoot, 'apps', 'web'), { recursive: true });
   await mkdir(join(repositoryRoot, 'packages', 'node', 'configs'), { recursive: true });
-  await writeFile(join(repositoryRoot, 'VERSION'), '0.1.5\n');
+  await writeFile(join(repositoryRoot, 'mise.toml'), '[vars]\nproject_version = "0.1.5"\n');
   await writeFile(join(repositoryRoot, 'package.json'), '{"name":"heyblog-repo","private":true}\n');
   await writeFile(
     join(repositoryRoot, 'apps', 'web', 'package.json'),
@@ -68,7 +68,7 @@ test('parseCommand rejects missing and unsupported arguments', () => {
   assert.throws(() => parseCommand(['show', 'extra']), /Usage/);
 });
 
-test('repository version check accepts the canonical file and versionless manifests', async (t) => {
+test('repository version check accepts the canonical mise var and versionless manifests', async (t) => {
   const repositoryRoot = await createRepositoryFixture();
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
 
@@ -92,30 +92,26 @@ test('repository version check rejects package-level version fields', async (t) 
   );
 });
 
-test('repository version check rejects a missing VERSION file', async (t) => {
+test('repository version check rejects a missing mise config', async (t) => {
   const repositoryRoot = await createRepositoryFixture();
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
-  await rm(join(repositoryRoot, 'VERSION'));
+  await rm(join(repositoryRoot, 'mise.toml'));
 
-  await assert.rejects(checkRepositoryVersion(repositoryRoot), /VERSION is missing/);
+  await assert.rejects(checkRepositoryVersion(repositoryRoot), /project version.*unavailable/i);
 });
 
-test('repository version check rejects malformed VERSION contents', async (t) => {
+test('repository version check rejects malformed mise project versions', async (t) => {
   const repositoryRoot = await createRepositoryFixture();
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
-  const versionPath = join(repositoryRoot, 'VERSION');
+  const configPath = join(repositoryRoot, 'mise.toml');
 
-  for (const [contents, expectedError] of [
-    ['0.1.5', /followed by a newline/],
-    ['0.1.5\nextra\n', /expected X\.Y\.Z/],
-    ['v0.1.5\n', /expected X\.Y\.Z/],
-  ]) {
-    await writeFile(versionPath, contents);
-    await assert.rejects(checkRepositoryVersion(repositoryRoot), expectedError);
+  for (const version of ['1.2', 'v0.1.5', '0.1.5-beta.1']) {
+    await writeFile(configPath, `[vars]\nproject_version = "${version}"\n`);
+    await assert.rejects(checkRepositoryVersion(repositoryRoot), /expected X\.Y\.Z/);
   }
 });
 
-test('setRepositoryVersion changes only the canonical VERSION file', async (t) => {
+test('setRepositoryVersion changes only the canonical mise var', async (t) => {
   const repositoryRoot = await createRepositoryFixture();
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
   const manifestPath = join(repositoryRoot, 'apps', 'web', 'package.json');
@@ -124,7 +120,10 @@ test('setRepositoryVersion changes only the canonical VERSION file', async (t) =
   const result = await setRepositoryVersion(repositoryRoot, '2.3.4');
 
   assert.deepEqual(result, { previousVersion: '0.1.5', version: '2.3.4' });
-  assert.equal(await readFile(join(repositoryRoot, 'VERSION'), 'utf8'), '2.3.4\n');
+  assert.match(
+    await readFile(join(repositoryRoot, 'mise.toml'), 'utf8'),
+    /project_version = "2\.3\.4"/,
+  );
   assert.equal(await readFile(manifestPath, 'utf8'), manifestBefore);
 });
 
