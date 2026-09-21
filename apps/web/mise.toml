@@ -45,6 +45,14 @@ run = "pnpm run format"
 description = "Check web app formatting"
 run = "pnpm run format:check"
 
+[tasks.fmt]
+hide = true
+run = [{ task = ":format" }]
+
+[tasks."fmt:check"]
+hide = true
+run = [{ task = ":format:check" }]
+
 [tasks.verify]
 description = "Run offline checks for web app"
 run = [

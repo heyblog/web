@@ -212,14 +212,14 @@ verified reliably at a lower level.
 Run a long-lived Astro development server in background mode:
 
 ```bash
-pnpm --dir apps/web exec astro dev --background
+mise --cd apps/web -E development exec -- pnpm exec astro dev --background
 ```
 
 Manage it from the repository root:
 
-- `pnpm --dir apps/web exec astro dev status`
-- `pnpm --dir apps/web exec astro dev logs`
-- `pnpm --dir apps/web exec astro dev stop`
+- `mise --cd apps/web exec -- pnpm exec astro dev status`
+- `mise --cd apps/web exec -- pnpm exec astro dev logs`
+- `mise --cd apps/web exec -- pnpm exec astro dev stop`
 
 ## Astro Documentation
 

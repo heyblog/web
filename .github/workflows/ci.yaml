@@ -55,6 +55,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           golangci-lint: 'true'
+          shellcheck: 'true'
       - name: Check repository
         run: mise run check
   api-race:

@@ -20,6 +20,7 @@ WORKDIR /workspace
 
 ENV MISE_TRUSTED_CONFIG_PATHS=/workspace \
     MISE_AUTO_INSTALL=0 \
+    GOPATH=/go \
     PATH="/root/.local/share/mise/shims:${PATH}"
 
 COPY mise.toml mise.lock ./
