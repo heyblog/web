@@ -48,6 +48,18 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Update Go workspace toolchain pins",
+      "managerFilePatterns": ["/^go\\.work$/"],
+      "matchStrings": [
+        "(?:^|\\n)go\\s+(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)",
+        "(?:^|\\n)toolchain\\s+go(?<currentValue>\\d+\\.\\d+\\.\\d+)(?:\\n|$)"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
       "description": "Keep the mise bootstrap version synchronized",
       "managerFilePatterns": [
         "/^mise\\.toml$/",
@@ -153,8 +165,8 @@
     },
     {
       "description": "Keep Go toolchain pins synchronized",
-      "matchManagers": ["gomod", "mise"],
-      "matchPackageNames": ["go", "golang"],
+      "matchManagers": ["gomod", "mise", "custom.regex"],
+      "matchPackageNames": ["go", "golang", "golang/go"],
       "matchUpdateTypes": ["major", "minor", "patch"],
       "groupName": "Go toolchain"
     },
@@ -176,7 +188,7 @@
     {
       "description": "Group Node.js runtime minor updates",
       "matchManagers": ["mise", "dockerfile"],
-      "matchPackageNames": ["node"],
+      "matchPackageNames": ["node", "pnpm"],
       "matchUpdateTypes": ["minor"],
       "groupName": "node-y",
       "groupSlug": "node-y",
@@ -193,7 +205,7 @@
     {
       "description": "Group Node.js runtime patch updates",
       "matchManagers": ["mise", "dockerfile"],
-      "matchPackageNames": ["node"],
+      "matchPackageNames": ["node", "pnpm"],
       "matchUpdateTypes": ["patch"],
       "groupName": "node-z",
       "groupSlug": "node-z",
@@ -201,7 +213,7 @@
     },
     {
       "description": "Group Go ecosystem minor updates",
-      "matchManagers": ["gomod", "mise"],
+      "matchManagers": ["gomod"],
       "matchUpdateTypes": ["minor"],
       "groupName": "go-y",
       "groupSlug": "go-y",
@@ -209,7 +221,25 @@
     },
     {
       "description": "Group Go ecosystem patch updates",
-      "matchManagers": ["gomod", "mise"],
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "go-z",
+      "groupSlug": "go-z",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Go toolchain minor updates",
+      "matchManagers": ["mise", "custom.regex"],
+      "matchPackageNames": ["go", "golang/go", "golangci-lint", "golangci/golangci-lint"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "go-y",
+      "groupSlug": "go-y",
+      "groupSingleUpdates": true
+    },
+    {
+      "description": "Group Go toolchain patch updates",
+      "matchManagers": ["mise", "custom.regex"],
+      "matchPackageNames": ["go", "golang/go", "golangci-lint", "golangci/golangci-lint"],
       "matchUpdateTypes": ["patch"],
       "groupName": "go-z",
       "groupSlug": "go-z",

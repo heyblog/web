@@ -7,14 +7,14 @@
 仓库使用 mise 管理工具版本和命令。安装满足 `mise.toml#min_version` 的 mise 后，工具版本以
 `mise.toml` 和 `mise.lock` 为准：
 
-- Node.js、pnpm、Go 和 golangci-lint：根目录 `mise.toml`
+- Node.js、pnpm、Go、golangci-lint 和 ShellCheck：根目录 `mise.toml`
 - mise：根目录 `mise.toml#min_version`
 - Docker Compose：本地 PostgreSQL/AGE 和 Redis
 
 修改任何模块前，先阅读仓库根目录及目标模块最近的 `AGENTS.md`。首次检出后执行：
 
 ```bash
-mise install --locked go golangci-lint node pnpm
+mise install --locked
 mise run setup
 ```
 
@@ -181,6 +181,9 @@ mise run verify:full
 ```
 
 不得删除、禁用或弱化测试和质量门禁来通过检查。任务失败时先处理由当前变更引入的问题，并明确记录无关的既有失败。
+
+工作流检查使用 mise 管理的 ShellCheck，确保本地与 CI 执行相同的 Shell 检查。
+CI 分别缓存工具安装、pnpm store 和 Go 模块及编译产物；工具缓存不能替代依赖缓存。
 
 ## 提交变更
 

@@ -20,21 +20,18 @@ inputs:
   golangci-lint:
     description: Install golangci-lint
     default: 'false'
+  shellcheck:
+    description: Install ShellCheck for workflow validation
+    default: 'false'
 
 runs:
   using: composite
   steps:
-    - name: Set up mise
-      uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-      with:
-        version: 2026.9.12
-        install: false
-        cache: true
-    - name: Install selected toolchains
+    - name: Select toolchains
+      id: tools
       shell: bash
       run: |
         echo "MISE_TRUSTED_CONFIG_PATHS=${GITHUB_WORKSPACE}" >>"${GITHUB_ENV}"
-        export MISE_TRUSTED_CONFIG_PATHS="${GITHUB_WORKSPACE}"
         tools=()
         if [[ "${{ inputs.node }}" == 'true' ]]; then
           tools+=(node pnpm)
@@ -45,10 +42,48 @@ runs:
         if [[ "${{ inputs.go }}" == 'true' && "${{ inputs.golangci-lint }}" == 'true' ]]; then
           tools+=(golangci-lint)
         fi
-        if ((${#tools[@]} > 0)); then
-          mise install --locked "${tools[@]}"
+        if [[ "${{ inputs.shellcheck }}" == 'true' ]]; then
+          tools+=(shellcheck)
         fi
+        echo "install_args=${tools[*]}" >>"${GITHUB_OUTPUT}"
         echo 'MISE_AUTO_INSTALL=0' >>"${GITHUB_ENV}"
+    - name: Set up mise
+      uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      with:
+        version: 2026.9.12
+        install: ${{ steps.tools.outputs.install_args != '' }}
+        install_args: ${{ steps.tools.outputs.install_args }}
+        cache: ${{ steps.tools.outputs.install_args != '' }}
+    - name: Locate pnpm store
+      if: inputs.node == 'true' && inputs.node-dependencies == 'true'
+      id: pnpm-cache
+      shell: bash
+      run: echo "path=$(pnpm store path --silent)" >>"${GITHUB_OUTPUT}"
+    - name: Cache pnpm dependencies
+      if: inputs.node == 'true' && inputs.node-dependencies == 'true'
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ steps.pnpm-cache.outputs.path }}
+        key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock', 'pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-${{ runner.arch }}-
+    - name: Locate Go caches
+      if: inputs.go == 'true'
+      id: go-cache
+      shell: bash
+      run: |
+        echo "modules=$(go env GOMODCACHE)" >>"${GITHUB_OUTPUT}"
+        echo "build=$(go env GOCACHE)" >>"${GITHUB_OUTPUT}"
+    - name: Cache Go dependencies and builds
+      if: inputs.go == 'true'
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: |
+          ${{ steps.go-cache.outputs.modules }}
+          ${{ steps.go-cache.outputs.build }}
+        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock', 'go.work', 'go.work.sum', 'go.mod', 'go.sum', 'apps/api/go.mod', 'apps/api/go.sum') }}
+        restore-keys: |
+          go-${{ runner.os }}-${{ runner.arch }}-
     - name: Install Node.js dependencies
       if: inputs.node == 'true' && inputs.node-dependencies == 'true'
       shell: bash

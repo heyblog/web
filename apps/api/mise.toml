@@ -53,6 +53,14 @@ run = 'GOLANGCI_LINT_CACHE="$(git rev-parse --absolute-git-dir)/golangci-lint-ca
 description = "Check API Go formatting and import sorting"
 run = 'GOLANGCI_LINT_CACHE="$(git rev-parse --absolute-git-dir)/golangci-lint-cache" golangci-lint fmt --config ../../.golangci.yaml --diff'
 
+[tasks.fmt]
+hide = true
+run = [{ task = ":format" }]
+
+[tasks."fmt:check"]
+hide = true
+run = [{ task = ":format:check" }]
+
 [tasks.vulncheck]
 description = "Check API Go vulnerabilities"
 run = "go tool govulncheck ./..."
