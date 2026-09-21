@@ -60,6 +60,7 @@ export const siteConfig: SiteConfig = {
         href: 'https://github.com/timqian/chinese-independent-blogs',
         external: true,
       },
+      { label: 'Ooh.Directory', href: 'https://ooh.directory/', external: true },
     ],
   },
 };
