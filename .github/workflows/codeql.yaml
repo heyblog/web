@@ -44,6 +44,11 @@ jobs:
           root-go-dependencies: 'false'
           api-go-dependencies: 'true'
 
+      - name: Expose Go compiler to CodeQL
+        if: matrix.language == 'go'
+        shell: bash
+        run: echo "$(dirname "$(mise which go)")" >>"${GITHUB_PATH}"
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
         with:
@@ -52,7 +57,11 @@ jobs:
 
       - name: Build Go
         if: matrix.language == 'go'
-        run: mise run //apps/api:build
+        working-directory: apps/api
+        # CodeQL must invoke its tracing wrapper directly instead of through mise.
+        run: |
+          mkdir -p dist
+          go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/heyblog-api .
 
       - name: Analyze
         uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
