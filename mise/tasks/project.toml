@@ -128,6 +128,7 @@ run = [
   "mise --cd apps/api tasks validate",
   "mise --cd apps/web tasks validate",
   "mise --cd packages/node/configs tasks validate",
+  "REGISTRY=example.test NAMESPACE=heyblog IMAGE_TAGS=test mise run --dry-run container:publish >/dev/null",
   "go tool actionlint",
 ]
 

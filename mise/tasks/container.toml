@@ -100,6 +100,9 @@ registry_invalid() {
   printf '%s\n' 'REGISTRY must be a lowercase Docker registry host with an optional valid port' >&2
   exit 1
 }
+string_length() {
+  printf '%s' "$1" | wc -c
+}
 case "${registry}" in ''|*[!a-z0-9.:-]*|:*|*:|.*|*.|*..*) registry_invalid ;; esac
 registry_host=${registry}
 case "${registry}" in
@@ -112,14 +115,14 @@ case "${registry}" in
     [ "${registry_port}" -le 65535 ] 2>/dev/null || registry_invalid
     ;;
 esac
-[ "${#registry_host}" -le 253 ] || registry_invalid
+[ "$(string_length "${registry_host}")" -le 253 ] || registry_invalid
 old_ifs=${IFS}
 IFS=.
 set -- ${registry_host}
 IFS=${old_ifs}
 for registry_label in "$@"; do
   case "${registry_label}" in ''|-*|*-|*[!a-z0-9-]*) registry_invalid ;; esac
-  [ "${#registry_label}" -le 63 ] || registry_invalid
+  [ "$(string_length "${registry_label}")" -le 63 ] || registry_invalid
 done
 printf '%s\n' "${namespace}" | grep -Eq '^[a-z0-9]+([._][a-z0-9]+|__[a-z0-9]+|-+[a-z0-9]+)*(\/[a-z0-9]+([._][a-z0-9]+|__[a-z0-9]+|-+[a-z0-9]+)*)*$' || {
   printf '%s\n' 'NAMESPACE must be a slash-separated lowercase Docker repository path' >&2
@@ -139,7 +142,7 @@ for tag in "$@"; do
   case "${tag}" in
     *[!A-Za-z0-9_.-]*) printf 'invalid image tag: %s\n' "${tag}" >&2; exit 1 ;;
   esac
-  [ "${#tag}" -le 128 ] || { printf 'image tag is too long: %s\n' "${tag}" >&2; exit 1; }
+  [ "$(string_length "${tag}")" -le 128 ] || { printf 'image tag is too long: %s\n' "${tag}" >&2; exit 1; }
 done
 for image in api:local web:local; do
   ${docker_command} image inspect "${image}" >/dev/null
