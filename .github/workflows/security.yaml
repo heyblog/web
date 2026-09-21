@@ -21,4 +21,4 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Scan dependencies
-        run: task security
+        run: mise run security

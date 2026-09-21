@@ -1,7 +1,4 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -10,7 +7,6 @@ import {
   resolveBuildMetadata,
 } from '../src/shared/integrations/build-metadata.ts';
 
-const repositoryRoot = resolve(import.meta.dirname, '../../..');
 const fixedBuildTime = new Date('2026-09-03T02:03:04.000Z');
 
 const gitValues = new Map<string, string>([
@@ -30,9 +26,10 @@ const runGit = (args: readonly string[]): string => {
   return value;
 };
 
-test('reads the release version from the repository VERSION file', () => {
+test('reads the release version from the explicit build input', () => {
   // Given: the checked-out repository and explicit build metadata.
   const environment = {
+    WEB_BUILD_VERSION: '2.3.4',
     WEB_BUILD_COMMIT: '2222222222222222222222222222222222222222',
     WEB_BUILD_REF: 'refs/heads/release',
     WEB_BUILD_COMMIT_TIME: '2026-09-01T01:02:03.000Z',
@@ -42,19 +39,19 @@ test('reads the release version from the repository VERSION file', () => {
 
   // When: build metadata is resolved.
   const metadata = resolveBuildMetadata({
-    repositoryRoot,
     environment,
     now: fixedBuildTime,
     runGit,
   });
 
-  // Then: VERSION remains the only release-version source.
-  assert.equal(metadata.version, '0.2.2');
+  // Then: the validated build input supplies the release version.
+  assert.equal(metadata.version, '2.3.4');
 });
 
 test('prefers explicit build inputs over local Git metadata', () => {
   // Given: explicit inputs that differ from every Git fallback.
   const environment = {
+    WEB_BUILD_VERSION: '2.3.4',
     WEB_BUILD_COMMIT: '2222222222222222222222222222222222222222',
     WEB_BUILD_REF: 'refs/heads/release',
     WEB_BUILD_COMMIT_TIME: '2026-09-01T01:02:03.000Z',
@@ -64,7 +61,6 @@ test('prefers explicit build inputs over local Git metadata', () => {
 
   // When: build metadata is resolved.
   const metadata = resolveBuildMetadata({
-    repositoryRoot,
     environment,
     now: fixedBuildTime,
     runGit,
@@ -73,7 +69,7 @@ test('prefers explicit build inputs over local Git metadata', () => {
   // Then: the explicit build provenance wins.
   assert.deepEqual(metadata, {
     component: 'heyblog-web',
-    version: '0.2.2',
+    version: '2.3.4',
     ref: 'refs/heads/release',
     commit: '2222222222222222222222222222222222222222',
     shortCommit: '222222222',
@@ -85,11 +81,10 @@ test('prefers explicit build inputs over local Git metadata', () => {
 
 test('falls back to local Git metadata when build inputs are absent', () => {
   // Given: no explicit build provenance.
-  const environment = {};
+  const environment = { WEB_BUILD_VERSION: '2.3.4' };
 
   // When: build metadata is resolved from Git.
   const metadata = resolveBuildMetadata({
-    repositoryRoot,
     environment,
     now: fixedBuildTime,
     runGit,
@@ -98,7 +93,7 @@ test('falls back to local Git metadata when build inputs are absent', () => {
   // Then: Git and the injected clock supply the missing fields.
   assert.deepEqual(metadata, {
     component: 'heyblog-web',
-    version: '0.2.2',
+    version: '2.3.4',
     ref: 'git-fallback',
     commit: '1111111111111111111111111111111111111111',
     shortCommit: '111111111',
@@ -139,8 +134,7 @@ test('uses safe fallbacks when Git metadata is unavailable', () => {
 
   // When: metadata resolution cannot invoke Git.
   const metadata = resolveBuildMetadata({
-    repositoryRoot,
-    environment: {},
+    environment: { WEB_BUILD_VERSION: '2.3.4' },
     now: fixedBuildTime,
     runGit: unavailableGit,
     warn: (message) => warnings.push(message),
@@ -155,36 +149,20 @@ test('uses safe fallbacks when Git metadata is unavailable', () => {
   assert.equal(warnings.length, 1);
 });
 
-test('fails when VERSION is missing or invalid', () => {
-  // Given: temporary repository roots with missing and malformed VERSION files.
-  const missingRoot = mkdtempSync(join(tmpdir(), 'heyblog-version-missing-'));
-  const invalidRoot = mkdtempSync(join(tmpdir(), 'heyblog-version-invalid-'));
-  writeFileSync(join(invalidRoot, 'VERSION'), '1.2\n', 'utf8');
+test('fails when the build version is missing or invalid', () => {
+  // Given: missing and malformed version build inputs.
+  const invalidEnvironments = [{}, { WEB_BUILD_VERSION: '1.2' }] as const;
 
-  try {
-    // When/Then: neither invalid source can produce build metadata.
+  // When/Then: neither invalid input can produce build metadata.
+  for (const environment of invalidEnvironments) {
     assert.throws(
       () =>
         resolveBuildMetadata({
-          repositoryRoot: missingRoot,
-          environment: {},
+          environment,
           now: fixedBuildTime,
           runGit,
         }),
       ProjectVersionError,
     );
-    assert.throws(
-      () =>
-        resolveBuildMetadata({
-          repositoryRoot: invalidRoot,
-          environment: {},
-          now: fixedBuildTime,
-          runGit,
-        }),
-      ProjectVersionError,
-    );
-  } finally {
-    rmSync(missingRoot, { recursive: true, force: true });
-    rmSync(invalidRoot, { recursive: true, force: true });
   }
 });

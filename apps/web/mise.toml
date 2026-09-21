@@ -1,0 +1,59 @@
+[env]
+WEB_BUILD_VERSION = "{{ vars.project_version }}"
+
+[tasks.dev]
+description = "Start Astro dev server"
+run = "mise -E development exec -- pnpm dev"
+
+[tasks.build]
+description = "Build Astro site"
+run = "pnpm build"
+
+[tasks.preview]
+description = "Preview Astro build"
+run = "mise -E development exec -- pnpm preview"
+
+[tasks.test]
+description = "Test Web server infrastructure"
+run = "pnpm test"
+
+[tasks.smoke]
+description = "Test the built standalone Web server"
+run = "pnpm run test:standalone"
+
+[tasks.typecheck]
+description = "Run Astro check"
+run = "pnpm run typecheck"
+
+[tasks.check]
+description = "Run Web static checks"
+run = [{ task = ":format:check" }, { task = ":lint" }, { task = ":typecheck" }]
+
+[tasks.lint]
+description = "Lint web app"
+run = "pnpm run lint"
+
+[tasks."lint:fix"]
+description = "Lint and fix web app"
+run = "pnpm run lint:fix"
+
+[tasks.format]
+description = "Format web app"
+run = "pnpm run format"
+
+[tasks."format:check"]
+description = "Check web app formatting"
+run = "pnpm run format:check"
+
+[tasks.verify]
+description = "Run offline checks for web app"
+run = [
+  { task = ":test" },
+  { task = ":check" },
+  { task = ":build" },
+  { task = ":smoke" },
+]
+
+[tasks.prepare]
+description = "Sync web content from heyblog/.github main"
+run = "node ../../scripts/sync-web-content.mjs"

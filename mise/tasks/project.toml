@@ -1,0 +1,169 @@
+[default]
+description = "List available tasks"
+quiet = true
+run = "mise tasks ls --all"
+
+["version:show"]
+description = "Print the project version"
+quiet = true
+run = "node ./scripts/version.mjs show"
+
+["version:check"]
+description = "Validate the canonical project version"
+run = "node ./scripts/version.mjs check"
+
+["version:test"]
+description = "Test project version management"
+run = "node --test ./scripts/version.test.mjs"
+
+["version:set"]
+description = "Set the project version"
+usage = 'arg "<version>"'
+run = 'node ./scripts/version.mjs set "$usage_version"'
+
+["version:patch"]
+description = "Increment the project patch version"
+run = "node ./scripts/version.mjs bump patch"
+
+["version:minor"]
+description = "Increment the project minor version"
+run = "node ./scripts/version.mjs bump minor"
+
+["version:major"]
+description = "Increment the project major version"
+run = "node ./scripts/version.mjs bump major"
+
+[apps]
+description = "List app status under apps"
+quiet = true
+run = '''
+cat <<'EOF'
+apps/api       The backend api server built with Gin
+apps/web       The frontend web app built with Astro
+EOF
+'''
+
+["apps:dev"]
+description = "Run core apps"
+run = [{ tasks = ["//apps/api:dev", "//apps/web:dev"] }]
+
+["app:dev"]
+description = "Run core apps"
+run = [{ task = "apps:dev" }]
+
+[install]
+description = "Install repository dependencies"
+run = ["pnpm install", "go mod download", { task = "//apps/api:install" }]
+
+[prepare]
+description = "Prepare generated project inputs"
+run = [{ task = "//apps/web:prepare" }]
+
+[setup]
+description = "Install dependencies, Git hooks, and generated inputs"
+run = [{ task = "install" }, { task = "hooks:install" }, { task = "prepare" }]
+
+[format]
+alias = "fmt"
+description = "Format all active modules"
+run = [
+  "mise fmt --all",
+  "pnpm run format",
+  { task = "//packages/node/configs:format" },
+  { task = "//apps/web:format" },
+  { task = "//apps/api:format" },
+]
+
+["format:check"]
+alias = "fmt:check"
+description = "Check formatting for all active modules"
+run = [
+  "mise fmt --all --check",
+  "pnpm run format:check",
+  { task = "//packages/node/configs:format:check" },
+  { task = "//apps/web:format:check" },
+  { task = "//apps/api:format:check" },
+]
+
+[lint]
+description = "Lint all active modules"
+run = [
+  "pnpm run lint",
+  { task = "//packages/node/configs:lint" },
+  { task = "//apps/web:lint" },
+  { task = "//apps/api:lint" },
+]
+
+["lint:fix"]
+description = "Lint and fix all active modules"
+run = [
+  "pnpm run lint:fix",
+  { task = "//packages/node/configs:lint:fix" },
+  { task = "//apps/web:lint:fix" },
+  { task = "//apps/api:lint:fix" },
+]
+
+[build]
+description = "Build all active applications"
+run = [{ task = "//apps/api:build" }, { task = "//apps/web:build" }]
+
+[typecheck]
+description = "Type-check all Node workspace modules"
+run = [
+  "pnpm run typecheck",
+  { task = "//packages/node/configs:typecheck" },
+  { task = "//apps/web:typecheck" },
+]
+
+[check]
+description = "Run repository static checks"
+run = [
+  { task = "version:check" },
+  { task = "format:check" },
+  { task = "lint" },
+  { task = "typecheck" },
+  { task = "//apps/api:sqlc:vet" },
+  { task = "//apps/api:sqlc:diff" },
+  "mise tasks validate",
+  "mise --cd apps/api tasks validate",
+  "mise --cd apps/web tasks validate",
+  "mise --cd packages/node/configs tasks validate",
+  "go tool actionlint",
+]
+
+[test]
+description = "Run all configured tests"
+run = [
+  { task = "version:test" },
+  { task = "hooks:test" },
+  { task = "//apps/api:test" },
+  { task = "//apps/web:test" },
+]
+
+["test:race"]
+description = "Run race-enabled tests"
+run = [{ task = "//apps/api:test:race" }]
+
+["test:integration"]
+description = "Run integration tests"
+run = [{ task = "//apps/api:test:integration" }]
+
+[security]
+description = "Run checks that require vulnerability database access"
+run = ["pnpm audit --audit-level high", { task = "//apps/api:vulncheck" }]
+
+[verify]
+description = "Run all offline checks"
+run = [{ task = "check" }, { task = "test" }, { task = "build" }]
+
+["verify:full"]
+description = "Run all checks, extended tests, builds, and scans"
+run = [
+  { task = "check" },
+  { task = "test:race" },
+  { task = "test:integration" },
+  { task = "//apps/web:test" },
+  { task = "build" },
+  { task = "security" },
+  { task = "container:verify" },
+]

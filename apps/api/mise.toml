@@ -1,0 +1,75 @@
+[tasks.install]
+description = "Download API dependencies"
+run = "go mod download"
+
+[tasks.dev]
+description = "Start API server"
+run = "mise -E development exec -- go run ."
+
+[tasks.build]
+description = "Build API"
+run = [
+  "mkdir -p dist",
+  'go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/heyblog-api .',
+]
+
+[tasks.test]
+description = "Test API"
+run = "go test ./..."
+
+[tasks."test:race"]
+description = "Test API with the race detector"
+run = "go test -race ./..."
+
+[tasks."test:integration"]
+description = "Test API infrastructure with PostgreSQL/AGE, Redis, and Mailpit containers"
+run = "go test -count=1 -tags=integration ./internal/integration ./internal/dataimport"
+
+[tasks."sqlc:generate"]
+description = "Generate pgx/v5 data access code"
+run = "go tool sqlc generate"
+
+[tasks."sqlc:vet"]
+description = "Validate SQL queries against migrations"
+run = "go tool sqlc vet"
+
+[tasks."sqlc:diff"]
+description = "Check that sqlc generated code is current"
+run = "go tool sqlc diff"
+
+[tasks.lint]
+description = "Lint API Go files"
+run = 'GOLANGCI_LINT_CACHE="$(git rev-parse --absolute-git-dir)/golangci-lint-cache" golangci-lint run --config ../../.golangci.yaml ./...'
+
+[tasks."lint:fix"]
+description = "Lint and fix API Go files"
+run = 'GOLANGCI_LINT_CACHE="$(git rev-parse --absolute-git-dir)/golangci-lint-cache" golangci-lint run --config ../../.golangci.yaml --fix ./...'
+
+[tasks.format]
+description = "Format API Go files and sort imports"
+run = 'GOLANGCI_LINT_CACHE="$(git rev-parse --absolute-git-dir)/golangci-lint-cache" golangci-lint fmt --config ../../.golangci.yaml'
+
+[tasks."format:check"]
+description = "Check API Go formatting and import sorting"
+run = 'GOLANGCI_LINT_CACHE="$(git rev-parse --absolute-git-dir)/golangci-lint-cache" golangci-lint fmt --config ../../.golangci.yaml --diff'
+
+[tasks.vulncheck]
+description = "Check API Go vulnerabilities"
+run = "go tool govulncheck ./..."
+
+[tasks.check]
+description = "Run API static checks"
+run = [
+  { task = ":sqlc:vet" },
+  { task = ":sqlc:diff" },
+  { task = ":format:check" },
+  { task = ":lint" },
+]
+
+[tasks.security]
+description = "Run API vulnerability checks"
+run = [{ task = ":vulncheck" }]
+
+[tasks.verify]
+description = "Run API checks, race tests, and build"
+run = [{ task = ":check" }, { task = ":test:race" }, { task = ":build" }]

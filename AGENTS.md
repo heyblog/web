@@ -10,7 +10,7 @@ This file provides guidance to agents working with code in this repository.
   rules remain the default for topics it does not address.
 - For cross-module work, read the instructions for every affected module and satisfy each module's
   validation requirements.
-- If a module has no local `AGENTS.md`, inspect its manifest, Taskfile, configuration, and existing
+- If a module has no local `AGENTS.md`, inspect its manifest, mise configuration, and existing
   code. Do not copy assumptions from another module.
 
 ## Project Mission
@@ -28,22 +28,22 @@ ambiguity before implementing behavior.
 - `.github`: repository automation, reusable actions, and CI workflows.
 - `scripts`: repository automation and Git-hook support.
 - `skills`: project-owned source Skills installed for development agents.
-- `taskfiles`: repository-wide Task definitions included by `Taskfile.yaml`.
+- `mise`: repository-wide mise task definitions loaded by `mise.toml`.
 
 Modules under `apps/` and `packages/` own their detailed architecture, commands, and conventions in
 their nearest `AGENTS.md`.
 
 ## Canonical Sources
 
-- Treat the root `VERSION` file as the only project release version for the API, Web application,
-  and repository-owned packages. It contains three JavaScript-safe non-negative integers in strict
-  `X.Y.Z` form. Do not add `version` fields to project `package.json` files.
-- Read `.nvmrc` for the Node.js version and `package.json#packageManager` for the pnpm version.
-- Read `go.work` and module `go.mod` files for the Go toolchain and dependencies.
+- Treat `mise.toml#vars.project_version` as the only project release version for the API, Web
+  application, and repository-owned packages. It contains three JavaScript-safe non-negative
+  integers in strict `X.Y.Z` form. Do not add `version` fields to project `package.json` files.
+- Read root `mise.toml` and `mise.lock` for exact managed tool versions. Read `go.work` and module
+  `go.mod` files for Go workspace compatibility and dependencies.
 - Treat the root `go.mod` and `go.sum` as repository-wide Go tool manifests only. Application
   dependencies belong to their owning module under `apps/`.
 - Treat module manifests and lockfiles as dependency truth.
-- Treat `Taskfile.yaml` and included module Taskfiles as command truth.
+- Treat root and module `mise.toml` files plus `mise/tasks/*.toml` as command truth.
 - Use the `.yaml` extension for every repository-owned YAML file and reference. Do not add `.yml`
   files or `.yml` compatibility patterns.
 - Treat `skills/` as the only source for project-owned Skills. Expose each project-owned Skill in
@@ -72,17 +72,18 @@ their nearest `AGENTS.md`.
 
 ## Commands
 
-- `task --list-all`: discover available repository and module tasks.
-- `task install`: install repository dependencies only.
-- `task prepare`: sync generated Web content; `task setup` additionally installs dependencies and Git hooks.
-- `task version:show|check|patch|minor|major`: inspect, validate, or increment the project version;
-  use `task version:set -- X.Y.Z` to set an exact version.
-- `task <module>:<task>`: run a focused module task, such as `task api:verify` or
-  `task web:verify`.
-- `task check`: run repository formatting, lint, type, SQL, Task, and workflow checks.
-- `task verify`: run checks, ordinary tests, and application builds.
-- `task verify:full`: run extended tests, builds, dependency and container security validation.
-- `task security`: run only the network-backed vulnerability checks.
+- `mise tasks ls --all`: discover available repository and module tasks.
+- `mise run install`: install repository dependencies only.
+- `mise run prepare`: sync generated Web content; `mise run setup` additionally installs
+  dependencies and Git hooks.
+- `mise run version:show|check|patch|minor|major`: inspect, validate, or increment the project
+  version; use `mise run version:set -- X.Y.Z` to set an exact version.
+- `mise run //<module-path>:<task>`: run a focused module task from the root, such as
+  `mise run //apps/api:verify`; from that module, use `mise run :verify`.
+- `mise run check`: run repository formatting, lint, type, SQL, mise, and workflow checks.
+- `mise run verify`: run checks, ordinary tests, and application builds.
+- `mise run verify:full`: run extended tests, builds, dependency and container security validation.
+- `mise run security`: run only the network-backed vulnerability checks.
 
 Prefer the narrowest relevant module command while iterating, then run repository-wide validation.
 
@@ -143,8 +144,8 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 3. State a short implementation plan.
 4. Make the smallest coherent change that preserves clear ownership.
 5. Run the affected modules' focused checks.
-6. Run `task verify` and any relevant integration or end-to-end checks.
-7. Run `task verify:full` when security validation is required and network access is available.
+6. Run `mise run verify` and any relevant integration or end-to-end checks.
+7. Run `mise run verify:full` when security validation is required and network access is available.
 8. Report changed files, validation evidence, risks, and follow-up work.
 
 ## Testing

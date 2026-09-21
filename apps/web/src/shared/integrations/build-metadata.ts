@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,7 +16,6 @@ export type BuildMetadata = {
 };
 
 type BuildMetadataOptions = {
-  readonly repositoryRoot: string;
   readonly environment: Readonly<Record<string, string | undefined>>;
   readonly now: Date;
   readonly runGit: (args: readonly string[]) => string;
@@ -31,23 +29,14 @@ const githubSegmentPattern = /^[A-Za-z0-9_.-]+$/;
 const unknown = 'unknown';
 
 export class ProjectVersionError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = 'ProjectVersionError';
-  }
+  readonly name = 'ProjectVersionError';
 }
 
-function readProjectVersion(repositoryRoot: string): string {
-  let version: string;
-
-  try {
-    version = readFileSync(resolve(repositoryRoot, 'VERSION'), 'utf8').trim();
-  } catch (error) {
-    throw new ProjectVersionError('Unable to read the repository VERSION file.', { cause: error });
-  }
+function readProjectVersion(value: string | undefined): string {
+  const version = nonEmpty(value);
 
   if (!versionPattern.test(version)) {
-    throw new ProjectVersionError('VERSION must use strict X.Y.Z format.');
+    throw new ProjectVersionError('WEB_BUILD_VERSION must use strict X.Y.Z format.');
   }
 
   const safeComponents = version
@@ -56,7 +45,9 @@ function readProjectVersion(repositoryRoot: string): string {
     .every((value) => Number.isSafeInteger(value));
 
   if (!safeComponents) {
-    throw new ProjectVersionError('Every VERSION component must be a JavaScript-safe integer.');
+    throw new ProjectVersionError(
+      'Every WEB_BUILD_VERSION component must be a JavaScript-safe integer.',
+    );
   }
 
   return version;
@@ -111,7 +102,6 @@ export function githubCommitUrl(repositoryUrl: string, commit: string): string {
 }
 
 export function resolveBuildMetadata({
-  repositoryRoot,
   environment,
   now,
   runGit,
@@ -151,7 +141,7 @@ export function resolveBuildMetadata({
 
   return {
     component,
-    version: readProjectVersion(repositoryRoot),
+    version: readProjectVersion(environment.WEB_BUILD_VERSION),
     ref,
     commit,
     shortCommit: commit === unknown ? unknown : commit.slice(0, 9),
@@ -177,7 +167,6 @@ export function buildMetadataIntegration(): AstroIntegration {
     hooks: {
       'astro:config:setup': ({ logger, updateConfig }) => {
         const metadata = resolveBuildMetadata({
-          repositoryRoot,
           environment: process.env,
           now: new Date(),
           runGit: runRepositoryGit,

@@ -1,0 +1,178 @@
+["container:command:check"]
+hide = true
+quiet = true
+run = '''
+docker_command=${DOCKER_COMMAND:-docker}
+case "${docker_command}" in
+  docker|'sudo -- docker') ;;
+  *) printf '%s\n' 'DOCKER_COMMAND must be exactly "docker" or "sudo -- docker"' >&2; exit 1 ;;
+esac
+'''
+
+["container:base"]
+description = "Build the shared HeyBlog builder image"
+run = [
+  { task = "container:command:check" },
+  '''
+docker_command=${DOCKER_COMMAND:-docker}
+${docker_command} build --platform linux/amd64 -f infra/docker/Dockerfile.builder -t heyblog-builder:local .
+''',
+]
+
+["container:build"]
+description = "Build local API and Web container images from prepared inputs"
+run = [
+  { task = "container:command:check" },
+  { task = "container:base" },
+  '''
+docker_command=${DOCKER_COMMAND:-docker}
+${docker_command} build --platform linux/amd64 -f apps/api/Dockerfile -t api:local .
+''',
+  '''
+docker_command=${DOCKER_COMMAND:-docker}
+web_build_commit=$(git rev-parse HEAD)
+web_build_ref=$(git symbolic-ref --quiet --short HEAD || git describe --tags --exact-match HEAD 2>/dev/null || printf '%s' detached)
+web_build_commit_time=$(git log -1 --pretty=format:%cI)
+web_build_repository_url=$(git config --get remote.origin.url || true)
+case "${web_build_repository_url}" in
+  https://github.com/*|git@github.com:*|ssh://git@github.com/*) ;;
+  *) web_build_repository_url= ;;
+esac
+web_build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+${docker_command} build \
+  --platform linux/amd64 \
+  --build-arg "WEB_BUILD_COMMIT=${web_build_commit}" \
+  --build-arg "WEB_BUILD_REF=${web_build_ref}" \
+  --build-arg "WEB_BUILD_COMMIT_TIME=${web_build_commit_time}" \
+  --build-arg "WEB_BUILD_REPOSITORY_URL=${web_build_repository_url}" \
+  --build-arg "WEB_BUILD_TIME=${web_build_time}" \
+  -f apps/web/Dockerfile \
+  -t web:local \
+  .
+''',
+]
+
+["container:scan"]
+description = "Scan local API and Web images for fixable high-severity vulnerabilities"
+env.TRIVY_IMAGE = "aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969"
+run = [
+  { task = "container:command:check" },
+  '''
+docker_command=${DOCKER_COMMAND:-docker}
+docker_host=${DOCKER_HOST:-unix:///var/run/docker.sock}
+case "${docker_host}" in
+  unix://*) docker_socket=${docker_host#unix://} ;;
+  *) printf '%s\n' 'container:scan requires a Unix-socket DOCKER_HOST' >&2; exit 1 ;;
+esac
+${docker_command} run --rm \
+  --entrypoint /bin/sh \
+  --env DOCKER_HOST=unix:///var/run/docker.sock \
+  --volume "${docker_socket}:/var/run/docker.sock" \
+  "${TRIVY_IMAGE}" \
+  -ec '
+    for image in api:local web:local; do
+      trivy image \
+        --exit-code 1 \
+        --ignore-unfixed \
+        --no-progress \
+        --scanners vuln \
+        --severity HIGH,CRITICAL \
+        "${image}"
+    done
+  '
+''',
+]
+
+["container:publish"]
+description = "Tag and publish previously verified local images"
+run = [
+  { task = "container:command:check" },
+  '''
+: "${REGISTRY:?REGISTRY is required}"
+: "${NAMESPACE:?NAMESPACE is required}"
+: "${IMAGE_TAGS:?IMAGE_TAGS is required}"
+
+docker_command=${DOCKER_COMMAND:-docker}
+registry=${REGISTRY}
+namespace=${NAMESPACE}
+image_tags=${IMAGE_TAGS}
+registry_invalid() {
+  printf '%s\n' 'REGISTRY must be a lowercase Docker registry host with an optional valid port' >&2
+  exit 1
+}
+case "${registry}" in ''|*[!a-z0-9.:-]*|:*|*:|.*|*.|*..*) registry_invalid ;; esac
+registry_host=${registry}
+case "${registry}" in
+  *:*)
+    case "${registry}" in *:*:*) registry_invalid ;; esac
+    registry_host=${registry%:*}
+    registry_port=${registry##*:}
+    case "${registry_port}" in ''|*[!0-9]*) registry_invalid ;; esac
+    [ "${registry_port}" -ge 1 ] 2>/dev/null || registry_invalid
+    [ "${registry_port}" -le 65535 ] 2>/dev/null || registry_invalid
+    ;;
+esac
+[ "${#registry_host}" -le 253 ] || registry_invalid
+old_ifs=${IFS}
+IFS=.
+set -- ${registry_host}
+IFS=${old_ifs}
+for registry_label in "$@"; do
+  case "${registry_label}" in ''|-*|*-|*[!a-z0-9-]*) registry_invalid ;; esac
+  [ "${#registry_label}" -le 63 ] || registry_invalid
+done
+printf '%s\n' "${namespace}" | grep -Eq '^[a-z0-9]+([._][a-z0-9]+|__[a-z0-9]+|-+[a-z0-9]+)*(\/[a-z0-9]+([._][a-z0-9]+|__[a-z0-9]+|-+[a-z0-9]+)*)*$' || {
+  printf '%s\n' 'NAMESPACE must be a slash-separated lowercase Docker repository path' >&2
+  exit 1
+}
+case "${image_tags}" in *[!A-Za-z0-9_.,-]*|'') printf '%s\n' 'IMAGE_TAGS must be a comma-separated tag list' >&2; exit 1;; esac
+case ",${image_tags}," in *,,*) printf '%s\n' 'IMAGE_TAGS contains an empty tag' >&2; exit 1;; esac
+old_ifs=${IFS}
+IFS=,
+set -- ${image_tags}
+IFS=${old_ifs}
+for tag in "$@"; do
+  case "${tag}" in
+    [A-Za-z0-9_]*) ;;
+    *) printf 'invalid image tag: %s\n' "${tag}" >&2; exit 1 ;;
+  esac
+  case "${tag}" in
+    *[!A-Za-z0-9_.-]*) printf 'invalid image tag: %s\n' "${tag}" >&2; exit 1 ;;
+  esac
+  [ "${#tag}" -le 128 ] || { printf 'image tag is too long: %s\n' "${tag}" >&2; exit 1; }
+done
+for image in api:local web:local; do
+  ${docker_command} image inspect "${image}" >/dev/null
+done
+for tag in "$@"; do
+  for image in api web; do
+    target=${registry}/${namespace}/${image}:${tag}
+    ${docker_command} tag "${image}:local" "${target}"
+    ${docker_command} push "${target}"
+  done
+done
+''',
+]
+
+["compose:check"]
+description = "Validate development and production Compose configurations"
+run = [
+  { task = "container:command:check" },
+  '''
+docker_command=${DOCKER_COMMAND:-docker}
+${docker_command} compose -f infra/docker/docker-compose.env.yaml config --quiet
+${docker_command} compose --env-file .env.production.example -f infra/docker/docker-compose.production.yaml config --quiet
+''',
+]
+
+["container:check"]
+description = "Validate container configuration"
+run = [{ task = "compose:check" }]
+
+["container:verify"]
+description = "Validate Compose, build images, and scan them"
+run = [
+  { task = "container:check" },
+  { task = "container:build" },
+  { task = "container:scan" },
+]
