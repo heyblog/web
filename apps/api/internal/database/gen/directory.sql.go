@@ -1152,6 +1152,7 @@ SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
   JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
  WHERE cascade.scope = 'SITE' AND cascade.is_enabled
    AND level1.is_enabled AND level2.is_enabled
+   AND level1.merged_into_id IS NULL AND level2.merged_into_id IS NULL
  ORDER BY cascade.sort_order, cascade.id
 `
 
@@ -1963,6 +1964,56 @@ SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summar
 
 func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
 	row := q.db.QueryRow(ctx, lockSiteByID, id)
+	var i DirectorySite
+	err := row.Scan(
+		&i.ID,
+		&i.ShortID,
+		&i.CustomID,
+		&i.Name,
+		&i.Scheme,
+		&i.NormalizedHost,
+		&i.BasePath,
+		&i.Summary,
+		&i.AccessScope,
+		&i.Visibility,
+		&i.VisibilityReason,
+		&i.Revision,
+		&i.JoinedAt,
+		&i.UpdatedAt,
+		&i.TagCascadeID,
+	)
+	return i, err
+}
+
+const pickRandomVisibleSite = `-- name: PickRandomVisibleSite :one
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id
+  FROM directory.sites AS site
+ WHERE site.visibility = 'VISIBLE'
+   AND ($1::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
+         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+         AND tag.name = $1::text
+   ))
+   AND ($2::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
+         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+         AND tag.name = $2::text
+   ))
+ ORDER BY random()
+ LIMIT 1
+`
+
+type PickRandomVisibleSiteParams struct {
+	Level1TagName string
+	Level2TagName string
+}
+
+func (q *Queries) PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error) {
+	row := q.db.QueryRow(ctx, pickRandomVisibleSite, arg.Level1TagName, arg.Level2TagName)
 	var i DirectorySite
 	err := row.Scan(
 		&i.ID,

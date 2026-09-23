@@ -67,7 +67,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		t.Fatalf("decode generated OpenAPI: %v", err)
 	}
 	wantedPaths := []string{
-		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options",
+		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options", "/sites/random",
 		"/v1/example",
 		"/sites/id/{identifier}", "/sites/id/{identifier}/icon", "/sites/custom/{customId}",
 		"/auth/register", "/auth/login", "/auth/me", "/auth/refresh", "/auth/logout",
@@ -144,7 +144,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	methods := map[string]struct{}{
 		"get": {}, "head": {}, "post": {}, "put": {}, "patch": {}, "delete": {}, "options": {},
 	}
-	operationIDs := make(map[string]string, 52)
+	operationIDs := make(map[string]string, 54)
 	operationCount := 0
 	for path, pathItem := range raw.Paths {
 		for method, encoded := range pathItem {
@@ -168,8 +168,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 53 {
-		t.Fatalf("documented operation count = %d, want 53", operationCount)
+	if operationCount != 54 {
+		t.Fatalf("documented operation count = %d, want 54", operationCount)
 	}
 	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

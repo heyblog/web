@@ -29,6 +29,7 @@ type Reader interface {
 	Home(context.Context) (Home, error)
 	Directory(context.Context, DirectoryQuery) (DirectoryView, error)
 	DirectoryOptions(context.Context) (DirectoryOptions, error)
+	RandomSite(context.Context, RandomSiteQuery) (RandomSiteView, error)
 	SiteByIdentifier(context.Context, SiteIdentifier) (SiteProfile, error)
 	SiteIconByIdentifier(context.Context, SiteIdentifier) (SiteIcon, error)
 	SiteByCustomID(context.Context, string) (SiteProfile, error)
@@ -57,6 +58,7 @@ type Queries interface {
 	ListPublicSiteTagsBySiteIDs(context.Context, []pgtype.UUID) ([]dbgen.ListPublicSiteTagsBySiteIDsRow, error)
 	ListPublicSitemapsBySiteIDs(context.Context, []pgtype.UUID) ([]dbgen.DirectorySiteResource, error)
 	ListRandomVisibleSites(context.Context, int32) ([]dbgen.DirectorySite, error)
+	PickRandomVisibleSite(context.Context, dbgen.PickRandomVisibleSiteParams) (dbgen.DirectorySite, error)
 	ListSiteResources(context.Context, pgtype.UUID) ([]dbgen.DirectorySiteResource, error)
 }
 

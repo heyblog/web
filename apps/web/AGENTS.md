@@ -130,6 +130,16 @@ secrets in the result view's memory only and preserve them if a subsequent list 
 Metadata updates and rotation responses do not contain complete key history; refresh the list
 without replacing existing history with those partial results.
 
+Random discovery uses SSR `/site/go` and the dedicated API `/sites/random`; `/random` redirects
+permanently and preserves its query. Both classification parameters (`level1`, `level2`) use exact
+Chinese display names, not slugs. Empty, repeated, unknown, or invalid parameters return 400;
+a valid selection with no candidate is a normal empty result. `preview=true` is Web-only and opens
+the editor without navigation or a countdown. Public navigation defaults to this editor. Its
+same-origin `/api/site-random` endpoint permits only classification fields and uses the `web-only`
+GET adapter. Generated links use the configured public origin and omit `preview` and unused filters.
+Random pages and responses are uncached; disable prefetch on random links and exclude the page
+from indexing. Normal mode keeps a usable SSR destination link and a hydrated 10-second timer.
+
 ## Proxy, Authentication, and Error Rules
 
 - Same-origin endpoints must be purpose-built; never create an unrestricted upstream proxy.

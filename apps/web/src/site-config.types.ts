@@ -6,6 +6,7 @@ export interface SiteLink {
 
 export interface SiteNavigationItem extends SiteLink {
   readonly sort: number;
+  prefetch?: boolean;
   match: 'exact' | 'prefix';
 }
 

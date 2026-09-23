@@ -1,0 +1,116 @@
+---
+import { loadSiteGoPage } from '@/application/site-go/site-go.server';
+import { buildSiteGoHref } from '@/application/site-go/site-go.shared';
+import SiteGoControls from '@/components/site-go/SiteGoControls.svelte';
+import SiteGoEditor from '@/components/site-go/SiteGoEditor.svelte';
+import SiteGoPreview from '@/components/site-go/SiteGoPreview.svelte';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+import { siteConfig } from '@/site.config';
+
+export const prerender = false;
+const page = await loadSiteGoPage(Astro.url, Astro.request);
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.status = page.status;
+if (page.unavailable) Astro.response.headers.set('Retry-After', '30');
+const failed = page.invalid || page.unavailable;
+const title = page.invalid
+  ? '跳转链接有误'
+  : page.unavailable
+    ? '随机博客暂不可用'
+    : page.preview
+      ? '预览与编辑'
+      : page.site
+        ? '下一站，遇见一个博客'
+        : '没有符合条件的博客';
+const linkClass =
+  'inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-tint-fg underline underline-offset-4 sm:min-h-10';
+---
+
+<PublicLayout
+  title="随机前往"
+  description="从 HeyBlog 收录的公开博客中随机发现一个。"
+  canonicalPath="/site/go"
+  robots="noindex, follow"
+>
+  <div
+    class="mx-auto w-[min(calc(100%-2rem),80rem)] max-w-2xl py-8 sm:w-[min(calc(100%-3rem),80rem)] sm:py-12"
+  >
+    <header class="mb-6">
+      <p class="text-xs font-medium text-tint-fg">随机前往</p>
+      <h1 class="mt-3 text-2xl/tight font-bold sm:text-3xl/tight">{title}</h1>
+      {
+        page.preview && !failed && (
+          <p class="mt-3 text-sm/7 text-fg-muted">为你的博客或书签生成一个随机发现入口。</p>
+        )
+      }
+    </header>
+    {
+      page.preview && !failed ? (
+        <SiteGoEditor
+          client:load
+          classifications={page.classifications}
+          initialLevel1={page.level1}
+          initialLevel2={page.level2}
+          initialSite={page.site}
+          baseURL={siteConfig.url}
+        />
+      ) : !failed && page.site ? (
+        <>
+          <section class="rounded-md border border-line bg-surface p-5 shadow-2xs sm:p-6">
+            <SiteGoPreview site={page.site} />
+            <SiteGoControls
+              client:load
+              rerollHref={page.rerollHref}
+              targetUrl={page.site.homepageUrl}
+            />
+          </section>
+          <a class:list={[linkClass, 'mt-4']} href={page.editorHref} data-astro-prefetch="false">
+            生成跳转链接
+          </a>
+        </>
+      ) : (
+        <section
+          class="rounded-md border border-line bg-surface p-5 shadow-2xs sm:p-6"
+          aria-label="重新选择博客"
+        >
+          <p class="text-base/7 text-fg-muted">{page.message}</p>
+          <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+            {page.unavailable && (
+              <a class={linkClass} href={page.rerollHref} data-astro-prefetch="false">
+                重新加载
+              </a>
+            )}
+            <a class={linkClass} href={page.editorHref} data-astro-prefetch="false">
+              重新选择分类
+            </a>
+            <a class={linkClass} href={page.recoveryHref} data-astro-prefetch="false">
+              不限分类重试
+            </a>
+            <a class={linkClass} href="/site">
+              查看博客列表
+            </a>
+          </div>
+          {page.invalid && (
+            <div class="mt-5 border-t border-line pt-5 text-sm/7 text-fg-muted">
+              <p>
+                分类参数使用中文名称。只填 level1 可从该一级分类下随机；填写 level2 时需同时指定
+                level1。不指定分类时，移除这两个参数即可。
+              </p>
+              {page.classifications.slice(0, 3).map((item) => (
+                <a
+                  class:list={[linkClass, 'mt-2 block break-all']}
+                  href={buildSiteGoHref(item.label, item.children[0]?.label ?? '', page.preview)}
+                  data-astro-prefetch="false"
+                >
+                  {decodeURIComponent(
+                    buildSiteGoHref(item.label, item.children[0]?.label ?? '', page.preview),
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+      )
+    }
+  </div>
+</PublicLayout>

@@ -44,3 +44,13 @@ test('reveals the home brand only after the hero crosses the header threshold', 
   assert.equal(resolveBrandVisibility({ home: true, heroBottom: 76, threshold: 76 }), true);
   assert.equal(resolveBrandVisibility({ home: true, heroBottom: null, threshold: 76 }), false);
 });
+
+test('matches random menu destinations by pathname while retaining preview query', () => {
+  const items = [
+    { label: '博客列表', href: '/site', match: 'prefix', sort: 10 },
+    { label: '随机前往', href: '/site/go?preview=true', match: 'exact', sort: 15 },
+  ] as const;
+  for (const path of ['/site/go', '/site/go/', '/site/go?level1=技术']) {
+    assert.equal(activeNavigationHref(items, path), '/site/go?preview=true');
+  }
+});

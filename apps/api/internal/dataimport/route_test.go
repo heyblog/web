@@ -304,6 +304,10 @@ func (importTestPublicViews) DirectoryOptions(context.Context) (publicview.Direc
 	return publicview.DirectoryOptions{}, nil
 }
 
+func (importTestPublicViews) RandomSite(context.Context, publicview.RandomSiteQuery) (publicview.RandomSiteView, error) {
+	return publicview.RandomSiteView{}, nil
+}
+
 func (importTestPublicViews) SiteByIdentifier(
 	context.Context,
 	publicview.SiteIdentifier,

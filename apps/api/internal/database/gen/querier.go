@@ -127,6 +127,7 @@ type Querier interface {
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
+	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)

@@ -17,7 +17,7 @@ test('aligns the management sidebar CSS with its 80rem desktop controller', asyn
 test('keeps documents available without exposing them in the public navigation', () => {
   assert.deepEqual(
     siteConfig.navigation.primary.map((item) => item.label),
-    ['博客列表', '项目动态', '成员'],
+    ['博客列表', '随机前往', '项目动态', '成员'],
   );
   assert.equal(
     siteConfig.navigation.primary.some((item) => item.href === '/docs' || item.href === '/'),
@@ -64,4 +64,10 @@ test('prebundles the CommonJS QR dependency for development SSR', async () => {
   const source = await readFile(new URL('../astro.config.ts', import.meta.url), 'utf8');
 
   assert.match(source, /optimizeDeps:\s*\{\s*include:\s*\['qrcode'\]\s*\}/u);
+});
+
+test('random navigation opens editor mode without prefetching', () => {
+  const random = siteConfig.navigation.primary.find((item) => item.label === '随机前往');
+  assert.equal(random?.href, '/site/go?preview=true');
+  assert.equal(random?.prefetch, false);
 });

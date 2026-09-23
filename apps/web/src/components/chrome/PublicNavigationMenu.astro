@@ -2,13 +2,14 @@
 import {
   IconArticle,
   IconChevronDown,
+  IconDice,
   IconList,
   IconMenu2,
   IconUsers,
   IconX,
 } from '@tabler/icons-svelte';
 
-import { navigationRankClasses } from '@/shared/public-header.shared';
+import { navigationPath, navigationRankClasses } from '@/shared/public-header.shared';
 import type { SiteNavigationItem } from '@/site-config.types';
 
 interface Props {
@@ -26,9 +27,11 @@ const activeTriggerClasses = [
   'text-fg after:opacity-100 sm:text-fg-muted sm:after:opacity-0',
   'text-fg after:opacity-100 md:text-fg-muted md:after:opacity-0',
   'text-fg after:opacity-100',
+  'text-fg after:opacity-100',
 ][activeIndex];
 const navigationIcons: Readonly<Record<string, typeof IconList>> = {
   '/site': IconList,
+  '/site/go': IconDice,
   '/blog': IconArticle,
   '/members': IconUsers,
 };
@@ -88,7 +91,7 @@ const itemClass =
       </li>
       {
         items.map((item, index) => {
-          const Icon = navigationIcons[item.href];
+          const Icon = navigationIcons[navigationPath(item.href)];
           const itemActive = activeHref === item.href;
 
           return (
@@ -96,7 +99,10 @@ const itemClass =
               <a
                 class:list={[itemClass, itemActive ? 'text-tint-fg' : 'text-fg-muted']}
                 href={item.href}
-                aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
+                data-astro-prefetch={item.prefetch === false ? 'false' : undefined}
+                aria-current={
+                  navigationPath(currentPath) === navigationPath(item.href) ? 'page' : undefined
+                }
                 role="menuitem"
                 data-public-menu-item
                 data-menu-active={itemActive ? 'true' : 'false'}

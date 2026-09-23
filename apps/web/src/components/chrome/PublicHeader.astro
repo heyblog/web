@@ -1,6 +1,7 @@
 ---
 import {
   activeNavigationHref,
+  navigationPath,
   navigationRankClasses,
   sortNavigation,
 } from '@/shared/public-header.shared';
@@ -65,7 +66,10 @@ const navigationLinkClass =
                 : 'text-fg-muted',
             ]}
             href={item.href}
-            aria-current={currentPath.replace(/\/+$/u, '') === item.href ? 'page' : undefined}
+            data-astro-prefetch={item.prefetch === false ? 'false' : undefined}
+            aria-current={
+              navigationPath(currentPath) === navigationPath(item.href) ? 'page' : undefined
+            }
           >
             {item.label}
           </a>
