@@ -34,7 +34,10 @@
     initialShortId?: string;
   }
   let { action, initialShortId = '' }: Props = $props();
-  let form = $state(emptySubmission());
+  let form = $state({
+    ...emptySubmission(),
+    siteShortId: untrack(() => initialShortId),
+  });
   let options = $state.raw<SubmissionOptions>({
     tags: [],
     components: [],
@@ -57,7 +60,6 @@
     detailAction ? ['站点资料', '订阅资源', '分类程序', '确认提交'] : ['选择站点', '确认提交'],
   );
   let stepCount = $derived(submissionStepCount(action));
-  form.siteShortId = untrack(() => initialShortId);
 
   onMount(async () => {
     const response = await fetch('/api/site-submissions/options');
