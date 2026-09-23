@@ -5,7 +5,7 @@ import { apiWebTokenHeader } from './endpoint.server.ts';
 
 export type ApiJsonResult<T> =
   | { kind: 'success'; data: T }
-  | { kind: 'bad-request' }
+  | { kind: 'bad-request'; code?: string }
   | { kind: 'not-found' }
   | { kind: 'unavailable' };
 
@@ -55,7 +55,10 @@ export async function fetchApiJson<T>(
   }
 
   if (response.status === 400) {
-    return { kind: 'bad-request' };
+    const problem = (await response.json().catch(() => null)) as { code?: string } | null;
+    return typeof problem?.code === 'string'
+      ? { kind: 'bad-request', code: problem.code }
+      : { kind: 'bad-request' };
   }
   if (response.status === 404) {
     return { kind: 'not-found' };

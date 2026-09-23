@@ -104,6 +104,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyDirectoryConstraints(ctx, t, pool)
 	verifyPublicViewQueries(ctx, t, pool)
 	verifyDirectoryQueries(ctx, t, pool)
+	verifyRandomClassificationSelection(ctx, t, pool)
 	verifyTagAndIconConstraints(ctx, t, pool)
 	verifyAnnouncementQueries(ctx, t, pool)
 	verifyAnnouncementConstraints(ctx, t, pool, migrationURL)
@@ -248,6 +249,19 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	}
 	if roleCounts.NormalCount != 1 || roleCounts.AbnormalCount != 1 {
 		t.Fatalf("cascade status counts = %#v, want normal=1 abnormal=1", roleCounts)
+	}
+	randomSite, err := queries.PickRandomVisibleSite(ctx, dbgen.PickRandomVisibleSiteParams{
+		Level1TagName: firstCascade.Level1Name,
+		Level2TagName: firstCascade.Level2Name,
+	})
+	if err != nil || randomSite.Visibility != "VISIBLE" || randomSite.TagCascadeID != firstCascade.ID {
+		t.Fatalf("random classified site = (%#v, %v), want visible first cascade", randomSite, err)
+	}
+	_, err = queries.PickRandomVisibleSite(ctx, dbgen.PickRandomVisibleSiteParams{
+		Level1TagName: "不存在的分类",
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("random missing classification error = %v, want no rows", err)
 	}
 	roleFilters.TertiaryTagSlugs = []string{tertiaryOne.Slug, tertiaryTwo.Slug}
 	roleCounts, err = queries.CountDirectorySitesByStatus(ctx, roleFilters)

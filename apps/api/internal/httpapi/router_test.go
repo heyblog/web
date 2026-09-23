@@ -683,6 +683,7 @@ type publicViewReaderStub struct {
 	home             func(context.Context) (publicview.Home, error)
 	directory        func(context.Context, publicview.DirectoryQuery) (publicview.DirectoryView, error)
 	directoryOptions func(context.Context) (publicview.DirectoryOptions, error)
+	randomSite       func(context.Context, publicview.RandomSiteQuery) (publicview.RandomSiteView, error)
 	byIdentifier     func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error)
 	byCustomID       func(context.Context, string) (publicview.SiteProfile, error)
 }
@@ -714,6 +715,16 @@ func (stub publicViewReaderStub) DirectoryOptions(
 		Classifications: []publicview.DirectoryClassificationOption{}, TertiaryTags: []publicview.DirectoryOption{},
 		Warnings: []publicview.DirectoryOption{}, Technologies: []publicview.DirectoryOption{},
 	}, nil
+}
+
+func (stub publicViewReaderStub) RandomSite(
+	ctx context.Context,
+	query publicview.RandomSiteQuery,
+) (publicview.RandomSiteView, error) {
+	if stub.randomSite != nil {
+		return stub.randomSite(ctx, query)
+	}
+	return publicview.RandomSiteView{}, nil
 }
 
 func (stub publicViewReaderStub) SiteByIdentifier(

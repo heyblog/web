@@ -116,7 +116,7 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
 - Do not leak internal errors, SQL details, upstream addresses, credentials, or stack traces.
 - Internal HTTP endpoints require an explicit trust and authentication model; network placement is
   not authorization.
-- `GET /ping`, `GET /home`, `GET /sites`, `GET /sites/options`,
+- `GET /ping`, `GET /home`, `GET /sites`, `GET /sites/options`, `GET /sites/random`,
   `GET /sites/id/:identifier`, `GET /sites/id/:identifier/icon`, and `GET /sites/custom/:customId` are
   web-internal, have no application rate limit, and require the shared `X-HeyBlog-Web-Token`.
   Future direct third-party routes must be registered explicitly as public instead of weakening
@@ -125,6 +125,12 @@ This file refines the repository-level `AGENTS.md` for `apps/api`.
   `Authorization: Bearer <API_HEALTHCHECK_TOKEN>`. The liveness response is immediate; readiness is
   bounded by `health.readiness_timeout`. Authentication failures return 401 without probing
   dependencies.
+- `GET /sites/random` selects one `VISIBLE` blog, including blogs with warnings, through its own
+  database query. Optional `level1` and `level2` filters are exact enabled classification names
+  after trimming; `level2` requires its parent. Reject empty, repeated, unknown, overlong, disabled,
+  or mismatched parameters with 400 Problem Details and stable `random_*` codes before selection.
+  A valid filter with no visible candidate returns 200 with `site: null`; dependency failures
+  remain 503. `preview` belongs to Web and is not an API parameter. Responses use `no-store`.
 - Propagate request cancellation and deadlines through application, database, cache, and outbound
   HTTP calls.
 - Site profiles expose nullable `iconHash` containing the cached icon's lowercase SHA-256 hex

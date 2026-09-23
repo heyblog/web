@@ -425,6 +425,7 @@ type queryStub struct {
 	directoryTechnologies    []dbgen.ListDirectoryTechnologyOptionsRow
 	directoryTechnologiesErr error
 	listRandom               func(context.Context, int32) ([]dbgen.DirectorySite, error)
+	pickRandom               func(context.Context, dbgen.PickRandomVisibleSiteParams) (dbgen.DirectorySite, error)
 	announcement             dbgen.ContentAnnouncement
 	announcementErr          error
 	byID                     dbgen.DirectorySite
@@ -499,6 +500,16 @@ func (stub queryStub) ListRandomVisibleSites(ctx context.Context, limit int32) (
 		return stub.listRandom(ctx, limit)
 	}
 	return []dbgen.DirectorySite{}, nil
+}
+
+func (stub queryStub) PickRandomVisibleSite(
+	ctx context.Context,
+	parameters dbgen.PickRandomVisibleSiteParams,
+) (dbgen.DirectorySite, error) {
+	if stub.pickRandom != nil {
+		return stub.pickRandom(ctx, parameters)
+	}
+	return dbgen.DirectorySite{}, pgx.ErrNoRows
 }
 
 func (stub queryStub) GetLeadingActiveMainAnnouncement(context.Context) (dbgen.ContentAnnouncement, error) {

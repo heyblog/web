@@ -40,6 +40,11 @@ type directoryInput struct {
 	Seed         string   `query:"seed"`
 }
 
+type randomSiteInput struct {
+	Level1 string `query:"level1" doc:"Optional first-level classification name"`
+	Level2 string `query:"level2" doc:"Optional second-level classification name; requires level1"`
+}
+
 type siteIdentifierInput struct {
 	Identifier string `path:"identifier"`
 }
@@ -108,6 +113,25 @@ func registerPublicViewRoutes(api huma.API, webToken string, reader publicview.R
 			return nil, err
 		}
 		return &publicViewOutput[publicview.DirectoryOptions]{CacheControl: "no-store", Body: view}, nil
+	})
+
+	Register(api, register(huma.Operation{
+		OperationID:        "get-random-site",
+		Method:             http.MethodGet,
+		Path:               "/sites/random",
+		Summary:            "Pick a random visible site",
+		SkipValidateParams: true,
+		Errors:             []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusServiceUnavailable},
+	}), func(ctx context.Context, _ *randomSiteInput) (*publicViewOutput[publicview.RandomSiteView], error) {
+		query, err := parseRandomSiteSearch(Request(ctx).URL.RawQuery)
+		if err != nil {
+			return nil, err
+		}
+		view, err := reader.RandomSite(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		return &publicViewOutput[publicview.RandomSiteView]{CacheControl: "no-store", Body: view}, nil
 	})
 
 	Register(api, register(huma.Operation{

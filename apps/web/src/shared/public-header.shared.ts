@@ -25,21 +25,30 @@ export function sortNavigation(items: readonly SiteNavigationItem[]): SiteNaviga
   return items.toSorted((left, right) => left.sort - right.sort);
 }
 
+export function navigationPath(href: string): string {
+  return new URL(href, 'https://navigation.invalid').pathname.replace(/\/+$/u, '') || '/';
+}
+
 export function activeNavigationHref(
   items: readonly SiteNavigationItem[],
   pathname: string,
 ): string | undefined {
-  const path = pathname.replace(/\/+$/u, '') || '/';
+  const path = navigationPath(pathname);
   return items
     .filter(
-      (item) => path === item.href || (item.match === 'prefix' && path.startsWith(`${item.href}/`)),
+      (item) =>
+        path === navigationPath(item.href) ||
+        (item.match === 'prefix' && path.startsWith(`${navigationPath(item.href)}/`)),
     )
-    .toSorted((left, right) => right.href.length - left.href.length)[0]?.href;
+    .toSorted(
+      (left, right) => navigationPath(right.href).length - navigationPath(left.href).length,
+    )[0]?.href;
 }
 
 // Keep the visible prefix and overflow suffix in the same sort order.
 export const navigationRankClasses = [
   { direct: 'hidden sm:inline-flex', overflow: 'sm:hidden' },
   { direct: 'hidden md:inline-flex', overflow: 'md:hidden' },
+  { direct: 'hidden lg:inline-flex', overflow: 'lg:hidden' },
   { direct: 'hidden lg:inline-flex', overflow: 'lg:hidden' },
 ] as const;

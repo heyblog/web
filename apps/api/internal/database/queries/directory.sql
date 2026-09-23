@@ -41,6 +41,27 @@ SELECT *
  ORDER BY random()
 LIMIT $1;
 
+-- name: PickRandomVisibleSite :one
+SELECT site.*
+  FROM directory.sites AS site
+ WHERE site.visibility = 'VISIBLE'
+   AND (sqlc.arg(level1_tag_name)::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
+         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+         AND tag.name = sqlc.arg(level1_tag_name)::text
+   ))
+   AND (sqlc.arg(level2_tag_name)::text = '' OR EXISTS (
+       SELECT 1 FROM directory.tag_cascades AS cascade
+       JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
+       WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
+         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+         AND tag.name = sqlc.arg(level2_tag_name)::text
+   ))
+ ORDER BY random()
+ LIMIT 1;
+
 -- name: ListEnabledSiteTagCascades :many
 SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
        level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
@@ -50,6 +71,7 @@ SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
   JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
  WHERE cascade.scope = 'SITE' AND cascade.is_enabled
    AND level1.is_enabled AND level2.is_enabled
+   AND level1.merged_into_id IS NULL AND level2.merged_into_id IS NULL
  ORDER BY cascade.sort_order, cascade.id;
 
 -- name: GetEnabledSiteTagCascade :one
