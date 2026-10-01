@@ -1,4 +1,4 @@
-import type { SiteCardView } from '@/application/home/home.shared';
+import type { SiteCardView } from './site-card.types.ts';
 
 export type SiteDirectoryFeed = 'any' | 'with' | 'without';
 export type SiteDirectorySort = 'random' | 'joined' | 'updated';

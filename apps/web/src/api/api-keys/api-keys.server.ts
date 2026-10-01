@@ -1,7 +1,7 @@
-import { requestAuthAPI } from '@/application/auth/auth.server';
+import { requestAuthAPI } from '../auth/auth.server.ts';
 
-import { parseClients } from './api-keys.responses';
-import type { ApiClientsResponse, ApiKeyIssuePayload } from './api-keys.types';
+import { parseClients } from './api-keys.responses.ts';
+import type { ApiClientsResponse, ApiKeyIssuePayload } from './api-keys.types.ts';
 
 export function isSameOriginMutation(request: Request): boolean {
   return request.headers.get('Sec-Fetch-Site') === 'same-origin';

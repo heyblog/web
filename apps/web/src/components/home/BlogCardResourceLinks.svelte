@@ -1,7 +1,7 @@
 <script lang="ts">
   import { IconRss, IconSitemap } from '@tabler/icons-svelte';
 
-  import type { HomeSiteCard } from '@/application/home/home.shared';
+  import type { HomeSiteCard } from '@/api/sites/site-card.types';
 
   import BlogCardHint from './BlogCardHint.svelte';
 

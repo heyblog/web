@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { HomeSiteCard } from '@/application/home/home.shared';
+  import type { HomeSiteCard } from '@/api/sites/site-card.types';
 
   import type { BlogCardPlannedFields } from './blog-card-layout.shared';
   import BlogCardContent from './BlogCardContent.svelte';

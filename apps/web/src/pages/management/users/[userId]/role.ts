@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 
-import { pageLocation, readProblemCode, requestAuthAPI } from '@/application/auth/auth.server';
-import { userRoles } from '@/application/auth/auth.types';
+import { readProblemCode, requestAuthAPI } from '../../../../api/auth/auth.server.ts';
+import { userRoles } from '../../../../api/auth/auth.types.ts';
+import { pageLocation } from '../../../../application/auth/auth.server.ts';
 export const prerender = false;
 export const POST: APIRoute = async ({ params, request }) => {
   const form = await request.formData();

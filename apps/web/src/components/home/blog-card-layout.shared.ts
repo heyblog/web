@@ -1,4 +1,4 @@
-import type { HomeSiteCard } from '@/application/home/home.shared';
+import type { HomeSiteCard } from '../../api/sites/site-card.types.ts';
 
 export type BlogCardTagTone = 'warning' | 'primary' | 'secondary';
 

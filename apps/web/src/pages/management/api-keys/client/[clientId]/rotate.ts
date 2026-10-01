@@ -7,7 +7,7 @@ import {
   isUUID,
   readMutationBody,
   rotateApiClient,
-} from '@/application/api-keys/api-keys.server';
+} from '../../../../../api/api-keys/api-keys.server.ts';
 
 export const prerender = false;
 

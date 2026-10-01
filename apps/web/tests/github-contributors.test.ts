@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   createGithubContributorsReader,
   isEligibleRepository,
-} from '../src/application/github-contributors/github-contributors.ts';
+} from '../src/integrations/github-contributors/github-contributors.ts';
 
 const repository = (name: string, overrides: Record<string, unknown> = {}) => ({
   name,

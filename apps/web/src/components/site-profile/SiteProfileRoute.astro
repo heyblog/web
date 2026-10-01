@@ -1,12 +1,10 @@
 ---
 import { IconAlertTriangle, IconArrowLeft, IconRefresh, IconWorldWww } from '@tabler/icons-svelte';
 
-import type { ApiJsonResult } from '@/application/api/client.server';
-import { siteProfileMetadata } from '@/application/site-og/site-og.model';
-import {
-  canonicalSitePath,
-  type SiteProfile,
-} from '@/application/site-profile/site-profile.server';
+import { type SiteProfile } from '@/api/sites/site-profile.types';
+import type { ApiJsonResult } from '@/api/transport/client.server';
+import { siteProfileMetadata } from '@/application/site-og/site-og.metadata.server';
+import { canonicalSitePath } from '@/application/site-profile/site-profile.shared';
 import PublicLayout from '@/layouts/PublicLayout.astro';
 
 import SiteProfileHeader from './SiteProfileHeader.astro';

@@ -1,6 +1,6 @@
 <script lang="ts">
+  import type { AuditAction } from '@/api/site-submission/site-submission.types';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
-  import type { AuditAction } from '@/application/site-submission/site-submission.types';
 
   interface Props {
     action: AuditAction;

@@ -5,7 +5,7 @@ import {
   githubCommitUrl,
   ProjectVersionError,
   resolveBuildMetadata,
-} from '../src/shared/integrations/build-metadata.ts';
+} from '../src/integrations/build/build-metadata.ts';
 
 const fixedBuildTime = new Date('2026-09-03T02:03:04.000Z');
 

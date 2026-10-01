@@ -1,17 +1,17 @@
-import type { CollectionEntry } from 'astro:content';
-import { getCollection, getEntries, getEntry } from 'astro:content';
+import {
+  type MemberReference,
+  readBlogEntries,
+  readContentEditors,
+  readMemberEntries,
+} from '../../integrations/content/content.server.ts';
 
-import type { BlogSummary, ContentEditorLink, MemberSummary } from './static-content.models';
-import { sortBlogSummaries, sortMemberSummaries } from './static-content.models';
-
-type MemberReference =
-  | CollectionEntry<'blogs'>['data']['editors'][number]
-  | CollectionEntry<'docs'>['data']['editors'][number];
+import type { BlogSummary, ContentEditorLink, MemberSummary } from './static-content.models.ts';
+import { sortBlogSummaries, sortMemberSummaries } from './static-content.models.ts';
 
 export async function resolveContentEditors(
   references: MemberReference[],
 ): Promise<ContentEditorLink[]> {
-  const editors = await getEntries(references);
+  const editors = await readContentEditors(references);
 
   return editors.map((editor) => ({
     id: editor.id,
@@ -21,7 +21,7 @@ export async function resolveContentEditors(
 }
 
 export async function readBlogSummaries(): Promise<BlogSummary[]> {
-  const entries = await getCollection('blogs');
+  const entries = await readBlogEntries();
   const summaries = await Promise.all(
     entries.map(async (entry) => ({
       id: entry.id,
@@ -43,7 +43,7 @@ export async function readMemberDirectory(): Promise<{
   current: MemberSummary[];
   alumni: MemberSummary[];
 }> {
-  const entries = await getCollection('members');
+  const entries = await readMemberEntries();
   const members = sortMemberSummaries(
     entries.map((entry) => ({
       id: entry.id,
@@ -64,14 +64,4 @@ export async function readMemberDirectory(): Promise<{
     current: members.filter((member) => member.status !== 'ALUMNI'),
     alumni: members.filter((member) => member.status === 'ALUMNI'),
   };
-}
-
-export async function readDocsLandingEntry(): Promise<CollectionEntry<'docs'>> {
-  const entry = await getEntry('docs', 'index');
-
-  if (!entry) {
-    throw new Error('The docs collection must provide contents/docs/index.md.');
-  }
-
-  return entry;
 }

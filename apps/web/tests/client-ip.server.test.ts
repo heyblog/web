@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { forwardClientAddress } from '../src/application/api/client-ip.server.ts';
+import { forwardClientAddress } from '../src/api/transport/client-ip.server.ts';
 
 test('forwards one normalized client address from the trusted Web request header', () => {
   const upstream = new Headers();

@@ -5,7 +5,7 @@
     SiteDirectoryFilterName,
     SiteDirectoryOptions,
     SiteDirectoryQuery,
-  } from '@/application/site-directory/site-directory.models';
+  } from '@/api/sites/site-directory.types';
 
   type SelectedFilter = {
     readonly key: string;

@@ -3,10 +3,10 @@ import test from 'node:test';
 
 import { createSiteOgHandler } from '../src/application/site-og/site-og.endpoint.server.ts';
 import {
-  siteOgContent,
   siteOgImagePath,
   siteProfileMetadata,
-} from '../src/application/site-og/site-og.model.ts';
+} from '../src/application/site-og/site-og.metadata.server.ts';
+import { siteOgContent } from '../src/application/site-og/site-og.model.ts';
 import { fitText, wrapText } from '../src/application/site-og/site-og.text.ts';
 
 import { profile } from './site-og.fixture.ts';

@@ -1,8 +1,6 @@
 ---
-import {
-  canonicalSiteRedirectPath,
-  loadSiteByIdentifier,
-} from '@/application/site-profile/site-profile.server';
+import { loadSiteByIdentifier } from '@/api/sites/site-profile.server';
+import { canonicalSiteRedirectPath } from '@/application/site-profile/site-profile.shared';
 import SiteProfileRoute from '@/components/site-profile/SiteProfileRoute.astro';
 
 export const prerender = false;

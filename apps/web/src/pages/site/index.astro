@@ -1,12 +1,6 @@
 ---
-import type {
-  SiteDirectoryOptions,
-  SiteDirectoryView,
-} from '@/application/site-directory/site-directory.models';
-import {
-  loadSiteDirectory,
-  loadSiteDirectoryOptions,
-} from '@/application/site-directory/site-directory.server';
+import { loadSiteDirectory, loadSiteDirectoryOptions } from '@/api/sites/site-directory.server';
+import type { SiteDirectoryOptions, SiteDirectoryView } from '@/api/sites/site-directory.types';
 import { parseSiteDirectorySearchParams } from '@/application/site-directory/site-directory.shared';
 import SiteDirectoryPage from '@/components/site-directory/SiteDirectoryPage.svelte';
 import PublicLayout from '@/layouts/PublicLayout.astro';

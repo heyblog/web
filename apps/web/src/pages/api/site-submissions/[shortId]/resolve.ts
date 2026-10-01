@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 
-import { forwardSiteSubmission } from '@/application/site-submission/proxy.server';
-import { isSiteShortID } from '@/application/site-submission/site-submission.validation';
+import { forwardSiteSubmission } from '../../../../api/site-submission/proxy.server.ts';
+import { isSiteShortID } from '../../../../application/site-submission/site-submission.validation.ts';
 
 export const GET: APIRoute = ({ request, params }) => {
   const shortID = params.shortId ?? '';

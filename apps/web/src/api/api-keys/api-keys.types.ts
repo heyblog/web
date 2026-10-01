@@ -11,11 +11,6 @@ export const apiClientScopesByAudience: Readonly<
   EXTERNAL: ['example.call'],
 };
 
-export const apiClientScopeLabels: Readonly<Record<ApiClientScope, string>> = {
-  'data_import.write': '数据导入',
-  'example.call': '示例接口调用',
-};
-
 export interface ApiClientCreatePayload {
   readonly name: string;
   readonly description: string;
@@ -124,14 +119,6 @@ export function parseApiClientUpdatePayload(value: unknown): ApiClientUpdatePayl
 
 export function isApiClientScope(value: unknown): value is ApiClientScope {
   return value === 'data_import.write' || value === 'example.call';
-}
-
-export function defaultApiClientScopes(audience: ApiClientAudience): ApiClientScope[] {
-  return apiClientScopesByAudience[audience].filter((scope) => scope === 'example.call');
-}
-
-export function selectedApiClientScopes(data: FormData): readonly ApiClientScope[] {
-  return data.getAll('scopes').filter(isApiClientScope);
 }
 
 export function isApiClientAudience(value: unknown): value is ApiClientAudience {

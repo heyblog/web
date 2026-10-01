@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fetchApiJson } from '../src/application/api/client.server.ts';
-import { apiWebTokenHeader } from '../src/application/api/endpoint.server.ts';
+import { fetchApiJson } from '../src/api/transport/client.server.ts';
+import { apiWebTokenHeader } from '../src/api/transport/endpoint.server.ts';
 
 const configuration = {
   apiBaseUrl: 'http://api.internal:10201',

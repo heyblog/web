@@ -5,7 +5,7 @@ import {
   type ApiClientSummary,
   type ApiKeyIssuePayload,
   type ApiKeySummary,
-} from './api-keys.types.ts';
+} from '../../api/api-keys/api-keys.types.ts';
 
 export type KeyStatus = 'revoked' | 'expired' | 'disabled' | 'active';
 

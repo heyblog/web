@@ -1,6 +1,7 @@
 ---
-import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
-import { managementPermissions, type SessionUser } from '@/application/auth/auth.types';
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import { managementPermissions, type SessionUser } from '@/api/auth/auth.types';
+import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import UserAuthorizationCard from '@/components/auth/UserAuthorizationCard.astro';

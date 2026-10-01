@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
 
+  import type { ApiClientSummary, ApiKeyIssuePayload } from '@/api/api-keys/api-keys.types';
   import { defaultExpiry, expirationPayload } from '@/application/api-keys/api-keys.model';
-  import type { ApiClientSummary, ApiKeyIssuePayload } from '@/application/api-keys/api-keys.types';
 
   import {
     buttonClass,

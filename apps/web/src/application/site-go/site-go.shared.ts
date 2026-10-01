@@ -1,3 +1,5 @@
+import { buildRandomSiteParameters } from '../../api/sites/site-random.params.ts';
+
 export interface SiteGoQuery {
   level1: string;
   level2: string;
@@ -33,9 +35,7 @@ export function parseSiteGoQuery(parameters: URLSearchParams): SiteGoQueryResult
 }
 
 export function buildSiteGoHref(level1: string, level2: string, preview = false): string {
-  const parameters = new URLSearchParams();
-  if (level1) parameters.set('level1', level1);
-  if (level1 && level2) parameters.set('level2', level2);
+  const parameters = buildRandomSiteParameters(level1, level2);
   if (preview) parameters.set('preview', 'true');
   const query = parameters.toString();
   return query ? `/site/go?${query}` : '/site/go';

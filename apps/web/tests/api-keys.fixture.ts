@@ -1,7 +1,4 @@
-import type {
-  ApiClientSummary,
-  ApiKeySummary,
-} from '../src/application/api-keys/api-keys.types.ts';
+import type { ApiClientSummary, ApiKeySummary } from '../src/api/api-keys/api-keys.types.ts';
 
 export const credentialNow = Date.parse('2026-09-20T10:00:00Z');
 export const credentialKey: ApiKeySummary = {

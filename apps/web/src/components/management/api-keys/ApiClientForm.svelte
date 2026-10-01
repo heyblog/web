@@ -2,19 +2,21 @@
   import { untrack } from 'svelte';
 
   import {
+    type ApiClientAudience,
+    type ApiClientCreatePayload,
+    apiClientScopesByAudience,
+    type ApiClientSummary,
+    type ApiClientUpdatePayload,
+  } from '@/api/api-keys/api-keys.types';
+  import {
+    apiClientScopeLabels,
+    defaultApiClientScopes,
+  } from '@/application/api-keys/api-keys.form';
+  import {
     applicableScopes,
     defaultExpiry,
     expirationPayload,
   } from '@/application/api-keys/api-keys.model';
-  import {
-    type ApiClientAudience,
-    type ApiClientCreatePayload,
-    apiClientScopeLabels,
-    apiClientScopesByAudience,
-    type ApiClientSummary,
-    type ApiClientUpdatePayload,
-    defaultApiClientScopes,
-  } from '@/application/api-keys/api-keys.types';
 
   import { buttonClass, errorClass, inputClass, primaryClass } from './api-keys.styles';
   import ApiKeyExpiryFields from './ApiKeyExpiryFields.svelte';

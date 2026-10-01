@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { submissionEndpoint } from '../src/api/site-submission/site-submission.browser.ts';
 import {
   checkSiteAvailability,
   problemDetail,
   siteAvailabilityTarget,
   SiteSubmissionProblem,
-  submissionEndpoint,
   submitForm,
 } from '../src/application/site-submission/site-submission.api.browser.ts';
 import { emptySubmission } from '../src/application/site-submission/site-submission.browser.ts';

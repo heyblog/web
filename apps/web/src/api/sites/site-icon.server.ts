@@ -1,7 +1,8 @@
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
-import { forwardClientAddress } from '../api/client-ip.server.ts';
-import { apiWebTokenHeader } from '../api/endpoint.server.ts';
-import type { SiteProfile } from '../site-profile/site-profile.server.ts';
+import { forwardClientAddress } from '../transport/client-ip.server.ts';
+import { apiWebTokenHeader } from '../transport/endpoint.server.ts';
+
+import type { SiteProfile } from './site-profile.types.ts';
 
 export type SiteIconResult =
   | { readonly kind: 'ready'; readonly dataUrl: string }

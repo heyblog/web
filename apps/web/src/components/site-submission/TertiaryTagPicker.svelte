@@ -2,6 +2,7 @@
   import { IconPlus, IconSearch, IconX } from '@tabler/icons-svelte';
   import { tick } from 'svelte';
 
+  import type { Option } from '@/api/site-submission/site-submission.types';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
   import { nextDraftID } from '@/application/site-submission/site-submission.draft-id.browser';
   import { matchesSubmissionOption } from '@/application/site-submission/site-submission.search';
@@ -10,7 +11,6 @@
     selectTertiaryTag,
     tertiaryTagOptions,
   } from '@/application/site-submission/site-submission.tags.browser';
-  import type { Option } from '@/application/site-submission/site-submission.types';
 
   interface Props {
     form: EditableSubmission;

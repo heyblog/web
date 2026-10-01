@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { refreshHome } from '../src/application/home/home.browser.ts';
+import { refreshHome } from '../src/api/home/home.browser.ts';
 import {
   formatSiteJoinedAt,
   formatSiteUpdatedAt,
   siteDetailPath,
-} from '../src/application/home/home.shared.ts';
+} from '../src/application/site-profile/site-card.shared.ts';
 import {
   createBlogCardTags,
   resolveAnchoredDialogLayout,

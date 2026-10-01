@@ -1,4 +1,3 @@
-import { nextDraftID } from './site-submission.draft-id.browser.ts';
 import type {
   AuditAction,
   ComponentInput,
@@ -6,7 +5,9 @@ import type {
   FeedFormat,
   SiteInput,
   SubmissionPayload,
-} from './site-submission.types';
+} from '../../api/site-submission/site-submission.types.ts';
+
+import { nextDraftID } from './site-submission.draft-id.browser.ts';
 
 export interface FeedDraft {
   id: string;

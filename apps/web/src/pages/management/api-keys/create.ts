@@ -5,8 +5,8 @@ import {
   invalidRequest,
   isSameOriginMutation,
   readMutationBody,
-} from '@/application/api-keys/api-keys.server';
-import { parseApiClientCreatePayload } from '@/application/api-keys/api-keys.types';
+} from '../../../api/api-keys/api-keys.server.ts';
+import { parseApiClientCreatePayload } from '../../../api/api-keys/api-keys.types.ts';
 
 export const prerender = false;
 

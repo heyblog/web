@@ -1,4 +1,4 @@
-import type { HomeView } from '@/application/home/home.shared';
+import type { HomeView } from './home.types.ts';
 
 export async function refreshHome(
   signal?: AbortSignal,

@@ -1,8 +1,10 @@
-import type { ApiJsonResult } from '../api/client.server.ts';
-import { loadSiteByIdentifier, type SiteProfile } from '../site-profile/site-profile.server.ts';
+import { loadSiteIcon, type SiteIconResult } from '../../api/sites/site-icon.server.ts';
+import { loadSiteByIdentifier } from '../../api/sites/site-profile.server.ts';
+import { type SiteProfile } from '../../api/sites/site-profile.types.ts';
+import type { ApiJsonResult } from '../../api/transport/client.server.ts';
 
-import { loadSiteIcon, type SiteIconResult } from './site-og.icon.server.ts';
-import { type SiteOgContent, siteOgContent, siteOgImagePath } from './site-og.model.ts';
+import { siteOgImagePath } from './site-og.metadata.server.ts';
+import { type SiteOgContent, siteOgContent } from './site-og.model.ts';
 
 interface SiteOgDependencies {
   readonly load?: (identifier: string, request: Request) => Promise<ApiJsonResult<SiteProfile>>;

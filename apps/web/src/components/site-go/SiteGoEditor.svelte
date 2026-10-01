@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  import type { SiteCardView } from '@/application/home/home.shared';
-  import type { SiteDirectoryClassificationOption } from '@/application/site-directory/site-directory.models';
+  import type { SiteCardView } from '@/api/sites/site-card.types';
+  import type { SiteDirectoryClassificationOption } from '@/api/sites/site-directory.types';
   import {
     copySiteGoLink,
     previewRandomSite,

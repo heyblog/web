@@ -1,8 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
 
+  import { requestAuditReview } from '@/api/site-submission/site-submission.browser';
+  import type { AuditDetail } from '@/api/site-submission/site-submission.types';
   import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
-  import type { AuditDetail } from '@/application/site-submission/site-submission.types';
 
   interface Props {
     detail: AuditDetail;
@@ -52,25 +53,20 @@
     const action = pendingAction;
     confirmDialog.close();
     const discard = action === 'DISCARD';
-    const response = await fetch(
-      `/management/site-submissions/${detail.id}/${discard ? 'review-draft' : 'review'}`,
-      {
-        method: discard ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          discard
-            ? {
-                expected_site_revision: detail.current_snapshot.revision ?? 0,
-                expected_review_draft_revision: detail.review_draft_revision,
-              }
-            : {
-                decision: action,
-                reviewer_comment: comment.trim(),
-                expected_site_revision: detail.current_snapshot.revision ?? 0,
-                expected_review_draft_revision: detail.review_draft_revision,
-              },
-        ),
-      },
+    const response = await requestAuditReview(
+      detail.id,
+      discard,
+      discard
+        ? {
+            expected_site_revision: detail.current_snapshot.revision ?? 0,
+            expected_review_draft_revision: detail.review_draft_revision,
+          }
+        : {
+            decision: action,
+            reviewer_comment: comment.trim(),
+            expected_site_revision: detail.current_snapshot.revision ?? 0,
+            expected_review_draft_revision: detail.review_draft_revision,
+          },
     );
     pending = false;
     pendingAction = null;

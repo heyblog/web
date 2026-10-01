@@ -1,7 +1,7 @@
 <script lang="ts">
   import { IconChevronLeft, IconChevronRight } from '@tabler/icons-svelte';
 
-  import type { SiteDirectoryView } from '@/application/site-directory/site-directory.models';
+  import type { SiteDirectoryView } from '@/api/sites/site-directory.types';
   import BlogCard from '@/components/home/BlogCard.svelte';
 
   type Props = {

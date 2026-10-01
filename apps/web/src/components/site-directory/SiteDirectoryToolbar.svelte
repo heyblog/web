@@ -6,7 +6,7 @@
     SiteDirectorySort,
     SiteDirectoryStatus,
     SiteDirectoryView,
-  } from '@/application/site-directory/site-directory.models';
+  } from '@/api/sites/site-directory.types';
   import { nextTabIndex } from '@/shared/tab-navigation';
 
   type Props = {

@@ -1,11 +1,15 @@
-import { type ApiJsonResult, fetchApiJson } from '@/application/api/client.server';
+import {
+  type ApiJsonDependencies,
+  type ApiJsonResult,
+  fetchApiJson,
+} from '../transport/client.server.ts';
 
+import { buildSiteDirectorySearchParams } from './site-directory.params.ts';
 import type {
   SiteDirectoryOptions,
   SiteDirectoryQuery,
   SiteDirectoryView,
-} from './site-directory.models';
-import { buildSiteDirectorySearchParams } from './site-directory.shared';
+} from './site-directory.types.ts';
 
 export function loadSiteDirectory(
   query: SiteDirectoryQuery,
@@ -20,6 +24,11 @@ export function loadSiteDirectory(
 
 export function loadSiteDirectoryOptions(
   request?: Request,
+  dependencies: ApiJsonDependencies = {},
 ): Promise<ApiJsonResult<SiteDirectoryOptions>> {
-  return fetchApiJson<SiteDirectoryOptions>('/sites/options', { request, signal: request?.signal });
+  return fetchApiJson<SiteDirectoryOptions>('/sites/options', {
+    ...dependencies,
+    request,
+    signal: request?.signal,
+  });
 }

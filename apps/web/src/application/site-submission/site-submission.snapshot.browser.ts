@@ -1,11 +1,12 @@
-import type { EditableSubmission } from './site-submission.browser';
-import { nextDraftID } from './site-submission.draft-id.browser.ts';
 import type {
   PublicSnapshot,
   SubmissionOptions,
   TagInput,
   TagSnapshot,
-} from './site-submission.types';
+} from '../../api/site-submission/site-submission.types.ts';
+
+import type { EditableSubmission } from './site-submission.browser.ts';
+import { nextDraftID } from './site-submission.draft-id.browser.ts';
 
 export function applySnapshot(
   form: EditableSubmission,

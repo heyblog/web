@@ -1,5 +1,5 @@
-import type { SiteDirectoryQuery, SiteDirectoryView } from './site-directory.models';
-import { buildSiteDirectorySearchParams } from './site-directory.shared';
+import { buildSiteDirectorySearchParams } from './site-directory.params.ts';
+import type { SiteDirectoryQuery, SiteDirectoryView } from './site-directory.types.ts';
 
 export class SiteDirectoryRequestError extends Error {
   constructor(readonly status: number) {

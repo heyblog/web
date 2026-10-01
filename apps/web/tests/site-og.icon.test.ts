@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { PNG } from 'pngjs';
 
-import { loadSiteIcon } from '../src/application/site-og/site-og.icon.server.ts';
+import { loadSiteIcon } from '../src/api/sites/site-icon.server.ts';
 
 import { profile } from './site-og.fixture.ts';
 

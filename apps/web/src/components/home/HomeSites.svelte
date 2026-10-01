@@ -2,8 +2,8 @@
   import { IconRefresh } from '@tabler/icons-svelte';
   import { onDestroy } from 'svelte';
 
-  import { refreshHome } from '@/application/home/home.browser';
-  import type { HomeSiteCard } from '@/application/home/home.shared';
+  import { refreshHome } from '@/api/home/home.browser';
+  import type { HomeSiteCard } from '@/api/sites/site-card.types';
 
   import BlogCard from './BlogCard.svelte';
 

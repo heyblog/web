@@ -6,7 +6,7 @@
     SiteDirectoryFilterName,
     SiteDirectoryOptions,
     SiteDirectoryQuery,
-  } from '@/application/site-directory/site-directory.models';
+  } from '@/api/sites/site-directory.types';
 
   import SiteDirectoryFilters from './SiteDirectoryFilters.svelte';
 

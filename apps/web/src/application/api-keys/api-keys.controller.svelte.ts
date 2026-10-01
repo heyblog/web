@@ -1,6 +1,5 @@
 import { SvelteDate } from 'svelte/reactivity';
 
-import { ApiKeyRequestError, createApiKeyClient } from './api-keys.browser';
 import type {
   ApiClientCreatePayload,
   ApiClientSummary,
@@ -8,7 +7,9 @@ import type {
   ApiCredential,
   ApiKeyIssuePayload,
   ApiKeySummary,
-} from './api-keys.types';
+} from '../../api/api-keys/api-keys.types.ts';
+
+import { ApiKeyRequestError, createApiKeyClient } from './api-keys.browser.ts';
 
 export type ClientPanel =
   | { readonly kind: 'closed' | 'create' }

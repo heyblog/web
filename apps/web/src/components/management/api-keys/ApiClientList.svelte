@@ -1,15 +1,13 @@
 <script lang="ts">
   import { IconArrowRight, IconKey } from '@tabler/icons-svelte';
 
+  import { type ApiClientSummary } from '@/api/api-keys/api-keys.types';
+  import { apiClientScopeLabels } from '@/application/api-keys/api-keys.form';
   import {
     activeKeyCount,
     formatCredentialDate,
     lastClientUse,
   } from '@/application/api-keys/api-keys.model';
-  import {
-    apiClientScopeLabels,
-    type ApiClientSummary,
-  } from '@/application/api-keys/api-keys.types';
 
   import { buttonClass } from './api-keys.styles';
   interface Props {

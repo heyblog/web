@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { parseClient, parseCredential } from '../src/api/api-keys/api-keys.responses.ts';
+import { parseApiKeyIssuePayload } from '../src/api/api-keys/api-keys.types.ts';
 import {
   activeKeyCount,
   applicableScopes,
@@ -9,8 +11,6 @@ import {
   filterClients,
   keyStatus,
 } from '../src/application/api-keys/api-keys.model.ts';
-import { parseClient, parseCredential } from '../src/application/api-keys/api-keys.responses.ts';
-import { parseApiKeyIssuePayload } from '../src/application/api-keys/api-keys.types.ts';
 
 import { credentialClient, credentialKey, credentialNow } from './api-keys.fixture.ts';
 

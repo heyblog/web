@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { requestAuditLookup } from '@/api/site-submission/site-submission.browser';
+  import type { PublicAuditResult } from '@/api/site-submission/site-submission.types';
   import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
-  import type { PublicAuditResult } from '@/application/site-submission/site-submission.types';
 
   let lookupToken = $state('');
   let pending = $state(false);
@@ -12,11 +13,7 @@
     pending = true;
     error = '';
     result = null;
-    const response = await fetch('/api/site-submissions/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lookup_token: lookupToken.trim() }),
-    });
+    const response = await requestAuditLookup(lookupToken.trim());
     pending = false;
     if (!response.ok) {
       error = await problemDetail(response);

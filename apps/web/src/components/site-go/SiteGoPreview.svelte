@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SiteCardView } from '@/application/home/home.shared';
+  import type { SiteCardView } from '@/api/sites/site-card.types';
 
   let { site }: { site: SiteCardView } = $props();
   const accessLabels = {
