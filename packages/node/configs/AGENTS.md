@@ -33,6 +33,6 @@ Run commands from the repository root:
 - `mise run //packages/node/configs:format:check`: check package formatting.
 - `mise run //packages/node/configs:lint`: lint package sources.
 - `mise run //packages/node/configs:typecheck`: type-check package sources.
-- `mise run //packages/node/configs:check`: run all package checks.
-- `mise run //packages/node/configs:verify`: run the package formatting, lint, and type checks.
+- `mise run //packages/node/configs:verify`: run formatting, lint, and type checks; `:check` runs
+  the same checks.
 - `mise run verify`: validate all consumers after changing an exported configuration or shared rule.

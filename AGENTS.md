@@ -1,6 +1,7 @@
 # AGENTS
 
-This file provides guidance to agents working with code in this repository.
+This file governs this repository. All file references below are repository-root-relative.
+Keep project instructions and their evidence inside this repository.
 
 ## Scope and Instruction Discovery
 
@@ -49,8 +50,9 @@ their nearest `AGENTS.md`.
 - Treat `skills/` as the only source for project-owned Skills. Expose each project-owned Skill in
   `.agents/skills` through a relative symlink; do not maintain copied project-owned directories
   there.
-- Treat downloaded third-party directories in `.agents/skills` and the `.claude/skills` link as
-  installation outputs.
+- Treat downloaded third-party directories in `.agents/skills` and the individual relative links
+  inside `.claude/skills` as installation outputs. Do not rewrite downloaded Skill rules locally;
+  project instructions own activation and conflict resolution.
 - `skills-lock.json` records downloaded third-party Skills only. Do not add project-owned or other
   local Skills to it.
 - Do not edit package-manager lockfiles manually. Update them only through the owning package
@@ -62,8 +64,7 @@ their nearest `AGENTS.md`.
   changing a toolchain, framework, runtime, build, test, development command, environment contract,
   directory structure, ownership boundary, or deployment assumption; or introducing a new module.
 - Update the module-level `AGENTS.md` in the same change when its sources of truth, architecture,
-  conventions, commands, validation requirements, or completion checks are affected. If no update
-  is needed, report that the review was performed.
+  conventions, commands, validation requirements, or completion checks are affected.
 - Add an `AGENTS.md` when a new module under `apps/` or `packages/` gains module-specific ownership,
   architecture, commands, or validation requirements.
 - Keep this maintenance policy in the root `AGENTS.md`. Module-level files contain only
@@ -85,7 +86,8 @@ their nearest `AGENTS.md`.
 - `mise run verify:full`: run extended tests, builds, dependency and container security validation.
 - `mise run security`: run only the network-backed vulnerability checks.
 
-Prefer the narrowest relevant module command while iterating, then run repository-wide validation.
+Use the validation matrix below; root `verify` does not include API race tests, container
+integration tests, or the Web standalone smoke task.
 
 ## Principles
 
@@ -96,8 +98,8 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 - Read across module boundaries, but write within the owning module. Cross-owner changes must be
   intentional, scoped, and validated in every affected module.
 - Shared behavior belongs in a shared package only after a real cross-module need is established.
-- External tools, caches, and skill data may be read when needed. Do not write outside this
-  repository or another owner's namespace without explicit authorization.
+- Keep project changes and instruction references within the repository and the requested owner's
+  namespace.
 
 ### Architecture First
 
@@ -113,8 +115,8 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 
 - Use each language's type system directly. Fix typing problems at the correct boundary instead of
   weakening types locally.
-- In TypeScript, annotate expected types and avoid `unknown` plus inline guards when an existing
-  library or domain type can express the contract.
+- In TypeScript, use explicit internal contracts. Untrusted JSON may enter as `unknown` and be
+  parsed at its boundary; do not replace runtime parsing with an unchecked type assertion.
 - Exhaust existing library APIs, types, and repository patterns before introducing abstractions or
   projections.
 - Separate concerns and split files when it clarifies ownership, testing, or lifecycle boundaries.
@@ -128,10 +130,10 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 - Before adding an environment variable, compare its meaning, sensitivity, lifecycle, defaults,
   and ownership with existing variables. Prefer reuse when those semantics are consistent; do not
   create module-specific aliases for the same value.
-- Every module that consumes application-owned environment variables must have one dedicated
-  configuration source file that reads, validates, applies defaults, and exports typed
-  configuration. All other module code must consume that exported configuration instead of reading
-  the process environment directly.
+- Runtime application environment reads belong to each module's typed configuration boundary:
+  `apps/api/internal/config` and `apps/web/src/config.server.ts`. Other runtime code receives that
+  configuration. Build integrations and task scripts may read their own build-time inputs; keep
+  those inputs out of browser runtime configuration and production runner secrets.
 - Task and Compose files select and inject scenario-specific environment files; application modules
   own configuration validation.
 - Scenario templates contain only variables required or intentionally overridden in that scenario.
@@ -141,14 +143,23 @@ Prefer the narrowest relevant module command while iterating, then run repositor
 
 1. Read relevant root and module instructions and task-specific requirements.
 2. Explore affected code and configuration before editing.
-3. State a short implementation plan.
+3. For non-trivial work, state a short implementation plan.
 4. Make the smallest coherent change that preserves clear ownership.
-5. Run the affected modules' focused checks.
-6. Run `mise run verify` and any relevant integration or end-to-end checks.
-7. Run `mise run verify:full` when security validation is required and network access is available.
-8. Report changed files, validation evidence, risks, and follow-up work.
+5. Validate using the matrix below. Preserve behavior and public contracts during structural
+   refactors unless the task explicitly requests a behavior change.
+6. Report changed files, validation evidence, remaining risks, and follow-up work.
 
 ## Testing
+
+| Change scope | Required validation |
+| --- | --- |
+| One module | Focused tests while iterating, then the owning module's `:verify` |
+| Shared configuration or cross-module | Affected module checks and root `mise run verify` |
+| Database, auth, infrastructure, or lifecycle changes | Relevant integration, race, smoke, or container tasks in addition to the above |
+| Security or dependency risk | Relevant security tasks; network-backed checks require network access |
+
+Use `verify:full` for an explicitly requested full gate or when its combined coverage is needed.
+Report any required check that could not run; a smaller passing check does not replace it.
 
 - Never disable, delete, or weaken a test or quality gate to make a task pass.
 - Always run existing tests relevant to changed behavior.
@@ -169,13 +180,3 @@ Prefer the narrowest relevant module command while iterating, then run repositor
   authority.
 - When commits are requested, use Conventional Commits with a maximum 72-character header, as
   enforced by `commitlint.config.cjs`.
-
-## Definition of Done
-
-A task is complete only when:
-
-- acceptance criteria are satisfied;
-- relevant tests, lint, type checking, formatting checks, and builds pass;
-- documentation is updated when behavior, architecture, or workflow changes;
-- the task introduces no unrelated file changes;
-- validation evidence, remaining risks, and follow-up work are reported.

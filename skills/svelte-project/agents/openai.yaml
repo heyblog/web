@@ -1,0 +1,4 @@
+interface:
+  display_name: "Svelte Project"
+  short_description: "Project-aware Svelte 5 application guidance"
+  default_prompt: "Use $svelte-project to implement this Svelte change with the repository boundaries and validation workflow."
