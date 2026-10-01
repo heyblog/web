@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ApiClientAudience } from '@/application/api-keys/api-keys.types';
+  import type { ApiClientAudience } from '@/api/api-keys/api-keys.types';
 
   import { inputClass } from './api-keys.styles';
   interface Props {

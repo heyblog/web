@@ -1,10 +1,11 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import type { CollectionEntry } from 'astro:content';
-import { getCollection, render } from 'astro:content';
+import { render } from 'astro:content';
 
 import { resolveContentEditors } from '@/application/static-content/static-content.server';
 import ContentEntryMeta from '@/components/content-page/ContentEntryMeta.astro';
+import { readBlogEntries } from '@/integrations/content/content.server';
 import MarkdownContentLayout from '@/layouts/MarkdownContentLayout.astro';
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 export const prerender = true;
 
 export const getStaticPaths = (async () => {
-  const entries = await getCollection('blogs');
+  const entries = await readBlogEntries();
 
   return entries.map((entry) => ({
     params: { slug: entry.id },

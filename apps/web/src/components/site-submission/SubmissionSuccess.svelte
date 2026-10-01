@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SubmissionResult } from '@/application/site-submission/site-submission.types';
+  import type { SubmissionResult } from '@/api/site-submission/site-submission.types';
 
   interface Props {
     result: SubmissionResult;

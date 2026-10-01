@@ -1,28 +1,8 @@
-import {
-  type ApiJsonDependencies,
-  type ApiJsonResult,
-  fetchApiJson,
-} from '../api/client.server.ts';
-import type { SiteCardView } from '../home/home.shared.ts';
-import type { SiteDirectoryOptions } from '../site-directory/site-directory.models.ts';
+import { loadSiteDirectoryOptions } from '../../api/sites/site-directory.server.ts';
+import { loadRandomSite } from '../../api/sites/site-random.server.ts';
+import type { ApiJsonDependencies } from '../../api/transport/client.server.ts';
 
 import { buildSiteGoHref, parseSiteGoQuery, siteGoParameterMessage } from './site-go.shared.ts';
-
-export interface RandomSiteView {
-  site: SiteCardView | null;
-}
-
-export function loadRandomSite(
-  search: string,
-  request?: Request,
-  dependencies: ApiJsonDependencies = {},
-): Promise<ApiJsonResult<RandomSiteView>> {
-  return fetchApiJson<RandomSiteView>(`/sites/random${search}`, {
-    ...dependencies,
-    request,
-    signal: request?.signal,
-  });
-}
 
 export async function loadSiteGoPage(
   url: URL,
@@ -41,11 +21,7 @@ export async function loadSiteGoPage(
       : Promise.resolve({ kind: 'bad-request' as const, code: parsed.code });
   const [selection, options] = await Promise.all([
     selectionPromise,
-    fetchApiJson<SiteDirectoryOptions>('/sites/options', {
-      ...dependencies,
-      request,
-      signal: request?.signal,
-    }),
+    loadSiteDirectoryOptions(request, dependencies),
   ]);
   const classifications = options.kind === 'success' ? options.data.classifications : [];
   const requested = parsed.kind === 'valid' ? parsed.query : { level1: '', level2: '' };

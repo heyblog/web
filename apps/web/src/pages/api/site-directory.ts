@@ -1,4 +1,4 @@
-import { createApiEndpoint } from '@/application/api/endpoint.server';
+import { createApiEndpoint } from '../../api/transport/endpoint.server.ts';
 
 const endpoint = createApiEndpoint({
   audience: 'web-only',

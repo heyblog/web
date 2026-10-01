@@ -1,11 +1,8 @@
 <script lang="ts">
   import { IconArrowRight, IconMessageCircle } from '@tabler/icons-svelte';
 
-  import {
-    formatSiteJoinedAt,
-    type HomeSiteCard,
-    siteDetailPath,
-  } from '@/application/home/home.shared';
+  import { type HomeSiteCard } from '@/api/sites/site-card.types';
+  import { formatSiteJoinedAt, siteDetailPath } from '@/application/site-profile/site-card.shared';
 
   import BlogCardHint from './BlogCardHint.svelte';
   import BlogCardResourceLinks from './BlogCardResourceLinks.svelte';

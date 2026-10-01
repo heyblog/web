@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { createSiteOgHandler } from '@/application/site-og/site-og.endpoint.server';
+import { createSiteOgHandler } from '../../../application/site-og/site-og.endpoint.server.ts';
 
 export const prerender = false;
 

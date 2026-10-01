@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { forwardSiteSubmission } from '../src/application/site-submission/proxy.server.ts';
+import { forwardSiteSubmission } from '../src/api/site-submission/proxy.server.ts';
 
 const configuration = {
   apiBaseUrl: 'http://api.internal:10201',

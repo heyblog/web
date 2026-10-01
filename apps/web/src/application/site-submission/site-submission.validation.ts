@@ -1,5 +1,6 @@
-import type { EditableSubmission } from './site-submission.browser';
-import type { AuditAction } from './site-submission.types';
+import type { AuditAction } from '../../api/site-submission/site-submission.types.ts';
+
+import type { EditableSubmission } from './site-submission.browser.ts';
 
 export interface StepValidation {
   readonly valid: boolean;

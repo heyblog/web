@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { handleApiRequest } from '../src/application/api/endpoint.server.ts';
+import { handleApiRequest } from '../src/api/transport/endpoint.server.ts';
 import { copySiteGoLink, previewRandomSite } from '../src/application/site-go/site-go.browser.ts';
 
 test('copy reports success, denial and unsupported clipboard without throwing', async () => {
@@ -48,6 +48,18 @@ test('browser errors expose curated text only and distinguish invalid selection 
     const failure = await previewRandomSite('', '', signal, async () => response);
     assert.deepEqual(failure, { kind: 'error', message: '暂时无法获取博客，请稍后重试。' });
   }
+});
+
+test('browser preview preserves an unbound fetch receiver', async () => {
+  const signal = new AbortController().signal;
+  const fetcher: typeof fetch = async function (this: unknown) {
+    assert.equal(this, undefined);
+    return Response.json({ site: null });
+  };
+
+  const selection = await previewRandomSite('技术', '', signal, fetcher);
+
+  assert.deepEqual(selection, { kind: 'success', site: null });
 });
 
 test('random proxy rejects cross-site and unsupported fields, preserves API errors', async () => {

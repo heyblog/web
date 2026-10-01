@@ -2,18 +2,22 @@
   import { onMount, tick, untrack } from 'svelte';
 
   import {
+    requestSubmissionOptions,
+    requestSubmissionSnapshot,
+  } from '@/api/site-submission/site-submission.browser';
+  import type {
+    AuditAction,
+    PublicSnapshot,
+    SubmissionOptions,
+    SubmissionResult,
+  } from '@/api/site-submission/site-submission.types';
+  import {
     problemDetail,
     SiteSubmissionProblem,
     submitForm,
   } from '@/application/site-submission/site-submission.api.browser';
   import { emptySubmission } from '@/application/site-submission/site-submission.browser';
   import { applySnapshot } from '@/application/site-submission/site-submission.snapshot.browser';
-  import type {
-    AuditAction,
-    PublicSnapshot,
-    SubmissionOptions,
-    SubmissionResult,
-  } from '@/application/site-submission/site-submission.types';
   import {
     submissionStepCount,
     validateSubmissionStep,
@@ -62,7 +66,7 @@
   let stepCount = $derived(submissionStepCount(action));
 
   onMount(async () => {
-    const response = await fetch('/api/site-submissions/options');
+    const response = await requestSubmissionOptions();
     if (!response.ok) {
       error = await problemDetail(response);
       return;
@@ -73,9 +77,7 @@
   async function resolveSite(siteShortID: string): Promise<void> {
     resolving = true;
     error = '';
-    const response = await fetch(
-      `/api/site-submissions/${encodeURIComponent(siteShortID)}/resolve`,
-    );
+    const response = await requestSubmissionSnapshot(siteShortID);
     resolving = false;
     if (!response.ok) {
       error = await problemDetail(response);

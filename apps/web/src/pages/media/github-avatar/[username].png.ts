@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { createGithubAvatarHandler } from '@/application/github-avatar/github-avatar.server';
+import { createGithubAvatarHandler } from '../../../integrations/github-avatar/github-avatar.server.ts';
 
 const handleGithubAvatar = createGithubAvatarHandler();
 

@@ -1,4 +1,4 @@
-import { createApiEndpoint } from '@/application/api/endpoint.server';
+import { createApiEndpoint } from '../../api/transport/endpoint.server.ts';
 
 export const prerender = false;
 export const { GET, OPTIONS } = createApiEndpoint({

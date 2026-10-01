@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { loadRandomSite, loadSiteGoPage } from '../src/application/site-go/site-go.server.ts';
+import { loadRandomSite } from '../src/api/sites/site-random.server.ts';
+import { loadSiteGoPage } from '../src/application/site-go/site-go.server.ts';
 import {
   buildSiteGoHref,
   buildSiteGoLink,

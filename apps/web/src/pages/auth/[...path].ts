@@ -1,13 +1,11 @@
 import type { APIRoute } from 'astro';
 
+import { copySetCookie, readProblemCode, requestAuthAPI } from '../../api/auth/auth.server.ts';
 import {
-  copySetCookie,
   pageLocation,
-  readProblemCode,
-  requestAuthAPI,
   resolveOAuthLocation,
   safeNext,
-} from '@/application/auth/auth.server';
+} from '../../application/auth/auth.server.ts';
 
 export const prerender = false;
 

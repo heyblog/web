@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { copySetCookie, requestAuthAPI } from '../src/api/auth/auth.server.ts';
 import {
-  copySetCookie,
   readSessionUser,
-  requestAuthAPI,
   resolveOAuthLocation,
   safeNext,
 } from '../src/application/auth/auth.server.ts';

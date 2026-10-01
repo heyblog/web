@@ -1,10 +1,10 @@
 <script lang="ts">
+  import type { Option } from '@/api/site-submission/site-submission.types';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
   import {
     removeTag,
     selectClassificationTag,
   } from '@/application/site-submission/site-submission.tags.browser';
-  import type { Option } from '@/application/site-submission/site-submission.types';
 
   interface Props {
     form: EditableSubmission;

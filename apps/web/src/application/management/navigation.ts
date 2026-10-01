@@ -1,4 +1,4 @@
-import type { SessionUser } from '@/application/auth/auth.types';
+import type { SessionUser } from '../../api/auth/auth.types.ts';
 
 export interface ManagementNavigationItem {
   readonly label: string;

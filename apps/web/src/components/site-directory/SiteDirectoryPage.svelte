@@ -2,7 +2,8 @@
   import { IconRefresh } from '@tabler/icons-svelte';
   import { onDestroy } from 'svelte';
 
-  import { refreshSiteDirectory } from '@/application/site-directory/site-directory.browser';
+  import { refreshSiteDirectory } from '@/api/sites/site-directory.browser';
+  import { buildSiteDirectorySearchParams } from '@/api/sites/site-directory.params';
   import type {
     SiteDirectoryAccess,
     SiteDirectoryFeed,
@@ -13,9 +14,8 @@
     SiteDirectorySort,
     SiteDirectoryStatus,
     SiteDirectoryView,
-  } from '@/application/site-directory/site-directory.models';
+  } from '@/api/sites/site-directory.types';
   import {
-    buildSiteDirectorySearchParams,
     createDirectoryShuffleSeed,
     parseSiteDirectorySearchParams,
   } from '@/application/site-directory/site-directory.shared';

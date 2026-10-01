@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
 
+  import type { SiteSearchResult } from '@/api/site-submission/site-submission.types';
   import {
     checkSiteAvailability,
     siteAvailabilityTarget,
   } from '@/application/site-submission/site-submission.api.browser';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
-  import type { SiteSearchResult } from '@/application/site-submission/site-submission.types';
   import InlineAlert from '@/components/feedback/InlineAlert.svelte';
 
   interface Props {

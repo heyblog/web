@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  canonicalSiteRedirectPath,
-  type SiteProfile,
-} from '../src/application/site-profile/site-profile.server.ts';
+import { type SiteProfile } from '../src/api/sites/site-profile.types.ts';
+import { canonicalSiteRedirectPath } from '../src/application/site-profile/site-profile.shared.ts';
 
 const profile: SiteProfile = {
   iconHash: null,

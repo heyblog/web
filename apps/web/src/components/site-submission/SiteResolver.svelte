@@ -2,7 +2,8 @@
   import { IconSearch } from '@tabler/icons-svelte';
   import { onDestroy, untrack } from 'svelte';
 
-  import type { SiteSearchResult } from '@/application/site-submission/site-submission.types';
+  import { requestSubmissionSearch } from '@/api/site-submission/site-submission.browser';
+  import type { SiteSearchResult } from '@/api/site-submission/site-submission.types';
   import { isSiteShortID } from '@/application/site-submission/site-submission.validation';
   interface Props {
     initialQuery: string;
@@ -33,9 +34,7 @@
     controller = new AbortController();
     searching = true;
     try {
-      const response = await fetch(`/api/site-submissions/sites?q=${encodeURIComponent(value)}`, {
-        signal: controller.signal,
-      });
+      const response = await requestSubmissionSearch(value, controller.signal);
       if (response.ok) {
         const payload = (await response.json()) as { readonly items: readonly SiteSearchResult[] };
         results = payload.items;

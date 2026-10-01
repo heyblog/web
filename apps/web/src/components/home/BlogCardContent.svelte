@@ -2,7 +2,8 @@
   import { IconExternalLink } from '@tabler/icons-svelte';
   import type { Attachment } from 'svelte/attachments';
 
-  import { formatSiteUpdatedAt, type HomeSiteCard } from '@/application/home/home.shared';
+  import { type HomeSiteCard } from '@/api/sites/site-card.types';
+  import { formatSiteUpdatedAt } from '@/application/site-profile/site-card.shared';
 
   import {
     type BlogCardPlannedFields,

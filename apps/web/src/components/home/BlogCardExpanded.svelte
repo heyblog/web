@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
 
-  import type { HomeSiteCard } from '@/application/home/home.shared';
+  import type { HomeSiteCard } from '@/api/sites/site-card.types';
 
   import {
     applyDialogLayout,

@@ -1,5 +1,6 @@
-import type { EditableSubmission, SelectedTag } from './site-submission.browser';
-import type { Option } from './site-submission.types';
+import type { Option } from '../../api/site-submission/site-submission.types.ts';
+
+import type { EditableSubmission, SelectedTag } from './site-submission.browser.ts';
 
 export function tertiaryTagOptions(
   options: readonly Option[],

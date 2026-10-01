@@ -1,11 +1,9 @@
 ---
 import { render } from 'astro:content';
 
-import {
-  readDocsLandingEntry,
-  resolveContentEditors,
-} from '@/application/static-content/static-content.server';
+import { resolveContentEditors } from '@/application/static-content/static-content.server';
 import ContentEntryMeta from '@/components/content-page/ContentEntryMeta.astro';
+import { readDocsLandingEntry } from '@/integrations/content/content.server';
 import MarkdownContentLayout from '@/layouts/MarkdownContentLayout.astro';
 
 export const prerender = true;

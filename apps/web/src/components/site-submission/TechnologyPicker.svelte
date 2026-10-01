@@ -1,12 +1,12 @@
 <script lang="ts">
   import { IconPlus, IconX } from '@tabler/icons-svelte';
 
-  import type { DependencyDraft } from '@/application/site-submission/site-submission.browser';
-  import { matchesSubmissionOption } from '@/application/site-submission/site-submission.search';
   import type {
     ComponentOption,
     DependencyRole,
-  } from '@/application/site-submission/site-submission.types';
+  } from '@/api/site-submission/site-submission.types';
+  import type { DependencyDraft } from '@/application/site-submission/site-submission.browser';
+  import { matchesSubmissionOption } from '@/application/site-submission/site-submission.search';
   interface Props {
     dependencies: DependencyDraft[];
     options: readonly ComponentOption[];

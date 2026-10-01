@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createGithubAvatarHandler } from '../src/application/github-avatar/github-avatar.server.ts';
-import { getGithubAvatarPath } from '../src/application/github-avatar/github-avatar.ts';
+import { createGithubAvatarHandler } from '../src/integrations/github-avatar/github-avatar.server.ts';
+import { getGithubAvatarPath } from '../src/integrations/github-avatar/github-avatar.ts';
 
 const avatarBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const avatarRequest = (etag?: string) =>

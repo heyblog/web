@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { requestAuthAPI } from '@/application/auth/auth.server';
+import { requestAuthAPI } from '../../../api/auth/auth.server.ts';
 
 export const prerender = false;
 

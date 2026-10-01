@@ -1,8 +1,8 @@
 ---
 import { IconExternalLink } from '@tabler/icons-svelte';
 
-import { siteOgImagePath } from '@/application/site-og/site-og.model';
-import type { SiteProfile } from '@/application/site-profile/site-profile.server';
+import type { SiteProfile } from '@/api/sites/site-profile.types';
+import { siteOgImagePath } from '@/application/site-og/site-og.metadata.server';
 
 import SiteCardPreview from './SiteCardPreview.svelte';
 interface Props {

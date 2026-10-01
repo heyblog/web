@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { SubmissionOptions } from '../src/api/site-submission/site-submission.types.ts';
 import { emptySubmission } from '../src/application/site-submission/site-submission.browser.ts';
 import { applySnapshot } from '../src/application/site-submission/site-submission.snapshot.browser.ts';
-import type { SubmissionOptions } from '../src/application/site-submission/site-submission.types.ts';
 
 const options: SubmissionOptions = {
   tags: [{ id: 'tag-primary', name: '中文博客' }],

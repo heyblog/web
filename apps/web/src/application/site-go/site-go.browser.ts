@@ -1,6 +1,7 @@
-import type { SiteCardView } from '../home/home.shared.ts';
+import type { SiteCardView } from '../../api/sites/site-card.types.ts';
+import { requestRandomSite } from '../../api/sites/site-random.browser.ts';
 
-import { buildSiteGoHref, siteGoParameterMessage } from './site-go.shared.ts';
+import { siteGoParameterMessage } from './site-go.shared.ts';
 
 export type SiteGoSelection =
   { kind: 'success'; site: SiteCardView | null } | { kind: 'error'; message: string };
@@ -12,14 +13,7 @@ export async function previewRandomSite(
   fetcher: typeof fetch = fetch,
 ): Promise<SiteGoSelection> {
   try {
-    const response = await fetcher(
-      buildSiteGoHref(level1, level2).replace('/site/go', '/api/site-random'),
-      {
-        signal,
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
-      },
-    );
+    const response = await requestRandomSite(level1, level2, { signal, fetch: fetcher });
     if (response.status === 400) {
       const problem = (await response.json()) as { code?: string };
       return { kind: 'error', message: siteGoParameterMessage(problem.code) };

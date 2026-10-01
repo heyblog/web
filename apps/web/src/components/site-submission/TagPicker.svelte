@@ -1,6 +1,6 @@
 <script lang="ts">
+  import type { Option } from '@/api/site-submission/site-submission.types';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
-  import type { Option } from '@/application/site-submission/site-submission.types';
 
   import ClassificationPicker from './ClassificationPicker.svelte';
   import TertiaryTagPicker from './TertiaryTagPicker.svelte';

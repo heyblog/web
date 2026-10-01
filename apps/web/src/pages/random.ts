@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { legacyRandomDestination } from '@/application/site-go/site-go.shared';
+import { legacyRandomDestination } from '../application/site-go/site-go.shared.ts';
 
 export const prerender = false;
 

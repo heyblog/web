@@ -1,10 +1,8 @@
 ---
-import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import type { AuditDetail, SubmissionOptions } from '@/api/site-submission/site-submission.types';
+import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
-import type {
-  AuditDetail,
-  SubmissionOptions,
-} from '@/application/site-submission/site-submission.types';
 import AuditCorrectionEditor from '@/components/management/site-submissions/AuditCorrectionEditor.svelte';
 import AuditDiffView from '@/components/management/site-submissions/AuditDiffView.astro';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';

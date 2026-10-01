@@ -2,9 +2,9 @@
   import { IconPlus, IconRefresh } from '@tabler/icons-svelte';
   import { onMount, untrack } from 'svelte';
 
+  import type { ApiClientSummary } from '@/api/api-keys/api-keys.types';
   import { ApiKeyController } from '@/application/api-keys/api-keys.controller.svelte';
   import { type ClientFilters, filterClients } from '@/application/api-keys/api-keys.model';
-  import type { ApiClientSummary } from '@/application/api-keys/api-keys.types';
 
   import {
     buttonClass,

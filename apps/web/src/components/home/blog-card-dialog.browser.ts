@@ -1,4 +1,4 @@
-import { type BlogCardSourceRect, resolveAnchoredDialogLayout } from './blog-card-layout.shared';
+import { type BlogCardSourceRect, resolveAnchoredDialogLayout } from './blog-card-layout.shared.ts';
 
 const focusableSelector =
   'a[href],button,input,select,textarea,[contenteditable]:not([contenteditable="false"]),[tabindex]';

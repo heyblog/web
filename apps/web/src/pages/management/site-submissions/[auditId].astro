@@ -1,7 +1,8 @@
 ---
-import { readSessionUser, requestAuthAPI } from '@/application/auth/auth.server';
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import type { AuditDetail } from '@/api/site-submission/site-submission.types';
+import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
-import type { AuditDetail } from '@/application/site-submission/site-submission.types';
 import AuditActionView from '@/components/management/site-submissions/AuditActionView.astro';
 import AuditReviewPanel from '@/components/management/site-submissions/AuditReviewPanel.svelte';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';

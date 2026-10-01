@@ -1,4 +1,4 @@
-import type { SiteProfile } from '../src/application/site-profile/site-profile.server.ts';
+import type { SiteProfile } from '../src/api/sites/site-profile.types.ts';
 
 export const profile: SiteProfile = {
   iconHash: null,

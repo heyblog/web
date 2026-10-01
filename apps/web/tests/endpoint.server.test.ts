@@ -6,7 +6,7 @@ import {
   apiWebTokenHeader,
   createApiEndpoint,
   handleApiRequest,
-} from '../src/application/api/endpoint.server.ts';
+} from '../src/api/transport/endpoint.server.ts';
 
 const policy = {
   audience: 'web-only',

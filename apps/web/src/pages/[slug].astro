@@ -1,8 +1,9 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import type { CollectionEntry } from 'astro:content';
-import { getCollection, render } from 'astro:content';
+import { render } from 'astro:content';
 
+import { readPageEntries } from '@/integrations/content/content.server';
 import MarkdownContentLayout from '@/layouts/MarkdownContentLayout.astro';
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
 export const prerender = true;
 
 export const getStaticPaths = (async () => {
-  const entries = await getCollection('pages');
+  const entries = await readPageEntries();
 
   return entries.map((entry) => ({
     params: { slug: entry.id },

@@ -1,13 +1,13 @@
 <script lang="ts">
   import { IconPlus, IconTrash } from '@tabler/icons-svelte';
 
+  import { feedFormats } from '@/api/site-submission/site-submission.types';
   import {
     addFeed,
     type EditableSubmission,
     removeFeed,
     setDefaultFeed,
   } from '@/application/site-submission/site-submission.browser';
-  import { feedFormats } from '@/application/site-submission/site-submission.types';
   import { validateAuxiliaryURLs } from '@/application/site-submission/site-submission.validation';
   interface Props {
     form: EditableSubmission;

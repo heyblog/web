@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { forwardSiteSubmission } from '@/application/site-submission/proxy.server';
+import { forwardSiteSubmission } from '../../../api/site-submission/proxy.server.ts';
 
 export const POST: APIRoute = ({ request }) =>
   forwardSiteSubmission(request, '/site-submissions', 'POST');

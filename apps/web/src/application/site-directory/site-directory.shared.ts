@@ -5,7 +5,7 @@ import type {
   SiteDirectoryQuery,
   SiteDirectorySort,
   SiteDirectoryStatus,
-} from './site-directory.models';
+} from '../../api/sites/site-directory.types.ts';
 
 export function createDailyDirectorySeed(date = new Date()): string {
   const chinaDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
@@ -38,31 +38,8 @@ export function parseSiteDirectorySearchParams(parameters: URLSearchParams): Sit
   };
 }
 
-export function buildSiteDirectorySearchParams(query: SiteDirectoryQuery): URLSearchParams {
-  const parameters = new URLSearchParams({
-    page: String(query.page),
-    q: query.q,
-    feed: query.feed,
-    status: query.status,
-    sort: query.sort,
-    order: query.order,
-    seed: query.seed,
-  });
-  if (query.level1) parameters.set('level1', query.level1);
-  if (query.level1 && query.level2) parameters.set('level2', query.level2);
-  appendValues(parameters, 'tertiary', query.tertiary);
-  appendValues(parameters, 'warning', query.warning);
-  appendValues(parameters, 'technology', query.technology);
-  appendValues(parameters, 'access', query.access);
-  return parameters;
-}
-
 export function createDirectoryShuffleSeed(): string {
   return `site-directory:shuffle:${crypto.randomUUID()}`;
-}
-
-function appendValues(parameters: URLSearchParams, name: string, values: readonly string[]): void {
-  for (const value of values) parameters.append(name, value);
 }
 
 function uniqueValues(values: readonly string[]): readonly string[] {

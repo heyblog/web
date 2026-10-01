@@ -1,9 +1,9 @@
 ---
 import { IconBrandGithub, IconExternalLink } from '@tabler/icons-svelte';
 
-import { getGithubAvatarPath } from '@/application/github-avatar/github-avatar';
 import type { MemberSummary } from '@/application/static-content/static-content.models';
 import { formatContentDate } from '@/application/static-content/static-content.models';
+import { getGithubAvatarPath } from '@/integrations/github-avatar/github-avatar';
 import { memberStatusLabels } from '@/shared/content/member-status';
 
 interface Props {

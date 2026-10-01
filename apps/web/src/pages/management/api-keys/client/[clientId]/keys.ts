@@ -6,8 +6,8 @@ import {
   issueApiKey,
   isUUID,
   readMutationBody,
-} from '@/application/api-keys/api-keys.server';
-import { parseApiKeyIssuePayload } from '@/application/api-keys/api-keys.types';
+} from '../../../../../api/api-keys/api-keys.server.ts';
+import { parseApiKeyIssuePayload } from '../../../../../api/api-keys/api-keys.types.ts';
 
 export const prerender = false;
 

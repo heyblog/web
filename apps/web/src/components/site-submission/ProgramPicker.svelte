@@ -2,14 +2,14 @@
   import { tick, untrack } from 'svelte';
 
   import type {
+    ComponentOption,
+    ProgramDependencyOption,
+  } from '@/api/site-submission/site-submission.types';
+  import type {
     EditableSubmission,
     ProgramDraft,
   } from '@/application/site-submission/site-submission.browser';
   import { matchesSubmissionOption } from '@/application/site-submission/site-submission.search';
-  import type {
-    ComponentOption,
-    ProgramDependencyOption,
-  } from '@/application/site-submission/site-submission.types';
 
   import TechnologyPicker from './TechnologyPicker.svelte';
 

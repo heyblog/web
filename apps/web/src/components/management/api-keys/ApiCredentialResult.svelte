@@ -1,7 +1,7 @@
 <script lang="ts">
   import { IconCheck, IconCopy } from '@tabler/icons-svelte';
 
-  import type { ApiCredential } from '@/application/api-keys/api-keys.types';
+  import type { ApiCredential } from '@/api/api-keys/api-keys.types';
 
   import { buttonClass, errorClass, primaryClass } from './api-keys.styles';
   interface Props {

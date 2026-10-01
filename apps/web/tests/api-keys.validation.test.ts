@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  defaultApiClientScopes,
   parseApiClientCreatePayload,
   parseApiClientUpdatePayload,
+} from '../src/api/api-keys/api-keys.types.ts';
+import {
+  defaultApiClientScopes,
   selectedApiClientScopes,
-} from '../src/application/api-keys/api-keys.types.ts';
+} from '../src/application/api-keys/api-keys.form.ts';
 
 const baseCreatePayload = {
   name: 'example consumer',

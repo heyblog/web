@@ -1,11 +1,11 @@
 ---
 import { IconBrandGithub } from '@tabler/icons-svelte';
 
-import { readGithubContributors } from '@/application/github-contributors/github-contributors.server';
 import { historicalContributors } from '@/application/static-content/historical-contributors';
 import { readMemberDirectory } from '@/application/static-content/static-content.server';
 import HistoricalContributorCard from '@/components/members/HistoricalContributorCard.astro';
 import MemberCard from '@/components/members/MemberCard.astro';
+import { readGithubContributors } from '@/integrations/github-contributors/github-contributors.server';
 import PublicLayout from '@/layouts/PublicLayout.astro';
 
 export const prerender = false;

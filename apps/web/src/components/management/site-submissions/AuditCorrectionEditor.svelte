@@ -1,16 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte';
 
+  import { requestReviewDraft } from '@/api/site-submission/site-submission.browser';
+  import type { AuditDetail, SubmissionOptions } from '@/api/site-submission/site-submission.types';
   import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
   import {
     buildSubmissionPayload,
     emptySubmission,
   } from '@/application/site-submission/site-submission.browser';
   import { applySnapshot } from '@/application/site-submission/site-submission.snapshot.browser';
-  import type {
-    AuditDetail,
-    SubmissionOptions,
-  } from '@/application/site-submission/site-submission.types';
   import { validateSubmissionStep } from '@/application/site-submission/site-submission.validation';
   import InlineAlert from '@/components/feedback/InlineAlert.svelte';
   import FeedEditor from '@/components/site-submission/FeedEditor.svelte';
@@ -46,14 +44,10 @@
     }
     pending = true;
     error = '';
-    const response = await fetch(`/management/site-submissions/${detail.id}/review-draft`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        site: buildSubmissionPayload(form, detail.action).site,
-        expected_site_revision: detail.current_snapshot.revision ?? 0,
-        expected_review_draft_revision: detail.review_draft_revision,
-      }),
+    const response = await requestReviewDraft(detail.id, {
+      site: buildSubmissionPayload(form, detail.action).site,
+      expected_site_revision: detail.current_snapshot.revision ?? 0,
+      expected_review_draft_revision: detail.review_draft_revision,
     });
     pending = false;
     if (!response.ok) {

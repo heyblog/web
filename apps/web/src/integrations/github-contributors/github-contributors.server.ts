@@ -1,9 +1,9 @@
-import { loadWebServerConfig } from '@/config.server';
+import { loadWebServerConfig } from '../../config.server.ts';
 
 import {
   createGithubContributorsReader,
   type GithubContributorsSnapshot,
-} from './github-contributors';
+} from './github-contributors.ts';
 
 let readContributors: (() => Promise<GithubContributorsSnapshot | undefined>) | undefined;
 
