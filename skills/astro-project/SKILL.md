@@ -10,24 +10,29 @@ Apply current Astro APIs without weakening this repository's module, rendering, 
 ## Establish Current Context
 
 1. Read every applicable `AGENTS.md`, including `apps/web/AGENTS.md`.
-2. Read `apps/web/package.json` and `apps/web/astro.config.ts` before every Astro task. Treat them as dependency and runtime truth; do not hard-code or assume dependency versions.
-3. Read the relevant module `mise.toml` before choosing commands, then use its narrowest applicable task.
+2. For dependency, integration, adapter, rendering-mode, or build work, read `apps/web/package.json`
+   and `apps/web/astro.config.ts` and treat them as dependency and runtime truth.
+3. Read the relevant module `mise.toml` when selecting commands, then use its narrowest applicable
+   task.
 
 ## Resolve Astro APIs
 
-Query the official Astro Docs MCP named `astro-docs` first for API behavior. Its endpoint is `https://mcp.docs.astro.build/mcp`.
+Use the official Astro Docs MCP for version-sensitive or unfamiliar API behavior when it is
+available. Its endpoint is `https://mcp.docs.astro.build/mcp`.
 
 If that MCP is unavailable, consult `https://docs.astro.build`. Do not substitute stale remembered APIs or third-party summaries.
-
-No official Astro Skill is suitable for application development. Do not use `astro-maintainer-skills`; it targets maintenance of the Astro monorepo, not this application.
 
 ## Preserve Project Boundaries
 
 - Use Astro for filesystem routing, pages, layouts, middleware, endpoints, server rendering, prerendering, content, integrations, configuration, and same-origin web boundaries.
-- Use Svelte only for islands that require browser state or user interaction. Keep static content in Astro and do not hydrate it without a user-facing need.
+- Svelte components may be SSR-only or hydrated islands. Add a client directive only for browser
+  state or user interaction; preserve existing server-only composition without hydration.
+- Use `svelte-project` for Svelte component semantics, runes, reactivity, context, hydration details,
+  and Svelte-specific review.
 - Follow the ownership, HTTP, security, rendering, migration, and validation rules in `apps/web/AGENTS.md`.
 - Keep route files thin and preserve the repository's server-only and browser-only boundaries.
-- Use the existing Tailwind setup. Apply `aria-design-system` as the highest authority for project UI and motion when it is available.
+- Use the existing Tailwind setup. UI and motion work must use `aria-design-system` as the highest
+  design authority.
 - Do not let generic Astro, Svelte, Tailwind, UI, or animation guidance override repository instructions or Aria design rules.
 
 ## Validate
