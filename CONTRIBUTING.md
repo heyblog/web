@@ -199,10 +199,39 @@ docs: clarify local setup
 
 每个提交保持单一目的，不混入无关格式化、本地配置或生成物。提交前检查暂存差异，并确认相关模块验证及 `mise run verify` 已通过。
 
-提交 PR 到 GitHub 后，确认 `Prepare content`、`Check`、`API race test`、`API integration test`、`Web test`、CodeQL 和 `dependency-review` 检查通过，再请求评审。增量依赖审查会阻止引入高危及以上漏洞的依赖变更。
+提交 PR 到 GitHub 后，确认 `CI gate`、CodeQL 和 `dependency-review` 检查通过，再请求评审。`CI gate` 汇总内容准备、静态检查、API race/integration、Web test 和依赖安全检查，任何失败、取消或跳过都会使门禁失败。增量依赖审查会阻止引入高危及以上漏洞的依赖变更。
 
-CI 中的 `Dependency security` 每次运行全量依赖安全扫描。PR 的扫描步骤未通过时会在日志和 Actions 摘要显示告警及日志入口，可能原因包括发现漏洞或扫描命令执行失败；该步骤不阻断 PR CI，但依赖安装等前置步骤失败仍会使检查失败。main push 和所有手动 CI 运行保持严格检查，扫描失败会使 job 失败，并阻止 main 的 `Container` 执行。
+CI 中的 `Dependency security` 每次运行全量依赖安全扫描。作者为 `renovate[bot]` 的 PR、main push 和所有手动 CI 运行保持严格检查，扫描失败会使 job 和 `CI gate` 失败。其他 PR 的扫描失败仍显示告警及日志入口，但不阻断 CI；依赖安装等前置步骤失败仍会阻断。
 
 独立的 `security` 工作流仍每周或手动执行全量扫描，发现漏洞或扫描失败时工作流失败；本地可运行 `mise run security`。
 
-`Container` 仅在 `main` 的 push 或选择 `main` 的手动 CI 运行中执行，并要求前置检查通过。容器镜像扫描通过后，仅 `main` push 会发布镜像；手动运行只构建和扫描。PR 和其他分支的手动运行会跳过整个 `Container` job。
+镜像构建、扫描和发布由独立的 `Container` 工作流执行，不属于 `CI gate`。它在 main CI 成功后检查同一次运行的 `CI gate`，并使用该运行的提交 SHA 和 `web-content` 产物。PR、非 main 分支、失败或缺少门禁的 CI 不进入构建。
+
+main push 对应的已合并 PR 作者均为 `renovate[bot]` 时，自动跳过镜像构建和发布；判断依据是 GitHub API 返回的关联 PR 作者和合并 SHA，不是标题、标签或合并操作者。普通 main 更新在构建和扫描通过后发布 SHA 标签，提交仍是 main 最新 SHA 时才发布 `latest`。手动 main CI 成功后仅构建和扫描，不发布。
+
+也可在 main 上手动触发 `Container`，提供本仓库成功的 main `CI` 运行编号 `ci_run_id`；`publish` 默认为 `false`，设为 `true` 才发布。这是显式构建入口，可用于重新构建 Renovate 更新后的 main。其他仓库后续可在满足自身条件后，通过 GitHub API 调用同一个 workflow dispatch 接口，但必须提供有权触发本仓库 Actions 的凭据；调用方的 `GITHUB_TOKEN` 不自动获得跨仓库权限。本仓库仍验证所提供的 CI 运行和门禁，不接受任意源码 ref 或外部产物。外部内容更新后，应先重新运行本仓库 CI，使用新生成并通过检查的内容产物，而不是复用更新前的 CI 运行。Web 产物保留一天，过期后也须重新运行 CI。
+
+例如，先查询 main 的成功 CI，将示例运行编号替换为实际编号，再按需触发构建：
+
+```bash
+gh run list --repo heyblog/web --workflow ci.yaml --branch main --status success
+gh workflow run container.yaml --repo heyblog/web --ref main -f ci_run_id=123456789 -f publish=false
+```
+
+工作流不配置发布并发队列。发布 `latest` 前的 SHA 检查不是原子操作，仍存在检查后 main 更新或多个发布并行执行的竞争窗口。
+
+## Renovate 依赖更新
+
+常规 minor、patch、digest 和 pinDigest 更新集中为 `chore(deps): update non-major dependencies` 批次。每周锁文件维护保持独立 PR。配置当前处于分阶段启用的第一阶段，两类 PR 的自动合并均关闭；完成下述仓库保护设置后才能开启检查通过后的自动 squash 合并。更新窗口仍为上海时间每周一 00:00–05:59；npm 新版本等待七天。
+
+major 更新仍需依赖控制台审批并人工合并；安全漏洞专用 PR 和普通版本 pin 也保持人工合并。自动合并分支落后于 main 时会刷新并重跑检查；其他 Renovate PR 仅在冲突时自动刷新，人工合并前如分支落后需先更新。批次中任一依赖导致检查失败会阻塞整批，不能通过降低门禁合并。
+
+本仓库不通过标签、标题或分支名为人工或其他机器人的 PR 启用自动合并。GitHub 的仓库级开关只是允许使用该功能；具有相应权限的人仍可手动开启其他 PR 的原生自动合并。
+
+启用时先将批次规则与 `lockFileMaintenance` 的 `automerge` 均设为 `false`，上线分组与 CI 门禁。确认新检查成功后，保护 main，要求分支最新且 `CI gate`、`Analyze go`、`Analyze javascript-typescript`、`dependency-review` 全部通过，检查来源限定为 GitHub Actions，不给 Renovate 绕过权限。然后开启仓库自动合并和合并后删分支，最后将上述两处 `automerge` 恢复为 `true`。仓库设置须单独查验，不能仅凭配置文件判断已启用。
+
+合并后删分支适用于所有已合并 PR。main push 的验证不跳过，Renovate PR 合并到 main 后不自动构建镜像。不使用取消旧工作流来降噪；常规批次和每周锁文件维护仍可能分别触发 main CI，内容变化和分支刷新也需要重新验证。
+
+Renovate 仍由 Mend 托管 App 运行，保留现有调度策略。每周窗口限制常规更新的创建时间，不代表 App 只在该窗口运行；窗口外仍可能刷新已有分支，安全漏洞更新也保留其独立策略。不新增自托管 Renovate 工作流。
+
+修改更新策略或门禁后执行 Renovate 官方配置验证器和 `mise run verify`。
