@@ -199,4 +199,10 @@ docs: clarify local setup
 
 每个提交保持单一目的，不混入无关格式化、本地配置或生成物。提交前检查暂存差异，并确认相关模块验证及 `mise run verify` 已通过。
 
-提交到 GitHub 后，确认 CI 中的 `Check`、`API race test`、`API integration test`、`Web test`、`Dependency security` 和 `Container` 检查通过，再请求评审。
+提交 PR 到 GitHub 后，确认 `Prepare content`、`Check`、`API race test`、`API integration test`、`Web test`、CodeQL 和 `dependency-review` 检查通过，再请求评审。增量依赖审查会阻止引入高危及以上漏洞的依赖变更。
+
+CI 中的 `Dependency security` 每次运行全量依赖安全扫描。PR 的扫描步骤未通过时会在日志和 Actions 摘要显示告警及日志入口，可能原因包括发现漏洞或扫描命令执行失败；该步骤不阻断 PR CI，但依赖安装等前置步骤失败仍会使检查失败。main push 和所有手动 CI 运行保持严格检查，扫描失败会使 job 失败，并阻止 main 的 `Container` 执行。
+
+独立的 `security` 工作流仍每周或手动执行全量扫描，发现漏洞或扫描失败时工作流失败；本地可运行 `mise run security`。
+
+`Container` 仅在 `main` 的 push 或选择 `main` 的手动 CI 运行中执行，并要求前置检查通过。容器镜像扫描通过后，仅 `main` push 会发布镜像；手动运行只构建和扫描。PR 和其他分支的手动运行会跳过整个 `Container` job。

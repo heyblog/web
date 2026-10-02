@@ -113,9 +113,19 @@ jobs:
       - name: Set up repository
         uses: ./.github/actions/setup
       - name: Scan dependencies
+        id: scan
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: mise run security
+      - name: Report scan failure
+        if: ${{ !cancelled() && steps.scan.outcome == 'failure' }}
+        env:
+          SCAN_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: |
+          printf '::warning title=Dependency security::扫描未通过。请查看 Scan dependencies 步骤日志：%s\n' "${SCAN_LOG_URL}"
+          printf '### Dependency security：扫描未通过\n\n扫描发现漏洞或命令执行失败，请查看 [Scan dependencies 步骤日志](%s)。\n' "${SCAN_LOG_URL}" >>"${GITHUB_STEP_SUMMARY}"
   container:
     name: Container
+    if: github.ref == 'refs/heads/main'
     needs: [content, check, api-race, api-integration, web-test, dependency-security]
     runs-on: ubuntu-latest
     concurrency:
