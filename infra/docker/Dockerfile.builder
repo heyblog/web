@@ -13,7 +13,7 @@ RUN curl --fail --silent --show-error --location \
       --retry 5 --retry-all-errors --retry-delay 3 \
       https://mise.run \
       --output /tmp/mise-install.sh \
-    && MISE_VERSION=v2026.9.12 MISE_INSTALL_PATH=/usr/local/bin/mise sh /tmp/mise-install.sh \
+    && MISE_VERSION=v2026.10.0 MISE_INSTALL_PATH=/usr/local/bin/mise sh /tmp/mise-install.sh \
     && rm /tmp/mise-install.sh
 
 WORKDIR /workspace
