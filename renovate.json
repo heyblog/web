@@ -27,19 +27,27 @@
   "prHourlyLimit": 2,
   "schedule": ["* 0-5 * * 1"],
   "separateMajorMinor": true,
-  "separateMinorPatch": true,
+  "separateMinorPatch": false,
   "ignoreUnstable": true,
   "respectLatest": true,
   "automerge": false,
+  "automergeType": "pr",
+  "platformAutomerge": true,
+  "automergeStrategy": "squash",
+  "rebaseWhen": "conflicted",
   "vulnerabilityAlerts": {
     "enabled": true,
     "addLabels": ["security"],
     "automerge": false,
+    "groupName": null,
+    "rebaseWhen": "conflicted",
     "dependencyDashboardApproval": false,
     "vulnerabilityFixStrategy": "lowest"
   },
   "lockFileMaintenance": {
     "enabled": true,
+    "automerge": false,
+    "rebaseWhen": "behind-base-branch",
     "schedule": ["* 0-5 * * 1"]
   },
   "github-actions": {
@@ -125,49 +133,17 @@
       "enabled": false
     },
     {
-      "description": "Group Docker minor updates",
-      "matchManagers": ["dockerfile", "docker-compose"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "docker-y",
-      "groupSlug": "docker-y",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Docker patch updates",
-      "matchManagers": ["dockerfile", "docker-compose"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "docker-z",
-      "groupSlug": "docker-z",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Docker digest updates",
-      "matchManagers": ["dockerfile", "docker-compose"],
-      "matchUpdateTypes": ["digest", "pinDigest"],
-      "groupName": "docker-digest",
-      "groupSlug": "docker-digest",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group GitHub Actions digest updates",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["digest", "pinDigest"],
-      "groupName": "github-actions-digest",
-      "groupSlug": "github-actions-digest",
-      "groupSingleUpdates": true
-    },
-    {
       "description": "Keep Node.js runtime pins synchronized",
       "matchManagers": ["mise", "dockerfile"],
       "matchPackageNames": ["node"],
-      "matchUpdateTypes": ["major", "minor", "patch"],
+      "matchUpdateTypes": ["major"],
       "groupName": "Node.js toolchain"
     },
     {
       "description": "Keep Go toolchain pins synchronized",
       "matchManagers": ["gomod", "mise", "custom.regex"],
       "matchPackageNames": ["go", "golang", "golang/go"],
-      "matchUpdateTypes": ["major", "minor", "patch"],
+      "matchUpdateTypes": ["major"],
       "groupName": "Go toolchain"
     },
     {
@@ -178,72 +154,20 @@
       "rangeStrategy": "bump"
     },
     {
-      "description": "Group Node.js ecosystem minor updates",
-      "matchManagers": ["npm"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "node-y",
-      "groupSlug": "node-y",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Node.js runtime minor updates",
-      "matchManagers": ["mise", "dockerfile"],
-      "matchPackageNames": ["node", "pnpm"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "node-y",
-      "groupSlug": "node-y",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Node.js ecosystem patch updates",
-      "matchManagers": ["npm"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "node-z",
-      "groupSlug": "node-z",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Node.js runtime patch updates",
-      "matchManagers": ["mise", "dockerfile"],
-      "matchPackageNames": ["node", "pnpm"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "node-z",
-      "groupSlug": "node-z",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Go ecosystem minor updates",
-      "matchManagers": ["gomod"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "go-y",
-      "groupSlug": "go-y",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Go ecosystem patch updates",
-      "matchManagers": ["gomod"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "go-z",
-      "groupSlug": "go-z",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Go toolchain minor updates",
-      "matchManagers": ["mise", "custom.regex"],
-      "matchPackageNames": ["go", "golang/go", "golangci-lint", "golangci/golangci-lint"],
-      "matchUpdateTypes": ["minor"],
-      "groupName": "go-y",
-      "groupSlug": "go-y",
-      "groupSingleUpdates": true
-    },
-    {
-      "description": "Group Go toolchain patch updates",
-      "matchManagers": ["mise", "custom.regex"],
-      "matchPackageNames": ["go", "golang/go", "golangci-lint", "golangci/golangci-lint"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "go-z",
-      "groupSlug": "go-z",
-      "groupSingleUpdates": true
+      "description": "Batch non-major dependency updates",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major-dependencies",
+      "groupSingleUpdates": true,
+      "semanticCommitType": "chore",
+      "commitMessageAction": "update",
+      "group": {
+        "commitMessageTopic": "non-major dependencies",
+        "commitMessageExtra": "",
+        "commitMessageSuffix": ""
+      },
+      "automerge": false,
+      "rebaseWhen": "behind-base-branch"
     }
   ],
   "ignorePaths": ["**/node_modules/**", "**/dist/**"]
