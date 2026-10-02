@@ -13,7 +13,7 @@ shell = "bash -o errexit -o pipefail -c"
 go = "1.26.8"
 golangci-lint = "2.12.2"
 node = "24.21.0"
-pnpm = "12.6.0"
+pnpm = "12.7.0"
 shellcheck = "0.11.0"
 
 [vars]
