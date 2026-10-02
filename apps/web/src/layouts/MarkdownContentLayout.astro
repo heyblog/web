@@ -60,19 +60,17 @@ const suppressLeadingHeading = shouldSuppressLeadingContentTitle(title, headings
     class="mx-auto w-[min(calc(100%-2rem),80rem)] pt-6 pb-16 sm:w-[min(calc(100%-3rem),80rem)] sm:pt-8"
     data-content-page
   >
-    {
-      backLink ? (
-        <nav class="mb-6" aria-label="返回入口">
-          <a
-            class="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-fg-muted transition-colors duration-(--motion-color) ease-standard hover:text-tint-fg sm:min-h-10"
-            href={backLink.href}
-          >
-            <IconArrowLeft aria-hidden="true" size={17} stroke={1.75} />
-            <span>返回{backLink.label}</span>
-          </a>
-        </nav>
-      ) : null
-    }
+    {backLink ? (
+      <nav class="mb-6" aria-label="返回入口">
+        <a
+          class="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-fg-muted transition-colors duration-(--motion-color) ease-standard hover:text-tint-fg sm:min-h-10"
+          href={backLink.href}
+        >
+          <IconArrowLeft aria-hidden="true" size={17} stroke={1.75} />
+          <span>返回{backLink.label}</span>
+        </a>
+      </nav>
+    ) : null}
     <div
       class:list={[
         'grid gap-8 sm:pt-4 md:justify-center',

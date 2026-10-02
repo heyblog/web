@@ -42,66 +42,64 @@ const metadata = profile ? siteProfileMetadata(profile) : { title, description }
       <IconArrowLeft aria-hidden="true" size={16} stroke={1.8} />
       返回博客目录
     </a>
-    {
-      profile ? (
-        <div class="mx-auto mt-6 max-w-5xl pb-8 sm:mt-8">
-          <SiteProfileHeader {profile} />
-          {profile.warnings.length > 0 ? (
-            <section
-              class="mt-6 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border border-l-3 border-line border-l-warning-border bg-warning-bg p-4 text-warning-fg"
-              aria-labelledby="site-warnings-title"
-            >
-              <IconAlertTriangle class="mt-0.5" aria-hidden="true" size={18} stroke={1.8} />
-              <div>
-                <h2 class="text-sm font-semibold" id="site-warnings-title">
-                  访问提示
-                </h2>
-                <ul class="mt-2 grid gap-2 text-sm/6 wrap-anywhere">
-                  {profile.warnings.map((warning) => (
-                    <li>
-                      <strong class="font-medium">{warning.name}</strong>
-                      {warning.description ? `：${warning.description}` : ''}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          ) : null}
-          <div class="mt-8 sm:mt-12">
-            <SiteProfileTabs client:load>
-              <SiteProfileResources {profile} />
-            </SiteProfileTabs>
-          </div>
+    {profile ? (
+      <div class="mx-auto mt-6 max-w-5xl pb-8 sm:mt-8">
+        <SiteProfileHeader {profile} />
+        {profile.warnings.length > 0 ? (
+          <section
+            class="mt-6 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border border-l-3 border-line border-l-warning-border bg-warning-bg p-4 text-warning-fg"
+            aria-labelledby="site-warnings-title"
+          >
+            <IconAlertTriangle class="mt-0.5" aria-hidden="true" size={18} stroke={1.8} />
+            <div>
+              <h2 class="text-sm font-semibold" id="site-warnings-title">
+                访问提示
+              </h2>
+              <ul class="mt-2 grid gap-2 text-sm/6 wrap-anywhere">
+                {profile.warnings.map((warning) => (
+                  <li>
+                    <strong class="font-medium">{warning.name}</strong>
+                    {warning.description ? `：${warning.description}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        ) : null}
+        <div class="mt-8 sm:mt-12">
+          <SiteProfileTabs client:load>
+            <SiteProfileResources {profile} />
+          </SiteProfileTabs>
         </div>
-      ) : (
-        <section
-          class="flex min-h-96 flex-col items-center justify-center gap-4 py-12 text-center"
-          aria-labelledby="site-state-title"
-        >
-          <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
-            {unavailable ? (
-              <IconRefresh aria-hidden="true" size={20} stroke={1.8} />
-            ) : (
-              <IconWorldWww aria-hidden="true" size={20} stroke={1.8} />
-            )}
-          </span>
-          <h1 class="text-xl font-semibold" id="site-state-title">
-            {title}
-          </h1>
-          <p class="max-w-md text-sm/6 text-fg-muted">
-            {unavailable ? '站点资料暂时无法加载，请稍后重试。' : '请检查地址，或返回博客目录。'}
-          </p>
+      </div>
+    ) : (
+      <section
+        class="flex min-h-96 flex-col items-center justify-center gap-4 py-12 text-center"
+        aria-labelledby="site-state-title"
+      >
+        <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
           {unavailable ? (
-            <a
-              class="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-fg transition-colors duration-(--motion-color) hover:bg-primary-hover active:bg-primary-active sm:min-h-10"
-              href={requestedPath}
-            >
-              <IconRefresh aria-hidden="true" size={16} stroke={1.8} />
-              重新加载
-            </a>
-          ) : null}
-        </section>
-      )
-    }
+            <IconRefresh aria-hidden="true" size={20} stroke={1.8} />
+          ) : (
+            <IconWorldWww aria-hidden="true" size={20} stroke={1.8} />
+          )}
+        </span>
+        <h1 class="text-xl font-semibold" id="site-state-title">
+          {title}
+        </h1>
+        <p class="max-w-md text-sm/6 text-fg-muted">
+          {unavailable ? '站点资料暂时无法加载，请稍后重试。' : '请检查地址，或返回博客目录。'}
+        </p>
+        {unavailable ? (
+          <a
+            class="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-fg transition-colors duration-(--motion-color) hover:bg-primary-hover active:bg-primary-active sm:min-h-10"
+            href={requestedPath}
+          >
+            <IconRefresh aria-hidden="true" size={16} stroke={1.8} />
+            重新加载
+          </a>
+        ) : null}
+      </section>
+    )}
   </div>
 </PublicLayout>

@@ -19,9 +19,7 @@ const dateLabel = Number.isNaN(date.getTime())
   aria-label="当前公告"
 >
   <div class="flex min-w-0 items-start gap-3">
-    <span
-      class="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-surface text-tint-fg"
-    >
+    <span class="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-surface text-tint-fg">
       <IconSpeakerphone aria-hidden="true" size={18} stroke={1.8} />
     </span>
     <div class="min-w-0">
@@ -29,21 +27,19 @@ const dateLabel = Number.isNaN(date.getTime())
       <p class="mt-1 leading-6 font-medium text-fg">{announcement.title}</p>
     </div>
   </div>
-  {
-    announcement.action ? (
-      <a
-        class="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-md px-3 text-sm font-medium text-tint-fg transition-[background-color,scale] duration-(--motion-fast) ease-out hover:bg-tint-hover active:scale-96 sm:min-h-10 sm:self-auto"
-        href={announcement.action.href}
-        rel={announcement.action.external ? 'noreferrer' : undefined}
-        target={announcement.action.external ? '_blank' : undefined}
-      >
-        {announcement.action.label}
-        {announcement.action.external ? (
-          <IconExternalLink aria-hidden="true" size={15} stroke={1.8} />
-        ) : (
-          <IconArrowRight aria-hidden="true" size={15} stroke={1.8} />
-        )}
-      </a>
-    ) : null
-  }
+  {announcement.action ? (
+    <a
+      class="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-md px-3 text-sm font-medium text-tint-fg transition-[background-color,scale] duration-(--motion-fast) ease-out hover:bg-tint-hover active:scale-96 sm:min-h-10 sm:self-auto"
+      href={announcement.action.href}
+      rel={announcement.action.external ? 'noreferrer' : undefined}
+      target={announcement.action.external ? '_blank' : undefined}
+    >
+      {announcement.action.label}
+      {announcement.action.external ? (
+        <IconExternalLink aria-hidden="true" size={15} stroke={1.8} />
+      ) : (
+        <IconArrowRight aria-hidden="true" size={15} stroke={1.8} />
+      )}
+    </a>
+  ) : null}
 </aside>

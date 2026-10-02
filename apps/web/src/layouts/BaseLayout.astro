@@ -78,31 +78,23 @@ const metadata = resolvePageMetadata({
     <meta property="og:image" content={metadata.imageUrl} />
     <meta property="og:image:alt" content={metadata.imageAlt} />
     {metadata.imageType && <meta property="og:image:type" content={metadata.imageType} />}
-    {
-      metadata.imageWidth && (
-        <meta property="og:image:width" content={String(metadata.imageWidth)} />
-      )
-    }
-    {
-      metadata.imageHeight && (
-        <meta property="og:image:height" content={String(metadata.imageHeight)} />
-      )
-    }
+    {metadata.imageWidth && (
+      <meta property="og:image:width" content={String(metadata.imageWidth)} />
+    )}
+    {metadata.imageHeight && (
+      <meta property="og:image:height" content={String(metadata.imageHeight)} />
+    )}
     <meta name="twitter:card" content={siteConfig.twitterCard} />
     <meta name="twitter:title" content={metadata.title} />
     <meta name="twitter:description" content={metadata.description} />
     <meta name="twitter:image" content={metadata.imageUrl} />
     <meta name="twitter:image:alt" content={metadata.imageAlt} />
-    {
-      metadata.publishedTime ? (
-        <meta property="article:published_time" content={metadata.publishedTime} />
-      ) : null
-    }
-    {
-      metadata.modifiedTime ? (
-        <meta property="article:modified_time" content={metadata.modifiedTime} />
-      ) : null
-    }
+    {metadata.publishedTime ? (
+      <meta property="article:published_time" content={metadata.publishedTime} />
+    ) : null}
+    {metadata.modifiedTime ? (
+      <meta property="article:modified_time" content={metadata.modifiedTime} />
+    ) : null}
     <script is:inline src="/theme-init.js"></script>
     <title>{metadata.title}</title>
   </head>
@@ -155,11 +147,9 @@ const metadata = resolvePageMetadata({
 
       syncThemeControls();
     </script>
-    {
-      enableAnalytics && import.meta.env.PROD ? (
-        <script is:inline defer src="/analytics.js" />
-      ) : null
-    }
+    {enableAnalytics && import.meta.env.PROD ? (
+      <script is:inline defer src="/analytics.js" />
+    ) : null}
   </body>
 </html>
 

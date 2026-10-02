@@ -37,30 +37,28 @@ const showUpdated = updated && updated.iso !== created?.iso;
 <header class="border-b border-line pb-8" data-entry-header>
   <h1 class="text-3xl/tight font-bold sm:text-4xl">{title}</h1>
   {description ? <p class="mt-4 max-w-176 text-lg/snug text-fg-muted">{description}</p> : null}
-  {
-    created || showUpdated ? (
-      <dl
-        class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs/normal text-fg-muted"
-        aria-label="页面时间信息"
-      >
-        {created ? (
-          <div class="flex gap-2">
-            <dt class="font-medium">创建时间</dt>
-            <dd class="m-0">
-              <time datetime={created.iso}>{created.label}</time>
-            </dd>
-          </div>
-        ) : null}
-        {showUpdated ? (
-          <div class="flex gap-2">
-            <dt class="font-medium">最后更新</dt>
-            <dd class="m-0">
-              <time datetime={updated.iso}>{updated.label}</time>
-            </dd>
-          </div>
-        ) : null}
-      </dl>
-    ) : null
-  }
+  {created || showUpdated ? (
+    <dl
+      class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs/normal text-fg-muted"
+      aria-label="页面时间信息"
+    >
+      {created ? (
+        <div class="flex gap-2">
+          <dt class="font-medium">创建时间</dt>
+          <dd class="m-0">
+            <time datetime={created.iso}>{created.label}</time>
+          </dd>
+        </div>
+      ) : null}
+      {showUpdated ? (
+        <div class="flex gap-2">
+          <dt class="font-medium">最后更新</dt>
+          <dd class="m-0">
+            <time datetime={updated.iso}>{updated.label}</time>
+          </dd>
+        </div>
+      ) : null}
+    </dl>
+  ) : null}
   <slot name="meta" />
 </header>
