@@ -12,16 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"heyblog-api/internal/apikey"
-	"heyblog-api/internal/application/publicview"
-	"heyblog-api/internal/auth"
-	"heyblog-api/internal/config"
-	"heyblog-api/internal/dataimport"
 	"heyblog-api/internal/domain/site"
-	"heyblog-api/internal/exampleapi"
-	"heyblog-api/internal/httpapi"
-	"heyblog-api/internal/mail"
-	"heyblog-api/internal/siteaudit"
+	"heyblog-api/internal/features/apikey"
+	"heyblog-api/internal/features/auth"
+	"heyblog-api/internal/features/dataimport"
+	"heyblog-api/internal/features/exampleapi"
+	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/features/siteaudit"
+	"heyblog-api/internal/infrastructure/mail"
+	"heyblog-api/internal/platform/config"
+	"heyblog-api/internal/platform/httpapi"
 )
 
 type runtimeDependencies interface {

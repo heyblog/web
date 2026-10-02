@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"heyblog-api/internal/apikey"
-	"heyblog-api/internal/exampleapi"
+	"heyblog-api/internal/features/apikey"
+	"heyblog-api/internal/features/exampleapi"
 )
 
 func TestAPICredentials(t *testing.T) {

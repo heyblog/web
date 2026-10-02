@@ -131,7 +131,7 @@ integration tests, or the Web standalone smoke task.
   and ownership with existing variables. Prefer reuse when those semantics are consistent; do not
   create module-specific aliases for the same value.
 - Runtime application environment reads belong to each module's typed configuration boundary:
-  `apps/api/internal/config` and `apps/web/src/config.server.ts`. Other runtime code receives that
+  `apps/api/internal/platform/config` and `apps/web/src/config.server.ts`. Other runtime code receives that
   configuration. Build integrations and task scripts may read their own build-time inputs; keep
   those inputs out of browser runtime configuration and production runner secrets.
 - Task and Compose files select and inject scenario-specific environment files; application modules

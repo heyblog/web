@@ -17,9 +17,9 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	dbgen "heyblog-api/internal/database/gen"
-	"heyblog-api/internal/database/migrations"
-	"heyblog-api/internal/siteaudit"
+	"heyblog-api/internal/features/siteaudit"
+	dbgen "heyblog-api/internal/infrastructure/database/gen"
+	"heyblog-api/internal/infrastructure/database/migrations"
 )
 
 type auditMigrationFixture struct {

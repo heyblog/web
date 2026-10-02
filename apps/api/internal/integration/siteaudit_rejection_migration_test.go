@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"heyblog-api/internal/auth"
-	dbgen "heyblog-api/internal/database/gen"
-	"heyblog-api/internal/siteaudit"
+	"heyblog-api/internal/features/auth"
+	"heyblog-api/internal/features/siteaudit"
+	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
 func TestSiteAuditRejectionMigration(t *testing.T) {

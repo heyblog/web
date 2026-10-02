@@ -21,14 +21,26 @@ and focused tests referenced below, not additional package-level AGENTS files.
   tests in cohesive packages under `apps/api/internal`.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
-- `apps/api/internal/httpapi` owns shared Gin/Huma routing, middleware, endpoint adapters, and
-  Problem Details. Feature packages such as `auth`, `apikey`, `siteaudit`, `dataimport`, and
-  `exampleapi` own their feature transports and operations; preserve those package boundaries.
-- `apps/api/internal/application/publicview` assembles read-side DTOs over its query contracts.
+- `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `siteaudit`,
+  `dataimport`, `publicview`, and `exampleapi`. Preserve their feature boundaries and colocated
+  operations, repositories, and tests.
+- `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
+  `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
+  endpoint adapters, Problem Details, and the existing public-view HTTP adapters.
+- `apps/api/internal/features/publicview` assembles read-side DTOs. Its `Queries` interface is a
+  composition-time contract; helpers receive only their consumer-specific query interfaces.
+  Retain the `New` composition entry point and sqlc query types without pure-forwarding stores.
+- `apps/api/internal/features/siteaudit` keeps permission, revision, merge, and decision flow in
+  services. `Store` returns business types; `AuditTransaction` binds business operations to one
+  transaction. SQL, pgtype conversions, row mapping, canonical writes, and transaction lifecycle
+  belong in `repository*.go`. Services must not access `Repository.queries` or sqlc types.
+  Check audit status and draft revision before decoding locked snapshots; notify only after commit.
 - `apps/api/internal/domain` owns framework-independent domain values and invariants.
-- `apps/api/internal/database` owns migrations, sqlc query sources/generated queries, and pool
-  access. `apps/api/internal/cache`, `apps/api/internal/mail`, and `apps/api/internal/siteicon`
-  own their infrastructure concerns.
+- `apps/api/internal/infrastructure` groups external-resource implementations: `database`, `cache`,
+  `mail`, and `siteicon`. `database` owns migrations, sqlc sources/generated queries, and pool access.
+- `apps/api/internal/integration` owns cross-feature tests with real isolated infrastructure.
+- `features`, `platform`, and `infrastructure` are directory namespaces, not aggregate Go packages.
+  Bootstrap composes their concrete implementations; domain code stays independent of them.
 - Domain code must not import handlers or database implementations. Split a feature package by
   responsibility when needed; do not add pure-forwarding repositories or generic layers without
   an actual ownership need.
@@ -38,10 +50,10 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - Define endpoint audience, method/path, request/response DTOs, status codes, permissions, rate
   limits, cancellation, and timeouts together. Keep existing contracts unchanged in refactors.
 - Gin hosts routing/middleware; business endpoints use Huma typed operations. Development-only
-  OpenAPI/Swagger behavior is defined by `apps/api/internal/httpapi/openapi.go`.
-- Transport validates inputs, calls an operation, and maps typed results/errors. The endpoint
-  adapter and `ErrorBoundary` in `apps/api/internal/httpapi` own failure responses; do not emit a
-  second Problem Details response or continue after failed middleware.
+  OpenAPI/Swagger behavior is defined by `apps/api/internal/platform/httpapi/openapi.go`.
+- Transport validates inputs, calls an operation, and maps typed results/errors. Gin `Adapt` and
+  `errorBoundary`, plus Huma `Register`/`HTTPError`, in `apps/api/internal/platform/httpapi` own
+  failure responses; do not emit a second Problem Details response or continue after failed middleware.
 - Preserve typed expected failures, explicit error returns, and request contexts across database,
   cache, and outbound calls. Do not panic for validation, authorization, or dependency failures.
 - Internal networks and client-IP metadata are not authorization. Keep Web-token, bearer health,
@@ -53,51 +65,52 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - Web-facing reads, authentication, and anonymous submissions retain their Web-token guards and
   route-specific limits. Health uses a separate bearer token and no-store responses; liveness
   does not probe dependencies. Audience and health contracts live in
-  `apps/api/internal/httpapi/router.go` and `apps/api/internal/httpapi/router_test.go`.
+  `apps/api/internal/platform/httpapi/router.go` and `apps/api/internal/platform/httpapi/router_test.go`.
 - Browser auth preserves password/email verification, rotating refresh sessions, HttpOnly and
   SameSite cookie delivery, and operation-specific `auth_version` invalidation. GitHub login uses
   a verified primary email; binding must match the account and unbinding must leave password login.
   Preserve user-management role, permission, scope, and self-management restrictions in
-  `apps/api/internal/auth/management.go`, `apps/api/internal/auth/github.go`, and
-  `apps/api/internal/auth/repository_authorization.go`.
+  `apps/api/internal/features/auth/management.go`, `apps/api/internal/features/auth/github.go`, and
+  `apps/api/internal/features/auth/repository_authorization.go`.
 - Machine-credential management requires SYS_ADMIN. Never log or persist presented secrets;
   issuance responses are the only secret-delivery opportunity. Keep audience/scope/expiry policy,
   active-key conflicts, client-row serialization, and revoked/expired history coherent across
-  `apps/api/internal/auth/routes_api_keys.go`, `apps/api/internal/apikey/issue.go`,
-  `apps/api/internal/apikey/repository.go`, and `apps/api/internal/apikey/policy_test.go`.
+  `apps/api/internal/features/auth/routes_api_keys.go`, `apps/api/internal/features/apikey/issue.go`,
+  `apps/api/internal/features/apikey/repository.go`, and `apps/api/internal/features/apikey/policy_test.go`.
   Direct scoped endpoints retain their method/response contracts in
-  `apps/api/internal/exampleapi/route_test.go`; do not bypass scope or audience checks.
+  `apps/api/internal/features/exampleapi/route_test.go`; do not bypass scope or audience checks.
 - Submission lookup credentials support repeated queries; persist only their digest and treat
   invalid credentials as not found. Preserve reviewer role/permission checks and additional
   taxonomy authorization. Original submissions are frozen, but pending reviewer corrections are
   editable with revision checks. Accepted snapshots apply atomically to canonical directory data;
-  audit JSON remains history. Sources: `apps/api/internal/siteaudit/service.go`,
-  `apps/api/internal/siteaudit/review_draft.go`, and `apps/api/internal/siteaudit/taxonomy.go`.
+  audit JSON remains history. Sources: `apps/api/internal/features/siteaudit/submission.go`,
+  `apps/api/internal/features/siteaudit/review_draft.go`, and
+  `apps/api/internal/features/siteaudit/repository_taxonomy.go`.
 - Random reads select VISIBLE sites, including warned sites, using exact enabled classification
   names rather than slugs. Validate before selection, retain a normal null result when no candidate
   exists, and keep preview Web-only. Preserve operation-specific errors/cache policy rather than
   mapping every database failure to unavailable; see
-  `apps/api/internal/application/publicview/errors.go` and
-  `apps/api/internal/httpapi/public_view_random_test.go`.
+  `apps/api/internal/features/publicview/errors.go` and
+  `apps/api/internal/platform/httpapi/public_view_random_test.go`.
 
 ## Configuration and External Services
 
-- `apps/api/internal/config` alone discovers YAML/environment inputs and exports typed runtime
+- `apps/api/internal/platform/config` alone discovers YAML/environment inputs and exports typed runtime
   configuration. Inject it into other packages. Secrets and service bindings stay in environment
   inputs; non-sensitive policy belongs in YAML. Preserve executable-relative discovery/fallback,
   strict decoding, mode/default handling and production validation in
-  `apps/api/internal/config/loader.go` and `apps/api/internal/config/validation_test.go`.
+  `apps/api/internal/platform/config/loader.go` and `apps/api/internal/platform/config/validation_test.go`.
   Loading must not create or rewrite configuration files; OAuth callbacks use the Web origin.
 - Mail delivery uses the typed Sender/Message boundary and purpose-specific templates. Preserve
   address/subject/body validation, cancellation, timeouts and delivery-unavailable errors in
-  `apps/api/internal/mail/message.go`. SMTP/SES selection belongs to
-  `apps/api/internal/config/mail_config.go`, not callers. Tests use injected clients or isolated
+  `apps/api/internal/infrastructure/mail/message.go`. SMTP/SES selection belongs to
+  `apps/api/internal/platform/config/mail_config.go`, not callers. Tests use injected clients or isolated
   Mailpit, never live credentials or real mail delivery.
 - Cached icons retain bounded decoding, ICO safety, aspect ratio, alpha and no upscaling; emit PNG
   and expose only the profile hash, not bytes. Formats/limits are defined in
-  `apps/api/internal/siteicon/normalize.go` and `apps/api/internal/siteicon/ico.go`.
+  `apps/api/internal/infrastructure/siteicon/normalize.go` and `apps/api/internal/infrastructure/siteicon/ico.go`.
   Preserve cached reads, digest ETags, no-store and safe failure mapping in
-  `apps/api/internal/httpapi/public_view_icon_test.go`.
+  `apps/api/internal/platform/httpapi/public_view_icon_test.go`.
 
 ## Data Access and Lifecycle
 
@@ -113,29 +126,29 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - Bootstrap separates cluster administration, non-superuser migrator ownership and explicit
   api_runtime grants. AGE installation/preloading, roles and migration schema are prerequisites;
   Goose migrations must not require superuser or role-management privileges. Sources:
-  `infra/docker/initdb` and `apps/api/internal/database/migrations/sql/00002_age_runtime.sql`.
+  `infra/docker/initdb` and `apps/api/internal/infrastructure/database/migrations/sql/00002_age_runtime.sql`.
 - Keep identity/directory/content ownership and migration-owned constraints/comments. Site friend
   links use authoritative directory_graph through typed directory wrappers; triggers synchronize
   SiteRef. Do not add relational mirrors, Go dual writes or deleted legacy schemas. Graph sources:
-  `apps/api/internal/database/migrations/sql/00005_directory_graph.sql` and
-  `apps/api/internal/database/migrations/sql/00008_directory_registered_friend_links.sql`.
+  `apps/api/internal/infrastructure/database/migrations/sql/00005_directory_graph.sql` and
+  `apps/api/internal/infrastructure/database/migrations/sql/00008_directory_registered_friend_links.sql`.
 - Document every migration-owned schema, table, column, function and trigger with matching
   PostgreSQL comments. Document AGE properties at their typed wrapper functions.
 - Preserve account deletion scheduling/cancellation, terminal anonymization, OAuth removal and
-  authentication-version monotonicity in `apps/api/internal/database/migrations/sql/00003_identity.sql`
-  and `apps/api/internal/database/migrations/sql/00009_authentication.sql`. Preserve site visibility
+  authentication-version monotonicity in `apps/api/internal/infrastructure/database/migrations/sql/00003_identity.sql`
+  and `apps/api/internal/infrastructure/database/migrations/sql/00009_authentication.sql`. Preserve site visibility
   lifecycle, address/base-path and component/tag cycle invariants in
-  `apps/api/internal/database/migrations/sql/00004_directory.sql` and
+  `apps/api/internal/infrastructure/database/migrations/sql/00004_directory.sql` and
   `apps/api/internal/domain/site/address.go`; do not replace visibility transitions with hard deletion.
 - Announcement publication windows, allowed transitions, revision history, actor deletion and
   draft-only physical deletion remain database-enforced in
-  `apps/api/internal/database/migrations/sql/00007_content_announcements.sql`.
+  `apps/api/internal/infrastructure/database/migrations/sql/00007_content_announcements.sql`.
 - Internal imports retain the INTERNAL/data_import.write guard, bounded input/deadline, strict
   JSON/duplicate-key rejection, validation/error ordering, mapping order and random-ID calls.
   Blogs plus graph import requires one transaction, advisory lock, empty-directory and lock-capacity
   checks; taxonomy replacement is atomic but uses a narrower scope without those lock checks.
-  Sources: `apps/api/internal/dataimport/route.go`, `apps/api/internal/dataimport`,
-  `apps/api/internal/dataimport/repository.go`, and `apps/api/internal/dataimport/import_test.go`.
+  Sources: `apps/api/internal/features/dataimport/route.go`, `apps/api/internal/features/dataimport`,
+  `apps/api/internal/features/dataimport/repository.go`, and `apps/api/internal/features/dataimport/import_test.go`.
 
 ## Validation
 

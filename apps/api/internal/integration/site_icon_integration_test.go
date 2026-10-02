@@ -22,11 +22,11 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"heyblog-api/internal/application/publicview"
-	"heyblog-api/internal/config"
-	"heyblog-api/internal/database"
-	dbgen "heyblog-api/internal/database/gen"
-	"heyblog-api/internal/httpapi"
+	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/infrastructure/database"
+	dbgen "heyblog-api/internal/infrastructure/database/gen"
+	"heyblog-api/internal/platform/config"
+	"heyblog-api/internal/platform/httpapi"
 )
 
 func TestSiteIconHTTPWithDatabase(t *testing.T) {

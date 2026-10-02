@@ -13,9 +13,9 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"heyblog-api/internal/application/publicview"
-	"heyblog-api/internal/config"
-	"heyblog-api/internal/httpapi"
+	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/platform/config"
+	"heyblog-api/internal/platform/httpapi"
 )
 
 func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {

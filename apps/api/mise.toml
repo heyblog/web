@@ -23,7 +23,7 @@ run = "go test -race ./..."
 
 [tasks."test:integration"]
 description = "Test API infrastructure with PostgreSQL/AGE, Redis, and Mailpit containers"
-run = "go test -count=1 -tags=integration ./internal/integration ./internal/dataimport"
+run = "go test -count=1 -tags=integration ./internal/integration ./internal/features/dataimport"
 
 [tasks."sqlc:generate"]
 description = "Generate pgx/v5 data access code"

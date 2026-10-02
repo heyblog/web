@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"heyblog-api/internal/config"
+	"heyblog-api/internal/platform/config"
 )
 
 const maximumReadinessProbeTimeout = 4 * time.Second

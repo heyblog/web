@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"heyblog-api/internal/application/publicview"
-	"heyblog-api/internal/config"
-	"heyblog-api/internal/httpapi"
-	"heyblog-api/internal/mail"
+	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/infrastructure/mail"
+	"heyblog-api/internal/platform/config"
+	"heyblog-api/internal/platform/httpapi"
 )
 
 func TestRunClosesDependenciesWhenListenFails(t *testing.T) {
