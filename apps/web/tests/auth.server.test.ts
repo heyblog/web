@@ -165,3 +165,16 @@ test('OAuth entry links opt out of Astro prefetch', async () => {
   assert.match(loginSource, /data-astro-prefetch="false"/u);
   assert.match(dashboardSource, /data-astro-prefetch="false"/u);
 });
+
+test('user management page imports the API error-code reader used on denied requests', async () => {
+  const source = await readFile(
+    new URL('../src/pages/management/users/index.astro', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /import\s*\{[^}]*\breadProblemCode\b[^}]*\}\s*from\s*['"]@\/api\/auth\/auth\.server['"]/u,
+  );
+  assert.match(source, /await readProblemCode\(response\)/u);
+});
