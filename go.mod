@@ -1,6 +1,6 @@
 module github.com/heyblog/web
 
-go 1.26.6
+go 1.26.8
 
 tool (
 	github.com/rhysd/actionlint/cmd/actionlint
