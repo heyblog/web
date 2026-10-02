@@ -25,11 +25,13 @@ const formatTimestamp = (value: string) => (value ? formatter.format(new Date(va
     popovertarget={popoverId}
   >
     <span class="inline-flex min-w-0 items-center gap-1.5 font-sans text-xs font-medium">
-      <span class="shrink-0 underline-offset-4 group-hover:underline group-focus-visible:underline"
-        >构建信息</span
-      >
+      <span class="shrink-0 underline-offset-4 group-hover:underline group-focus-visible:underline">
+        构建信息
+      </span>
       <span aria-hidden="true">·</span>
-      <span class="truncate font-mono">v{buildInfo.version} · {buildInfo.shortCommit}</span>
+      <span class="truncate font-mono">
+        v{buildInfo.version} · {buildInfo.shortCommit}
+      </span>
     </span>
   </button>
 
@@ -45,7 +47,9 @@ const formatTimestamp = (value: string) => (value ? formatter.format(new Date(va
   >
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
-        <h2 class="m-0 font-mono text-xs font-semibold" id={titleId}>构建信息</h2>
+        <h2 class="m-0 font-mono text-xs font-semibold" id={titleId}>
+          构建信息
+        </h2>
         <p class="mt-1 mb-0 text-xs text-fg-muted">v{buildInfo.version}</p>
       </div>
       <button
@@ -71,21 +75,19 @@ const formatTimestamp = (value: string) => (value ? formatter.format(new Date(va
       <div class="flex items-start justify-between gap-4 border-b border-line pb-3">
         <dt class="shrink-0 text-fg-muted">Commit</dt>
         <dd class="m-0 min-w-0 text-right font-mono text-xs break-all">
-          {
-            buildInfo.commitUrl ? (
-              <a
-                class="inline-flex items-center gap-1 text-tint-fg underline decoration-line-strong underline-offset-4 transition-colors duration-(--motion-color) hover:text-primary-hover"
-                href={buildInfo.commitUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <span>{buildInfo.commit}</span>
-                <IconExternalLink class="shrink-0" aria-hidden="true" size={13} stroke={1.75} />
-              </a>
-            ) : (
-              buildInfo.commit
-            )
-          }
+          {buildInfo.commitUrl ? (
+            <a
+              class="inline-flex items-center gap-1 text-tint-fg underline decoration-line-strong underline-offset-4 transition-colors duration-(--motion-color) hover:text-primary-hover"
+              href={buildInfo.commitUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <span>{buildInfo.commit}</span>
+              <IconExternalLink class="shrink-0" aria-hidden="true" size={13} stroke={1.75} />
+            </a>
+          ) : (
+            buildInfo.commit
+          )}
         </dd>
       </div>
       <div class="flex items-start justify-between gap-4 border-b border-line pb-3">
@@ -97,13 +99,11 @@ const formatTimestamp = (value: string) => (value ? formatter.format(new Date(va
       <div class="flex items-start justify-between gap-4">
         <dt class="shrink-0 text-fg-muted">提交时间</dt>
         <dd class="m-0 min-w-0 text-right">
-          {
-            buildInfo.commitTime ? (
-              <time datetime={buildInfo.commitTime}>{formatTimestamp(buildInfo.commitTime)}</time>
-            ) : (
-              '未知'
-            )
-          }
+          {buildInfo.commitTime ? (
+            <time datetime={buildInfo.commitTime}>{formatTimestamp(buildInfo.commitTime)}</time>
+          ) : (
+            '未知'
+          )}
         </dd>
       </div>
     </dl>

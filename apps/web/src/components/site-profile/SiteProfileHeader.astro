@@ -32,8 +32,10 @@ const badgeClass =
       <div class="flex min-w-0 items-start gap-4">
         <span
           class="inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-tint text-lg font-semibold text-tint-fg"
-          aria-hidden="true">{shortCode}</span
+          aria-hidden="true"
         >
+          {shortCode}
+        </span>
         <div class="min-w-0">
           <h1 class="text-3xl/tight font-bold wrap-anywhere sm:text-4xl" id="site-profile-title">
             {profile.name}
@@ -41,34 +43,24 @@ const badgeClass =
           <p class="mt-2 font-mono text-sm wrap-anywhere text-fg-muted">{profile.host}</p>
         </div>
       </div>
-      {
-        profile.summary ? (
-          <p class="mt-6 max-w-176 text-base/normal wrap-anywhere text-fg-muted">
-            {profile.summary}
-          </p>
-        ) : null
-      }
+      {profile.summary ? (
+        <p class="mt-6 max-w-176 text-base/normal wrap-anywhere text-fg-muted">{profile.summary}</p>
+      ) : null}
       <div class="mt-4 flex min-w-0 flex-wrap gap-2">
-        {
-          profile.directoryStatus === 'abnormal' ? (
-            <span class:list={[badgeClass, 'bg-warning-bg text-warning-fg']}>异常状态</span>
-          ) : null
-        }
-        <span class:list={[badgeClass, 'bg-tint text-tint-fg']}
-          >{accessScopeLabels[profile.accessScope]}</span
-        >
-        {
-          profile.classification ? (
-            <span class:list={[badgeClass, 'bg-tint text-tint-fg']}>
-              {profile.classification.level1.name} · {profile.classification.level2.name}
-            </span>
-          ) : null
-        }
-        {
-          profile.tertiaryTags.map((topic) => (
-            <span class:list={[badgeClass, 'bg-subtle text-fg-muted']}>{topic.name}</span>
-          ))
-        }
+        {profile.directoryStatus === 'abnormal' ? (
+          <span class:list={[badgeClass, 'bg-warning-bg text-warning-fg']}>异常状态</span>
+        ) : null}
+        <span class:list={[badgeClass, 'bg-tint text-tint-fg']}>
+          {accessScopeLabels[profile.accessScope]}
+        </span>
+        {profile.classification ? (
+          <span class:list={[badgeClass, 'bg-tint text-tint-fg']}>
+            {profile.classification.level1.name} · {profile.classification.level2.name}
+          </span>
+        ) : null}
+        {profile.tertiaryTags.map((topic) => (
+          <span class:list={[badgeClass, 'bg-subtle text-fg-muted']}>{topic.name}</span>
+        ))}
       </div>
     </div>
     <div class="grid min-w-0 gap-6">
@@ -92,7 +84,8 @@ const badgeClass =
         rel="noreferrer"
         target="_blank"
       >
-        访问博客<IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
+        访问博客
+        <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
       </a>
       <SiteCardPreview
         client:load

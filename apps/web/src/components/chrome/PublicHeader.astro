@@ -31,9 +31,7 @@ const navigationLinkClass =
   data-public-header
   data-home={isHome ? 'true' : 'false'}
 >
-  <div
-    class="mx-auto flex min-h-16 w-[min(calc(100%-0.5rem),80rem)] items-center gap-0 xs:w-[min(calc(100%-2rem),80rem)] xs:gap-2 sm:w-[min(calc(100%-3rem),80rem)] sm:gap-3"
-  >
+  <div class="mx-auto flex min-h-16 w-[min(calc(100%-0.5rem),80rem)] items-center gap-0 xs:w-[min(calc(100%-2rem),80rem)] xs:gap-2 sm:w-[min(calc(100%-3rem),80rem)] sm:gap-3">
     <a
       class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm text-sm font-semibold xs:text-base sm:min-h-10 sm:min-w-10"
       href="/"
@@ -51,30 +49,29 @@ const navigationLinkClass =
         data-public-brand
         data-visible={isHome ? 'false' : 'true'}
         aria-hidden="true"
-        ><span class="block min-w-18 pl-1.5 whitespace-nowrap">{siteConfig.name}</span></span
       >
+        <span class="block min-w-18 pl-1.5 whitespace-nowrap">{siteConfig.name}</span>
+      </span>
     </a>
     <nav class="contents" aria-label="主导航">
-      {
-        primary.map((item, index) => (
-          <a
-            class:list={[
-              navigationLinkClass,
-              navigationRankClasses[index]?.direct ?? 'hidden',
-              activeHref === item.href
-                ? 'text-fg after:scale-x-100 after:opacity-100'
-                : 'text-fg-muted',
-            ]}
-            href={item.href}
-            data-astro-prefetch={item.prefetch === false ? 'false' : undefined}
-            aria-current={
-              navigationPath(currentPath) === navigationPath(item.href) ? 'page' : undefined
-            }
-          >
-            {item.label}
-          </a>
-        ))
-      }
+      {primary.map((item, index) => (
+        <a
+          class:list={[
+            navigationLinkClass,
+            navigationRankClasses[index]?.direct ?? 'hidden',
+            activeHref === item.href
+              ? 'text-fg after:scale-x-100 after:opacity-100'
+              : 'text-fg-muted',
+          ]}
+          href={item.href}
+          data-astro-prefetch={item.prefetch === false ? 'false' : undefined}
+          aria-current={
+            navigationPath(currentPath) === navigationPath(item.href) ? 'page' : undefined
+          }
+        >
+          {item.label}
+        </a>
+      ))}
       <PublicNavigationMenu items={primary} {activeHref} {currentPath} />
     </nav>
     <div

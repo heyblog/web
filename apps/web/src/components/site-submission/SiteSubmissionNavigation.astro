@@ -15,23 +15,21 @@ const items = [
 
 <nav class="mb-6 border-b border-line" aria-label="收录表单">
   <div class="grid grid-cols-5">
-    {
-      items.map((item) => {
-        const active = currentPath === item.href;
+    {items.map((item) => {
+      const active = currentPath === item.href;
 
-        return (
-          <a
-            class:list={[
-              'inline-flex min-h-11 min-w-0 items-center justify-center border-b-2 px-1 text-center text-xs/4 font-medium transition-colors duration-(--motion-color) sm:min-h-10 sm:px-3 sm:text-sm/5',
-              active ? 'border-primary text-fg' : 'border-transparent text-fg-muted hover:text-fg',
-            ]}
-            href={item.href}
-            aria-current={active ? 'page' : undefined}
-          >
-            {item.label}
-          </a>
-        );
-      })
-    }
+      return (
+        <a
+          class:list={[
+            'inline-flex min-h-11 min-w-0 items-center justify-center border-b-2 px-1 text-center text-xs/4 font-medium transition-colors duration-(--motion-color) sm:min-h-10 sm:px-3 sm:text-sm/5',
+            active ? 'border-primary text-fg' : 'border-transparent text-fg-muted hover:text-fg',
+          ]}
+          href={item.href}
+          aria-current={active ? 'page' : undefined}
+        >
+          {item.label}
+        </a>
+      );
+    })}
   </div>
 </nav>

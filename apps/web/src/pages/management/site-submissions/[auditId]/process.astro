@@ -43,8 +43,9 @@ const canManageTaxonomy =
   navigation={[...managementNavigation(actor)]}
 >
   <details class="mb-6 rounded-md border border-line bg-surface">
-    <summary class="min-h-11 cursor-pointer px-5 py-3 font-semibold">查看申请与当前数据差异</summary
-    >
+    <summary class="min-h-11 cursor-pointer px-5 py-3 font-semibold">
+      查看申请与当前数据差异
+    </summary>
     <div class="border-t border-line p-4 sm:p-5">
       <AuditDiffView diff={detail.diff} />
     </div>

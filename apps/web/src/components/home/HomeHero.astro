@@ -15,7 +15,9 @@ const { siteCount } = Astro.props;
 >
   <div class="max-w-184">
     <p class="font-mono text-xs font-medium text-tint-fg">独立博客网络</p>
-    <h1 class="mt-3 text-4xl/tight font-bold" id="home-title">{siteConfig.name}</h1>
+    <h1 class="mt-3 text-4xl/tight font-bold" id="home-title">
+      {siteConfig.name}
+    </h1>
     <p class="mt-5 max-w-160 text-lg/7 text-fg-muted">{siteConfig.description}</p>
   </div>
 
@@ -24,14 +26,10 @@ const { siteCount } = Astro.props;
     aria-label="站点概览"
   >
     <p class="font-mono text-xs font-medium text-fg-muted">已收录博客</p>
-    {
-      siteCount === null ? (
-        <p class="mt-3 text-sm text-fg-muted">数据暂不可用</p>
-      ) : (
-        <p class="mt-2 text-4xl/tight font-bold tabular-nums">
-          {siteCount.toLocaleString('zh-CN')}
-        </p>
-      )
-    }
+    {siteCount === null ? (
+      <p class="mt-3 text-sm text-fg-muted">数据暂不可用</p>
+    ) : (
+      <p class="mt-2 text-4xl/tight font-bold tabular-nums">{siteCount.toLocaleString('zh-CN')}</p>
+    )}
   </aside>
 </section>

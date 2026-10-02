@@ -36,13 +36,11 @@ if (unavailable) {
 <PublicLayout>
   <div class="mx-auto w-[min(calc(100%-2rem),80rem)] sm:w-[min(calc(100%-3rem),80rem)]">
     <HomeHero siteCount={home?.siteCount ?? null} />
-    {
-      home?.announcement ? (
-        <div class="pt-8">
-          <HomeAnnouncement announcement={home.announcement} />
-        </div>
-      ) : null
-    }
+    {home?.announcement ? (
+      <div class="pt-8">
+        <HomeAnnouncement announcement={home.announcement} />
+      </div>
+    ) : null}
     <HomeSites client:load sites={home?.sites ?? []} {unavailable} />
     <HomeProjectBlogs blogs={projectBlogs} />
     <HomeCommunity {activeMemberCount} />

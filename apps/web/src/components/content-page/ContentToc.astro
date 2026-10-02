@@ -33,71 +33,29 @@ const getDepthClass = (depth: number) =>
       : tocLinkDepthClasses[2];
 ---
 
-{
-  tocHeadings.length > 0 && isMobile ? (
-    <details
-      class="group border-b border-line md:hidden"
-      data-content-toc
-      data-content-toc-mobile
-      data-details-state="closed"
+{tocHeadings.length > 0 && isMobile ? (
+  <details
+    class="group border-b border-line md:hidden"
+    data-content-toc
+    data-content-toc-mobile
+    data-details-state="closed"
+  >
+    <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium text-fg sm:min-h-10 [&::-webkit-details-marker]:hidden">
+      <span>本页内容</span>
+      <IconChevronDown
+        class="shrink-0 transition-transform duration-(--motion-base) ease-standard group-data-[details-state=open]:rotate-180 motion-reduce:transition-none motion-reduce:duration-0"
+        aria-hidden="true"
+        size={18}
+        stroke={1.75}
+      />
+    </summary>
+    <nav
+      class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-(--motion-base) ease-standard group-data-[details-state=open]:grid-rows-[1fr] motion-reduce:transition-none motion-reduce:duration-0"
+      data-content-toc-panel
+      aria-label={navLabel}
     >
-      <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium text-fg sm:min-h-10 [&::-webkit-details-marker]:hidden">
-        <span>本页内容</span>
-        <IconChevronDown
-          class="shrink-0 transition-transform duration-(--motion-base) ease-standard group-data-[details-state=open]:rotate-180 motion-reduce:transition-none motion-reduce:duration-0"
-          aria-hidden="true"
-          size={18}
-          stroke={1.75}
-        />
-      </summary>
-      <nav
-        class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-(--motion-base) ease-standard group-data-[details-state=open]:grid-rows-[1fr] motion-reduce:transition-none motion-reduce:duration-0"
-        data-content-toc-panel
-        aria-label={navLabel}
-      >
-        <div class="min-h-0 overflow-hidden">
-          <ol class="m-0 grid list-none p-0 pb-4">
-            {tocHeadings.map((heading, index) => (
-              <li>
-                <a
-                  class:list={[tocLinkClass, getDepthClass(heading.depth), { 'mt-1': index > 0 }]}
-                  data-content-toc-link
-                  href={`#${heading.slug}`}
-                >
-                  {heading.text}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </nav>
-    </details>
-  ) : null
-}
-
-{
-  tocHeadings.length > 0 && !isMobile ? (
-    <aside
-      class="sticky top-24 hidden max-h-[calc(100dvh-7.5rem)] self-start overflow-y-auto border-l border-line pl-4 md:block"
-      data-content-toc
-    >
-      <p class="m-0 text-sm font-semibold text-fg">本页内容</p>
-      <div
-        aria-label="阅读进度"
-        aria-valuemax="100"
-        aria-valuemin="0"
-        aria-valuenow="0"
-        class="my-3 mb-4 h-1.5 overflow-hidden rounded-full bg-subtle"
-        data-content-progress
-        role="progressbar"
-      >
-        <span
-          class="block size-full origin-left scale-x-0 rounded-[inherit] bg-primary"
-          data-content-progress-value
-        />
-      </div>
-      <nav aria-label={navLabel}>
-        <ol class="m-0 grid list-none p-0">
+      <div class="min-h-0 overflow-hidden">
+        <ol class="m-0 grid list-none p-0 pb-4">
           {tocHeadings.map((heading, index) => (
             <li>
               <a
@@ -110,7 +68,45 @@ const getDepthClass = (depth: number) =>
             </li>
           ))}
         </ol>
-      </nav>
-    </aside>
-  ) : null
-}
+      </div>
+    </nav>
+  </details>
+) : null}
+
+{tocHeadings.length > 0 && !isMobile ? (
+  <aside
+    class="sticky top-24 hidden max-h-[calc(100dvh-7.5rem)] self-start overflow-y-auto border-l border-line pl-4 md:block"
+    data-content-toc
+  >
+    <p class="m-0 text-sm font-semibold text-fg">本页内容</p>
+    <div
+      aria-label="阅读进度"
+      aria-valuemax="100"
+      aria-valuemin="0"
+      aria-valuenow="0"
+      class="my-3 mb-4 h-1.5 overflow-hidden rounded-full bg-subtle"
+      data-content-progress
+      role="progressbar"
+    >
+      <span
+        class="block size-full origin-left scale-x-0 rounded-[inherit] bg-primary"
+        data-content-progress-value
+      />
+    </div>
+    <nav aria-label={navLabel}>
+      <ol class="m-0 grid list-none p-0">
+        {tocHeadings.map((heading, index) => (
+          <li>
+            <a
+              class:list={[tocLinkClass, getDepthClass(heading.depth), { 'mt-1': index > 0 }]}
+              data-content-toc-link
+              href={`#${heading.slug}`}
+            >
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  </aside>
+) : null}

@@ -87,33 +87,30 @@ const itemClass =
         class="pointer-events-none absolute inset-x-0 top-0 z-0 h-11 translate-y-(--menu-highlight-offset) rounded-sm bg-subtle opacity-0 transition-[transform,opacity,background-color] duration-(--motion-base) ease-standard data-[active=true]:bg-tint data-[visible=true]:opacity-100 motion-reduce:transition-none sm:h-10"
         data-public-menu-highlight
         aria-hidden="true"
-      >
-      </li>
-      {
-        items.map((item, index) => {
-          const Icon = navigationIcons[navigationPath(item.href)];
-          const itemActive = activeHref === item.href;
+      ></li>
+      {items.map((item, index) => {
+        const Icon = navigationIcons[navigationPath(item.href)];
+        const itemActive = activeHref === item.href;
 
-          return (
-            <li class:list={['relative z-10', navigationRankClasses[index]?.overflow]}>
-              <a
-                class:list={[itemClass, itemActive ? 'text-tint-fg' : 'text-fg-muted']}
-                href={item.href}
-                data-astro-prefetch={item.prefetch === false ? 'false' : undefined}
-                aria-current={
-                  navigationPath(currentPath) === navigationPath(item.href) ? 'page' : undefined
-                }
-                role="menuitem"
-                data-public-menu-item
-                data-menu-active={itemActive ? 'true' : 'false'}
-              >
-                {Icon && <Icon class="shrink-0" size={18} stroke={1.8} aria-hidden="true" />}
-                <span>{item.label}</span>
-              </a>
-            </li>
-          );
-        })
-      }
+        return (
+          <li class:list={['relative z-10', navigationRankClasses[index]?.overflow]}>
+            <a
+              class:list={[itemClass, itemActive ? 'text-tint-fg' : 'text-fg-muted']}
+              href={item.href}
+              data-astro-prefetch={item.prefetch === false ? 'false' : undefined}
+              aria-current={
+                navigationPath(currentPath) === navigationPath(item.href) ? 'page' : undefined
+              }
+              role="menuitem"
+              data-public-menu-item
+              data-menu-active={itemActive ? 'true' : 'false'}
+            >
+              {Icon && <Icon class="shrink-0" size={18} stroke={1.8} aria-hidden="true" />}
+              <span>{item.label}</span>
+            </a>
+          </li>
+        );
+      })}
     </ul>
   </div>
 </details>
