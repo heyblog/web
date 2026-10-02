@@ -93,7 +93,8 @@ Run from the repository root using `apps/web/mise.toml`:
 - `mise run //apps/web:test`: focused Node tests for transport and critical browser/server logic.
 - `mise run //apps/web:check`: formatting, ESLint/Stylelint, and Astro/TypeScript checks.
 - `mise run //apps/web:verify`: tests, checks, build, and isolated standalone smoke.
-- `mise run //apps/web:dev` or `:preview`: task-managed development or build preview when needed.
+- `mise run //apps/web:dev` or `mise run //apps/web:preview`: task-managed development or build
+  preview when needed.
 - `mise run //apps/web:prepare`: explicit generated-content refresh, not part of offline validation.
 
 Use existing test tooling. For structure-only changes preserve templates, classes, events,
