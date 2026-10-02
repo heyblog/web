@@ -139,7 +139,7 @@ mise run //apps/web:prepare
 
 ## 数据库变更
 
-迁移位于 `apps/api/internal/database/migrations/sql`，sqlc 查询位于 `apps/api/internal/database/queries`。
+迁移位于 `apps/api/internal/infrastructure/database/migrations/sql`，sqlc 查询位于 `apps/api/internal/infrastructure/database/queries`。
 
 进行 Schema 或查询变更时：
 
@@ -150,7 +150,7 @@ mise run //apps/web:prepare
 5. 执行 `mise run //apps/api:sqlc:vet`、`mise run //apps/api:sqlc:diff` 和
    `mise run //apps/api:test:integration`。
 
-不要手动修改 `apps/api/internal/database/gen` 中的 sqlc 生成文件。应用代码只能使用 `migrator` 执行迁移，使用 `api_runtime` 处理运行时请求；不得注入 PostgreSQL 管理员连接。
+不要手动修改 `apps/api/internal/infrastructure/database/gen` 中的 sqlc 生成文件。应用代码只能使用 `migrator` 执行迁移，使用 `api_runtime` 处理运行时请求；不得注入 PostgreSQL 管理员连接。
 
 ## 检查与测试
 

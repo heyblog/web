@@ -9,12 +9,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"heyblog-api/internal/application/publicview"
-	"heyblog-api/internal/cache"
-	"heyblog-api/internal/config"
-	"heyblog-api/internal/database"
-	dbgen "heyblog-api/internal/database/gen"
-	"heyblog-api/internal/mail"
+	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/infrastructure/cache"
+	"heyblog-api/internal/infrastructure/database"
+	dbgen "heyblog-api/internal/infrastructure/database/gen"
+	"heyblog-api/internal/infrastructure/mail"
+	"heyblog-api/internal/platform/config"
 )
 
 type Dependencies struct {

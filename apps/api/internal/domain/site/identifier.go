@@ -14,7 +14,10 @@ const (
 	base62Limit             = byte(248)
 )
 
-var ErrInvalidShortID = errors.New("invalid short ID")
+var (
+	ErrInvalidCustomID = errors.New("invalid custom ID")
+	ErrInvalidShortID  = errors.New("invalid short ID")
+)
 
 // NewShortID returns a cryptographically random, fixed-width Base62 site ID.
 func NewShortID() (string, error) {
@@ -32,6 +35,33 @@ func ValidateShortID(value string) error {
 		}
 	}
 	return nil
+}
+
+// ValidateCustomID checks the case-sensitive custom route grammar before persistence.
+func ValidateCustomID(value string) error {
+	if len(value) < 3 || len(value) > 32 || !isASCIIAlphanumeric(value[0]) || !isASCIIAlphanumeric(value[len(value)-1]) {
+		return ErrInvalidCustomID
+	}
+	previousSeparator := false
+	for index := range value {
+		character := value[index]
+		if isASCIIAlphanumeric(character) {
+			previousSeparator = false
+			continue
+		}
+		separator := character == '-' || character == '_'
+		if !separator || previousSeparator {
+			return ErrInvalidCustomID
+		}
+		previousSeparator = true
+	}
+	return nil
+}
+
+func isASCIIAlphanumeric(character byte) bool {
+	return character >= '0' && character <= '9' ||
+		character >= 'A' && character <= 'Z' ||
+		character >= 'a' && character <= 'z'
 }
 
 func generateShortID(source io.Reader) (string, error) {

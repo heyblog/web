@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"heyblog-api/internal/config"
-	"heyblog-api/internal/logging"
+	"heyblog-api/internal/platform/config"
+	"heyblog-api/internal/platform/logging"
 )
 
 func Execute(args []string, stdout, stderr io.Writer) int {

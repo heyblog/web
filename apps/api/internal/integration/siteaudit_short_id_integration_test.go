@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"heyblog-api/internal/siteaudit"
+	"heyblog-api/internal/features/siteaudit"
 )
 
 func verifySiteAuditShortIDMaintenance(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {

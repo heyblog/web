@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	dbgen "heyblog-api/internal/database/gen"
+	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
 // Leave each child as the only visible candidate in turn, avoiding probabilistic assertions.
