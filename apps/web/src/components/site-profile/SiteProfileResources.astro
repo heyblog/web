@@ -28,129 +28,123 @@ const resourceLabels: Record<SiteProfile['resources'][number]['kind'], string> =
 ---
 
 <div class="grid min-w-0 gap-8 md:grid-cols-2">
-  {
-    profile.feeds.length === 0 &&
-    profile.resources.length === 0 &&
-    profile.technologies.length === 0 ? (
-      <div class="flex flex-col items-center gap-4 py-4 text-center sm:py-8 md:col-span-2">
-        <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
-          <IconInfoCircle size={22} stroke={1.8} aria-hidden="true" />
-        </span>
-        <p class="text-sm font-semibold text-fg-muted">暂无资源信息</p>
-      </div>
-    ) : null
-  }
-  {
-    profile.feeds.length > 0 || profile.resources.length > 0 ? (
-      <section aria-labelledby="site-resources-title">
-        <p class="font-mono text-xs font-medium text-tint-fg">公开入口</p>
-        <h2 class="mt-2 text-xl/snug font-semibold" id="site-resources-title">
-          订阅与资源
-        </h2>
-        <ul class="mt-5 border-y border-line">
-          {profile.feeds.map((feed) => (
-            <li class="border-b border-line last:border-b-0">
-              <a
-                class="group flex min-h-16 items-center gap-3 py-3"
-                href={feed.url}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
-                  <IconRss aria-hidden="true" size={17} stroke={1.8} />
+  {profile.feeds.length === 0 &&
+  profile.resources.length === 0 &&
+  profile.technologies.length === 0 ? (
+    <div class="flex flex-col items-center gap-4 py-4 text-center sm:py-8 md:col-span-2">
+      <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted">
+        <IconInfoCircle size={22} stroke={1.8} aria-hidden="true" />
+      </span>
+      <p class="text-sm font-semibold text-fg-muted">暂无资源信息</p>
+    </div>
+  ) : null}
+  {profile.feeds.length > 0 || profile.resources.length > 0 ? (
+    <section aria-labelledby="site-resources-title">
+      <p class="font-mono text-xs font-medium text-tint-fg">公开入口</p>
+      <h2 class="mt-2 text-xl/snug font-semibold" id="site-resources-title">
+        订阅与资源
+      </h2>
+      <ul class="mt-5 border-y border-line">
+        {profile.feeds.map((feed) => (
+          <li class="border-b border-line last:border-b-0">
+            <a
+              class="group flex min-h-16 items-center gap-3 py-3"
+              href={feed.url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
+                <IconRss aria-hidden="true" size={17} stroke={1.8} />
+              </span>
+              <span class="min-w-0">
+                <span class="font-medium wrap-anywhere">{feed.name}</span>
+                <span class="mt-0.5 block text-xs text-fg-muted">
+                  {feed.format}
+                  {feed.isDefault ? ' · 默认订阅' : ''}
                 </span>
-                <span class="min-w-0">
-                  <span class="font-medium wrap-anywhere">{feed.name}</span>
-                  <span class="mt-0.5 block text-xs text-fg-muted">
-                    {feed.format}
-                    {feed.isDefault ? ' · 默认订阅' : ''}
-                  </span>
-                </span>
-                <IconExternalLink
-                  class="ml-auto shrink-0 text-fg-muted transition-colors duration-(--motion-fast) group-hover:text-tint-fg"
-                  aria-hidden="true"
-                  size={15}
-                  stroke={1.8}
-                />
-              </a>
-            </li>
-          ))}
-          {profile.resources.map((resource) => (
-            <li class="border-b border-line last:border-b-0">
-              <a
-                class="group flex min-h-16 items-center gap-3 py-3"
-                href={resource.url}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
-                  {resource.kind === 'SITEMAP' ? (
-                    <IconSitemap aria-hidden="true" size={17} stroke={1.8} />
-                  ) : (
-                    <IconLink aria-hidden="true" size={17} stroke={1.8} />
-                  )}
-                </span>
-                <span class="font-medium wrap-anywhere">{resourceLabels[resource.kind]}</span>
-                <IconExternalLink
-                  class="ml-auto shrink-0 text-fg-muted transition-colors duration-(--motion-fast) group-hover:text-tint-fg"
-                  aria-hidden="true"
-                  size={15}
-                  stroke={1.8}
-                />
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    ) : null
-  }
+              </span>
+              <IconExternalLink
+                class="ml-auto shrink-0 text-fg-muted transition-colors duration-(--motion-fast) group-hover:text-tint-fg"
+                aria-hidden="true"
+                size={15}
+                stroke={1.8}
+              />
+            </a>
+          </li>
+        ))}
+        {profile.resources.map((resource) => (
+          <li class="border-b border-line last:border-b-0">
+            <a
+              class="group flex min-h-16 items-center gap-3 py-3"
+              href={resource.url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
+                {resource.kind === 'SITEMAP' ? (
+                  <IconSitemap aria-hidden="true" size={17} stroke={1.8} />
+                ) : (
+                  <IconLink aria-hidden="true" size={17} stroke={1.8} />
+                )}
+              </span>
+              <span class="font-medium wrap-anywhere">{resourceLabels[resource.kind]}</span>
+              <IconExternalLink
+                class="ml-auto shrink-0 text-fg-muted transition-colors duration-(--motion-fast) group-hover:text-tint-fg"
+                aria-hidden="true"
+                size={15}
+                stroke={1.8}
+              />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null}
 
-  {
-    profile.technologies.length > 0 ? (
-      <section aria-labelledby="site-technologies-title">
-        <p class="font-mono text-xs font-medium text-tint-fg">技术信息</p>
-        <h2 class="mt-2 text-xl/snug font-semibold" id="site-technologies-title">
-          站点技术栈
-        </h2>
-        <ul class="mt-5 border-y border-line">
-          {profile.technologies.map((technology) => {
-            const href = technology.homepageUrl ?? technology.repositoryUrl;
-            return (
-              <li class="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-b-0">
-                <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
-                  <IconCode aria-hidden="true" size={17} stroke={1.8} />
+  {profile.technologies.length > 0 ? (
+    <section aria-labelledby="site-technologies-title">
+      <p class="font-mono text-xs font-medium text-tint-fg">技术信息</p>
+      <h2 class="mt-2 text-xl/snug font-semibold" id="site-technologies-title">
+        站点技术栈
+      </h2>
+      <ul class="mt-5 border-y border-line">
+        {profile.technologies.map((technology) => {
+          const href = technology.homepageUrl ?? technology.repositoryUrl;
+          return (
+            <li class="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-b-0">
+              <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
+                <IconCode aria-hidden="true" size={17} stroke={1.8} />
+              </span>
+              <span class="min-w-0">
+                <span class="font-medium wrap-anywhere">{technology.name}</span>
+                <span class="mt-0.5 block text-xs text-fg-muted">
+                  {technologyRoleLabels[technology.role]}
+                  {technology.isOpenSource ? ' · 开源' : ''}
                 </span>
-                <span class="min-w-0">
-                  <span class="font-medium wrap-anywhere">{technology.name}</span>
-                  <span class="mt-0.5 block text-xs text-fg-muted">
-                    {technologyRoleLabels[technology.role]}
-                    {technology.isOpenSource ? ' · 开源' : ''}
-                  </span>
-                </span>
-                {href ? (
-                  <a
-                    class="ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-md text-fg-muted transition-[background-color,color,scale] duration-(--motion-fast) hover:bg-subtle hover:text-tint-fg active:scale-96 sm:size-10"
-                    href={href}
-                    rel="noreferrer"
-                    target="_blank"
-                    aria-label={
-                      technology.homepageUrl
-                        ? `访问 ${technology.name} 官网`
-                        : `查看 ${technology.name} 代码仓库`
-                    }
-                  >
-                    {technology.repositoryUrl === href ? (
-                      <IconBrandGithub aria-hidden="true" size={17} stroke={1.8} />
-                    ) : (
-                      <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
-                    )}
-                  </a>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-    ) : null
-  }
+              </span>
+              {href ? (
+                <a
+                  class="ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-md text-fg-muted transition-[background-color,color,scale] duration-(--motion-fast) hover:bg-subtle hover:text-tint-fg active:scale-96 sm:size-10"
+                  href={href}
+                  rel="noreferrer"
+                  target="_blank"
+                  aria-label={
+                    technology.homepageUrl
+                      ? `访问 ${technology.name} 官网`
+                      : `查看 ${technology.name} 代码仓库`
+                  }
+                >
+                  {technology.repositoryUrl === href ? (
+                    <IconBrandGithub aria-hidden="true" size={17} stroke={1.8} />
+                  ) : (
+                    <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
+                  )}
+                </a>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  ) : null}
 </div>

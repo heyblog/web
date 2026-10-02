@@ -16,9 +16,7 @@ const roleLabels: Readonly<Record<string, string>> = {
 };
 ---
 
-<section
-  class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 wrap-anywhere sm:p-6"
->
+<section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 wrap-anywhere sm:p-6">
   <header class="border-b border-line pb-4">
     <h2 class="text-lg font-bold">{title}</h2>
   </header>
@@ -31,7 +29,9 @@ const roleLabels: Readonly<Record<string, string>> = {
     <div class="min-w-0 bg-surface p-4">
       <dt class="text-xs text-fg-muted">主页地址</dt>
       <dd class="mt-1 break-all">
-        <a class="text-tint-fg hover:underline" href={address}>{address}</a>
+        <a class="text-tint-fg hover:underline" href={address}>
+          {address}
+        </a>
       </dd>
     </div>
     <div class="bg-surface p-4 sm:col-span-2">
@@ -45,24 +45,20 @@ const roleLabels: Readonly<Record<string, string>> = {
   <section>
     <h3 class="text-sm font-semibold">标签</h3>
     <div class="mt-3 flex flex-wrap gap-2">
-      {
-        snapshot.classification ? (
-          <span class="rounded-sm border border-line bg-tint px-2.5 py-1 text-sm text-tint-fg">
-            {snapshot.classification.level1.name} - {snapshot.classification.level2.name}
-            <span class="ml-1 text-xs">固定分类</span>
+      {snapshot.classification ? (
+        <span class="rounded-sm border border-line bg-tint px-2.5 py-1 text-sm text-tint-fg">
+          {snapshot.classification.level1.name} - {snapshot.classification.level2.name}
+          <span class="ml-1 text-xs">固定分类</span>
+        </span>
+      ) : null}
+      {snapshot.tags
+        .filter((tag) => tag.role === 'TERTIARY')
+        .map((tag) => (
+          <span class="rounded-sm border border-line bg-subtle px-2.5 py-1 text-sm">
+            {tag.name || tag.suggested_name || tag.id}
+            <span class="ml-1 text-xs text-fg-muted">{roleLabels[tag.role] ?? tag.role}</span>
           </span>
-        ) : null
-      }
-      {
-        snapshot.tags
-          .filter((tag) => tag.role === 'TERTIARY')
-          .map((tag) => (
-            <span class="rounded-sm border border-line bg-subtle px-2.5 py-1 text-sm">
-              {tag.name || tag.suggested_name || tag.id}
-              <span class="ml-1 text-xs text-fg-muted">{roleLabels[tag.role] ?? tag.role}</span>
-            </span>
-          ))
-      }
+        ))}
     </div>
   </section>
 
@@ -70,80 +66,70 @@ const roleLabels: Readonly<Record<string, string>> = {
     <h3 class="text-sm font-semibold">站点程序</h3>
     <div class="mt-3 rounded-sm border border-line p-4">
       <strong>{program?.name || program?.suggested_name || '—'}</strong>
-      {
-        program ? (
-          <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt class="text-xs text-fg-muted">开源状态</dt>
-              <dd class="mt-1">
-                {program.is_open_source === true
-                  ? '开源'
-                  : program.is_open_source === false
-                    ? '不开源'
-                    : '未填写'}
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs text-fg-muted">官网 / 仓库</dt>
-              <dd class="mt-1 break-all">
-                {program.homepage_url || program.repository_url || '—'}
-              </dd>
-            </div>
-          </dl>
-        ) : null
-      }
-      {
-        snapshot.program_dependencies.length > 0 ? (
-          <ul class="mt-4 grid gap-2 border-t border-line pt-3 text-sm">
-            {snapshot.program_dependencies.map((dependency) => (
-              <li class="flex flex-wrap justify-between gap-2">
-                <span>{dependency.name || dependency.suggested_name || dependency.id}</span>
-                <span class="text-xs text-fg-muted">
-                  {roleLabels[dependency.role] ?? dependency.role}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null
-      }
+      {program ? (
+        <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-xs text-fg-muted">开源状态</dt>
+            <dd class="mt-1">
+              {program.is_open_source === true
+                ? '开源'
+                : program.is_open_source === false
+                  ? '不开源'
+                  : '未填写'}
+            </dd>
+          </div>
+          <div class="min-w-0">
+            <dt class="text-xs text-fg-muted">官网 / 仓库</dt>
+            <dd class="mt-1 break-all">{program.homepage_url || program.repository_url || '—'}</dd>
+          </div>
+        </dl>
+      ) : null}
+      {snapshot.program_dependencies.length > 0 ? (
+        <ul class="mt-4 grid gap-2 border-t border-line pt-3 text-sm">
+          {snapshot.program_dependencies.map((dependency) => (
+            <li class="flex flex-wrap justify-between gap-2">
+              <span>{dependency.name || dependency.suggested_name || dependency.id}</span>
+              <span class="text-xs text-fg-muted">
+                {roleLabels[dependency.role] ?? dependency.role}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   </section>
 
   <section class="grid gap-4 md:grid-cols-2">
     <div>
       <h3 class="text-sm font-semibold">Feed</h3>
-      {
-        snapshot.feeds.length > 0 ? (
-          <ul class="mt-3 grid gap-2">
-            {snapshot.feeds.map((feed) => (
-              <li class="rounded-sm border border-line p-3 text-sm">
-                <strong>{feed.name}</strong>
-                {feed.is_default ? <span class="ml-2 text-xs text-tint-fg">默认</span> : null}
-                <p class="mt-1 break-all text-fg-muted">{feed.url}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p class="mt-3 text-sm text-fg-muted">未提供 Feed</p>
-        )
-      }
+      {snapshot.feeds.length > 0 ? (
+        <ul class="mt-3 grid gap-2">
+          {snapshot.feeds.map((feed) => (
+            <li class="rounded-sm border border-line p-3 text-sm">
+              <strong>{feed.name}</strong>
+              {feed.is_default ? <span class="ml-2 text-xs text-tint-fg">默认</span> : null}
+              <p class="mt-1 break-all text-fg-muted">{feed.url}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="mt-3 text-sm text-fg-muted">未提供 Feed</p>
+      )}
     </div>
     <div>
       <h3 class="text-sm font-semibold">站点资源</h3>
-      {
-        snapshot.resources.length > 0 ? (
-          <ul class="mt-3 grid gap-2">
-            {snapshot.resources.map((resource) => (
-              <li class="rounded-sm border border-line p-3 text-sm">
-                <strong>{resource.kind === 'SITEMAP' ? 'Sitemap' : '友链页'}</strong>
-                <p class="mt-1 break-all text-fg-muted">{resource.url}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p class="mt-3 text-sm text-fg-muted">未提供其他资源</p>
-        )
-      }
+      {snapshot.resources.length > 0 ? (
+        <ul class="mt-3 grid gap-2">
+          {snapshot.resources.map((resource) => (
+            <li class="rounded-sm border border-line p-3 text-sm">
+              <strong>{resource.kind === 'SITEMAP' ? 'Sitemap' : '友链页'}</strong>
+              <p class="mt-1 break-all text-fg-muted">{resource.url}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="mt-3 text-sm text-fg-muted">未提供其他资源</p>
+      )}
     </div>
   </section>
 </section>

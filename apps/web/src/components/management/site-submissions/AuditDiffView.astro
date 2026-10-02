@@ -57,77 +57,75 @@ const sections = allSections.filter(
 ---
 
 <div class="grid gap-6">
-  {
-    sections.map((section) => (
-      <section
-        class:list={[
-          'grid gap-4 rounded-md border p-5',
-          section.tone === 'warning' && 'border-warning-border bg-warning-bg',
-          section.tone === 'danger' && 'border-danger bg-danger-bg',
-          section.tone === 'default' && 'border-line',
-        ]}
-      >
-        <header>
-          <h2 class="text-lg font-bold">{section.title}</h2>
-          <p class="mt-1 text-sm text-fg-muted">{section.description}</p>
-        </header>
-        <div class="grid gap-3">
-          {section.items.map((item) => (
-            <article class="overflow-hidden rounded-sm border border-line bg-surface">
-              <h3 class="border-b border-line bg-subtle px-3 py-2 text-sm font-semibold">
-                {fieldLabels[item.field] ?? item.field}
-              </h3>
-              {item.before !== undefined || item.after !== undefined ? (
-                <div class="grid md:grid-cols-2">
-                  <div class="border-b border-line p-3 md:border-r md:border-b-0">
-                    <p class="text-xs text-fg-muted">变更前</p>
-                    <pre
-                      class="mt-2 overflow-x-auto text-xs whitespace-pre-wrap"
-                      set:text={item.before || '—'}
-                    />
-                  </div>
-                  <div class="p-3">
-                    <p class="text-xs text-fg-muted">变更后</p>
-                    <pre
-                      class="mt-2 overflow-x-auto text-xs whitespace-pre-wrap"
-                      set:text={item.after || '—'}
-                    />
-                  </div>
+  {sections.map((section) => (
+    <section
+      class:list={[
+        'grid gap-4 rounded-md border p-5',
+        section.tone === 'warning' && 'border-warning-border bg-warning-bg',
+        section.tone === 'danger' && 'border-danger bg-danger-bg',
+        section.tone === 'default' && 'border-line',
+      ]}
+    >
+      <header>
+        <h2 class="text-lg font-bold">{section.title}</h2>
+        <p class="mt-1 text-sm text-fg-muted">{section.description}</p>
+      </header>
+      <div class="grid gap-3">
+        {section.items.map((item) => (
+          <article class="overflow-hidden rounded-sm border border-line bg-surface">
+            <h3 class="border-b border-line bg-subtle px-3 py-2 text-sm font-semibold">
+              {fieldLabels[item.field] ?? item.field}
+            </h3>
+            {item.before !== undefined || item.after !== undefined ? (
+              <div class="grid md:grid-cols-2">
+                <div class="border-b border-line p-3 md:border-r md:border-b-0">
+                  <p class="text-xs text-fg-muted">变更前</p>
+                  <pre
+                    class="mt-2 overflow-x-auto text-xs whitespace-pre-wrap"
+                    set:text={item.before || '—'}
+                  />
                 </div>
-              ) : (
-                <div class="grid gap-3 p-3 text-xs sm:grid-cols-3">
-                  <div>
-                    <strong class="text-success-fg">新增</strong>
-                    <ul class="mt-2 grid gap-1">
-                      {item.added?.map((value) => (
-                        <li class="break-all">{value}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <strong class="text-danger-fg">删除</strong>
-                    <ul class="mt-2 grid gap-1">
-                      {item.removed?.map((value) => (
-                        <li class="break-all">{value}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <strong>修改</strong>
-                    <ul class="mt-2 grid gap-1">
-                      {item.changed?.map((value) => (
-                        <li class="break-all">
-                          {value.before} → {value.after}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                <div class="p-3">
+                  <p class="text-xs text-fg-muted">变更后</p>
+                  <pre
+                    class="mt-2 overflow-x-auto text-xs whitespace-pre-wrap"
+                    set:text={item.after || '—'}
+                  />
                 </div>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
-    ))
-  }
+              </div>
+            ) : (
+              <div class="grid gap-3 p-3 text-xs sm:grid-cols-3">
+                <div>
+                  <strong class="text-success-fg">新增</strong>
+                  <ul class="mt-2 grid gap-1">
+                    {item.added?.map((value) => (
+                      <li class="break-all">{value}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <strong class="text-danger-fg">删除</strong>
+                  <ul class="mt-2 grid gap-1">
+                    {item.removed?.map((value) => (
+                      <li class="break-all">{value}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <strong>修改</strong>
+                  <ul class="mt-2 grid gap-1">
+                    {item.changed?.map((value) => (
+                      <li class="break-all">
+                        {value.before} → {value.after}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  ))}
 </div>

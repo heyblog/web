@@ -47,9 +47,7 @@ const status = authStatusMessage(Astro.url.searchParams.get('status'));
       <IconLogin2 size={18} stroke={1.8} aria-hidden="true" /> 登录
     </button>
   </form>
-  <div
-    class="my-5 flex items-center gap-3 text-xs text-fg-subtle before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line"
-  >
+  <div class="my-5 flex items-center gap-3 text-xs text-fg-subtle before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
     或
   </div>
   <a
@@ -60,9 +58,11 @@ const status = authStatusMessage(Astro.url.searchParams.get('status'));
     <IconBrandGithub size={18} stroke={1.8} aria-hidden="true" /> 使用 GitHub 登录
   </a>
   <nav class="mt-6 flex flex-wrap justify-between gap-3 text-sm" aria-label="账号帮助">
-    <a class="text-tint-fg hover:underline" href={`/register?next=${encodeURIComponent(next)}`}
-      >创建账号</a
-    >
-    <a class="text-tint-fg hover:underline" href="/forgot-password">忘记密码</a>
+    <a class="text-tint-fg hover:underline" href={`/register?next=${encodeURIComponent(next)}`}>
+      创建账号
+    </a>
+    <a class="text-tint-fg hover:underline" href="/forgot-password">
+      忘记密码
+    </a>
   </nav>
 </AuthLayout>
