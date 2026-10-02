@@ -10,7 +10,7 @@ cascade = true
 shell = "bash -o errexit -o pipefail -c"
 
 [tools]
-go = "1.26.6"
+go = "1.26.8"
 golangci-lint = "2.12.2"
 node = "24.21.0"
 pnpm = "12.4.2"
