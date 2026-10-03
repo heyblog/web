@@ -1,0 +1,20 @@
+---
+import type { ManagedUser } from '@/api/managed-users/managed-users.types';
+interface Props {
+  user: ManagedUser;
+}
+const { user } = Astro.props;
+---
+
+<div class="flex flex-wrap items-center gap-2">
+  <span
+    class:list={[
+      'inline-flex items-center gap-1.5 rounded-sm px-2 text-xs/5',
+      user.active ? 'bg-success-bg text-success-fg' : 'bg-subtle text-fg-muted',
+    ]}
+  >
+    <span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+    {user.active ? '可用' : '停用'}
+  </span>
+  <span class="text-xs text-fg-muted">{user.email_verified ? '邮箱已验证' : '邮箱未验证'}</span>
+</div>

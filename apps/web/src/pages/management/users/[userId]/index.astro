@@ -1,0 +1,76 @@
+---
+import { managementNavigation } from '@/application/management/navigation';
+import { authorizationError } from '@/application/management/users.messages';
+import { roleLabels, usersReturnPath } from '@/application/management/users.model';
+import { loadUsersPage } from '@/application/management/users-page.server';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import UserAuthorizationEditor from '@/components/management/users/UserAuthorizationEditor.svelte';
+import { buttonClass } from '@/components/management/users/users.styles';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+const result = await loadUsersPage(Astro.request);
+if (result.kind === 'redirect') {
+  const headers = new Headers(result.headers);
+  headers.set('Location', result.location);
+  return new Response(null, { status: 302, headers });
+}
+for (const [name, value] of result.headers) {
+  if (name !== 'set-cookie') Astro.response.headers.set(name, value);
+}
+for (const cookie of result.headers.getSetCookie())
+  Astro.response.headers.append('Set-Cookie', cookie);
+const actor = result.actor;
+const user =
+  result.kind === 'ready' ? result.users.find((item) => item.id === Astro.params.userId) : null;
+const returnPath = usersReturnPath(Astro.url.searchParams.get('returnTo'));
+if (result.kind === 'error') Astro.response.status = result.status;
+else if (!user) Astro.response.status = 404;
+const error = Astro.url.searchParams.get('error');
+---
+
+<ManagementLayout
+  title="用户授权 | HeyBlog"
+  heading="用户授权"
+  currentPath={Astro.url.pathname}
+  identity={
+    actor
+      ? {
+          displayName: actor.display_name,
+          email: actor.email ?? '',
+          roleLabel: roleLabels[actor.role],
+        }
+      : undefined
+  }
+  navigation={actor ? [...managementNavigation(actor)] : []}
+>
+  <AuthNotice message={error ? authorizationError(error) : null} />
+  <AuthNotice
+    message={Astro.url.searchParams.get('status') === 'updated' ? '授权已更新。' : null}
+    kind="success"
+  />
+  {user && actor ? (
+    <UserAuthorizationEditor client:load {user} {actor} {returnPath} />
+  ) : (
+    <section class="rounded-md border border-line bg-surface p-6">
+      <h2 class="text-lg font-semibold">
+        {result.kind === 'error' ? '暂时无法加载用户' : '用户不存在'}
+      </h2>
+      <p class="mt-2 mb-5 text-sm text-fg-muted">
+        {result.kind === 'error'
+          ? '授权服务暂时不可用，请稍后重试。'
+          : '该用户可能已被删除，请返回列表查看其他用户。'}
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a class={buttonClass} href={returnPath}>
+          返回用户列表
+        </a>
+        {result.kind === 'error' && (
+          <a class={buttonClass} href={Astro.url.pathname + Astro.url.search}>
+            重新加载
+          </a>
+        )}
+      </div>
+    </section>
+  )}
+</ManagementLayout>

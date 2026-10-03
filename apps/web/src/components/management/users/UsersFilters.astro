@@ -1,0 +1,48 @@
+---
+import { roleLabels } from '@/application/management/users.model';
+
+import { buttonClass, inputClass } from './users.styles';
+interface Props {
+  q: string;
+  role: string;
+  state: string;
+}
+const { q, role, state } = Astro.props;
+---
+
+<form
+  method="get"
+  class="mb-6 grid items-end gap-4 sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_10rem_9rem_auto]"
+  aria-label="筛选用户"
+>
+  <label class="grid gap-2 text-sm font-medium">
+    搜索用户
+    <input class={inputClass} type="search" name="q" value={q} placeholder="姓名、用户名或邮箱" />
+  </label>
+  <label class="grid gap-2 text-sm font-medium">
+    角色
+    <select class={inputClass} name="role">
+      <option value="">全部角色</option>
+      {Object.entries(roleLabels).map(([value, label]) => (
+        <option value={value} selected={role === value}>
+          {label}
+        </option>
+      ))}
+    </select>
+  </label>
+  <label class="grid gap-2 text-sm font-medium">
+    账号状态
+    <select class={inputClass} name="state">
+      <option value="">全部状态</option>
+      <option value="active" selected={state === 'active'}>
+        可用
+      </option>
+      <option value="inactive" selected={state === 'inactive'}>
+        停用
+      </option>
+    </select>
+  </label>
+  <button class={buttonClass} type="submit">
+    筛选
+  </button>
+</form>
