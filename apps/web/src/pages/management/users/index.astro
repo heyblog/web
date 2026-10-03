@@ -1,144 +1,122 @@
 ---
-import { readProblemCode, requestAuthAPI } from '@/api/auth/auth.server';
-import { managementPermissions, type SessionUser } from '@/api/auth/auth.types';
-import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
+import { authorizationError } from '@/application/management/users.messages';
+import { filterUsers, roleLabels, usersListPath } from '@/application/management/users.model';
+import { loadUsersPage } from '@/application/management/users-page.server';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
-import UserAuthorizationCard from '@/components/auth/UserAuthorizationCard.astro';
+import { buttonClass } from '@/components/management/users/users.styles';
+import UsersFilters from '@/components/management/users/UsersFilters.astro';
+import UsersList from '@/components/management/users/UsersList.astro';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
-const actor = await readSessionUser(Astro.request);
-if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fusers');
-const allowed =
-  actor.role === 'SYS_ADMIN' ||
-  (actor.role === 'ADMIN' && actor.permissions.includes('user.manage'));
-if (!allowed) return Astro.redirect('/forbidden');
-const response = await requestAuthAPI(Astro.request, '/management/users');
-if (!response.ok)
-  return Astro.redirect(`/forbidden?error=${encodeURIComponent(await readProblemCode(response))}`);
-const payload = (await response.json()) as { readonly users: readonly SessionUser[] };
-const permissionLabels: Readonly<Record<(typeof managementPermissions)[number], string>> = {
-  'user.manage': '用户授权',
-  'site_audit.review': '站点审核',
-  'feedback.review': '反馈处理',
-  'announcement.manage': '公告管理',
-  'taxonomy.manage': '分类维护',
-  'site.manage': '站点维护',
-  'task.manage': '任务管理',
-  'log.read': '日志查看',
-};
+const result = await loadUsersPage(Astro.request);
+if (result.kind === 'redirect') {
+  const headers = new Headers(result.headers);
+  headers.set('Location', result.location);
+  return new Response(null, { status: 302, headers });
+}
+for (const [name, value] of result.headers) {
+  if (name !== 'set-cookie') Astro.response.headers.set(name, value);
+}
+for (const cookie of result.headers.getSetCookie())
+  Astro.response.headers.append('Set-Cookie', cookie);
+if (result.kind === 'error') Astro.response.status = result.status;
+const actor = result.actor;
+const list = filterUsers(result.kind === 'ready' ? result.users : [], Astro.url.searchParams);
+const listQuery = new URLSearchParams({
+  q: list.q,
+  role: list.role,
+  state: list.state,
+  page: String(list.page),
+});
+const returnPath = usersListPath(listQuery);
+const pagePath = (page: number) =>
+  usersListPath(new URLSearchParams({ ...Object.fromEntries(listQuery), page: String(page) }));
+const error = Astro.url.searchParams.get('error');
 ---
 
 <ManagementLayout
   title="用户与授权 | HeyBlog"
   heading="用户与授权"
   currentPath={Astro.url.pathname}
-  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
-  navigation={[...managementNavigation(actor)]}
+  identity={
+    actor
+      ? {
+          displayName: actor.display_name,
+          email: actor.email ?? '',
+          roleLabel: roleLabels[actor.role],
+        }
+      : undefined
+  }
+  navigation={actor ? [...managementNavigation(actor)] : []}
 >
-  <AuthNotice
-    message={Astro.url.searchParams.get('status') === 'updated' ? '授权已更新。' : null}
-    kind="success"
-  />
-  <div class="grid gap-4 md:hidden">
-    {payload.users.map((user) => (
-      <UserAuthorizationCard actor={actor} user={user} permissionLabels={permissionLabels} />
-    ))}
-  </div>
-  <div class="hidden overflow-x-auto border-y border-line md:block">
-    <table class="w-full min-w-220 table-fixed border-collapse text-left text-sm">
-      <colgroup>
-        <col class="w-1/4" />
-        <col class="w-28" />
-        <col class="w-48" />
-        <col />
-      </colgroup>
-      <thead>
-        <tr class="bg-subtle text-xs text-fg-muted">
-          <th class="p-3 font-medium">用户</th>
-          <th class="p-3 font-medium">状态</th>
-          <th class="p-3 font-medium">角色</th>
-          <th class="p-3 font-medium">模块权限</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-line">
-        {payload.users.map((user) => (
-          <tr class="align-top">
-            <td class="px-3 py-4">
-              <>
-                <strong class="block font-medium wrap-anywhere">{user.display_name}</strong>
-                <span class="text-xs wrap-anywhere text-fg-muted">{user.email}</span>
-              </>
-            </td>
-            <td class="px-3 py-4 text-xs">
-              {user.active ? '可用' : '停用'} · {user.email_verified ? '已验证' : '未验证'}
-            </td>
-            <td class="px-3 py-4">
-              <form
-                class="flex items-center gap-2"
-                method="post"
-                action={`/management/users/${user.id}/role`}
-              >
-                <select
-                  class="min-h-10 rounded-sm border border-line-strong bg-surface px-2"
-                  name="role"
-                  disabled={actor.role !== 'SYS_ADMIN' || actor.id === user.id}
-                >
-                  <>
-                    <option value="USER" selected={user.role === 'USER'}>
-                      USER
-                    </option>
-                    <option value="ADMIN" selected={user.role === 'ADMIN'}>
-                      ADMIN
-                    </option>
-                  </>
-                </select>
-                <button
-                  class="min-h-10 rounded-sm border border-line-strong px-3 font-medium hover:bg-subtle disabled:opacity-50"
-                  disabled={actor.role !== 'SYS_ADMIN' || actor.id === user.id}
-                  type="submit"
-                >
-                  保存
-                </button>
-              </form>
-            </td>
-            <td class="px-3 py-4">
-              <form
-                class="grid gap-3"
-                method="post"
-                action={`/management/users/${user.id}/permissions`}
-              >
-                <fieldset
-                  class="grid grid-cols-2 gap-x-4 gap-y-2"
-                  disabled={user.role !== 'ADMIN' || actor.id === user.id}
-                >
-                  <legend class="sr-only">{user.display_name} 的模块权限</legend>
-                  {managementPermissions.map((permission) => (
-                    <label class="flex min-h-10 items-center gap-2">
-                      <input
-                        class="size-4 accent-primary"
-                        type="checkbox"
-                        name="permissions"
-                        value={permission}
-                        checked={user.permissions.includes(permission)}
-                      />
-                      <span class="text-xs">{permissionLabels[permission]}</span>
-                    </label>
-                  ))}
-                </fieldset>
-                <button
-                  class="min-h-10 w-fit rounded-sm border border-line-strong px-3 font-medium hover:bg-subtle disabled:opacity-50"
-                  disabled={user.role !== 'ADMIN' || actor.id === user.id}
-                  type="submit"
-                >
-                  保存权限
-                </button>
-              </form>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
+  {result.kind === 'error' ? (
+    <section class="rounded-md border border-line bg-surface p-6">
+      <h2 class="text-lg font-semibold">暂时无法加载用户</h2>
+      <p class="mt-2 mb-5 text-sm text-fg-muted">授权服务暂时不可用，请稍后重试。</p>
+      <a class={buttonClass} href={Astro.url.pathname + Astro.url.search}>
+        重新加载
+      </a>
+    </section>
+  ) : (
+    <>
+      <AuthNotice message={error ? authorizationError(error) : null} />
+      <AuthNotice
+        message={Astro.url.searchParams.get('status') === 'updated' ? '授权已更新。' : null}
+        kind="success"
+      />
+      <UsersFilters q={list.q} role={list.role} state={list.state} />
+      <div class="mb-3 flex min-h-10 flex-wrap items-center justify-between gap-3 text-sm">
+        <p class="text-fg-muted">
+          共 <span class="font-medium text-fg">{list.total}</span> 位用户
+        </p>
+        {(list.q || list.role || list.state) && (
+          <a
+            class="inline-flex min-h-11 items-center text-tint-fg hover:underline sm:min-h-10"
+            href="/management/users"
+          >
+            清除筛选
+          </a>
+        )}
+      </div>
+      {list.users.length ? (
+        <UsersList users={list.users} actorId={result.actor.id} {returnPath} />
+      ) : (
+        <section class="rounded-md border border-dashed border-line py-12 text-center">
+          <h2 class="text-sm font-semibold">
+            {list.q || list.role || list.state ? '没有符合条件的用户' : '暂无用户'}
+          </h2>
+          {(list.q || list.role || list.state) && (
+            <p class="mt-2 text-sm text-fg-muted">调整搜索内容或清除筛选后再试。</p>
+          )}
+        </section>
+      )}
+      {list.total > 20 && (
+        <nav class="mt-6 flex flex-wrap items-center justify-between gap-3" aria-label="用户分页">
+          {list.page > 1 ? (
+            <a class={buttonClass} href={pagePath(list.page - 1)}>
+              上一页
+            </a>
+          ) : (
+            <span class={`${buttonClass} pointer-events-none opacity-50`} aria-disabled="true">
+              上一页
+            </span>
+          )}
+          <span class="text-sm text-fg-muted">
+            第 {list.page} / {list.pages} 页
+          </span>
+          {list.page < list.pages ? (
+            <a class={buttonClass} href={pagePath(list.page + 1)}>
+              下一页
+            </a>
+          ) : (
+            <span class={`${buttonClass} pointer-events-none opacity-50`} aria-disabled="true">
+              下一页
+            </span>
+          )}
+        </nav>
+      )}
+    </>
+  )}
 </ManagementLayout>

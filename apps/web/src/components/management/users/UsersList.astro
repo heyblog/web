@@ -1,0 +1,74 @@
+---
+import type { ManagedUser } from '@/api/managed-users/managed-users.types';
+import { permissionSummary, roleLabels } from '@/application/management/users.model';
+
+import UserIdentity from './UserIdentity.astro';
+import UserStatus from './UserStatus.astro';
+interface Props {
+  users: readonly ManagedUser[];
+  actorId: string;
+  returnPath: string;
+}
+const { users, actorId, returnPath } = Astro.props;
+const detailPath = (id: string) =>
+  `/management/users/${encodeURIComponent(id)}?returnTo=${encodeURIComponent(returnPath)}`;
+---
+
+<div class="grid gap-3 md:hidden">
+  {users.map((user) => (
+    <article class="grid gap-4 rounded-md border border-line bg-surface p-4">
+      <UserIdentity {user} current={user.id === actorId} />
+      <UserStatus {user} />
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+        <div class="grid gap-1 text-sm">
+          <span>{roleLabels[user.role]}</span>
+          <span class="text-xs text-fg-muted">{permissionSummary(user)}</span>
+        </div>
+        <a
+          class="inline-flex min-h-11 items-center text-sm font-medium text-tint-fg hover:underline"
+          href={detailPath(user.id)}
+          aria-label={`查看 ${user.display_name || user.username} 的授权`}
+        >
+          查看授权 →
+        </a>
+      </div>
+    </article>
+  ))}
+</div>
+<div class="hidden overflow-x-auto rounded-md border border-line md:block">
+  <table class="w-full min-w-180 border-collapse text-left text-sm">
+    <caption class="sr-only">用户角色与模块权限</caption>
+    <thead class="bg-subtle text-xs text-fg-muted">
+      <tr>
+        {['用户', '账号状态', '角色', '模块权限', '操作'].map((label) => (
+          <th scope="col" class="px-4 py-3 font-medium">
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-line bg-surface">
+      {users.map((user) => (
+        <tr class="hover:bg-subtle/50">
+          <td class="max-w-72 p-4">
+            <UserIdentity {user} current={user.id === actorId} />
+          </td>
+          <td class="p-4">
+            <UserStatus {user} />
+          </td>
+          <td class="p-4 whitespace-nowrap">{roleLabels[user.role]}</td>
+          <td class="p-4 whitespace-nowrap text-fg-muted">{permissionSummary(user)}</td>
+          <td class="p-4">
+            <a
+              class="inline-flex min-h-10 items-center font-medium whitespace-nowrap text-tint-fg hover:underline"
+              href={detailPath(user.id)}
+              aria-label={`查看 ${user.display_name || user.username} 的授权`}
+            >
+              查看授权 →
+            </a>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

@@ -53,10 +53,17 @@ export default defineConfig({
     },
   },
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      {
+        name: 'heyblog:qrcode-dev',
+        apply: 'serve',
+        // Keep Astro's dev runtime in one module graph; bundle QRCode only for deployment.
+        config: () => ({ ssr: { external: ['qrcode'] } }),
+      },
+    ],
     ssr: {
       noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs'],
-      optimizeDeps: { include: ['qrcode'] },
     },
   },
   integrations: [buildMetadataIntegration(), svelte(), mdx(), sitemap()],

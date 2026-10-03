@@ -18,6 +18,10 @@ All file references are repository-root-relative. This file refines `AGENTS.md` 
 - Build provenance belongs to `apps/web/src/integrations/build/build-metadata.ts` and
   `apps/web/Dockerfile`. Build-time inputs are not runtime environment configuration. Preserve
   repository-root discovery and the dist-only Node standalone deployment.
+- Development loads `qrcode` through Node's CommonJS interop; production keeps it bundled for
+  dist-only deployment. Do not enable SSR dependency prebundling: Vite version queries can split
+  Astro's development environment registry. `apps/web/tests/dev-server.test.ts` covers fresh dev
+  rendering of prerendered/SSR headers and decodable QR images.
 
 ## Directory Boundaries
 

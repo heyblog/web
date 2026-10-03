@@ -5,8 +5,12 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
 - Own Web page flows and display models, not backend domain rules or raw HTTP adapters. Call
   `apps/web/src/api` and `apps/web/src/integrations`; do not move their protocols into this layer.
 - `apps/web/src/application/auth` owns SSR session/page guards, safe local redirects, and prompt
-  mapping. `apps/web/src/application/management` owns navigation. Neither replaces API permission
-  checks.
+  mapping. `apps/web/src/application/management` owns navigation, managed-user list filters, page guards,
+  and authorization drafts. Its UI scope checks do not replace API permission checks. User
+  authorization saves roles and permissions separately; preserve draft mutual exclusion,
+  out-of-scope read-only behavior, and full-user baseline replacement after saving. Sources/tests:
+  `apps/web/src/application/management/user-editor.model.ts` and
+  `apps/web/tests/managed-users.model.test.ts`.
 - `apps/web/src/application/site-directory` interprets page URL state, default filters, and seed
   lifecycle. API query serialization belongs to `apps/web/src/api/sites`. Keep daily seeds and
   shuffle behavior unchanged; see `apps/web/tests/site-directory.shared.test.ts`.

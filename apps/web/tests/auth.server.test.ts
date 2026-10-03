@@ -166,7 +166,7 @@ test('OAuth entry links opt out of Astro prefetch', async () => {
   assert.match(dashboardSource, /data-astro-prefetch="false"/u);
 });
 
-test('user management page imports the API error-code reader used on denied requests', async () => {
+test('user management routes share the guarded page loader', async () => {
   const source = await readFile(
     new URL('../src/pages/management/users/index.astro', import.meta.url),
     'utf8',
@@ -174,7 +174,7 @@ test('user management page imports the API error-code reader used on denied requ
 
   assert.match(
     source,
-    /import\s*\{[^}]*\breadProblemCode\b[^}]*\}\s*from\s*['"]@\/api\/auth\/auth\.server['"]/u,
+    /import\s*\{[^}]*\bloadUsersPage\b[^}]*\}\s*from\s*['"]@\/application\/management\/users-page\.server['"]/u,
   );
-  assert.match(source, /await readProblemCode\(response\)/u);
+  assert.match(source, /await loadUsersPage\(Astro.request\)/u);
 });

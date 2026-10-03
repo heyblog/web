@@ -20,6 +20,10 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
 - Browser adapters use only accepted same-origin routes. Preserve method, query ordering, body,
   signal, timeout, error code, and request count. No retries may be added to mutations during a
   structural refactor.
+- Managed-user adapters in `apps/web/src/api/managed-users` parse account display DTOs and
+  preserve form-encoded authorization POSTs with JSON response negotiation. The role and permission
+  mutations remain separate PATCH calls upstream; never retry a mutation automatically. Tests:
+  `apps/web/tests/managed-users.transport.test.ts`.
 - Credential adapters own response parsing and raw failures, not labels or result-view state.
   Preserve same-origin credentials, no-store, bounded timeout, malformed-success rejection and
   partial-history response semantics. Validate management payloads/mutation metadata before auth

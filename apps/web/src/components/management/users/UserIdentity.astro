@@ -1,0 +1,19 @@
+---
+import type { ManagedUser } from '@/api/managed-users/managed-users.types';
+interface Props {
+  user: ManagedUser;
+  current?: boolean;
+}
+const { user, current = false } = Astro.props;
+---
+
+<div class="min-w-0">
+  <div class="flex flex-wrap items-center gap-2">
+    <strong class="font-medium text-balance wrap-anywhere">
+      {user.display_name || user.username}
+    </strong>
+    {current && <span class="rounded-sm bg-tint px-2 text-xs/5 text-tint-fg">当前账号</span>}
+  </div>
+  <span class="mt-1 block text-xs wrap-anywhere text-fg-muted">@{user.username}</span>
+  <span class="mt-1 block text-xs wrap-anywhere text-fg-muted">{user.email || '未绑定邮箱'}</span>
+</div>

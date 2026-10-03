@@ -6,7 +6,9 @@ export interface ManagementNavigationItem {
   readonly description: string;
 }
 
-export function managementNavigation(user: SessionUser): readonly ManagementNavigationItem[] {
+export function managementNavigation(
+  user: Pick<SessionUser, 'role' | 'permissions'>,
+): readonly ManagementNavigationItem[] {
   const items: ManagementNavigationItem[] = [];
   if (user.role === 'SYS_ADMIN' || user.permissions.includes('site_audit.review')) {
     items.push({
