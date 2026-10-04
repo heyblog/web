@@ -77,6 +77,19 @@ func (q *Queries) CountAnnouncementsForManagement(ctx context.Context, arg Count
 	return column_1, err
 }
 
+const countPublicAnnouncementArchive = `-- name: CountPublicAnnouncementArchive :one
+SELECT count(*)::bigint FROM content.announcements
+ WHERE kind = 'MAIN' AND starts_at <= clock_timestamp()
+   AND (status = 'PUBLISHED' OR (status = 'ARCHIVED' AND archived_at > starts_at))
+`
+
+func (q *Queries) CountPublicAnnouncementArchive(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPublicAnnouncementArchive)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createAnnouncement = `-- name: CreateAnnouncement :one
 INSERT INTO content.announcements (
     kind,
@@ -166,10 +179,16 @@ func (q *Queries) CreateAnnouncement(ctx context.Context, arg CreateAnnouncement
 const deleteDraftAnnouncement = `-- name: DeleteDraftAnnouncement :execrows
 DELETE FROM content.announcements
  WHERE id = $1 AND status = 'DRAFT'
+   AND row_version = $2
 `
 
-func (q *Queries) DeleteDraftAnnouncement(ctx context.Context, id pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteDraftAnnouncement, id)
+type DeleteDraftAnnouncementParams struct {
+	ID                 pgtype.UUID
+	ExpectedRowVersion int64
+}
+
+func (q *Queries) DeleteDraftAnnouncement(ctx context.Context, arg DeleteDraftAnnouncementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDraftAnnouncement, arg.ID, arg.ExpectedRowVersion)
 	if err != nil {
 		return 0, err
 	}
@@ -262,6 +281,41 @@ SELECT id, kind, title, body_markdown, status, priority, action_type, action_lab
 
 func (q *Queries) GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error) {
 	row := q.db.QueryRow(ctx, getLeadingActiveMainAnnouncement)
+	var i ContentAnnouncement
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Status,
+		&i.Priority,
+		&i.ActionType,
+		&i.ActionLabel,
+		&i.ActionPath,
+		&i.ActionExternalUrl,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.PublishedAt,
+		&i.ArchivedAt,
+		&i.CreatedBy,
+		&i.UpdatedBy,
+		&i.PublishedBy,
+		&i.ArchivedBy,
+		&i.RowVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicAnnouncementByID = `-- name: GetPublicAnnouncementByID :one
+SELECT id, kind, title, body_markdown, status, priority, action_type, action_label, action_path, action_external_url, starts_at, ends_at, published_at, archived_at, created_by, updated_by, published_by, archived_by, row_version, created_at, updated_at FROM content.announcements
+ WHERE id = $1 AND kind = 'MAIN' AND starts_at <= clock_timestamp()
+   AND (status = 'PUBLISHED' OR (status = 'ARCHIVED' AND archived_at > starts_at))
+`
+
+func (q *Queries) GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error) {
+	row := q.db.QueryRow(ctx, getPublicAnnouncementByID, id)
 	var i ContentAnnouncement
 	err := row.Scan(
 		&i.ID,
@@ -539,6 +593,39 @@ func (q *Queries) ListPublicAnnouncementArchive(ctx context.Context, arg ListPub
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockAnnouncement = `-- name: LockAnnouncement :one
+SELECT id, kind, title, body_markdown, status, priority, action_type, action_label, action_path, action_external_url, starts_at, ends_at, published_at, archived_at, created_by, updated_by, published_by, archived_by, row_version, created_at, updated_at FROM content.announcements WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockAnnouncement(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error) {
+	row := q.db.QueryRow(ctx, lockAnnouncement, id)
+	var i ContentAnnouncement
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Status,
+		&i.Priority,
+		&i.ActionType,
+		&i.ActionLabel,
+		&i.ActionPath,
+		&i.ActionExternalUrl,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.PublishedAt,
+		&i.ArchivedAt,
+		&i.CreatedBy,
+		&i.UpdatedBy,
+		&i.PublishedBy,
+		&i.ArchivedBy,
+		&i.RowVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const publishAnnouncement = `-- name: PublishAnnouncement :one

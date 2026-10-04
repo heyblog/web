@@ -473,7 +473,7 @@ func verifyAnnouncementQueries(ctx context.Context, t *testing.T, connection *pg
 	if err != nil {
 		t.Fatalf("create deletable announcement draft: %v", err)
 	}
-	deletedRows, err := queries.DeleteDraftAnnouncement(ctx, deletableDraft.ID)
+	deletedRows, err := queries.DeleteDraftAnnouncement(ctx, dbgen.DeleteDraftAnnouncementParams{ID: deletableDraft.ID, ExpectedRowVersion: deletableDraft.RowVersion})
 	if err != nil {
 		t.Fatalf("delete announcement draft through sqlc: %v", err)
 	}

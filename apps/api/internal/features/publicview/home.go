@@ -8,9 +8,9 @@ import (
 const homeSiteLimit int32 = 6
 
 type Home struct {
-	SiteCount    int64          `json:"siteCount"`
-	Announcement *Announcement  `json:"announcement"`
-	Sites        []SiteCardView `json:"sites"`
+	SiteCount     int64          `json:"siteCount"`
+	Announcements []Announcement `json:"announcements"`
+	Sites         []SiteCardView `json:"sites"`
 }
 
 type SiteCardView struct {
@@ -56,11 +56,11 @@ func (service *Service) Home(ctx context.Context) (Home, error) {
 	if err != nil {
 		return Home{}, err
 	}
-	announcement, err := loadAnnouncement(ctx, service.home)
+	announcements, err := loadAnnouncements(ctx, service.home)
 	if err != nil {
 		return Home{}, err
 	}
-	return Home{SiteCount: count, Announcement: announcement, Sites: sites}, nil
+	return Home{SiteCount: count, Announcements: announcements, Sites: sites}, nil
 }
 
 func loadRandomSites(ctx context.Context, queries HomeSiteQueries, count int64) ([]HomeSiteCard, error) {

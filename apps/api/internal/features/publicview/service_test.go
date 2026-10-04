@@ -54,7 +54,7 @@ func TestHomeLoadsFreshRandomCardsWithPublicResources(t *testing.T) {
 		t.Fatalf("Home() second error = %v", err)
 	}
 
-	if view.SiteCount != 8 || len(view.Sites) != 2 || view.Announcement != nil {
+	if view.SiteCount != 8 || len(view.Sites) != 2 || len(view.Announcements) != 0 {
 		t.Fatalf("Home() = %#v", view)
 	}
 	if randomCalls != 2 {
@@ -217,14 +217,14 @@ func TestHomeMapsLeadingAnnouncementActions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Home() error = %v", err)
 			}
-			if view.Announcement == nil {
+			if len(view.Announcements) == 0 {
 				t.Fatal("Home().Announcement = nil")
 			}
-			if testCase.wantAction == nil && view.Announcement.Action != nil {
-				t.Fatalf("announcement action = %#v, want nil", view.Announcement.Action)
+			if testCase.wantAction == nil && view.Announcements[0].Action != nil {
+				t.Fatalf("announcement action = %#v, want nil", view.Announcements[0].Action)
 			}
-			if testCase.wantAction != nil && (view.Announcement.Action == nil || *view.Announcement.Action != *testCase.wantAction) {
-				t.Fatalf("announcement action = %#v, want %#v", view.Announcement.Action, testCase.wantAction)
+			if testCase.wantAction != nil && (view.Announcements[0].Action == nil || *view.Announcements[0].Action != *testCase.wantAction) {
+				t.Fatalf("announcement action = %#v, want %#v", view.Announcements[0].Action, testCase.wantAction)
 			}
 		})
 	}
@@ -427,6 +427,7 @@ type queryStub struct {
 	listRandom               func(context.Context, int32) ([]dbgen.DirectorySite, error)
 	pickRandom               func(context.Context, dbgen.PickRandomVisibleSiteParams) (dbgen.DirectorySite, error)
 	announcement             dbgen.ContentAnnouncement
+	announcements            []dbgen.ContentAnnouncement
 	announcementErr          error
 	byID                     dbgen.DirectorySite
 	byIDErr                  error
@@ -513,6 +514,29 @@ func (stub queryStub) PickRandomVisibleSite(
 }
 
 func (stub queryStub) GetLeadingActiveMainAnnouncement(context.Context) (dbgen.ContentAnnouncement, error) {
+	return stub.announcement, stub.announcementErr
+}
+
+func (stub queryStub) ListActiveMainAnnouncements(context.Context) ([]dbgen.ContentAnnouncement, error) {
+	if stub.announcements != nil {
+		return stub.announcements, stub.announcementErr
+	}
+	if errors.Is(stub.announcementErr, pgx.ErrNoRows) {
+		return []dbgen.ContentAnnouncement{}, nil
+	}
+	return []dbgen.ContentAnnouncement{stub.announcement}, stub.announcementErr
+}
+
+func (stub queryStub) GetActiveBannerAnnouncement(context.Context) (dbgen.ContentAnnouncement, error) {
+	return stub.announcement, stub.announcementErr
+}
+func (stub queryStub) ListPublicAnnouncementArchive(context.Context, dbgen.ListPublicAnnouncementArchiveParams) ([]dbgen.ContentAnnouncement, error) {
+	return []dbgen.ContentAnnouncement{stub.announcement}, stub.announcementErr
+}
+func (stub queryStub) CountPublicAnnouncementArchive(context.Context) (int64, error) {
+	return stub.count, stub.countErr
+}
+func (stub queryStub) GetPublicAnnouncementByID(context.Context, pgtype.UUID) (dbgen.ContentAnnouncement, error) {
 	return stub.announcement, stub.announcementErr
 }
 

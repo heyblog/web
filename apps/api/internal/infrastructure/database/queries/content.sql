@@ -74,7 +74,21 @@ RETURNING *;
 
 -- name: DeleteDraftAnnouncement :execrows
 DELETE FROM content.announcements
- WHERE id = $1 AND status = 'DRAFT';
+ WHERE id = sqlc.arg(id) AND status = 'DRAFT'
+   AND row_version = sqlc.arg(expected_row_version);
+
+-- name: LockAnnouncement :one
+SELECT * FROM content.announcements WHERE id = $1 FOR UPDATE;
+
+-- name: CountPublicAnnouncementArchive :one
+SELECT count(*)::bigint FROM content.announcements
+ WHERE kind = 'MAIN' AND starts_at <= clock_timestamp()
+   AND (status = 'PUBLISHED' OR (status = 'ARCHIVED' AND archived_at > starts_at));
+
+-- name: GetPublicAnnouncementByID :one
+SELECT * FROM content.announcements
+ WHERE id = $1 AND kind = 'MAIN' AND starts_at <= clock_timestamp()
+   AND (status = 'PUBLISHED' OR (status = 'ARCHIVED' AND archived_at > starts_at));
 
 -- name: ListActiveMainAnnouncements :many
 SELECT *

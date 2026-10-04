@@ -67,6 +67,9 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		t.Fatalf("decode generated OpenAPI: %v", err)
 	}
 	wantedPaths := []string{
+		"/announcements", "/announcements/banner", "/announcements/{id}",
+		"/management/announcements", "/management/announcements/{id}",
+		"/management/announcements/{id}/publish", "/management/announcements/{id}/archive", "/management/announcements/{id}/revisions",
 		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options", "/sites/random",
 		"/v1/example",
 		"/sites/id/{identifier}", "/sites/id/{identifier}/icon", "/sites/custom/{customId}",
@@ -104,6 +107,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		path    string
 		schemes []string
 	}{
+		{method: "get", path: "/management/announcements", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/management/announcements/{id}/publish", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/management/site-audits", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/management/site-audits/{auditId}", schemes: []string{"webToken", "accessCookie"}},
 		{method: "put", path: "/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
@@ -168,8 +173,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 54 {
-		t.Fatalf("documented operation count = %d, want 54", operationCount)
+	if operationCount != 65 {
+		t.Fatalf("documented operation count = %d, want 65", operationCount)
 	}
 	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

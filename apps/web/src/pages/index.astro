@@ -5,7 +5,6 @@ import {
   readBlogSummaries,
   readMemberDirectory,
 } from '@/application/static-content/static-content.server';
-import HomeAnnouncement from '@/components/home/HomeAnnouncement.astro';
 import HomeCommunity from '@/components/home/HomeCommunity.astro';
 import HomeHero from '@/components/home/HomeHero.astro';
 import HomeProjectBlogs from '@/components/home/HomeProjectBlogs.astro';
@@ -35,12 +34,7 @@ if (unavailable) {
 
 <PublicLayout>
   <div class="mx-auto w-[min(calc(100%-2rem),80rem)] sm:w-[min(calc(100%-3rem),80rem)]">
-    <HomeHero siteCount={home?.siteCount ?? null} />
-    {home?.announcement ? (
-      <div class="pt-8">
-        <HomeAnnouncement announcement={home.announcement} />
-      </div>
-    ) : null}
+    <HomeHero siteCount={home?.siteCount ?? null} announcements={home?.announcements ?? []} />
     <HomeSites client:load sites={home?.sites ?? []} {unavailable} />
     <HomeProjectBlogs blogs={projectBlogs} />
     <HomeCommunity {activeMemberCount} />

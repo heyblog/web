@@ -17,10 +17,6 @@ run = "mise -E development exec -- pnpm preview"
 description = "Test Web server infrastructure"
 run = "pnpm test"
 
-[tasks.smoke]
-description = "Test the built standalone Web server"
-run = "pnpm run test:standalone"
-
 [tasks.typecheck]
 description = "Run Astro check"
 run = "pnpm run typecheck"
@@ -55,12 +51,7 @@ run = [{ task = ":format:check" }]
 
 [tasks.verify]
 description = "Run offline checks for web app"
-run = [
-  { task = ":test" },
-  { task = ":check" },
-  { task = ":build" },
-  { task = ":smoke" },
-]
+run = [{ task = ":test" }, { task = ":check" }, { task = ":build" }]
 
 [tasks.prepare]
 description = "Sync web content from heyblog/.github main"

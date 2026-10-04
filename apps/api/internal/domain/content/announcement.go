@@ -128,7 +128,7 @@ func validateLabel(value string) error {
 
 func validateInternalPath(value string) error {
 	if strings.TrimSpace(value) != value || strings.IndexFunc(value, unicode.IsSpace) >= 0 ||
-		!strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") {
+		!strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.Contains(value, `\`) {
 		return fmt.Errorf("announcement action path must be a root-relative URL")
 	}
 	parsed, err := url.ParseRequestURI(value)

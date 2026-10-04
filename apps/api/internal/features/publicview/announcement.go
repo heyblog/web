@@ -5,16 +5,17 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"heyblog-api/internal/domain/content"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
 type Announcement struct {
-	Title    string              `json:"title"`
-	StartsAt time.Time           `json:"startsAt"`
-	Action   *AnnouncementAction `json:"action"`
+	ID           string              `json:"id"`
+	Title        string              `json:"title"`
+	BodyMarkdown *string             `json:"bodyMarkdown"`
+	StartsAt     time.Time           `json:"startsAt"`
+	EndsAt       *time.Time          `json:"endsAt"`
+	Action       *AnnouncementAction `json:"action"`
 }
 
 type AnnouncementAction struct {
@@ -23,39 +24,52 @@ type AnnouncementAction struct {
 	External bool   `json:"external"`
 }
 
-func loadAnnouncement(ctx context.Context, queries AnnouncementQueries) (*Announcement, error) {
-	row, err := queries.GetLeadingActiveMainAnnouncement(ctx)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
+func loadAnnouncements(ctx context.Context, queries AnnouncementQueries) ([]Announcement, error) {
+	rows, err := queries.ListActiveMainAnnouncements(ctx)
 	if err != nil {
-		return nil, internalError(err, "load leading announcement")
+		return nil, internalError(err, "load active announcements")
 	}
+	result := make([]Announcement, 0, len(rows))
+	for _, row := range rows {
+		if row.Kind != string(content.KindMain) || row.Status != string(content.StatusPublished) {
+			return nil, internalError(errors.New("invalid active main announcement"), "map active announcements")
+		}
+		view, err := mapAnnouncement(row)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *view)
+	}
+	return result, nil
+}
+
+func mapAnnouncement(row dbgen.ContentAnnouncement) (*Announcement, error) {
 	if !row.StartsAt.Valid {
 		return nil, internalError(
 			errors.New("announcement start time is invalid"),
 			"map leading announcement",
 		)
 	}
-	kind, err := content.ParseKind(row.Kind)
+	_, err := content.ParseKind(row.Kind)
 	if err != nil {
 		return nil, internalError(err, "validate leading announcement kind")
-	}
-	if kind != content.KindMain {
-		return nil, internalError(errors.New("leading announcement is not a main announcement"), "validate leading announcement kind")
 	}
 	status, err := content.ParseStatus(row.Status)
 	if err != nil {
 		return nil, internalError(err, "validate leading announcement status")
 	}
-	if status != content.StatusPublished {
+	if status == content.StatusDraft {
 		return nil, internalError(errors.New("leading announcement is not published"), "validate leading announcement status")
 	}
 	action, err := mapAnnouncementAction(row)
 	if err != nil {
 		return nil, internalError(err, "map leading announcement action")
 	}
-	return &Announcement{Title: row.Title, StartsAt: row.StartsAt.Time, Action: action}, nil
+	var endsAt *time.Time
+	if row.EndsAt.Valid {
+		endsAt = &row.EndsAt.Time
+	}
+	return &Announcement{ID: row.ID.String(), Title: row.Title, BodyMarkdown: row.BodyMarkdown, StartsAt: row.StartsAt.Time, EndsAt: endsAt, Action: action}, nil
 }
 
 func mapAnnouncementAction(row dbgen.ContentAnnouncement) (*AnnouncementAction, error) {

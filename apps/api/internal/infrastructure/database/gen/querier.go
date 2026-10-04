@@ -26,6 +26,7 @@ type Querier interface {
 	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
+	CountPublicAnnouncementArchive(ctx context.Context) (int64, error)
 	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
 	CreateAPIClient(ctx context.Context, arg CreateAPIClientParams) (IdentityApiClient, error)
@@ -41,7 +42,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (IdentityUser, error)
 	CreateUserManagementPermission(ctx context.Context, arg CreateUserManagementPermissionParams) error
 	DeleteAPIClientScopes(ctx context.Context, clientID pgtype.UUID) error
-	DeleteDraftAnnouncement(ctx context.Context, id pgtype.UUID) (int64, error)
+	DeleteDraftAnnouncement(ctx context.Context, arg DeleteDraftAnnouncementParams) (int64, error)
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
 	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error
@@ -62,6 +63,7 @@ type Querier interface {
 	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
+	GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash []byte) (DirectorySiteAudit, error)
 	GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error)
@@ -125,6 +127,7 @@ type Querier interface {
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
 	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
+	LockAnnouncement(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)

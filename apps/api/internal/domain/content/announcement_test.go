@@ -46,6 +46,7 @@ func TestValidateAction(t *testing.T) {
 	path := "/announcements/current?source=home"
 	protocolRelativePath := "//example.com/path"
 	spacedPath := "/announcement path"
+	backslashPath := `/\example.com/path`
 	externalURL := "https://example.com/announcements/current"
 	userInfoURL := "https://reader" + "@example.com/announcements/current"
 	invalidURL := "mailto:admin@example.com"
@@ -67,6 +68,7 @@ func TestValidateAction(t *testing.T) {
 		{name: "internal blank label", actionType: ActionInternal, label: &blankLabel, path: &path, wantError: true},
 		{name: "protocol-relative internal path", actionType: ActionInternal, label: &label, path: &protocolRelativePath, wantError: true},
 		{name: "internal path with spaces", actionType: ActionInternal, label: &label, path: &spacedPath, wantError: true},
+		{name: "internal path with backslash", actionType: ActionInternal, label: &label, path: &backslashPath, wantError: true},
 		{name: "external missing label", actionType: ActionExternal, externalURL: &externalURL, wantError: true},
 		{name: "external with path", actionType: ActionExternal, label: &label, path: &path, externalURL: &externalURL, wantError: true},
 		{name: "external user info", actionType: ActionExternal, label: &label, externalURL: &userInfoURL, wantError: true},

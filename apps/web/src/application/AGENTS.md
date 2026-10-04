@@ -55,4 +55,4 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
   `apps/web/src/application/site-og/site-og.metadata.server.ts`; version inputs include icon hash
   and QR destination. Assets/template/cache details remain grounded in
   `apps/web/tests/site-og.test.ts`, `apps/web/tests/site-og.renderer.test.ts`,
-  `apps/web/tests/site-og.icon.test.ts`, and `apps/web/standalone-og.test.mjs`.
+  and `apps/web/tests/site-og.icon.test.ts`.

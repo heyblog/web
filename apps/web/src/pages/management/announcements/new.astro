@@ -1,0 +1,23 @@
+---
+import { canManageAnnouncements } from '@/application/announcements/announcement-editor.shared';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import AnnouncementEditor from '@/components/management/announcements/AnnouncementEditor.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fannouncements%2Fnew');
+if (!canManageAnnouncements(actor)) return Astro.redirect('/forbidden');
+---
+
+<ManagementLayout
+  title="新建公告 | HeyBlog"
+  heading="新建公告"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  <AnnouncementEditor client:load initialAnnouncement={null} />
+</ManagementLayout>

@@ -53,6 +53,9 @@ export default defineConfig({
     },
   },
   vite: {
+    optimizeDeps: {
+      include: ['@tabler/icons-svelte', 'marked'],
+    },
     plugins: [
       tailwindcss(),
       {
@@ -63,7 +66,7 @@ export default defineConfig({
       },
     ],
     ssr: {
-      noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs'],
+      noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs', 'marked'],
     },
   },
   integrations: [buildMetadataIntegration(), svelte(), mdx(), sitemap()],
