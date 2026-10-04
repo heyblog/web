@@ -10,6 +10,16 @@ export function managementNavigation(
   user: Pick<SessionUser, 'role' | 'permissions'>,
 ): readonly ManagementNavigationItem[] {
   const items: ManagementNavigationItem[] = [];
+  if (
+    user.role === 'SYS_ADMIN' ||
+    (user.role === 'ADMIN' && user.permissions.includes('announcement.manage'))
+  ) {
+    items.push({
+      label: '公告管理',
+      href: '/management/announcements',
+      description: '管理主公告与横幅公告',
+    });
+  }
   if (user.role === 'SYS_ADMIN' || user.permissions.includes('site_audit.review')) {
     items.push({
       label: '站点申请审核',

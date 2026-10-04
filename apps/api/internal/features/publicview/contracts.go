@@ -21,6 +21,7 @@ type SiteIdentifier struct {
 }
 
 type Reader interface {
+	AnnouncementReader
 	Home(context.Context) (Home, error)
 	Directory(context.Context, DirectoryQuery) (DirectoryView, error)
 	DirectoryOptions(context.Context) (DirectoryOptions, error)
@@ -49,7 +50,7 @@ type CardQueries interface {
 }
 
 type AnnouncementQueries interface {
-	GetLeadingActiveMainAnnouncement(context.Context) (dbgen.ContentAnnouncement, error)
+	ListActiveMainAnnouncements(context.Context) ([]dbgen.ContentAnnouncement, error)
 }
 
 type HomeSiteQueries interface {
@@ -111,6 +112,7 @@ type IconQueries interface {
 }
 
 type Queries interface {
+	AnnouncementReadQueries
 	HomeQueries
 	DirectoryQueries
 	DirectoryOptionsQueries

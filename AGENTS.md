@@ -92,8 +92,8 @@ Automatic builds skip merged PRs authored by `renovate[bot]`; explicit Container
 require a verified main CI run ID and default to build-and-scan only. Do not add publication
 queues, standalone workflow validation scripts, or disable actionlint diagnostics.
 
-Use the validation matrix below; root `verify` does not include API race tests, container
-integration tests, or the Web standalone smoke task.
+Use the validation matrix below; root `verify` does not include API race tests or container
+integration tests.
 
 ## Principles
 

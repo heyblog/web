@@ -1,0 +1,175 @@
+---
+import { IconArrowLeft, IconArrowRight, IconPlus } from '@tabler/icons-svelte';
+
+import { announcementListQuery } from '@/api/announcements/announcements.proxy.server';
+import { loadManagedAnnouncements } from '@/api/announcements/announcements.server';
+import {
+  canManageAnnouncements,
+  statusLabels,
+} from '@/application/announcements/announcement-editor.shared';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fannouncements');
+if (!canManageAnnouncements(actor)) return Astro.redirect('/forbidden');
+const filterURL = new URL(Astro.url);
+for (const key of ['kind', 'status'])
+  if (filterURL.searchParams.get(key) === '') filterURL.searchParams.delete(key);
+const query = announcementListQuery(filterURL);
+const list = query === null ? null : await loadManagedAnnouncements(Astro.request, query);
+if (!list) Astro.response.status = query === null ? 400 : 503;
+const kind = filterURL.searchParams.get('kind') ?? '';
+const status = filterURL.searchParams.get('status') ?? '';
+const inputClass =
+  'min-h-11 rounded-md border border-line-strong bg-surface px-3 text-sm sm:min-h-10';
+function pageHref(page: number) {
+  const url = new URL(filterURL);
+  url.searchParams.set('page', String(page));
+  return `${url.pathname}${url.search}`;
+}
+---
+
+<ManagementLayout
+  title="公告管理 | HeyBlog"
+  heading="公告管理"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  <div class="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
+    <form class="flex flex-wrap items-end gap-3" action="/management/announcements" method="get">
+      <label class="grid gap-1.5 text-sm font-medium">
+        类型
+        <select class={inputClass} name="kind">
+          <option value="" selected={!kind}>
+            全部类型
+          </option>
+          <option value="MAIN" selected={kind === 'MAIN'}>
+            主公告
+          </option>
+          <option value="BANNER" selected={kind === 'BANNER'}>
+            横幅公告
+          </option>
+        </select>
+      </label>
+      <label class="grid gap-1.5 text-sm font-medium">
+        状态
+        <select class={inputClass} name="status">
+          <option value="" selected={!status}>
+            全部状态
+          </option>
+          <option value="DRAFT" selected={status === 'DRAFT'}>
+            草稿
+          </option>
+          <option value="PUBLISHED" selected={status === 'PUBLISHED'}>
+            已发布
+          </option>
+          <option value="ARCHIVED" selected={status === 'ARCHIVED'}>
+            已归档
+          </option>
+        </select>
+      </label>
+      <button class={`${inputClass} font-medium hover:bg-subtle`} type="submit">
+        筛选
+      </button>
+    </form>
+    <a
+      class="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover sm:min-h-10"
+      href="/management/announcements/new"
+    >
+      <IconPlus size={16} aria-hidden="true" />
+      新建公告
+    </a>
+  </div>
+  {!list ? (
+    <div class="py-8" role="alert">
+      <p>{query === null ? '筛选参数无效。' : '公告暂时无法加载。'}</p>
+      <a
+        class="mt-4 inline-flex min-h-11 items-center text-tint-fg"
+        href="/management/announcements"
+      >
+        重新加载
+      </a>
+    </div>
+  ) : list.announcements.length === 0 ? (
+    <p class="py-10 text-sm text-fg-muted">暂无公告。</p>
+  ) : (
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-160 text-left text-sm">
+        <thead>
+          <tr class="border-b border-line text-xs text-fg-muted">
+            <th class="p-4 font-medium">公告</th>
+            <th class="p-4 font-medium">类型</th>
+            <th class="p-4 font-medium">状态</th>
+            <th class="p-4 font-medium">优先级</th>
+            <th class="p-4 font-medium">更新时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.announcements.map((announcement) => (
+            <tr class="border-b border-line hover:bg-subtle">
+              <td class="max-w-96 px-4 py-3">
+                <a
+                  class="inline-flex min-h-11 items-center font-medium wrap-anywhere text-tint-fg"
+                  href={`/management/announcements/${announcement.id}`}
+                >
+                  {announcement.title}
+                </a>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                {announcement.kind === 'MAIN' ? '主公告' : '横幅公告'}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="rounded-sm bg-tint px-2 py-1 text-xs text-tint-fg">
+                  {statusLabels[announcement.effectiveStatus]}
+                </span>
+              </td>
+              <td class="px-4 py-3 font-mono">{announcement.priority}</td>
+              <td class="px-4 py-3 text-xs whitespace-nowrap text-fg-muted">
+                <time datetime={announcement.updatedAt}>
+                  {new Date(announcement.updatedAt).toLocaleString('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                  })}
+                </time>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+  {list ? (
+    <nav
+      class="mt-6 flex flex-wrap items-center justify-between gap-4 text-sm"
+      aria-label="管理公告分页"
+    >
+      <span class="text-fg-muted">
+        共 {list.total} 条 · 第 {list.page} 页
+      </span>
+      <div class="flex gap-4">
+        {list.page > 1 ? (
+          <a
+            class="inline-flex min-h-11 items-center gap-2 text-tint-fg"
+            href={pageHref(list.page - 1)}
+          >
+            <IconArrowLeft size={16} aria-hidden="true" />
+            上一页
+          </a>
+        ) : null}
+        {list.page * list.pageSize < list.total ? (
+          <a
+            class="inline-flex min-h-11 items-center gap-2 text-tint-fg"
+            href={pageHref(list.page + 1)}
+          >
+            下一页
+            <IconArrowRight size={16} aria-hidden="true" />
+          </a>
+        ) : null}
+      </div>
+    </nav>
+  ) : null}
+</ManagementLayout>

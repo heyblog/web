@@ -21,7 +21,7 @@ test('development renders prerendered headers and decodable site QR images', asy
     if (request.url === `/sites/id/${profile.shortId}`) {
       response.end(JSON.stringify(profile));
     } else if (request.url === '/home') {
-      response.end(JSON.stringify({ siteCount: 0, announcement: null, sites: [] }));
+      response.end(JSON.stringify({ siteCount: 0, announcements: [], sites: [] }));
     } else {
       response.statusCode = 401;
       response.end(JSON.stringify({ code: 'unauthorized' }));

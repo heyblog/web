@@ -293,6 +293,16 @@ func (importTestPublicViews) Home(context.Context) (publicview.Home, error) {
 	return publicview.Home{}, nil
 }
 
+func (importTestPublicViews) Banner(context.Context) (*publicview.Announcement, error) {
+	return nil, nil
+}
+func (importTestPublicViews) AnnouncementArchive(context.Context, int32, int32) (publicview.AnnouncementArchive, error) {
+	return publicview.AnnouncementArchive{Announcements: []publicview.Announcement{}, Page: 1, PageSize: 20}, nil
+}
+func (importTestPublicViews) AnnouncementByID(context.Context, string) (*publicview.Announcement, error) {
+	return nil, errors.New("announcement not found")
+}
+
 func (importTestPublicViews) Directory(
 	context.Context,
 	publicview.DirectoryQuery,

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { refreshHome } from '../src/api/home/home.browser.ts';
+import { parseHomeView } from '../src/api/home/home.responses.ts';
 import {
   formatSiteJoinedAt,
   formatSiteUpdatedAt,
@@ -40,7 +41,7 @@ test('always uses the short ID for internal site detail routes', () => {
 test('refreshes home data through the same-origin web endpoint', async () => {
   let requestURL: string | URL | Request | undefined;
   let requestInit: RequestInit | undefined;
-  const expected = { siteCount: 0, announcement: null, sites: [] };
+  const expected = { siteCount: 0, announcements: [], sites: [] };
 
   const result = await refreshHome(undefined, async (input, init) => {
     requestURL = input;
@@ -59,6 +60,16 @@ test('rejects failed home refresh responses without exposing their body', async 
     refreshHome(undefined, async () => new Response('internal details', { status: 503 })),
     /status 503/,
   );
+});
+
+test('home rejects the retired single-announcement shape and unsafe carousel actions', () => {
+  assert.equal(parseHomeView({ siteCount: 0, announcement: null, sites: [] }), null);
+  assert.equal(parseHomeView({ siteCount: 0, announcements: [{}], sites: [] }), null);
+  assert.deepEqual(parseHomeView({ siteCount: 0, announcements: [], sites: [] }), {
+    siteCount: 0,
+    announcements: [],
+    sites: [],
+  });
 });
 
 test('orders blog card tags by warning, classification, and tertiary tags', () => {

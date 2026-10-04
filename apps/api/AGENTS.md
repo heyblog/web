@@ -21,7 +21,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   tests in cohesive packages under `apps/api/internal`.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
-- `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `siteaudit`,
+- `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `announcement`, `siteaudit`,
   `dataimport`, `publicview`, and `exampleapi`. Preserve their feature boundaries and colocated
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,

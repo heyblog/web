@@ -8,6 +8,9 @@ All file references are repository-root-relative. This file refines `AGENTS.md` 
   `apps/web/astro.config.ts`, and `apps/web/tsconfig.json`.
 - Commands: `apps/web/mise.toml`; release version: root `mise.toml#vars.project_version`.
 - Site metadata: `apps/web/src/site.config.ts`; content schemas: `apps/web/src/content.config.ts`.
+- Announcement transport is owned by `src/api/announcements`; editor state, inline-markup
+  projection, draft field validation, banner dismissal and carousel playback by `src/application/announcements`. `marked` parses only
+  inline source into escaped Svelte nodes; never render announcement source as raw HTML or MDX.
   `scripts/sync-web-content.mjs` owns the generated `apps/web/contents` snapshot. Offline checks
   consume that snapshot rather than refresh it.
 - Own routing, rendering, browser state, presentation, and the same-origin HTTP boundary. Domain
@@ -49,6 +52,7 @@ layer and browser-module boundaries.
 
 - Astro owns filesystem routing, SSR, prerendering, middleware, and island placement. Keep server
   output and the Node standalone adapter coherent with build and deployment tasks.
+- Preserve explicit client prebundling of Tabler icons and `marked`.
 - Svelte may render without hydration. Add a client directive only when browser state or
   interaction needs it; preserve SSR-only composition and stable island fallbacks.
 - Decide SSR, prerendering, and caching per route. Personalized server islands retain
@@ -96,7 +100,7 @@ Run from the repository root using `apps/web/mise.toml`:
 
 - `mise run //apps/web:test`: focused Node tests for transport and critical browser/server logic.
 - `mise run //apps/web:check`: formatting, ESLint/Stylelint, and Astro/TypeScript checks.
-- `mise run //apps/web:verify`: tests, checks, build, and isolated standalone smoke.
+- `mise run //apps/web:verify`: tests, checks, and build.
 - `mise run //apps/web:dev` or `mise run //apps/web:preview`: task-managed development or build
   preview when needed.
 - `mise run //apps/web:prepare`: explicit generated-content refresh, not part of offline validation.

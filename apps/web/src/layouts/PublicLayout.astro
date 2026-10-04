@@ -1,4 +1,5 @@
 ---
+import AnnouncementBanner from '@/components/announcements/AnnouncementBanner.astro';
 import PublicHeader from '@/components/chrome/PublicHeader.astro';
 import SiteFooter from '@/components/chrome/SiteFooter.astro';
 
@@ -19,14 +20,21 @@ interface Props {
   publishedTime?: string | Date;
   modifiedTime?: string | Date;
   showFooter?: boolean;
+  showAnnouncementBanner?: boolean;
   enableAnalytics?: boolean;
 }
 
-const { enableAnalytics = true, showFooter = true, ...metadata } = Astro.props;
+const {
+  enableAnalytics = true,
+  showFooter = true,
+  showAnnouncementBanner = true,
+  ...metadata
+} = Astro.props;
 ---
 
 <BaseLayout {...metadata} {enableAnalytics} bodyClass="flex min-h-dvh flex-col">
   <PublicHeader currentPath={Astro.url.pathname} />
+  {showAnnouncementBanner ? <AnnouncementBanner server:defer /> : null}
   <main class="flex w-full flex-1 flex-col">
     <slot />
   </main>

@@ -1,0 +1,98 @@
+---
+import { IconArrowLeft, IconArrowRight } from '@tabler/icons-svelte';
+
+import { loadPublicAnnouncements } from '@/api/announcements/announcements.server';
+import AnnouncementInline from '@/components/announcements/AnnouncementInline.svelte';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+const pageValue = Astro.url.searchParams.get('page') ?? '1';
+const validPage = /^[1-9]\d*$/.test(pageValue) && Number.isSafeInteger(Number(pageValue));
+const page = validPage ? Number(pageValue) : 1;
+const result = validPage
+  ? await loadPublicAnnouncements(Astro.request, page)
+  : { kind: 'bad-request' as const };
+const list = result.kind === 'success' ? result.data : null;
+if (!list) {
+  Astro.response.status = result.kind === 'bad-request' ? 400 : 503;
+  if (Astro.response.status === 503) Astro.response.headers.set('Retry-After', '30');
+}
+const pageCount = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
+---
+
+<PublicLayout title="公告 | HeyBlog" description="HeyBlog 站点公告" canonicalPath="/announcements">
+  <div class="mx-auto w-full max-w-4xl px-4 py-10 sm:px-8 sm:py-16">
+    <header class="border-b border-line pb-6">
+      <h1 class="text-3xl font-bold">公告</h1>
+    </header>
+    {!list ? (
+      <div class="py-8" role="alert">
+        <p>{result.kind === 'bad-request' ? '分页参数无效。' : '公告暂时无法加载。'}</p>
+        <a class="mt-4 inline-flex min-h-11 items-center text-tint-fg" href="/announcements">
+          重新加载
+        </a>
+      </div>
+    ) : list.announcements.length === 0 ? (
+      <p class="py-10 text-fg-muted">暂无公告。</p>
+    ) : (
+      <div>
+        {list.announcements.map((announcement) => (
+          <article class="border-b border-line py-6">
+            <time class="font-mono text-xs text-fg-muted" datetime={announcement.startsAt}>
+              {new Date(announcement.startsAt).toLocaleDateString('zh-CN', {
+                timeZone: 'Asia/Shanghai',
+              })}
+            </time>
+            <h2 class="mt-2 text-lg font-semibold wrap-anywhere">
+              <a class="hover:text-tint-fg" href={`/announcements/${announcement.id}`}>
+                {announcement.title}
+              </a>
+            </h2>
+            {announcement.bodyMarkdown ? (
+              <div class="mt-3 text-sm/6 text-fg-muted">
+                <AnnouncementInline source={announcement.bodyMarkdown} />
+              </div>
+            ) : null}
+            <a
+              class="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-tint-fg"
+              href={`/announcements/${announcement.id}`}
+            >
+              查看公告
+              <IconArrowRight size={16} aria-hidden="true" />
+            </a>
+          </article>
+        ))}
+      </div>
+    )}
+    {list && list.total > list.pageSize ? (
+      <nav class="mt-6 flex items-center justify-between gap-4" aria-label="公告分页">
+        {page > 1 ? (
+          <a
+            class="inline-flex min-h-11 items-center gap-2 text-sm text-tint-fg"
+            href={`/announcements?page=${page - 1}`}
+          >
+            <IconArrowLeft size={16} aria-hidden="true" />
+            上一页
+          </a>
+        ) : (
+          <span />
+        )}
+        <span class="text-sm text-fg-muted">
+          第 {page} 页 / {pageCount} 页
+        </span>
+        {page < pageCount ? (
+          <a
+            class="inline-flex min-h-11 items-center gap-2 text-sm text-tint-fg"
+            href={`/announcements?page=${page + 1}`}
+          >
+            下一页
+            <IconArrowRight size={16} aria-hidden="true" />
+          </a>
+        ) : (
+          <span />
+        )}
+      </nav>
+    ) : null}
+  </div>
+</PublicLayout>

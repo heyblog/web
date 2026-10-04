@@ -26,6 +26,7 @@ export const siteConfig: SiteConfig = {
         prefetch: false,
       },
       { label: '项目动态', href: '/blog', match: 'prefix', sort: 20 },
+      { label: '公告', href: '/announcements', match: 'prefix', sort: 25 },
       { label: '成员', href: '/members', match: 'prefix', sort: 30 },
     ],
     submission: {

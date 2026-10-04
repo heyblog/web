@@ -60,7 +60,9 @@
   aria-labelledby="discover-title"
   aria-busy={refreshStatus === 'loading'}
 >
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div
+    class="mx-auto flex w-full max-w-300 flex-col gap-3 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6"
+  >
     <div>
       <p class="font-mono text-xs font-medium text-tint-fg">每日发现</p>
       <h2 class="mt-2 text-2xl/tight font-semibold" id="discover-title">今天，从这些博客开始</h2>
@@ -85,9 +87,7 @@
 
   <div id="home-site-results">
     {#if unavailable}
-      <div
-        class="mt-6 flex min-h-44 flex-col items-center justify-center rounded-md border border-line bg-surface px-6 text-center"
-      >
+      <div class="mt-6 flex min-h-44 flex-col items-center justify-center px-6 text-center">
         <span
           class="inline-flex size-12 items-center justify-center rounded-md bg-subtle text-fg-muted"
         >
@@ -96,9 +96,7 @@
         <h3 class="mt-4 text-sm font-semibold">推荐暂时无法加载</h3>
       </div>
     {:else if sites.length === 0}
-      <div
-        class="mt-6 flex min-h-44 flex-col items-center justify-center rounded-md border border-line bg-surface px-6 text-center"
-      >
+      <div class="mt-6 flex min-h-44 flex-col items-center justify-center px-6 text-center">
         <span
           class="inline-flex size-12 items-center justify-center rounded-md bg-subtle font-mono text-sm font-semibold text-fg-muted"
         >

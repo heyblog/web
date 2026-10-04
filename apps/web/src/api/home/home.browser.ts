@@ -1,3 +1,4 @@
+import { parseHomeView } from './home.responses.ts';
 import type { HomeView } from './home.types.ts';
 
 export async function refreshHome(
@@ -14,5 +15,8 @@ export async function refreshHome(
     throw new Error(`home refresh failed with status ${response.status}`);
   }
 
-  return (await response.json()) as HomeView;
+  const value: unknown = await response.json();
+  const result = parseHomeView(value);
+  if (!result) throw new Error('invalid home response');
+  return result;
 }

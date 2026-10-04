@@ -1,0 +1,10 @@
+---
+import { loadAnnouncementBanner } from '@/api/announcements/announcements.server';
+
+import AnnouncementBannerContent from './AnnouncementBannerContent.svelte';
+
+const announcement = await loadAnnouncementBanner(Astro.request);
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+{announcement ? <AnnouncementBannerContent client:load {announcement} /> : null}

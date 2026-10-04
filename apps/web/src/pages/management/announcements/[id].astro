@@ -1,0 +1,53 @@
+---
+import {
+  loadAnnouncementRevisions,
+  loadManagedAnnouncement,
+} from '@/api/announcements/announcements.server';
+import { isUUID } from '@/api/announcements/announcements.types';
+import { canManageAnnouncements } from '@/application/announcements/announcement-editor.shared';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import AnnouncementEditor from '@/components/management/announcements/AnnouncementEditor.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+if (!canManageAnnouncements(actor)) return Astro.redirect('/forbidden');
+const id = Astro.params.id ?? '';
+const result = isUUID(id)
+  ? await loadManagedAnnouncement(Astro.request, id)
+  : { status: 404, announcement: null };
+if (result.status === 401)
+  return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+if (result.status === 403) return Astro.redirect('/forbidden');
+const revisions = result.announcement ? await loadAnnouncementRevisions(Astro.request, id) : null;
+if (!result.announcement) Astro.response.status = result.status === 404 ? 404 : 503;
+---
+
+<ManagementLayout
+  title="公告管理 | HeyBlog"
+  heading="公告详情"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  {result.announcement ? (
+    <AnnouncementEditor
+      client:load
+      initialAnnouncement={result.announcement}
+      initialRevisions={revisions}
+    />
+  ) : (
+    <div role="alert">
+      <p>{result.status === 404 ? '公告不存在。' : '公告暂时无法加载。'}</p>
+      <a
+        class="mt-4 inline-flex min-h-11 items-center text-tint-fg"
+        href={result.status === 404 ? '/management/announcements' : Astro.url.pathname}
+      >
+        {result.status === 404 ? '返回列表' : '重新加载'}
+      </a>
+    </div>
+  )}
+</ManagementLayout>

@@ -1,19 +1,10 @@
+import type { PublicAnnouncement } from '../announcements/announcements.types.ts';
 import { type HomeSiteCard } from '../sites/site-card.types.ts';
 
-export interface HomeAnnouncementAction {
-  label: string;
-  href: string;
-  external: boolean;
-}
-
-export interface HomeAnnouncement {
-  title: string;
-  startsAt: string;
-  action: HomeAnnouncementAction | null;
-}
+export type HomeAnnouncement = PublicAnnouncement;
 
 export interface HomeView {
   siteCount: number;
-  announcement: HomeAnnouncement | null;
+  announcements: readonly HomeAnnouncement[];
   sites: HomeSiteCard[];
 }

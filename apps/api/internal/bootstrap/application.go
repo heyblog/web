@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"heyblog-api/internal/domain/site"
+	"heyblog-api/internal/features/announcement"
 	"heyblog-api/internal/features/apikey"
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/features/dataimport"
@@ -178,6 +179,9 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		MailFrom: configuration.Mail.Senders.Verification.Address,
 	}})
 	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
+		return nil, err
+	}
+	if err := announcement.RegisterRoutes(router.API, announcement.NewService(announcement.NewRepository(dependencies.DatabasePool()), authService), options.WebToken); err != nil {
 		return nil, err
 	}
 	if err := auth.RegisterAPIKeyManagementRoutes(router.API, authService, keyService, options.WebToken, options.Logger); err != nil {
