@@ -153,8 +153,16 @@ description = "Run integration tests"
 run = [{ task = "//apps/api:test:integration" }]
 
 [security]
-description = "Run checks that require vulnerability database access"
-run = ["pnpm audit --audit-level high", { task = "//apps/api:vulncheck" }]
+description = "Scan production dependencies using vulnerability databases"
+run = [{ task = "security:node" }, { task = "//apps/api:vulncheck" }]
+
+["security:node"]
+description = "Scan production Node dependencies"
+run = "pnpm audit --prod --audit-level high"
+
+["security:dev"]
+description = "Scan development Node dependencies for advisory warnings"
+run = "pnpm audit --dev --audit-level high"
 
 [verify]
 description = "Run all offline checks"

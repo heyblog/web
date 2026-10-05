@@ -4,6 +4,7 @@ packages:
 
 overrides:
   devalue@<5.9.3: ^6.0.2
+  http-cache-semantics@<4.3.0: 4.3.0
   'nanoid@<3.3.18': 3.3.19
 
 enableGlobalVirtualStore: false
@@ -11,6 +12,9 @@ enableGlobalVirtualStore: false
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
+minimumReleaseAgeExclude:
+  # Allow the exact security fix before the normal release waiting period.
+  - http-cache-semantics@4.3.0
 trustPolicy: no-downgrade
 trustPolicyExclude:
   # Exact locked version reviewed after pnpm reported a registry trust downgrade.
