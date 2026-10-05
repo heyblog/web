@@ -86,12 +86,18 @@ jobs:
         run: mise run test:integration
   web-test:
     name: Web test
+    needs: content
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Download Web content
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-content
+          path: apps/web/contents
       - name: Set up repository
         uses: ./.github/actions/setup
         with:
@@ -108,17 +114,29 @@ jobs:
           persist-credentials: false
       - name: Set up repository
         uses: ./.github/actions/setup
-      - name: Scan dependencies
+      - name: Scan production dependencies
         id: scan
         continue-on-error: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login != 'renovate[bot]' }}
         run: mise run security
-      - name: Report scan failure
+      - name: Report production scan failure
         if: ${{ !cancelled() && steps.scan.outcome == 'failure' }}
         env:
           SCAN_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
         run: |
-          printf '::warning title=Dependency security::扫描未通过。请查看 Scan dependencies 步骤日志：%s\n' "${SCAN_LOG_URL}"
-          printf '### Dependency security：扫描未通过\n\n扫描发现漏洞或命令执行失败，请查看 [Scan dependencies 步骤日志](%s)。\n' "${SCAN_LOG_URL}" >>"${GITHUB_STEP_SUMMARY}"
+          printf '::warning title=Production dependency security::生产依赖扫描未通过。请查看 Scan production dependencies 步骤日志：%s\n' "${SCAN_LOG_URL}"
+          printf '### Production dependency security：扫描未通过\n\n生产依赖扫描发现漏洞或命令执行失败，请查看 [Scan production dependencies 步骤日志](%s)。\n' "${SCAN_LOG_URL}" >>"${GITHUB_STEP_SUMMARY}"
+      - name: Scan development dependencies
+        id: dev-scan
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: mise run security:dev
+      - name: Report development scan failure
+        if: ${{ !cancelled() && steps.dev-scan.outcome == 'failure' }}
+        env:
+          SCAN_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: |
+          printf '::warning title=Development dependency security::开发依赖扫描未通过，不阻断 CI。请查看 Scan development dependencies 步骤日志：%s\n' "${SCAN_LOG_URL}"
+          printf '### Development dependency security：扫描未通过\n\n开发依赖扫描发现漏洞或命令执行失败，不阻断 CI。请查看 [Scan development dependencies 步骤日志](%s)。\n' "${SCAN_LOG_URL}" >>"${GITHUB_STEP_SUMMARY}"
   ci-gate:
     name: CI gate
     if: ${{ always() }}

@@ -13,7 +13,11 @@ run = "node ./scripts/pre-commit.mjs"
 
 ["hooks:test"]
 description = "Test Git hook support"
-run = "node --test ./scripts/pre-commit.test.mjs"
+run = "node --test ./scripts/pre-commit*.test.mjs"
+
+["hooks:security"]
+description = "Audit staged Node dependency changes"
+run = "node ./scripts/pre-commit-security.mjs"
 
 ["hooks:commit-msg"]
 description = "Lint commit message file"

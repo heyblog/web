@@ -84,7 +84,17 @@ their nearest `AGENTS.md`.
 - `mise run check`: run repository formatting, lint, type, SQL, mise, and workflow checks.
 - `mise run verify`: run checks, ordinary tests, and application builds.
 - `mise run verify:full`: run extended tests, builds, dependency and container security validation.
-- `mise run security`: run only the network-backed vulnerability checks.
+- `mise run security`: scan production Node dependencies and run API vulnerability checks.
+- `mise run security:node`: scan production Node dependencies; high and critical findings fail.
+- `mise run security:dev`: scan development Node dependencies; CI and Git hooks report failures
+  as warnings without blocking their gates.
+
+The pre-commit hook checks Node dependencies only when staged changes affect workspace
+`package.json` files, `pnpm-workspace.yaml`, or `pnpm-lock.yaml`, including deletions and renames.
+Dependency inputs must have no unstaged changes so the scan matches the staged inputs. The hook
+validates the frozen lockfile, warns on development audit failures, and blocks on production
+audit failures. Ordinary code commits do not run network-backed audits; Go hook checks are
+unchanged.
 
 CI validates PRs and main independently of the Container workflow. Container builds consume
 the exact SHA and Web artifact of a successful main CI run with a successful CI gate.

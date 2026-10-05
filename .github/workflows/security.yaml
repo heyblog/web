@@ -20,5 +20,19 @@ jobs:
       - name: Set up repository
         uses: ./.github/actions/setup
 
-      - name: Scan dependencies
+      - name: Scan production dependencies
         run: mise run security
+
+      - name: Scan development dependencies
+        id: dev-scan
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: mise run security:dev
+
+      - name: Report development scan failure
+        if: ${{ !cancelled() && steps.dev-scan.outcome == 'failure' }}
+        env:
+          SCAN_LOG_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: |
+          printf '::warning title=Development dependency security::开发依赖扫描未通过，不阻断 CI。请查看 Scan development dependencies 步骤日志：%s\n' "${SCAN_LOG_URL}"
+          printf '### Development dependency security：扫描未通过\n\n开发依赖扫描发现漏洞或命令执行失败，不阻断 CI。请查看 [Scan development dependencies 步骤日志](%s)。\n' "${SCAN_LOG_URL}" >>"${GITHUB_STEP_SUMMARY}"
