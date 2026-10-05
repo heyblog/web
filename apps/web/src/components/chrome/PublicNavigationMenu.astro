@@ -5,6 +5,8 @@ import {
   IconDice,
   IconList,
   IconMenu2,
+  IconSpeakerphone,
+  IconTopologyStar3,
   IconUsers,
   IconX,
 } from '@tabler/icons-svelte';
@@ -31,8 +33,10 @@ const activeTriggerClasses = [
 ][activeIndex];
 const navigationIcons: Readonly<Record<string, typeof IconList>> = {
   '/site': IconList,
+  '/graph': IconTopologyStar3,
   '/site/go': IconDice,
   '/blog': IconArticle,
+  '/announcements': IconSpeakerphone,
   '/members': IconUsers,
 };
 const triggerClass =
