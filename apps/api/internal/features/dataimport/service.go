@@ -32,6 +32,9 @@ func NewService(store Store, generateShortID func() (string, error)) *Service {
 }
 
 func (service *Service) Import(ctx context.Context, bundles Bundles) (Counts, error) {
+	if err := validateImportMode(bundles); err != nil {
+		return Counts{}, errors.Join(ErrInvalidBundle, err)
+	}
 	if !service.mutex.TryLock() {
 		return Counts{}, ErrImportRunning
 	}
@@ -46,6 +49,13 @@ func (service *Service) Import(ctx context.Context, bundles Bundles) (Counts, er
 	plan, err := BuildPlan(bundles, service.generateShortID)
 	if err != nil {
 		return Counts{}, errors.Join(ErrInvalidBundle, err)
+	}
+	if bundles.Mode == ImportIncremental {
+		store, ok := service.store.(incrementalStore)
+		if !ok {
+			return Counts{}, errors.Join(ErrDependencyUnavailable, errors.New("incremental import is unavailable"))
+		}
+		return store.ImportIncremental(ctx, plan, service.generateShortID)
 	}
 	return service.store.Import(ctx, plan)
 }

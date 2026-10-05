@@ -18,6 +18,7 @@ export const siteConfig: SiteConfig = {
   navigation: {
     primary: [
       { label: '博客列表', href: '/site', match: 'prefix', sort: 10 },
+      { label: '友链图谱', href: '/graph', match: 'exact', sort: 12 },
       {
         label: '随机前往',
         href: '/site/go?preview=true',

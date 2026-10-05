@@ -1,0 +1,20 @@
+---
+import GraphExplorer from '@/components/site-graph/GraphExplorer.svelte';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<PublicLayout
+  title="友链图谱"
+  description="探索 HeyBlog 博客之间的友链关系。"
+  canonicalPath="/graph"
+>
+  <GraphExplorer client:load />
+  <noscript>
+    <p class="p-6 text-center">
+      友链图谱需要启用 JavaScript。<a href="/site">浏览博客列表</a>
+    </p>
+  </noscript>
+</PublicLayout>

@@ -52,7 +52,10 @@ layer and browser-module boundaries.
 
 - Astro owns filesystem routing, SSR, prerendering, middleware, and island placement. Keep server
   output and the Node standalone adapter coherent with build and deployment tasks.
-- Preserve explicit client prebundling of Tabler icons and `marked`.
+- Preserve explicit client prebundling of Tabler icons, `marked`, and graph Worker imports
+  (`d3-force-3d`, `graphology`, `graphology-shortest-path/unweighted.js`). Worker imports are not
+  covered by the initial page scan; late optimization can invalidate Astro's dev toolbar module.
+  `apps/web/tests/dev-server.test.ts` verifies runtime scripts after those imports load.
 - Svelte may render without hydration. Add a client directive only when browser state or
   interaction needs it; preserve SSR-only composition and stable island fallbacks.
 - Decide SSR, prerendering, and caching per route. Personalized server islands retain
@@ -60,6 +63,18 @@ layer and browser-module boundaries.
   to every route.
 - Browser backend calls enter through purpose-built same-origin routes. Do not expose the internal
   API origin or secrets through `PUBLIC_*` values or add an unrestricted proxy.
+- Friend-link graphs use `/api/site-graph` and `/api/site-graph/{identifier}`. Graph DTOs belong to
+  `src/api/sites`; selection, layout Worker, pathfinding, and renderer lifecycle belong to
+  `src/application/site-graph`. Three.js renders the global graph; d3-force-3d and graphology
+  run layout and shortest paths in the Worker. Details lazy-load the one-hop SVG graph.
+  Dispose Workers and GPU resources when leaving; graph data must not enter persistent storage.
+  Graph query and layout Workers are independent. Global visibility filters leave the complete
+  search/path topology intact; isolates use a separate stable layout. The fullscreen workspace
+  preserves its canvas and view state across separate webpage and native fullscreen modes. Native
+  fullscreen failures keep the current mode and offer webpage fullscreen. SVG and WebGL share
+  pointer gestures, anchored zoom and CSS-pixel pan. Relative zoom ranges from 0.25 to 1024. Both renderers share
+  viewport-aware name/domain labels, density hysteresis, and collision placement. Inline
+  touch interaction defaults to page scrolling and has an explicit graph-operation mode.
 - Authentication transport lives in `apps/web/src/api/auth`; session checks, safe local `next`
   paths, and page redirects live in `apps/web/src/application/auth`. Web guards improve experience;
   the Go API remains the authorization authority.

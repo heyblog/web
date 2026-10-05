@@ -70,6 +70,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/announcements", "/announcements/banner", "/announcements/{id}",
 		"/management/announcements", "/management/announcements/{id}",
 		"/management/announcements/{id}/publish", "/management/announcements/{id}/archive", "/management/announcements/{id}/revisions",
+		"/sites/graph", "/sites/id/{identifier}/graph",
 		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options", "/sites/random",
 		"/v1/example",
 		"/sites/id/{identifier}", "/sites/id/{identifier}/icon", "/sites/custom/{customId}",
@@ -173,8 +174,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 65 {
-		t.Fatalf("documented operation count = %d, want 65", operationCount)
+	if operationCount != 67 {
+		t.Fatalf("documented operation count = %d, want 67", operationCount)
 	}
 	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||
