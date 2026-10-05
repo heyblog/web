@@ -22,6 +22,8 @@ type SiteIdentifier struct {
 
 type Reader interface {
 	AnnouncementReader
+	Graph(context.Context) (FriendGraph, error)
+	SiteGraphByIdentifier(context.Context, SiteIdentifier) (FriendGraph, error)
 	Home(context.Context) (Home, error)
 	Directory(context.Context, DirectoryQuery) (DirectoryView, error)
 	DirectoryOptions(context.Context) (DirectoryOptions, error)
@@ -113,6 +115,7 @@ type IconQueries interface {
 
 type Queries interface {
 	AnnouncementReadQueries
+	GraphQueries
 	HomeQueries
 	DirectoryQueries
 	DirectoryOptionsQueries
@@ -120,4 +123,8 @@ type Queries interface {
 	LookupQueries
 	ProfileQueries
 	IconQueries
+}
+
+type GraphQueries interface {
+	GetPublicFriendGraph(context.Context, pgtype.UUID) ([]byte, error)
 }

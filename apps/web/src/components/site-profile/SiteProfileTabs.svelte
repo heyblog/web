@@ -5,14 +5,38 @@
     IconTimeline,
     IconTopologyStar3,
   } from '@tabler/icons-svelte';
-  import type { Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
 
+  import type GraphExplorer from '@/components/site-graph/GraphExplorer.svelte';
   import { nextTabIndex } from '@/shared/tab-navigation';
 
   interface Props {
     readonly children: Snippet;
+    readonly identifier: string;
   }
-  let { children }: Props = $props();
+  let { children, identifier }: Props = $props();
+  let Graph = $state<typeof GraphExplorer>();
+  let graphFailed = $state(false);
+
+  async function loadGraph(): Promise<void> {
+    graphFailed = false;
+    try {
+      Graph = (await import('@/components/site-graph/GraphExplorer.svelte')).default;
+    } catch {
+      graphFailed = true;
+    }
+  }
+  $effect(() => {
+    if (selected === 2 && !Graph && !graphFailed) void loadGraph();
+  });
+  onMount(() => {
+    const hash = () => {
+      if (window.location.hash === '#links') selected = 2;
+    };
+    hash();
+    window.addEventListener('hashchange', hash);
+    return () => window.removeEventListener('hashchange', hash);
+  });
 
   const tabs = [
     { id: 'basic', label: '基础信息' },
@@ -94,6 +118,14 @@
     >
       {#if tab.id === 'basic'}
         {@render children()}
+      {:else if tab.id === 'links'}
+        {#if Graph}<Graph {identifier} active={selected === 2} />
+        {:else if graphFailed}<button
+            class="min-h-11 px-4 text-sm text-tint-fg"
+            type="button"
+            onclick={() => void loadGraph()}>重新加载友链图谱</button
+          >
+        {:else}<p class="text-center text-sm text-fg-muted">正在加载友链图谱…</p>{/if}
       {:else}
         <div class="flex flex-col items-center gap-4 text-center">
           <span

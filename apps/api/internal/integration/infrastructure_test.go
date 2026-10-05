@@ -96,6 +96,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifySiteAuditAddressConflicts(ctx, t, pool)
 	verifySiteAuditLifecycle(ctx, t, pool)
 	verifyFriendLinkGraph(ctx, t, pool, adminConnection)
+	verifyPublicFriendGraph(ctx, t, pool)
 	verifyRuntimePermissions(ctx, t, pool)
 	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)
 	verifyUserDeletionSemantics(ctx, t, pool, migrationURL)
