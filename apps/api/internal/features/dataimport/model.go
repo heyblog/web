@@ -116,17 +116,19 @@ type FriendLinkRow struct {
 }
 
 type Counts struct {
-	Sites              int `json:"sites"`
-	Feeds              int `json:"feeds"`
-	Resources          int `json:"resources"`
-	Tags               int `json:"tags"`
-	SiteTags           int `json:"site_tags"`
-	SoftwareComponents int `json:"software_components"`
-	Dependencies       int `json:"dependencies"`
-	SiteComponents     int `json:"site_components"`
-	Sources            int `json:"sources"`
-	Origins            int `json:"origins"`
-	FriendLinks        int `json:"friend_links"`
+	MatchedSites        int `json:"matched_sites,omitempty"`
+	ExistingFriendLinks int `json:"existing_friend_links,omitempty"`
+	Sites               int `json:"sites"`
+	Feeds               int `json:"feeds"`
+	Resources           int `json:"resources"`
+	Tags                int `json:"tags"`
+	SiteTags            int `json:"site_tags"`
+	SoftwareComponents  int `json:"software_components"`
+	Dependencies        int `json:"dependencies"`
+	SiteComponents      int `json:"site_components"`
+	Sources             int `json:"sources"`
+	Origins             int `json:"origins"`
+	FriendLinks         int `json:"friend_links"`
 }
 
 func (plan Plan) Counts() Counts {

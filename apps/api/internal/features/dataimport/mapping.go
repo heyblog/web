@@ -22,6 +22,9 @@ func BuildPlan(bundles Bundles, generateShortID shortIDGenerator) (Plan, error) 
 			{Key: "ZHBLOGS_OLD", Name: "Legacy ZHBlogs directory data"},
 		},
 	}
+	if friendGraphInputs(bundles.Blogs.Inputs) {
+		plan.Sources = []SourceRow{{Key: friendGraphSourceKey, Name: "Friend graph JSONL export"}}
+	}
 	usedShortIDs := make(map[string]struct{}, len(bundles.Blogs.Blogs))
 	siteIDByHost := make(map[string]string, len(bundles.Blogs.Blogs))
 	tags := make(map[string]TagRow)

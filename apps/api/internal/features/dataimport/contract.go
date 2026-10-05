@@ -10,6 +10,7 @@ const (
 )
 
 type Bundles struct {
+	Mode     ImportMode
 	Blogs    BlogBundle
 	Graph    GraphBundle
 	Taxonomy *TagTaxonomyBundle
