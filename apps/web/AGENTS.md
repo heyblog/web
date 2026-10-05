@@ -52,7 +52,10 @@ layer and browser-module boundaries.
 
 - Astro owns filesystem routing, SSR, prerendering, middleware, and island placement. Keep server
   output and the Node standalone adapter coherent with build and deployment tasks.
-- Preserve explicit client prebundling of Tabler icons and `marked`.
+- Preserve explicit client prebundling of Tabler icons, `marked`, and graph Worker imports
+  (`d3-force-3d`, `graphology`, `graphology-shortest-path/unweighted.js`). Worker imports are not
+  covered by the initial page scan; late optimization can invalidate Astro's dev toolbar module.
+  `apps/web/tests/dev-server.test.ts` verifies runtime scripts after those imports load.
 - Svelte may render without hydration. Add a client directive only when browser state or
   interaction needs it; preserve SSR-only composition and stable island fallbacks.
 - Decide SSR, prerendering, and caching per route. Personalized server islands retain

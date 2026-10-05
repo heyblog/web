@@ -13,7 +13,7 @@ import { PNG } from 'pngjs';
 
 import { profile } from './site-og.fixture.ts';
 
-test('development renders prerendered headers and decodable site QR images', async () => {
+test('development keeps page scripts and QR images working after graph workers load', async () => {
   // Given: a fresh dev server and an isolated API with public fixture data.
   const directory = await mkdtemp(join(tmpdir(), 'heyblog-dev-'));
   const api = createServer((request, response) => {
@@ -46,6 +46,33 @@ test('development renders prerendered headers and decodable site QR images', asy
     assert.ok(typeof server.address === 'object');
     const origin = `http://127.0.0.1:${server.address.port}`;
     const get = (path: string) => fetch(origin + path, { signal: AbortSignal.timeout(120_000) });
+
+    // Resolve the toolbar before late-loaded Worker imports can change the dependency bundle.
+    const toolbar = '/@id/astro/runtime/client/dev-toolbar/entrypoint.js';
+    const initialToolbar = await get(toolbar);
+    assert.equal(initialToolbar.status, 200, 'initial development toolbar');
+    await initialToolbar.text();
+    for (const path of [
+      '/src/application/site-graph/site-graph.layout.worker.ts?worker_file&type=module',
+      '/src/application/site-graph/site-graph.engine.ts',
+    ]) {
+      const worker = await get(path);
+      assert.equal(worker.status, 200, path);
+      const source = await worker.text();
+      let loadedDependencies = 0;
+      for (const match of source.matchAll(/\bfrom\s+["']([^"']+)["']/gu)) {
+        const dependency = match[1];
+        if (!dependency?.startsWith('/') || !dependency.includes('/deps/')) continue;
+        const optimized = await get(dependency);
+        assert.equal(optimized.status, 200, dependency);
+        await optimized.text();
+        loadedDependencies++;
+      }
+      assert.ok(loadedDependencies > 0, `optimized Worker imports in ${path}`);
+    }
+    const loadedToolbar = await get(toolbar);
+    assert.equal(loadedToolbar.status, 200, 'toolbar after graph Worker dependencies load');
+    await loadedToolbar.text();
 
     // When: public prerendered and SSR pages share the development runtime.
     for (const path of ['/terms', '/privacy', '/blog', '/docs', '/', '/login']) {
