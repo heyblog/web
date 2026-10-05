@@ -64,6 +64,7 @@ type Querier interface {
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
 	GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
+	GetPublicFriendGraph(ctx context.Context, centerID pgtype.UUID) ([]byte, error)
 	GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash []byte) (DirectorySiteAudit, error)
 	GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error)
