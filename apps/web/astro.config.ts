@@ -54,7 +54,15 @@ export default defineConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['@tabler/icons-svelte', 'marked'],
+      // Worker imports are not discovered by the initial page scan.
+      // Prebundle them before late discovery can invalidate the dev toolbar's module ID.
+      include: [
+        '@tabler/icons-svelte',
+        'd3-force-3d',
+        'graphology',
+        'graphology-shortest-path/unweighted.js',
+        'marked',
+      ],
     },
     plugins: [
       tailwindcss(),
