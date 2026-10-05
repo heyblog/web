@@ -113,3 +113,68 @@ test('limits tertiary selections to twenty and removes them independently', () =
     false,
   );
 });
+
+test('classification edits use assignment roles when historical tertiary metadata has dictionary levels', () => {
+  const form = emptySubmission();
+  selectClassificationTag(form, { id: 'computer', name: '计算机', level: 1 });
+  selectClassificationTag(form, {
+    id: 'development',
+    name: '开发',
+    level: 2,
+    parent_id: 'computer',
+  });
+  form.tags.push({ id: 'writing', name: '写作', role: 'TERTIARY', level: 1 });
+  form.tags.push({ id: 'reading', name: '阅读', role: 'TERTIARY', level: 2 });
+  removeTag(form, 'writing');
+  assert.equal(
+    form.tags.some((tag) => tag.id === 'development'),
+    true,
+  );
+  selectClassificationTag(form, { id: 'life', name: '生活', level: 1 });
+  assert.deepEqual(
+    form.tags.map((tag) => tag.id),
+    ['reading', 'life'],
+  );
+});
+
+test('same dictionary ID can fill both classification roles and secondary removal preserves primary', () => {
+  const form = emptySubmission();
+  selectClassificationTag(form, { id: 'other', name: '其他', level: 1 });
+  selectClassificationTag(form, { id: 'other', name: '其他', level: 2, parent_id: 'other' });
+  assert.deepEqual(
+    form.tags.map((tag) => tag.role),
+    ['PRIMARY', 'SECONDARY'],
+  );
+  assert.deepEqual(
+    buildSubmissionPayload(form, 'CREATE').site.tags.map((tag) => [tag.id, tag.role]),
+    [
+      ['other', 'PRIMARY'],
+      ['other', 'SECONDARY'],
+    ],
+  );
+  selectTertiaryTag(form, { id: 'other', name: '其他', level: 3 });
+  assert.equal(form.tags.length, 2);
+  removeTag(form, 'other', 'SECONDARY');
+  assert.deepEqual(
+    form.tags.map((tag) => tag.role),
+    ['PRIMARY'],
+  );
+});
+
+test('tertiary exclusion only concerns the selected object classification', () => {
+  const form = emptySubmission();
+  selectClassificationTag(form, { id: 'computer', name: '计算机', level: 1 });
+  selectClassificationTag(form, {
+    id: 'development',
+    name: '开发',
+    level: 2,
+    parent_id: 'computer',
+  });
+  selectTertiaryTag(form, { id: 'life', name: '生活', level: 1 });
+  assert.equal(form.tags.find((tag) => tag.id === 'life')?.role, 'TERTIARY');
+  selectClassificationTag(form, { id: 'life', name: '生活', level: 1 });
+  assert.deepEqual(
+    form.tags.map((tag) => [tag.id, tag.role]),
+    [['life', 'PRIMARY']],
+  );
+});

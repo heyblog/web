@@ -29,7 +29,7 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 	if err != nil {
 		return DirectoryOptions{}, internalError(err, "list directory tag options")
 	}
-	cascades, err := service.options.ListEnabledSiteTagCascades(ctx)
+	cascades, err := service.options.ListPublicSiteTagCascades(ctx)
 	if err != nil {
 		return DirectoryOptions{}, internalError(err, "list directory classifications")
 	}

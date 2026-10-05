@@ -24,11 +24,11 @@ func loadSnapshot(ctx context.Context, queries snapshotQueries, siteID pgtype.UU
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("get site for snapshot: %w", err)
 	}
-	var cascade dbgen.GetEnabledSiteTagCascadeRow
+	var cascade dbgen.GetReadableSiteTagCascadeRow
 	if cascadeQueries, ok := queries.(interface {
-		GetEnabledSiteTagCascade(context.Context, pgtype.UUID) (dbgen.GetEnabledSiteTagCascadeRow, error)
+		GetReadableSiteTagCascade(context.Context, pgtype.UUID) (dbgen.GetReadableSiteTagCascadeRow, error)
 	}); ok {
-		cascade, err = cascadeQueries.GetEnabledSiteTagCascade(ctx, row.TagCascadeID)
+		cascade, err = cascadeQueries.GetReadableSiteTagCascade(ctx, row.TagCascadeID)
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("get site classification for snapshot: %w", err)
 		}
@@ -65,7 +65,7 @@ func loadSnapshot(ctx context.Context, queries snapshotQueries, siteID pgtype.UU
 
 func mapSnapshot(
 	row dbgen.DirectorySite,
-	cascade dbgen.GetEnabledSiteTagCascadeRow,
+	cascade dbgen.GetReadableSiteTagCascadeRow,
 	feeds []dbgen.DirectorySiteFeed,
 	resources []dbgen.DirectorySiteResource,
 	tags []dbgen.ListSiteTagsRow,
@@ -94,8 +94,8 @@ func mapSnapshot(
 		if level1Err != nil || level2Err != nil {
 			return Snapshot{}, fmt.Errorf("map site classification identifiers")
 		}
-		level1 := TagSnapshot{ID: level1ID, Name: cascade.Level1Name, Slug: cascade.Level1Slug, Role: "PRIMARY", Level: 1}
-		level2 := TagSnapshot{ID: level2ID, Name: cascade.Level2Name, Slug: cascade.Level2Slug, Role: "SECONDARY", Level: 2, ParentID: level1ID}
+		level1 := TagSnapshot{ID: level1ID, Name: cascade.Level1Name, Slug: cascade.Level1Slug, Description: cascade.Level1Description, Role: "PRIMARY", Level: 1}
+		level2 := TagSnapshot{ID: level2ID, Name: cascade.Level2Name, Slug: cascade.Level2Slug, Description: cascade.Level2Description, Role: "SECONDARY", Level: 2, ParentID: level1ID}
 		snapshot.Tags = append(snapshot.Tags, level1, level2)
 		snapshot.Classification = &CascadeSnapshot{
 			ID: snapshot.TagCascadeID, TaxonomyKey: cascade.TaxonomyKey,

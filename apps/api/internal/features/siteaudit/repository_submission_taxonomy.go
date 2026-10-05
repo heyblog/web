@@ -12,8 +12,12 @@ import (
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
-func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Snapshot) (Snapshot, error) {
-	tags, err := repository.queries.ListEnabledTags(ctx)
+func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot, current Snapshot) (Snapshot, error) {
+	return prepareSubmission(ctx, repository.queries, snapshot, current)
+}
+
+func prepareSubmission(ctx context.Context, queries *dbgen.Queries, snapshot, current Snapshot) (Snapshot, error) {
+	tags, err := queries.ListManagedTags(ctx)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("list canonical submission tags: %w", err)
 	}
@@ -31,6 +35,22 @@ func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Sn
 		}
 		canonical, exists := tagsByID[tag.ID]
 		if !exists {
+			id, parseErr := parseUUID(tag.ID)
+			if parseErr != nil {
+				return Snapshot{}, parseErr
+			}
+			row, lookupErr := queries.GetCanonicalTag(ctx, id)
+			if lookupErr != nil && !errors.Is(lookupErr, pgx.ErrNoRows) {
+				return Snapshot{}, lookupErr
+			}
+			if lookupErr == nil {
+				canonical = row
+				exists = true
+				tag.ID, _ = uuidString(row.ID)
+				snapshot.Tags[index].ID = tag.ID
+			}
+		}
+		if !exists || (!canonical.IsEnabled && !snapshotHasTag(current, tag.ID)) {
 			return Snapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "a selected tag is no longer available")
 		}
 		snapshot.Tags[index].Name = canonical.Name
@@ -48,15 +68,16 @@ func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Sn
 				level2 = tag
 			}
 		}
-		cascades, cascadeErr := repository.queries.ListEnabledSiteTagCascades(ctx)
+		cascades, cascadeErr := queries.ReadableSiteCascades(ctx)
 		if cascadeErr != nil {
 			return Snapshot{}, fmt.Errorf("list site tag cascades: %w", cascadeErr)
 		}
 		matched := false
 		for _, cascade := range cascades {
-			level1ID, _ := uuidString(cascade.Level1ID)
-			level2ID, _ := uuidString(cascade.Level2ID)
-			if level1ID != level1.ID || level2ID != level2.ID {
+			level1ID, _ := uuidString(cascade.Level1TagID)
+			level2ID, _ := uuidString(cascade.Level2TagID)
+			cascadeID, _ := uuidString(cascade.ID)
+			if level1ID != level1.ID || level2ID != level2.ID || (!cascade.IsEnabled && cascadeID != current.TagCascadeID) {
 				continue
 			}
 			snapshot.TagCascadeID, _ = uuidString(cascade.ID)
@@ -75,7 +96,7 @@ func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Sn
 	programIndex := -1
 	for index, component := range snapshot.Components {
 		if component.ID != "" {
-			canonical, canonicalErr := canonicalSubmissionComponent(ctx, repository.queries, component)
+			canonical, canonicalErr := canonicalSubmissionComponent(ctx, queries, component)
 			if canonicalErr != nil {
 				return Snapshot{}, canonicalErr
 			}
@@ -96,7 +117,7 @@ func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Sn
 		if parseErr != nil {
 			return Snapshot{}, newServiceError("invalid_component", http.StatusUnprocessableEntity, "the selected site program is invalid")
 		}
-		dependencies, listErr := repository.queries.ListSoftwareComponentDependencies(ctx, programID)
+		dependencies, listErr := queries.ListSoftwareComponentDependencies(ctx, programID)
 		if listErr != nil {
 			return Snapshot{}, fmt.Errorf("list canonical program dependencies: %w", listErr)
 		}
@@ -112,14 +133,14 @@ func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Sn
 	}
 
 	normalizedProgramName := strings.ToLower(strings.TrimSpace(program.SuggestedName))
-	if _, lookupErr := repository.queries.GetSoftwareComponentByNormalizedName(ctx, normalizedProgramName); lookupErr == nil {
+	if _, lookupErr := queries.GetSoftwareComponentByNormalizedName(ctx, normalizedProgramName); lookupErr == nil {
 		return Snapshot{}, newServiceError("program_already_exists", http.StatusConflict, "the custom program already exists in the catalog")
 	} else if !errors.Is(lookupErr, pgx.ErrNoRows) {
 		return Snapshot{}, fmt.Errorf("find custom program by normalized name: %w", lookupErr)
 	}
 	for index, dependency := range snapshot.ProgramDependencies {
 		if dependency.ID != "" {
-			canonical, canonicalErr := canonicalSubmissionComponent(ctx, repository.queries, dependency)
+			canonical, canonicalErr := canonicalSubmissionComponent(ctx, queries, dependency)
 			if canonicalErr != nil {
 				return Snapshot{}, canonicalErr
 			}
@@ -130,7 +151,7 @@ func (repository *Repository) PrepareSubmission(ctx context.Context, snapshot Sn
 		if normalizedDependencyName == normalizedProgramName {
 			return Snapshot{}, newServiceError("invalid_program_dependency", http.StatusUnprocessableEntity, "a program cannot depend on itself")
 		}
-		existing, lookupErr := repository.queries.GetSoftwareComponentByNormalizedName(ctx, normalizedDependencyName)
+		existing, lookupErr := queries.GetSoftwareComponentByNormalizedName(ctx, normalizedDependencyName)
 		if lookupErr == nil {
 			if !existing.IsEnabled {
 				return Snapshot{}, newServiceError("invalid_program_dependency", http.StatusUnprocessableEntity, "a selected program dependency is no longer available")

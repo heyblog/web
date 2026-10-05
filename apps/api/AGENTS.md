@@ -22,7 +22,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
 - `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `announcement`, `siteaudit`,
-  `dataimport`, `publicview`, and `exampleapi`. Preserve their feature boundaries and colocated
+  `dataimport`, `publicview`, `taxonomy`, `sluggeneration`, and `exampleapi`. Preserve their feature boundaries and colocated
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
   `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
@@ -37,7 +37,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   Check audit status and draft revision before decoding locked snapshots; notify only after commit.
 - `apps/api/internal/domain` owns framework-independent domain values and invariants.
 - `apps/api/internal/infrastructure` groups external-resource implementations: `database`, `cache`,
-  `mail`, and `siteicon`. `database` owns migrations, sqlc sources/generated queries, and pool access.
+  `mail`, `tokenhub`, and `siteicon`. `database` owns migrations, sqlc sources/generated queries, and pool access.
 - `apps/api/internal/integration` owns cross-feature tests with real isolated infrastructure.
 - `features`, `platform`, and `infrastructure` are directory namespaces, not aggregate Go packages.
   Bootstrap composes their concrete implementations; domain code stays independent of them.
@@ -86,7 +86,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   audit JSON remains history. Sources: `apps/api/internal/features/siteaudit/submission.go`,
   `apps/api/internal/features/siteaudit/review_draft.go`, and
   `apps/api/internal/features/siteaudit/repository_taxonomy.go`.
-- Random reads select VISIBLE sites, including warned sites, using exact enabled classification
+- Random reads select VISIBLE sites, including warned sites, using exact canonical classification
   names rather than slugs. Validate before selection, retain a normal null result when no candidate
   exists, and keep preview Web-only. Preserve operation-specific errors/cache policy rather than
   mapping every database failure to unavailable; see
@@ -94,6 +94,26 @@ and focused tests referenced below, not additional package-level AGENTS files.
   `apps/api/internal/platform/httpapi/public_view_random_test.go`.
 
 ## Configuration and External Services
+
+- `features/taxonomy` owns a globally unique tag dictionary, shared SITE/ARTICLE path changes,
+  preview fingerprints, and historical ID/system-key/slug aliases. Roles belong to paths and object
+  associations; a path may use the same tag in both roles. Audit, import, and management writes share
+  the taxonomy transaction advisory lock. Existing disabled references remain readable. Migration 19
+  is forward-only: restore a pre-upgrade backup to undo dictionary consolidation.
+- `features/sluggeneration` owns authorized slug generation and global model settings. Only SYS_ADMIN
+  changes the model. `infrastructure/tokenhub` uses the official OpenAI Go SDK's Chat Completions with
+  retries and thinking disabled; provider URLs and policy come from `config/default.yaml#ai`.
+  `API_TOKENHUB_API_KEY` is an optional API-only environment secret. Never persist it or expose it to Web.
+  Redis enforces request limits, paid daily budgets, concurrency, and generation deduplication; failures
+  fail closed. Test with injected clients or isolated infrastructure, never live provider credentials.
+  Durable batch previews live in `directory.slug_generation_jobs`; bootstrap owns the worker and
+  stops it before closing shared pools. Workers recheck actor permissions and persist dispatch
+  state before provider I/O. Rate/concurrency waits resume automatically; daily-budget pauses require
+  an explicit resume. YAML `ai.batch` bounds request size, task size, and output tokens. Audit
+  preparation generates at most twenty new tag slugs in two provider calls outside transactions,
+  with a 35s total deadline and final revision/canonical checks inside the write transaction.
+  Migrations 19 and 20 refuse destructive downgrade; restore a pre-upgrade backup for production
+  rollback. Legacy migrations retain isolated rollback coverage.
 
 - `apps/api/internal/platform/config` alone discovers YAML/environment inputs and exports typed runtime
   configuration. Inject it into other packages. Secrets and service bindings stay in environment

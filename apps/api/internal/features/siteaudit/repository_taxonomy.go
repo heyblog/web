@@ -18,8 +18,9 @@ import (
 var validSlug = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type tagQueries interface {
-	ListEnabledTags(context.Context) ([]dbgen.DirectoryTag, error)
+	ListManagedTags(context.Context) ([]dbgen.DirectoryTag, error)
 	GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTag, error)
+	EnableCanonicalTag(context.Context, pgtype.UUID) error
 	CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTag, error)
 }
 
@@ -30,12 +31,21 @@ type componentQueries interface {
 }
 
 func resolveTaxonomy(ctx context.Context, queries *dbgen.Queries, reviewer auth.User, snapshot Snapshot) (Snapshot, error) {
+	var err error
+	snapshot, err = normalizeSnapshotTaxonomy(ctx, queries, snapshot)
+	if err != nil {
+		return Snapshot{}, err
+	}
 	for index, tag := range snapshot.Tags {
 		resolved, err := resolveTag(ctx, queries, reviewer, tag)
 		if err != nil {
 			return Snapshot{}, err
 		}
 		snapshot.Tags[index] = resolved
+	}
+	snapshot, err = normalizeSnapshotTaxonomy(ctx, queries, snapshot)
+	if err != nil {
+		return Snapshot{}, err
 	}
 	for index, component := range snapshot.Components {
 		resolved, err := resolveComponent(ctx, queries, reviewer, component)
@@ -88,7 +98,7 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 		if err != nil {
 			return TagSnapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "a selected tag is invalid")
 		}
-		rows, err := queries.ListEnabledTags(ctx)
+		rows, err := queries.ListManagedTags(ctx)
 		if err != nil {
 			return TagSnapshot{}, fmt.Errorf("list enabled tags during review: %w", err)
 		}
@@ -107,7 +117,12 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 	normalized := strings.ToLower(name)
 	if existing, err := queries.GetTagByNormalizedName(ctx, normalized); err == nil {
 		if !existing.IsEnabled {
-			return TagSnapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "the matching tag is no longer available")
+			if !canManageTaxonomy(reviewer) {
+				return TagSnapshot{}, newServiceError("taxonomy_permission_required", http.StatusForbidden, "taxonomy management permission is required to reactivate tags")
+			}
+			if err := queries.EnableCanonicalTag(ctx, existing.ID); err != nil {
+				return TagSnapshot{}, err
+			}
 		}
 		tag.ID, _ = uuidString(existing.ID)
 		tag.Name = existing.Name
@@ -121,8 +136,19 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 	if !canManageTaxonomy(reviewer) {
 		return TagSnapshot{}, newServiceError("taxonomy_permission_required", http.StatusForbidden, "taxonomy management permission is required to approve new tags")
 	}
-	if !validSlug.MatchString(tag.Slug) || strings.TrimSpace(tag.Description) == "" {
-		return TagSnapshot{}, newServiceError("taxonomy_metadata_required", http.StatusUnprocessableEntity, "new tags require a valid slug and description")
+	if !validSlug.MatchString(tag.Slug) {
+		return TagSnapshot{}, newServiceError("taxonomy_metadata_required", http.StatusUnprocessableEntity, "new tags require a valid slug")
+	}
+	if ownerQueries, ok := queries.(interface {
+		TaxonomySlugOwner(context.Context, string) ([]pgtype.UUID, error)
+	}); ok {
+		owners, err := ownerQueries.TaxonomySlugOwner(ctx, tag.Slug)
+		if err != nil {
+			return TagSnapshot{}, err
+		}
+		if len(owners) > 0 {
+			return TagSnapshot{}, newServiceError("slug_conflict", http.StatusConflict, "the slug is already reserved")
+		}
 	}
 	created, err := queries.CreateTag(ctx, dbgen.CreateTagParams{Name: name, NormalizedName: normalized, Slug: tag.Slug, Description: strings.TrimSpace(tag.Description)})
 	if err != nil {

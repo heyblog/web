@@ -8,12 +8,13 @@ import (
 )
 
 type reviewContext struct {
-	Reviewer auth.User
-	Input    ReviewInput
+	Reviewer      auth.User
+	Input         ReviewInput
+	GeneratedTags []TagSnapshot
 }
 
 func (service *Service) approve(ctx context.Context, transaction AuditTransaction, state reviewContext) (Audit, error) {
-	audit, err := transaction.ReadLockedAudit()
+	audit, err := transaction.ReadLockedAudit(ctx)
 	if err != nil {
 		return Audit{}, err
 	}
@@ -34,6 +35,17 @@ func (service *Service) approve(ctx context.Context, transaction AuditTransactio
 	}
 	if len(conflicts) > 0 && audit.ReviewDraftSnapshot == nil {
 		return Audit{}, newServiceError("audit_conflicts_unresolved", http.StatusConflict, "the three-way diff contains unresolved conflicts")
+	}
+	for i, tag := range final.Tags {
+		if tag.ID != "" || tag.Slug != "" {
+			continue
+		}
+		for _, generated := range state.GeneratedTags {
+			if generated.SuggestedName == tag.SuggestedName && generated.Description == tag.Description {
+				final.Tags[i].Slug = generated.Slug
+				break
+			}
+		}
 	}
 	if audit.Action == ActionCreate || audit.Action == ActionUpdate {
 		if err := validateSnapshotLocations(final); err != nil {

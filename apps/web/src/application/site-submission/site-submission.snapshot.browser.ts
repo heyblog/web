@@ -31,7 +31,10 @@ export function applySnapshot(
     name:
       tag.name ||
       tag.suggested_name ||
-      options.tags.find((option) => option.id === tag.id)?.name ||
+      options.tags.find(
+        (option) =>
+          option.id === tag.id && (option.role === tag.role || option.level === tag.level),
+      )?.name ||
       tag.id,
     role: tag.role,
     level: tag.level,

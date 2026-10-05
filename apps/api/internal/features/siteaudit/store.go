@@ -11,7 +11,7 @@ type Store interface {
 	ResolveSite(context.Context, string) (Snapshot, error)
 	CreateSubmission(context.Context, submissionRecord) (string, error)
 	LookupAudit(context.Context, []byte) (Audit, error)
-	PrepareSubmission(context.Context, Snapshot) (Snapshot, error)
+	PrepareSubmission(context.Context, Snapshot, Snapshot) (Snapshot, error)
 	Options(context.Context) (SubmissionOptions, error)
 	SearchSites(context.Context, string) ([]SiteSearchResult, error)
 	ExistingSiteForHost(context.Context, string) (*SiteSearchResult, error)
@@ -23,8 +23,9 @@ type Store interface {
 // AuditTransaction exposes business operations bound to the same database transaction.
 type AuditTransaction interface {
 	LockAudit(context.Context, string) (Audit, error)
-	ReadLockedAudit() (Audit, error)
+	ReadLockedAudit(context.Context) (Audit, error)
 	LockSiteSnapshot(context.Context, string) (Snapshot, error)
+	PrepareSubmission(context.Context, Snapshot, Snapshot) (Snapshot, error)
 	ResolveTaxonomy(context.Context, auth.User, Snapshot) (Snapshot, error)
 	ApplySite(context.Context, reviewedSite, func() (string, error)) (Snapshot, error)
 	Approve(context.Context, decisionRecord) (Audit, error)

@@ -100,25 +100,42 @@ func TestSiteAuditRejectionMigration(t *testing.T) {
 				t.Fatalf("submission immutability must survive migration: %v", err)
 			}
 
-			// Downgrade refuses incompatible outcomes without changing history or schema version.
-			if _, err := fixture.provider.DownTo(ctx, 11); err == nil || !strings.Contains(err.Error(), "rejected CREATE") {
-				t.Fatalf("expected actionable downgrade refusal, got %v", err)
-			}
-			current, err := fixture.provider.GetDBVersion(ctx)
-			if err != nil || current != 12 {
-				t.Fatalf("version after refused downgrade = %d / %v", current, err)
+			if _, err := fixture.provider.DownTo(ctx, 18); err == nil || !strings.Contains(err.Error(), "restore the pre-upgrade") {
+				t.Fatalf("expected dictionary downgrade refusal: %v", err)
 			}
 			assertSiteAuditStatus(t, ctx, fixture.pool, duplicate.AuditID, siteaudit.StatusRejected)
-			// Remove only disposable test fixtures to exercise a compatible downgrade/re-upgrade.
-			if _, err := fixture.admin.Exec(ctx, `DELETE FROM directory.site_audits WHERE id IN ($1, $2)`, duplicate.AuditID, ordinary.AuditID); err != nil {
-				t.Fatalf("remove isolated rejected fixtures: %v", err)
-			}
-			if _, err := fixture.provider.DownTo(ctx, 11); err != nil {
-				t.Fatalf("downgrade compatible audit data: %v", err)
-			}
-			if _, err := fixture.provider.Up(ctx); err != nil {
-				t.Fatalf("re-upgrade audit data: %v", err)
-			}
 		})
+	}
+}
+
+func TestLegacyRejectionDowngradeGuard(t *testing.T) {
+	f := newAuditMigrationFixture(t)
+	ctx := t.Context()
+	if _, err := f.provider.UpTo(ctx, 12); err != nil {
+		t.Fatal(err)
+	}
+	pending := f.pendingCreate(t, "legacy-rejection.example.test")
+	reviewer, err := dbgen.New(f.pool).CreateUser(ctx, dbgen.CreateUserParams{Email: "legacy@example.test", Username: "legacy_reviewer", DisplayName: "Reviewer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.pool.Exec(ctx, `UPDATE directory.site_audits SET status='REJECTED',reviewer_comment='Declined',reviewed_by=$2,reviewed_at=now() WHERE id=$1::uuid`, pending.AuditID, reviewer.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.provider.DownTo(ctx, 11); err == nil || !strings.Contains(err.Error(), "rejected CREATE") {
+		t.Fatalf("expected legacy downgrade refusal: %v", err)
+	}
+	version, err := f.provider.GetDBVersion(ctx)
+	if err != nil || version != 12 {
+		t.Fatal("legacy refusal changed version", version, err)
+	}
+	if _, err = f.admin.Exec(ctx, `DELETE FROM directory.site_audits WHERE id=$1::uuid`, pending.AuditID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.provider.DownTo(ctx, 11); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.provider.UpTo(ctx, 18); err != nil {
+		t.Fatal(err)
 	}
 }

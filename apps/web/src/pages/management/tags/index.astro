@@ -1,0 +1,36 @@
+---
+import { readTaxonomyPage } from '@/api/taxonomy/taxonomy.server';
+import type { TaxonomyData } from '@/api/taxonomy/taxonomy.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import TagManager from '@/components/management/tags/TagManager.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = await readSessionUser(Astro.request);
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Ftags');
+if (!(
+  actor.role === 'SYS_ADMIN' ||
+  (actor.role === 'ADMIN' && actor.permissions.includes('taxonomy.manage'))
+))
+  return Astro.redirect('/forbidden');
+let initialData: TaxonomyData | null = null;
+let initialError: string | null = null;
+try {
+  initialData = await readTaxonomyPage(Astro.request);
+} catch (error) {
+  if (!(error instanceof Error)) throw error;
+  initialError = '标签暂时无法加载，请刷新重试。';
+}
+---
+
+<ManagementLayout
+  title="标签管理 | HeyBlog"
+  heading="标签管理"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  <TagManager client:load {initialData} {initialError} />
+</ManagementLayout>

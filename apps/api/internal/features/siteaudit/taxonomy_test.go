@@ -18,7 +18,7 @@ type existingComponentQueries struct {
 	component dbgen.DirectorySoftwareComponent
 }
 
-func (queries existingTagQueries) ListEnabledTags(context.Context) ([]dbgen.DirectoryTag, error) {
+func (queries existingTagQueries) ListManagedTags(context.Context) ([]dbgen.DirectoryTag, error) {
 	return []dbgen.DirectoryTag{queries.tag}, nil
 }
 
@@ -118,3 +118,17 @@ func TestResolveComponentMapsSuggestionToExistingEntryWithoutTaxonomyPermission(
 		t.Errorf("resolved.IsOpenSource = %#v, want true", resolved.IsOpenSource)
 	}
 }
+
+func TestTertiaryAssignmentAcceptsIntrinsicClassificationLevel(t *testing.T) {
+	tags, err := normalizeTags([]TagInput{
+		{ID: "primary", Role: "PRIMARY", Level: 1},
+		{ID: "secondary", Role: "SECONDARY", Level: 2, ParentID: "primary"},
+		{ID: "another-primary", Role: "TERTIARY", Level: 1},
+		{ID: "another-secondary", Role: "TERTIARY", Level: 2, ParentID: "another-primary"},
+	})
+	if err != nil || len(tags) != 4 || tags[2].Role != "TERTIARY" || tags[2].Level != 3 || tags[3].Level != 3 {
+		t.Fatalf("assignment levels: %#v %v", tags, err)
+	}
+}
+
+func (existingTagQueries) EnableCanonicalTag(context.Context, pgtype.UUID) error { return nil }

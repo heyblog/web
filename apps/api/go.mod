@@ -10,6 +10,7 @@ require (
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/openai/openai-go/v3 v3.71.1
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/sergeymakinen/go-ico v1.0.0
@@ -49,6 +50,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
+	github.com/coder/websocket v1.8.15 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -130,6 +132,10 @@ require (
 	github.com/sqlc-dev/sqlc v1.31.1 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
+	github.com/tidwall/gjson v1.19.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

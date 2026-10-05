@@ -44,6 +44,9 @@ func (repository *Repository) Import(ctx context.Context, plan Plan) (Counts, er
 	}()
 
 	queries := dbgen.New(tx)
+	if err := queries.LockTaxonomy(ctx); err != nil {
+		return Counts{}, err
+	}
 	locked, err := queries.TryAcquireImportLock(ctx, importLockName)
 	if err != nil {
 		return Counts{}, errors.Join(ErrDependencyUnavailable, fmt.Errorf("acquire import lock: %w", err))
@@ -77,7 +80,3 @@ func (repository *Repository) Import(ctx context.Context, plan Plan) (Counts, er
 	committed = true
 	return plan.Counts(), nil
 }
-
-// ImportTaxonomy applies the SQLite-derived taxonomy replacement atomically.
-// It deliberately touches only migration-owned taxonomy columns and site tag
-// assignments; users, audits, feeds, and unrelated directory records remain intact.

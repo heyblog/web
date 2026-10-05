@@ -34,7 +34,7 @@ func loadReviewDraftContext(ctx context.Context, transaction AuditTransaction, v
 	if row.ReviewDraftRevision != version.ExpectedReviewDraftRevision {
 		return Audit{}, Snapshot{}, newServiceError("review_draft_changed", http.StatusConflict, "the reviewer correction changed; refresh before continuing")
 	}
-	audit, err := transaction.ReadLockedAudit()
+	audit, err := transaction.ReadLockedAudit(ctx)
 	if err != nil {
 		return Audit{}, Snapshot{}, err
 	}

@@ -49,14 +49,14 @@ SELECT site.*
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
        WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
-         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+
          AND tag.name = sqlc.arg(level1_tag_name)::text
    ))
    AND (sqlc.arg(level2_tag_name)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
        WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
-         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+
          AND tag.name = sqlc.arg(level2_tag_name)::text
    ))
  ORDER BY random()
@@ -71,18 +71,28 @@ SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
   JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
  WHERE cascade.scope = 'SITE' AND cascade.is_enabled
    AND level1.is_enabled AND level2.is_enabled
-   AND level1.merged_into_id IS NULL AND level2.merged_into_id IS NULL
+
  ORDER BY cascade.sort_order, cascade.id;
 
--- name: GetEnabledSiteTagCascade :one
+-- name: ListPublicSiteTagCascades :many
 SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
        level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
        level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
   FROM directory.tag_cascades AS cascade
   JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
   JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
- WHERE cascade.id = $1 AND cascade.scope = 'SITE' AND cascade.is_enabled
-   AND level1.is_enabled AND level2.is_enabled;
+ WHERE cascade.scope = 'SITE' AND cascade.merged_into_id IS NULL
+
+ ORDER BY cascade.sort_order, cascade.id;
+
+-- name: GetReadableSiteTagCascade :one
+SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
+       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug, level1.description AS level1_description,
+       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug, level2.description AS level2_description
+  FROM directory.tag_cascades AS cascade
+  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
+  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
+ WHERE cascade.id = $1 AND cascade.scope = 'SITE' AND cascade.merged_into_id IS NULL;
 
 -- name: CountVisibleSites :one
 SELECT count(*)::bigint
@@ -104,34 +114,33 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
    AND (sqlc.arg(level1_tag_slug)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = sqlc.arg(level1_tag_slug)::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug(sqlc.arg(level1_tag_slug)::text)
    ))
    AND (sqlc.arg(level2_tag_slug)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = sqlc.arg(level2_tag_slug)::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug(sqlc.arg(level2_tag_slug)::text)
    ))
-   AND (cardinality(sqlc.arg(tertiary_tag_slugs)::text[]) = 0 OR (
+   AND (cardinality(directory.canonical_tag_slugs(sqlc.arg(tertiary_tag_slugs)::text[])) = 0 OR (
        SELECT count(DISTINCT tag.slug)
        FROM directory.site_tags AS assignment
        JOIN directory.tags AS tag ON tag.id = assignment.tag_id
        WHERE assignment.site_id = site.id AND assignment.role = 'TERTIARY'
-         AND tag.is_enabled AND tag.merged_into_id IS NULL
-         AND tag.slug = ANY(sqlc.arg(tertiary_tag_slugs)::text[])
-   ) = cardinality(sqlc.arg(tertiary_tag_slugs)::text[]))
+
+         AND tag.slug = ANY(directory.canonical_tag_slugs(sqlc.arg(tertiary_tag_slugs)::text[]))
+   ) = cardinality(directory.canonical_tag_slugs(sqlc.arg(tertiary_tag_slugs)::text[])))
    AND (
-       cardinality(sqlc.arg(warning_slugs)::text[]) = 0
+       cardinality(directory.canonical_tag_slugs(sqlc.arg(warning_slugs)::text[])) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
              JOIN directory.tags AS tag ON tag.id = assignment.tag_id
             WHERE assignment.site_id = site.id
               AND assignment.role = 'WARNING'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY(sqlc.arg(warning_slugs)::text[])
+
+              AND tag.slug = ANY(directory.canonical_tag_slugs(sqlc.arg(warning_slugs)::text[]))
        )
    )
    AND (
@@ -183,34 +192,33 @@ SELECT site.*
    AND (sqlc.arg(level1_tag_slug)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = sqlc.arg(level1_tag_slug)::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug(sqlc.arg(level1_tag_slug)::text)
    ))
    AND (sqlc.arg(level2_tag_slug)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = sqlc.arg(level2_tag_slug)::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug(sqlc.arg(level2_tag_slug)::text)
    ))
-   AND (cardinality(sqlc.arg(tertiary_tag_slugs)::text[]) = 0 OR (
+   AND (cardinality(directory.canonical_tag_slugs(sqlc.arg(tertiary_tag_slugs)::text[])) = 0 OR (
        SELECT count(DISTINCT tag.slug)
        FROM directory.site_tags AS assignment
        JOIN directory.tags AS tag ON tag.id = assignment.tag_id
        WHERE assignment.site_id = site.id AND assignment.role = 'TERTIARY'
-         AND tag.is_enabled AND tag.merged_into_id IS NULL
-         AND tag.slug = ANY(sqlc.arg(tertiary_tag_slugs)::text[])
-   ) = cardinality(sqlc.arg(tertiary_tag_slugs)::text[]))
+
+         AND tag.slug = ANY(directory.canonical_tag_slugs(sqlc.arg(tertiary_tag_slugs)::text[]))
+   ) = cardinality(directory.canonical_tag_slugs(sqlc.arg(tertiary_tag_slugs)::text[])))
    AND (
-       cardinality(sqlc.arg(warning_slugs)::text[]) = 0
+       cardinality(directory.canonical_tag_slugs(sqlc.arg(warning_slugs)::text[])) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
              JOIN directory.tags AS tag ON tag.id = assignment.tag_id
             WHERE assignment.site_id = site.id
               AND assignment.role = 'WARNING'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY(sqlc.arg(warning_slugs)::text[])
+
+              AND tag.slug = ANY(directory.canonical_tag_slugs(sqlc.arg(warning_slugs)::text[]))
 		   )
    )
    AND (
@@ -287,7 +295,7 @@ SELECT tag.name, tag.slug, assignment.role,
   FROM assignments AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
   JOIN directory.sites AS site ON site.id = assignment.site_id
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND tag.is_enabled AND tag.merged_into_id IS NULL
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
  GROUP BY tag.id, tag.name, tag.slug, assignment.role
  ORDER BY assignment.role, normal_count DESC, abnormal_count DESC, tag.name, tag.slug;
 
@@ -455,11 +463,11 @@ RETURNING *;
 
 -- name: ListEnabledTags :many
 SELECT * FROM directory.tags
- WHERE is_enabled AND merged_into_id IS NULL
+ WHERE is_enabled
  ORDER BY name, id;
 
 -- name: GetTagByNormalizedName :one
-SELECT * FROM directory.tags WHERE normalized_name = $1 AND merged_into_id IS NULL;
+SELECT * FROM directory.tags WHERE normalized_name = $1;
 
 -- name: AssignSiteTag :one
 INSERT INTO directory.site_tags (
@@ -499,8 +507,6 @@ SELECT assignment.*, tag.name, tag.slug, tag.description
 	FROM assignments AS assignment
 	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
 	WHERE true
-   AND tag.is_enabled
-   AND tag.merged_into_id IS NULL
  ORDER BY assignment.role, assignment.position NULLS LAST, tag.name;
 
 -- name: ListPublicSiteTagsBySiteIDs :many
@@ -518,8 +524,6 @@ SELECT assignment.*, tag.name, tag.slug, tag.description
 	FROM assignments AS assignment
 	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
 	WHERE true
-   AND tag.is_enabled
-   AND tag.merged_into_id IS NULL
  ORDER BY assignment.site_id, assignment.role, assignment.position NULLS LAST, tag.name;
 
 -- name: UnassignSiteTag :exec

@@ -27,7 +27,9 @@
       approvalSnapshot.tags.some((tag) => !tag.id),
   );
   let hasIncompleteTagMetadata = $derived(
-    approvalSnapshot.tags.some((tag) => !tag.id && (!tag.slug || !tag.description.trim())),
+    approvalSnapshot.tags.some(
+      (tag) => !tag.id && tag.slug !== '' && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tag.slug),
+    ),
   );
   let approveBlocked = $derived((hasNewTaxonomy && !canManageTaxonomy) || hasIncompleteTagMetadata);
 
@@ -102,7 +104,7 @@
       role="status"
     >
       {hasIncompleteTagMetadata
-        ? '新增三级标签需要先补全 slug 和说明。'
+        ? '新增标签填写的 slug 格式无效，请修改或留空自动生成。'
         : '申请包含新标签、程序或技术。请改为已有目录项，或由拥有分类维护权限的审核者批准。'}
     </p>{/if}
 

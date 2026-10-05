@@ -76,7 +76,7 @@ type DirectoryQueries interface {
 }
 
 type ClassificationQueries interface {
-	ListEnabledSiteTagCascades(context.Context) ([]dbgen.ListEnabledSiteTagCascadesRow, error)
+	ListPublicSiteTagCascades(context.Context) ([]dbgen.ListPublicSiteTagCascadesRow, error)
 }
 
 type DirectoryOptionsQueries interface {

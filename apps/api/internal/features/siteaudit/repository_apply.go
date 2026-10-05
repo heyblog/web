@@ -32,6 +32,11 @@ func (transaction *auditTransaction) applySnapshot(
 		row, err = transaction.createSite(ctx, queries, final)
 		siteID = row.ID
 	} else {
+		if action == ActionUpdate {
+			if err := queries.UnassignSiteTertiaryTags(ctx, siteID); err != nil {
+				return pgtype.UUID{}, 0, err
+			}
+		}
 		cascadeID := rowCascadeID(current, final)
 		row, err = queries.ApplySiteSnapshot(ctx, dbgen.ApplySiteSnapshotParams{
 			ID: siteID, Name: final.Name, Scheme: final.Scheme, NormalizedHost: final.NormalizedHost,

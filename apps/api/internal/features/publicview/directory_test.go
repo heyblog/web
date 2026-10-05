@@ -73,7 +73,7 @@ func TestDirectoryOptionsSeparateTagRolesAndTechnologies(t *testing.T) {
 	t.Parallel()
 
 	service := New(queryStub{
-		directoryCascades: []dbgen.ListEnabledSiteTagCascadesRow{{
+		directoryCascades: []dbgen.ListPublicSiteTagCascadesRow{{
 			Level1Name: "技术", Level1Slug: "technology", Level2Name: "写作", Level2Slug: "writing",
 		}},
 		directoryTags: []dbgen.ListDirectoryTagOptionsRow{

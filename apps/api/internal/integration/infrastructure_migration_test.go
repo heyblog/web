@@ -4,8 +4,8 @@ package integration_test
 
 import (
 	"context"
-	"heyblog-api/internal/infrastructure/database"
 	"heyblog-api/internal/infrastructure/database/migrations"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -39,9 +39,21 @@ func verifyMigrationRollback(
 	if err != nil {
 		t.Fatalf("create Goose rollback provider: %v", err)
 	}
-	if _, err := provider.DownTo(ctx, 0); err != nil {
-		t.Fatalf("roll migrations down to zero: %v", err)
+	if _, err := provider.DownTo(ctx, 18); err == nil || !strings.Contains(err.Error(), "restore the pre-upgrade database backup") {
+		t.Fatalf("destructive downgrade must refuse: %v", err)
 	}
+}
+
+func TestLegacyMigrationsRemainReversible(t *testing.T) {
+	f := newAuditMigrationFixture(t)
+	ctx := t.Context()
+	if _, err := f.provider.UpTo(ctx, 18); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.provider.DownTo(ctx, 0); err != nil {
+		t.Fatalf("legacy migrations down to zero: %v", err)
+	}
+	adminConnection := f.admin
 
 	var businessSchemaCount int
 	if err := adminConnection.QueryRow(ctx, `
@@ -64,7 +76,7 @@ func verifyMigrationRollback(
 		t.Fatal("directory_graph AGE graph remained after rollback")
 	}
 
-	if err := database.Migrate(ctx, migrationURL); err != nil {
+	if _, err := f.provider.Up(ctx); err != nil {
 		t.Fatalf("reapply migrations after rollback: %v", err)
 	}
 	verifyDatabaseCatalog(ctx, t, adminConnection)

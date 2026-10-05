@@ -20,6 +20,8 @@ import (
 	"heyblog-api/internal/features/exampleapi"
 	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/features/siteaudit"
+	"heyblog-api/internal/features/sluggeneration"
+	"heyblog-api/internal/features/taxonomy"
 	"heyblog-api/internal/infrastructure/mail"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
@@ -46,6 +48,7 @@ type applicationOperations struct {
 	openDependencies func(context.Context, config.Config) (runtimeDependencies, error)
 	newHandler       func(httpapi.Options, runtimeDependencies, config.Config) (http.Handler, error)
 	newServer        func(http.Handler) managedHTTPServer
+	newWorker        func(runtimeDependencies, config.Config) func(context.Context, *slog.Logger)
 }
 
 func Run(ctx context.Context, configuration config.Config, logger *slog.Logger) error {
@@ -59,6 +62,10 @@ func Run(ctx context.Context, configuration config.Config, logger *slog.Logger) 
 		},
 		newServer: func(handler http.Handler) managedHTTPServer {
 			return newHTTPServer(ctx, configuration, handler, logger)
+		},
+		newWorker: func(dependencies runtimeDependencies, configuration config.Config) func(context.Context, *slog.Logger) {
+			service := sluggeneration.NewService(sluggeneration.Dependencies{Pool: dependencies.DatabasePool(), Redis: dependencies.RedisClient(), Config: configuration.AI})
+			return service.RunJobs
 		},
 	})
 }
@@ -104,6 +111,13 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 		"event", "listener_bound",
 		"address", configuration.ListenAddress(),
 	)
+	if operations.newWorker != nil {
+		workerContext, stopWorker := context.WithCancel(ctx)
+		workerDone := make(chan struct{})
+		worker := operations.newWorker(dependencies, configuration)
+		go func() { defer close(workerDone); worker(workerContext, logger) }()
+		defer func() { stopWorker(); <-workerDone }()
+	}
 
 	listenerOwnedByServer = true
 	serverErrors := make(chan error, 1)
@@ -187,12 +201,28 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	if err := auth.RegisterAPIKeyManagementRoutes(router.API, authService, keyService, options.WebToken, options.Logger); err != nil {
 		return nil, err
 	}
+	if err := taxonomy.RegisterRoutes(router.API, taxonomy.NewService(dependencies.DatabasePool(), authService), options.WebToken); err != nil {
+		return nil, err
+	}
+	slugService := sluggeneration.NewService(sluggeneration.Dependencies{
+		Pool: dependencies.DatabasePool(), Redis: dependencies.RedisClient(), Auth: authService, Config: configuration.AI,
+	})
+	if err := sluggeneration.RegisterRoutes(router.API, slugService, options.WebToken); err != nil {
+		return nil, err
+	}
 	auditService := siteaudit.NewService(siteaudit.Dependencies{
 		Repository: siteaudit.NewRepository(dependencies.DatabasePool()),
 		Auth:       authService,
 		NewShortID: site.NewShortID,
 		Mailer:     mail.NewSubmissionMailer(dependencies.Mail(), configuration.Mail.Senders.Submission.Address),
 		Logger:     options.Logger,
+		SlugGenerator: func(ctx context.Context, user auth.User, tags []siteaudit.TagSnapshot) ([]siteaudit.TagSnapshot, error) {
+			ip := ""
+			if native := httpapi.NativeContext(ctx); native != nil {
+				ip = native.ClientIP()
+			}
+			return slugService.ReviewedTags(ctx, user, ip, tags)
+		},
 	})
 	if err := siteaudit.RegisterRoutes(router.API, auditService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err

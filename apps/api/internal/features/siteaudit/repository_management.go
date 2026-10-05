@@ -68,5 +68,5 @@ func (repository *Repository) AuditDetail(ctx context.Context, auditID string) (
 		audit.HasCurrentSnapshot = true
 	}
 	audit.CurrentSnapshot = current
-	return audit, nil
+	return normalizeAuditTaxonomy(ctx, repository.queries, audit)
 }

@@ -15,8 +15,8 @@
   const level1Options = $derived(
     options.filter((option) => option.level === 1 && option.role !== 'WARNING'),
   );
-  const selectedLevel1 = $derived(form.tags.find((tag) => tag.level === 1));
-  const selectedLevel2 = $derived(form.tags.find((tag) => tag.level === 2));
+  const selectedLevel1 = $derived(form.tags.find((tag) => tag.role === 'PRIMARY'));
+  const selectedLevel2 = $derived(form.tags.find((tag) => tag.role === 'SECONDARY'));
   const level2Options = $derived(
     options.filter(
       (option) =>
@@ -28,7 +28,7 @@
     const value = event.currentTarget;
     if (!(value instanceof HTMLSelectElement)) return;
     if (!value.value) {
-      if (selectedLevel1) removeTag(form, selectedLevel1.id);
+      if (selectedLevel1) removeTag(form, selectedLevel1.id, 'PRIMARY');
       return;
     }
     const option = level1Options.find((candidate) => candidate.id === value.value);
@@ -39,7 +39,7 @@
     const value = event.currentTarget;
     if (!(value instanceof HTMLSelectElement)) return;
     if (!value.value) {
-      if (selectedLevel2) removeTag(form, selectedLevel2.id);
+      if (selectedLevel2) removeTag(form, selectedLevel2.id, 'SECONDARY');
       return;
     }
     const option = level2Options.find((candidate) => candidate.id === value.value);

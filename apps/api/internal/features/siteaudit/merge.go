@@ -28,6 +28,10 @@ func MergeRequestedSnapshot(base, proposed, current Snapshot) (Snapshot, []DiffI
 	mergeSlice("feeds", base.Feeds, proposed.Feeds, current.Feeds, &merged.Feeds, &conflicts)
 	mergeSlice("resources", base.Resources, proposed.Resources, current.Resources, &merged.Resources, &conflicts)
 	mergeSlice("tags", base.Tags, proposed.Tags, current.Tags, &merged.Tags, &conflicts)
+	if !reflect.DeepEqual(base.Tags, proposed.Tags) && reflect.DeepEqual(merged.Tags, proposed.Tags) {
+		merged.TagCascadeID = proposed.TagCascadeID
+		merged.Classification = proposed.Classification
+	}
 	mergeSlice("components", base.Components, proposed.Components, current.Components, &merged.Components, &conflicts)
 	mergeSlice("program_dependencies", base.ProgramDependencies, proposed.ProgramDependencies, current.ProgramDependencies, &merged.ProgramDependencies, &conflicts)
 	return merged, conflicts

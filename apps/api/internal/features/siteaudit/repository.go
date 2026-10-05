@@ -27,6 +27,9 @@ func (repository *Repository) InTransaction(
 		return fmt.Errorf("begin site audit transaction: %w", err)
 	}
 	defer func() { _ = transaction.Rollback(ctx) }()
+	if err := dbgen.New(transaction).LockTaxonomy(ctx); err != nil {
+		return fmt.Errorf("lock audit taxonomy: %w", err)
+	}
 	if err := operation(&auditTransaction{queries: repository.queries.WithTx(transaction)}); err != nil {
 		return err
 	}

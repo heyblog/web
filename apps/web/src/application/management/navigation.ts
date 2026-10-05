@@ -12,6 +12,16 @@ export function managementNavigation(
   const items: ManagementNavigationItem[] = [];
   if (
     user.role === 'SYS_ADMIN' ||
+    (user.role === 'ADMIN' && user.permissions.includes('taxonomy.manage'))
+  ) {
+    items.push({
+      label: '标签管理',
+      href: '/management/tags',
+      description: '维护标签、分类与级联关系',
+    });
+  }
+  if (
+    user.role === 'SYS_ADMIN' ||
     (user.role === 'ADMIN' && user.permissions.includes('announcement.manage'))
   ) {
     items.push({
@@ -35,6 +45,11 @@ export function managementNavigation(
     });
   }
   if (user.role === 'SYS_ADMIN') {
+    items.push({
+      label: '系统设置',
+      href: '/management/system-settings',
+      description: '设置 Slug 生成模型',
+    });
     items.push({
       label: 'API 调用凭证',
       href: '/management/api-keys',
