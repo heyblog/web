@@ -62,7 +62,7 @@ func validateBundles(bundles Bundles) error {
 		}
 		seenOrigins := make(map[string]struct{}, len(blog.Origins))
 		for originIndex, origin := range blog.Origins {
-			if !slices.Contains([]string{"HEYBLOG_OLD", "ZHBLOGS_OLD", "WEB_SUBMIT"}, origin.SourceKey) ||
+			if !slices.Contains([]string{"HEYBLOG_OLD", "ZHBLOGS_OLD", "WEB_SUBMIT", friendGraphSourceKey}, origin.SourceKey) ||
 				strings.TrimSpace(origin.ExternalReference) == "" || len(origin.Metadata.InputKinds) == 0 ||
 				len(origin.Metadata.ExternalReferences) == 0 {
 				return fmt.Errorf("blogs[%d].origins[%d] is incomplete", index, originIndex)
@@ -102,6 +102,9 @@ func validateBundles(bundles Bundles) error {
 
 func validateInputMetadata(inputs []InputMetadata) error {
 	expected := []string{"zhblogs", "classification"}
+	if friendGraphInputs(inputs) {
+		expected = []string{"nodes", "edges"}
+	}
 	if len(inputs) != len(expected) {
 		return errors.New("exactly two input records are required")
 	}

@@ -114,6 +114,13 @@ and focused tests referenced below, not additional package-level AGENTS files.
 
 ## Data Access and Lifecycle
 
+- Internal data import accepts paired version-3 `blogs`/`graph` bundles. The default `initial`
+  mode requires an empty directory. Explicit multipart `mode=incremental` accepts `nodes`/`edges`
+  provenance, preserves registered profiles and existing edges, and inserts missing sites,
+  new-site feeds, provenance, and edges in one transaction. Incremental input sites must be
+  VISIBLE and have no resources, taxonomy, or components. Its all-status edge reader is a
+  runtime-granted database function; do not reconcile through visibility-filtered public reads.
+
 - Apply Goose migrations before opening runtime PostgreSQL/Redis connections. Initialize one
   application pool, inject it, and close it during graceful shutdown; never create per-request or
   per-feature pools.

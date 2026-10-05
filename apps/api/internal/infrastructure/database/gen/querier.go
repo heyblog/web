@@ -59,11 +59,13 @@ type Querier interface {
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetEnabledSiteTagCascadeRow, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
+	GetIncrementalSource(ctx context.Context, sourceKey string) (GetIncrementalSourceRow, error)
 	GetLatestActiveAPIKey(ctx context.Context, arg GetLatestActiveAPIKeyParams) (IdentityApiKey, error)
 	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
 	GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
+	GetPublicFriendGraph(ctx context.Context, centerID pgtype.UUID) ([]byte, error)
 	GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash []byte) (DirectorySiteAudit, error)
 	GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error)
@@ -84,6 +86,8 @@ type Querier interface {
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	InsertFeed(ctx context.Context, arg InsertFeedParams) error
 	InsertFriendLinks(ctx context.Context, links []byte) error
+	InsertIncrementalOrigin(ctx context.Context, arg InsertIncrementalOriginParams) (int64, error)
+	InsertIncrementalSource(ctx context.Context, arg InsertIncrementalSourceParams) (int64, error)
 	InsertOrigin(ctx context.Context, arg InsertOriginParams) error
 	InsertResource(ctx context.Context, arg InsertResourceParams) error
 	InsertSite(ctx context.Context, arg InsertSiteParams) error
@@ -109,6 +113,8 @@ type Querier interface {
 	ListEnabledSoftwareComponents(ctx context.Context) ([]DirectorySoftwareComponent, error)
 	ListEnabledTags(ctx context.Context) ([]DirectoryTag, error)
 	ListFriendLinks(ctx context.Context, arg ListFriendLinksParams) ([]ListFriendLinksRow, error)
+	ListIncrementalFriendPairs(ctx context.Context) ([]ListIncrementalFriendPairsRow, error)
+	ListIncrementalSites(ctx context.Context) ([]ListIncrementalSitesRow, error)
 	ListPublicAnnouncementArchive(ctx context.Context, arg ListPublicAnnouncementArchiveParams) ([]ContentAnnouncement, error)
 	ListPublicSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListPublicSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteSoftwareComponentsRow, error)
@@ -128,6 +134,8 @@ type Querier interface {
 	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
 	LockAnnouncement(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
+	LockIncrementalHosts(ctx context.Context, hosts []string) error
+	LockIncrementalSites(ctx context.Context) error
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)

@@ -93,7 +93,39 @@ test('forwards only explicitly declared authentication state', async () => {
   ]);
 });
 
-test('rejects direct navigation and requests without Fetch Metadata', async () => {
+test('forwards LAN graph fetches without Fetch Metadata when the source is same-origin', async () => {
+  // Given: browsers omit Fetch Metadata on an HTTP LAN origin.
+  const origin = 'http://192.168.30.148:10101';
+  for (const [path, upstreamPath] of [
+    ['/api/site-graph', '/sites/graph'],
+    ['/api/site-graph/ESaHYqhGj', '/sites/id/ESaHYqhGj/graph'],
+  ] as const) {
+    let upstreamURL: string | undefined;
+    const request = new Request(origin + path, {
+      headers: { Accept: 'application/json', Referer: origin + '/graph' },
+    });
+
+    // When: the page fetches graph data through the Web proxy.
+    const response = await handleApiRequest(
+      request,
+      { ...policy, upstreamPath },
+      {
+        loadConfig: () => configuration,
+        fetch: async (input) => {
+          upstreamURL = input.toString();
+          return Response.json({ nodes: [], edges: [] });
+        },
+      },
+    );
+
+    // Then: both graph routes reach their declared upstream.
+    assert.equal(response.status, 200, path);
+    assert.equal(upstreamURL, configuration.apiBaseUrl + upstreamPath);
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
+  }
+});
+
+test('rejects navigation and unverified or cross-origin fetches before calling upstream', async () => {
   let fetchCalled = false;
   const dependencies = {
     loadConfig: () => configuration,
@@ -102,6 +134,28 @@ test('rejects direct navigation and requests without Fetch Metadata', async () =
       return Response.json({ message: 'pong' });
     },
   };
+  const rejectedHeaders: readonly HeadersInit[] = [
+    { Accept: 'text/html', Referer: 'http://192.168.30.148:10101/graph' },
+    { Accept: 'application/json' },
+    { Accept: 'application/json', Referer: 'http://attacker.example/graph' },
+    { Accept: 'application/json', Referer: 'http://192.168.30.148:10102/graph' },
+    { Accept: 'application/json', Referer: 'invalid URL' },
+    {
+      Accept: 'application/json',
+      Referer: 'http://192.168.30.148:10101/graph',
+      Origin: 'http://attacker.example',
+    },
+    {
+      Accept: 'application/json',
+      Referer: 'http://192.168.30.148:10101/graph',
+      'Sec-Fetch-Site': 'cross-site',
+    },
+    {
+      Accept: 'application/json',
+      Referer: 'http://192.168.30.148:10101/graph',
+      'Sec-Fetch-Mode': 'navigate',
+    },
+  ];
 
   for (const request of [
     new Request('https://web.example.test/api/ping', {
@@ -112,6 +166,9 @@ test('rejects direct navigation and requests without Fetch Metadata', async () =
       },
     }),
     new Request('https://web.example.test/api/ping'),
+    ...rejectedHeaders.map(
+      (headers) => new Request('http://192.168.30.148:10101/api/site-graph', { headers }),
+    ),
   ]) {
     const response = await handleApiRequest(request, policy, dependencies);
     assert.equal(response.status, 403);

@@ -67,7 +67,7 @@ const metadata = profile ? siteProfileMetadata(profile) : { title, description }
           </section>
         ) : null}
         <div class="mt-8 sm:mt-12">
-          <SiteProfileTabs client:load>
+          <SiteProfileTabs client:load identifier={profile.shortId}>
             <SiteProfileResources {profile} />
           </SiteProfileTabs>
         </div>

@@ -12,6 +12,10 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
   `apps/web/src/api/transport/endpoint.server.ts` provides the declarative GET-only forwarding
   adapter. Preserve policy whitelists, audience/CORS checks, timeout plus incoming cancellation,
   request IDs, explicit response headers, and `no-store` behavior. Do not widen it for mutations.
+- Web-only GETs use Fetch Metadata when present. If all Fetch Metadata headers are absent (as on
+  plain HTTP LAN origins), require JSON Accept, a Referer matching the request URL's origin, and
+  no conflicting Origin. Reject direct navigation, missing source evidence, and cross-origin
+  requests. Do not special-case an IP address or replace these checks with public CORS.
 - `apps/web/src/api/transport/client-ip.server.ts` forwards one validated trusted `X-Real-IP` as
   both address headers; do not extend a browser-supplied forwarding chain.
 - Auth forwarding in `apps/web/src/api/auth/auth.server.ts` retains the Web token, incoming Cookie,

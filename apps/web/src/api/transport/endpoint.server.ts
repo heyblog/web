@@ -204,11 +204,25 @@ function handlePreflight(request: Request, policy: ApiEndpointPolicy): Response 
 }
 
 function isWebPageFetch(request: Request): boolean {
+  const site = request.headers.get('Sec-Fetch-Site');
   const mode = request.headers.get('Sec-Fetch-Mode');
+  const destination = request.headers.get('Sec-Fetch-Dest');
+  if (site !== null || mode !== null || destination !== null) {
+    return (
+      site === 'same-origin' &&
+      (mode === 'cors' || mode === 'same-origin') &&
+      destination === 'empty'
+    );
+  }
+
+  // Browsers omit Fetch Metadata on plain HTTP LAN origins.
+  // JSON Accept distinguishes a page fetch from direct document navigation.
+  const origin = new URL(request.url).origin;
+  const requestOrigin = request.headers.get('Origin');
   return (
-    request.headers.get('Sec-Fetch-Site') === 'same-origin' &&
-    (mode === 'cors' || mode === 'same-origin') &&
-    request.headers.get('Sec-Fetch-Dest') === 'empty'
+    request.headers.get('Accept') === 'application/json' &&
+    URL.parse(request.headers.get('Referer') ?? '')?.origin === origin &&
+    (requestOrigin === null || requestOrigin === origin)
   );
 }
 

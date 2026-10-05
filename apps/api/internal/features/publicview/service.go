@@ -1,6 +1,7 @@
 package publicview
 
 type Service struct {
+	graph         GraphQueries
 	home          HomeQueries
 	directory     DirectoryQueries
 	options       DirectoryOptionsQueries
@@ -12,5 +13,5 @@ type Service struct {
 }
 
 func New(queries Queries) *Service {
-	return &Service{home: queries, directory: queries, options: queries, random: queries, lookup: queries, profile: queries, icons: queries, announcements: queries}
+	return &Service{graph: queries, home: queries, directory: queries, options: queries, random: queries, lookup: queries, profile: queries, icons: queries, announcements: queries}
 }
