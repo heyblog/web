@@ -40,6 +40,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00013_api_clients.sql",
 		"00014_example_api_scope.sql",
 		"00015_public_friend_graph.sql",
+		"00016_incremental_data_import.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)

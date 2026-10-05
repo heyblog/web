@@ -25,6 +25,7 @@ type ImportOperation interface {
 }
 
 type importForm struct {
+	Mode     ImportMode    `form:"mode" required:"false" enum:"initial,incremental"`
 	Blogs    huma.FormFile `form:"blogs" contentType:"application/json, application/octet-stream" required:"false"`
 	Graph    huma.FormFile `form:"graph" contentType:"application/json, application/octet-stream" required:"false"`
 	Taxonomy huma.FormFile `form:"taxonomy" contentType:"application/json, application/octet-stream" required:"false"`
@@ -166,7 +167,15 @@ func decodeFormUpload(form *importForm) (uploadedBundles, error) {
 		}
 		files[file.name] = contents
 	}
-	return decodeUploadedFiles(files)
+	upload, err := decodeUploadedFiles(files)
+	if err != nil {
+		return uploadedBundles{}, err
+	}
+	upload.Bundles.Mode = form.Mode
+	if err := validateImportMode(upload.Bundles); err != nil {
+		return uploadedBundles{}, errors.Join(errMalformedUpload, err)
+	}
+	return upload, nil
 }
 
 func mapImportError(err error) error {
