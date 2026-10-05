@@ -186,6 +186,9 @@ func normalizeTags(inputs []TagInput) ([]TagSnapshot, error) {
 	for _, input := range inputs {
 		role := strings.ToUpper(strings.TrimSpace(input.Role))
 		level := input.Level
+		if role == "TERTIARY" && level >= 1 && level <= 3 {
+			level = 3
+		}
 		if level == 0 {
 			switch role {
 			case "PRIMARY":
@@ -222,6 +225,7 @@ func normalizeTags(inputs []TagInput) ([]TagSnapshot, error) {
 		if key == "" {
 			key = "name:" + strings.ToLower(name)
 		}
+		key = expectedRole + ":" + key
 		if _, exists := seen[key]; exists {
 			return nil, fmt.Errorf("%w: selected tags must be unique", ErrInvalidSubmission)
 		}

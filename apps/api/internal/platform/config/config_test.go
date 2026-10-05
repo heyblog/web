@@ -66,6 +66,18 @@ auth:
   password_reset_ttl: 30m
   github:
     scope: read:user,user:email
+ai:
+  base_url: https://tokenhub.tencentmaas.com/v1
+  default_model: deepseek/deepseek-flash
+  timeout: 15s
+  max_output_tokens: 128
+  models_cache_ttl: 10m
+  limits:
+    user_per_minute: 5
+    ip_per_minute: 20
+    user_per_day: 100
+    global_per_day: 500
+    concurrent: 2
 `
 
 const testHealthcheckToken = "test-healthcheck-token-0123456789abcdef"

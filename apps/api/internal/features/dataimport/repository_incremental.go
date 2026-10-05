@@ -25,6 +25,9 @@ func (repository *Repository) ImportIncremental(ctx context.Context, plan Plan, 
 	}
 	defer rollbackIncremental(tx)
 	queries := dbgen.New(tx)
+	if err := queries.LockTaxonomy(ctx); err != nil {
+		return Counts{}, fmt.Errorf("acquire incremental taxonomy lock: %w", err)
+	}
 	if err := lockIncremental(ctx, queries, plan); err != nil {
 		return Counts{}, err
 	}

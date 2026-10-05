@@ -316,6 +316,36 @@ type DirectorySiteTag struct {
 	Position *int16
 }
 
+// Durable authorized slug previews; applying selected items changes dictionary slugs atomically.
+type DirectorySlugGenerationJob struct {
+	// UUIDv7 task identifier.
+	ID pgtype.UUID
+	// Initiating actor, cleared on account deletion; workers recheck current authorization.
+	OwnerID pgtype.UUID
+	// Digest of the trusted initiating client IP used for shared request limits.
+	IdentityIpHash string
+	// Frozen server-selected provider model.
+	ModelID string
+	// Generation and application lifecycle state.
+	Status string
+	// Optimistic concurrency version of task previews and controls.
+	Revision int64
+	// Typed internal snapshots including tag revision, generated candidates, and per-item results.
+	Items []byte
+	// Stable safe reason code for a paused job.
+	PauseCode string
+	// Earliest retry time reported by the shared budget guard.
+	ResumeAfter pgtype.Timestamptz
+	// Worker fencing token; never returned through HTTP.
+	LeaseToken string
+	// Worker lease expiration; dispatched items are not automatically retried after expiration.
+	LeaseUntil pgtype.Timestamptz
+	// Task creation time.
+	CreatedAt pgtype.Timestamptz
+	// Most recent task transition time.
+	UpdatedAt pgtype.Timestamptz
+}
+
 // Unified catalog for site programs and technology components.
 type DirectorySoftwareComponent struct {
 	// UUIDv7 software catalog primary key.
@@ -352,7 +382,7 @@ type DirectorySoftwareComponentDependency struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-// Global tag dictionary independent of assignment role.
+// Globally unique tag dictionary; classification roles belong to associations.
 type DirectoryTag struct {
 	// UUIDv7 global tag dictionary primary key.
 	ID pgtype.UUID
@@ -366,20 +396,48 @@ type DirectoryTag struct {
 	Description string
 	// Whether the canonical tag may be assigned or displayed.
 	IsEnabled bool
-	// Canonical tag receiving this duplicate tag.
-	MergedIntoID pgtype.UUID
-	// Administrator that approved the tag merge.
-	MergedBy pgtype.UUID
-	// Time the tag became an alias of another tag.
-	MergedAt pgtype.Timestamptz
 	// Tag creation time.
 	CreatedAt pgtype.Timestamptz
 	// Last tag metadata or merge update time maintained by trigger.
 	UpdatedAt pgtype.Timestamptz
-	// Stable SQLite taxonomy key for fixed entries; flexible tags use null.
+}
+
+// Scoped classification paths; the same dictionary tag may occupy both roles.
+type DirectoryTagCascade struct {
+	// UUIDv7 shared taxonomy path primary key.
+	ID pgtype.UUID
+	// Object family using this path: SITE or ARTICLE.
+	Scope string
+	// Stable source path key independent of environment UUIDs.
+	TaxonomyKey string
+	// Tag occupying the primary classification role.
+	Level1TagID pgtype.UUID
+	// Tag occupying the secondary classification role.
+	Level2TagID pgtype.UUID
+	// Stable SQLite taxonomy order used by clients and tie-breaking.
+	SortOrder int16
+	// Whether new assignments may select this fixed path.
+	IsEnabled bool
+	// Taxonomy path creation time.
+	CreatedAt pgtype.Timestamptz
+	// Last taxonomy path update time maintained by trigger.
+	UpdatedAt pgtype.Timestamptz
+	// Replacement path retained for historical audit references.
+	MergedIntoID pgtype.UUID
+}
+
+// Historical tag IDs and import keys resolving directly to current dictionary identities.
+type DirectoryTagIdentityAlias struct {
+	// Historical tag identifier, including retained seed identifiers.
+	AliasID pgtype.UUID
+	// Current dictionary owner.
+	TagID pgtype.UUID
+	// Historical stable import identity.
 	SystemKey *string
-	// Whether the tag participates in a migration-owned fixed cascade.
-	IsFixed bool
+	// Original dictionary row before canonicalization.
+	Snapshot []byte
+	// Identity archival time.
+	ArchivedAt pgtype.Timestamptz
 }
 
 // Machine clients that own scoped internal or external API credentials.

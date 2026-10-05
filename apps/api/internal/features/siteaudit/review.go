@@ -23,6 +23,13 @@ func (service *Service) Review(ctx context.Context, reviewer auth.User, input Re
 	if err != nil {
 		return Audit{}, err
 	}
+	var generated []TagSnapshot
+	if input.Decision == DecisionApprove && service.slugGenerator != nil {
+		generated, err = service.prepareReviewSlugs(ctx, reviewer, input)
+		if err != nil {
+			return Audit{}, err
+		}
+	}
 	var reviewed Audit
 	err = service.repository.InTransaction(ctx, func(transaction AuditTransaction) error {
 		row, lockErr := transaction.LockAudit(ctx, auditID)
@@ -41,7 +48,7 @@ func (service *Service) Review(ctx context.Context, reviewer auth.User, input Re
 			return rejectErr
 		}
 		var approveErr error
-		reviewed, approveErr = service.approve(ctx, transaction, reviewContext{Reviewer: reviewer, Input: input})
+		reviewed, approveErr = service.approve(ctx, transaction, reviewContext{Reviewer: reviewer, Input: input, GeneratedTags: generated})
 		return approveErr
 	})
 	if err != nil {

@@ -41,6 +41,10 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00014_example_api_scope.sql",
 		"00015_public_friend_graph.sql",
 		"00016_incremental_data_import.sql",
+		"00017_tag_management.sql",
+		"00018_system_ai_settings.sql",
+		"00019_tag_dictionary.sql",
+		"00020_slug_generation_jobs.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -51,6 +55,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"content.announcements",
 		"content.article_tags",
 		"content.articles",
+		"content.system_ai_settings",
 		"directory.site_audits",
 		"directory.site_feeds",
 		"directory.site_icons",
@@ -60,9 +65,14 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"directory.site_sources",
 		"directory.site_tags",
 		"directory.sites",
+		"directory.slug_generation_cache",
+		"directory.slug_generation_jobs",
 		"directory.software_component_dependencies",
 		"directory.software_components",
+		"directory.tag_assignment_archive",
 		"directory.tag_cascades",
+		"directory.tag_identity_aliases",
+		"directory.tag_slug_aliases",
 		"directory.tags",
 		"identity.api_client_scopes",
 		"identity.api_clients",

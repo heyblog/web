@@ -10,7 +10,7 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_feeds
     UNION ALL SELECT 1 FROM directory.site_resources
     UNION ALL SELECT 1 FROM directory.site_icons
-    UNION ALL SELECT 1 FROM directory.tags WHERE NOT is_fixed
+    UNION ALL SELECT 1 FROM directory.tags t WHERE NOT EXISTS (SELECT 1 FROM directory.tag_identity_aliases a WHERE a.tag_id=t.id AND a.system_key IS NOT NULL)
     UNION ALL SELECT 1 FROM directory.site_tags
     -- The private-program placeholder is shipped by migrations and does not
     -- represent imported directory content.
@@ -109,7 +109,13 @@ INSERT INTO directory.tags (
     sqlc.arg(slug),
     sqlc.arg(description),
     sqlc.arg(is_enabled)
-);
+) ON CONFLICT(normalized_name) DO NOTHING;
+
+-- name: InsertImportedTagAlias :exec
+INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot)
+SELECT sqlc.arg(alias_id)::uuid,t.id,jsonb_build_object('id',sqlc.arg(alias_id)::uuid,'name',sqlc.arg(name)::text)
+FROM directory.tags t WHERE t.normalized_name=sqlc.arg(normalized_name)
+ON CONFLICT(alias_id) DO NOTHING;
 
 -- name: InsertSiteTag :exec
 INSERT INTO directory.site_tags (

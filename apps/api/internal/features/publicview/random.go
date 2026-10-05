@@ -47,7 +47,7 @@ func validateRandomClassification(ctx context.Context, queries ClassificationQue
 		}
 		return nil
 	}
-	cascades, err := queries.ListEnabledSiteTagCascades(ctx)
+	cascades, err := queries.ListPublicSiteTagCascades(ctx)
 	if err != nil {
 		return internalError(err, "load random site classifications")
 	}
@@ -74,5 +74,5 @@ func validateRandomClassification(ctx context.Context, queries ClassificationQue
 
 func randomClassificationError(code, name string) error {
 	return apperror.New(apperror.KindBadRequest, code, "random site classification is invalid").
-		WithInvalidParams([]apperror.InvalidParam{{Name: name, Reason: "must match an enabled classification hierarchy"}})
+		WithInvalidParams([]apperror.InvalidParam{{Name: name, Reason: "must match a public classification hierarchy"}})
 }

@@ -39,8 +39,15 @@ func (transaction *auditTransaction) LockAudit(ctx context.Context, auditID stri
 	return audit, err
 }
 
-func (transaction *auditTransaction) ReadLockedAudit() (Audit, error) {
-	return auditFromRow(transaction.locked)
+func (transaction *auditTransaction) ReadLockedAudit(ctx context.Context) (Audit, error) {
+	audit, err := auditFromRow(transaction.locked)
+	if err != nil {
+		return Audit{}, err
+	}
+	return normalizeAuditTaxonomy(ctx, transaction.queries, audit)
+}
+func (transaction *auditTransaction) PrepareSubmission(ctx context.Context, snapshot, current Snapshot) (Snapshot, error) {
+	return prepareSubmission(ctx, transaction.queries, snapshot, current)
 }
 
 func (transaction *auditTransaction) LockSiteSnapshot(ctx context.Context, siteID string) (Snapshot, error) {

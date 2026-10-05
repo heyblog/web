@@ -421,7 +421,7 @@ type queryStub struct {
 	listDirectory            func(context.Context, dbgen.ListDirectorySitesParams) ([]dbgen.DirectorySite, error)
 	directoryTags            []dbgen.ListDirectoryTagOptionsRow
 	directoryTagsErr         error
-	directoryCascades        []dbgen.ListEnabledSiteTagCascadesRow
+	directoryCascades        []dbgen.ListPublicSiteTagCascadesRow
 	directoryTechnologies    []dbgen.ListDirectoryTechnologyOptionsRow
 	directoryTechnologiesErr error
 	listRandom               func(context.Context, int32) ([]dbgen.DirectorySite, error)
@@ -484,9 +484,9 @@ func (stub queryStub) ListDirectoryTagOptions(
 	return stub.directoryTags, stub.directoryTagsErr
 }
 
-func (stub queryStub) ListEnabledSiteTagCascades(
+func (stub queryStub) ListPublicSiteTagCascades(
 	context.Context,
-) ([]dbgen.ListEnabledSiteTagCascadesRow, error) {
+) ([]dbgen.ListPublicSiteTagCascadesRow, error) {
 	return stub.directoryCascades, nil
 }
 

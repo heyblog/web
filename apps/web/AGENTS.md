@@ -50,6 +50,20 @@ layer and browser-module boundaries.
 
 ## Rendering and Same-Origin Safety
 
+- Tag dictionaries use global tag identity; classification roles belong to paths and selections, so
+  PRIMARY and SECONDARY may share an ID. Batch slug jobs retain editable previews in component memory,
+  recover persisted tasks through the API, and cancel polling on unmount. Candidate edits and applies
+  use task revisions; only selected successful items are submitted.
+- Tag management and system settings use the purpose-built authenticated boundary in
+  `src/api/taxonomy`. Payload validators reject arbitrary prompts, models, and endpoints; mutations
+  require matching Origin and same-origin fetch metadata. Only SYS_ADMIN changes global AI settings.
+  Provider credentials stay entirely in the API. Generation and model requests have a 25s browser
+  deadline and 20s Web deadline; throttling headers survive forwarding. User-facing failures map
+  stable codes through `src/application/taxonomy`, never raw upstream diagnostics.
+  Review and review-draft forwarding allows 40s for backend automatic slug preparation. Batch
+  candidate inputs are limited to 128 characters and become editable after generation completes;
+  browser polling and its timers stop when the component unmounts.
+
 - Astro owns filesystem routing, SSR, prerendering, middleware, and island placement. Keep server
   output and the Node standalone adapter coherent with build and deployment tasks.
 - Preserve explicit client prebundling of Tabler icons, `marked`, and graph Worker imports

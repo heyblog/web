@@ -16,7 +16,7 @@ func TestRandomSiteMapsSelectedCardIncludingWarnings(t *testing.T) {
 
 	row := testSite("A1b2C3d4E")
 	service := New(queryStub{
-		directoryCascades: []dbgen.ListEnabledSiteTagCascadesRow{{Level1Name: "技术", Level2Name: "写作"}},
+		directoryCascades: []dbgen.ListPublicSiteTagCascadesRow{{Level1Name: "技术", Level2Name: "写作"}},
 		pickRandom: func(_ context.Context, query dbgen.PickRandomVisibleSiteParams) (dbgen.DirectorySite, error) {
 			if query.Level1TagName != "技术" || query.Level2TagName != "写作" {
 				t.Fatalf("random query = %#v", query)
@@ -47,7 +47,7 @@ func TestRandomSiteRejectsInvalidHierarchyBeforeSelection(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		service := New(queryStub{
-			directoryCascades: []dbgen.ListEnabledSiteTagCascadesRow{
+			directoryCascades: []dbgen.ListPublicSiteTagCascadesRow{
 				{Level1Name: "技术", Level2Name: "写作"},
 				{Level1Name: "生活", Level2Name: "旅行"},
 			},
@@ -67,7 +67,7 @@ func TestRandomSiteRejectsInvalidHierarchyBeforeSelection(t *testing.T) {
 func TestRandomSiteLevel1DoesNotNarrowToOneChild(t *testing.T) {
 	t.Parallel()
 	service := New(queryStub{
-		directoryCascades: []dbgen.ListEnabledSiteTagCascadesRow{
+		directoryCascades: []dbgen.ListPublicSiteTagCascadesRow{
 			{Level1Name: "技术", Level2Name: "写作"},
 			{Level1Name: "技术", Level2Name: "开发"},
 		},

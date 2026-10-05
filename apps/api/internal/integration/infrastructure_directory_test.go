@@ -398,9 +398,7 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 		}
 	}
 	if _, err := connection.Exec(ctx, `
-		UPDATE directory.tags
-		   SET merged_into_id = $2, merged_at = clock_timestamp()
-		 WHERE id = $1
+		UPDATE directory.site_tags SET tag_id=$2 WHERE tag_id=$1
 	`, mergedTagID, canonicalTagID); err != nil {
 		t.Fatalf("merge public view tag fixture: %v", err)
 	}
@@ -408,7 +406,7 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	if err != nil {
 		t.Fatalf("list public site tags: %v", err)
 	}
-	if len(tags) != 3 || !containsPublicTag(tags, visibleSiteID, enabledTagID, "WARNING") ||
+	if len(tags) != 5 || !containsPublicTag(tags, visibleSiteID, disabledTagID, "WARNING") || !containsPublicTag(tags, visibleSiteID, enabledTagID, "WARNING") ||
 		!containsPublicTagRole(tags, visibleSiteID, "PRIMARY") || !containsPublicTagRole(tags, visibleSiteID, "SECONDARY") {
 		t.Fatalf("public site tags = %#v", tags)
 	}
@@ -416,13 +414,14 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	if err != nil {
 		t.Fatalf("list public site tags by site IDs: %v", err)
 	}
-	batchWarning, batchPrimary, batchSecondary := false, false, false
+	batchWarning, batchDisabled, batchPrimary, batchSecondary := false, false, false, false
 	for _, row := range batchTags {
 		batchWarning = batchWarning || row.SiteID == visibleSiteID && row.TagID == enabledTagID && row.Role == "WARNING"
+		batchDisabled = batchDisabled || row.SiteID == visibleSiteID && row.TagID == disabledTagID && row.Role == "WARNING"
 		batchPrimary = batchPrimary || row.SiteID == hiddenSiteID && row.Role == "PRIMARY"
 		batchSecondary = batchSecondary || row.SiteID == hiddenSiteID && row.Role == "SECONDARY"
 	}
-	if len(batchTags) != 5 || !batchWarning || !batchPrimary || !batchSecondary {
+	if len(batchTags) != 7 || !batchWarning || !batchDisabled || !batchPrimary || !batchSecondary {
 		t.Fatalf("batch public site tags = %#v", batchTags)
 	}
 

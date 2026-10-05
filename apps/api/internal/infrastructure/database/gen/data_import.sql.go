@@ -17,7 +17,7 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_feeds
     UNION ALL SELECT 1 FROM directory.site_resources
     UNION ALL SELECT 1 FROM directory.site_icons
-    UNION ALL SELECT 1 FROM directory.tags WHERE NOT is_fixed
+    UNION ALL SELECT 1 FROM directory.tags t WHERE NOT EXISTS (SELECT 1 FROM directory.tag_identity_aliases a WHERE a.tag_id=t.id AND a.system_key IS NOT NULL)
     UNION ALL SELECT 1 FROM directory.site_tags
     -- The private-program placeholder is shipped by migrations and does not
     -- represent imported directory content.
@@ -115,6 +115,24 @@ FROM jsonb_to_recordset($1::jsonb) AS link(
 
 func (q *Queries) InsertFriendLinks(ctx context.Context, links []byte) error {
 	_, err := q.db.Exec(ctx, insertFriendLinks, links)
+	return err
+}
+
+const insertImportedTagAlias = `-- name: InsertImportedTagAlias :exec
+INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot)
+SELECT $1::uuid,t.id,jsonb_build_object('id',$1::uuid,'name',$2::text)
+FROM directory.tags t WHERE t.normalized_name=$3
+ON CONFLICT(alias_id) DO NOTHING
+`
+
+type InsertImportedTagAliasParams struct {
+	AliasID        pgtype.UUID
+	Name           string
+	NormalizedName string
+}
+
+func (q *Queries) InsertImportedTagAlias(ctx context.Context, arg InsertImportedTagAliasParams) error {
+	_, err := q.db.Exec(ctx, insertImportedTagAlias, arg.AliasID, arg.Name, arg.NormalizedName)
 	return err
 }
 
@@ -433,7 +451,7 @@ INSERT INTO directory.tags (
     $4,
     $5,
     $6
-)
+) ON CONFLICT(normalized_name) DO NOTHING
 `
 
 type InsertTagParams struct {

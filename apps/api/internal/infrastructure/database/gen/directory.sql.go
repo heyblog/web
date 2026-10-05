@@ -256,34 +256,33 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
    AND ($2::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = $2::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug($2::text)
    ))
    AND ($3::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = $3::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug($3::text)
    ))
-   AND (cardinality($4::text[]) = 0 OR (
+   AND (cardinality(directory.canonical_tag_slugs($4::text[])) = 0 OR (
        SELECT count(DISTINCT tag.slug)
        FROM directory.site_tags AS assignment
        JOIN directory.tags AS tag ON tag.id = assignment.tag_id
        WHERE assignment.site_id = site.id AND assignment.role = 'TERTIARY'
-         AND tag.is_enabled AND tag.merged_into_id IS NULL
-         AND tag.slug = ANY($4::text[])
-   ) = cardinality($4::text[]))
+
+         AND tag.slug = ANY(directory.canonical_tag_slugs($4::text[]))
+   ) = cardinality(directory.canonical_tag_slugs($4::text[])))
    AND (
-       cardinality($5::text[]) = 0
+       cardinality(directory.canonical_tag_slugs($5::text[])) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
              JOIN directory.tags AS tag ON tag.id = assignment.tag_id
             WHERE assignment.site_id = site.id
               AND assignment.role = 'WARNING'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($5::text[])
+
+              AND tag.slug = ANY(directory.canonical_tag_slugs($5::text[]))
        )
    )
    AND (
@@ -476,7 +475,7 @@ func (q *Queries) CreateSoftwareComponent(ctx context.Context, arg CreateSoftwar
 const createTag = `-- name: CreateTag :one
 INSERT INTO directory.tags (name, normalized_name, slug, description)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at, system_key, is_fixed
+RETURNING id, name, normalized_name, slug, description, is_enabled, created_at, updated_at
 `
 
 type CreateTagParams struct {
@@ -501,13 +500,8 @@ func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Directory
 		&i.Slug,
 		&i.Description,
 		&i.IsEnabled,
-		&i.MergedIntoID,
-		&i.MergedBy,
-		&i.MergedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SystemKey,
-		&i.IsFixed,
 	)
 	return i, err
 }
@@ -558,32 +552,33 @@ func (q *Queries) DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) e
 	return err
 }
 
-const getEnabledSiteTagCascade = `-- name: GetEnabledSiteTagCascade :one
+const getReadableSiteTagCascade = `-- name: GetReadableSiteTagCascade :one
 SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
-       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
-       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
+       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug, level1.description AS level1_description,
+       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug, level2.description AS level2_description
   FROM directory.tag_cascades AS cascade
   JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
   JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
- WHERE cascade.id = $1 AND cascade.scope = 'SITE' AND cascade.is_enabled
-   AND level1.is_enabled AND level2.is_enabled
+ WHERE cascade.id = $1 AND cascade.scope = 'SITE' AND cascade.merged_into_id IS NULL
 `
 
-type GetEnabledSiteTagCascadeRow struct {
-	ID          pgtype.UUID
-	TaxonomyKey string
-	SortOrder   int16
-	Level1ID    pgtype.UUID
-	Level1Name  string
-	Level1Slug  string
-	Level2ID    pgtype.UUID
-	Level2Name  string
-	Level2Slug  string
+type GetReadableSiteTagCascadeRow struct {
+	ID                pgtype.UUID
+	TaxonomyKey       string
+	SortOrder         int16
+	Level1ID          pgtype.UUID
+	Level1Name        string
+	Level1Slug        string
+	Level1Description string
+	Level2ID          pgtype.UUID
+	Level2Name        string
+	Level2Slug        string
+	Level2Description string
 }
 
-func (q *Queries) GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetEnabledSiteTagCascadeRow, error) {
-	row := q.db.QueryRow(ctx, getEnabledSiteTagCascade, id)
-	var i GetEnabledSiteTagCascadeRow
+func (q *Queries) GetReadableSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetReadableSiteTagCascadeRow, error) {
+	row := q.db.QueryRow(ctx, getReadableSiteTagCascade, id)
+	var i GetReadableSiteTagCascadeRow
 	err := row.Scan(
 		&i.ID,
 		&i.TaxonomyKey,
@@ -591,9 +586,11 @@ func (q *Queries) GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) 
 		&i.Level1ID,
 		&i.Level1Name,
 		&i.Level1Slug,
+		&i.Level1Description,
 		&i.Level2ID,
 		&i.Level2Name,
 		&i.Level2Slug,
+		&i.Level2Description,
 	)
 	return i, err
 }
@@ -803,7 +800,7 @@ func (q *Queries) GetSoftwareComponentByNormalizedName(ctx context.Context, norm
 }
 
 const getTagByNormalizedName = `-- name: GetTagByNormalizedName :one
-SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at, system_key, is_fixed FROM directory.tags WHERE normalized_name = $1 AND merged_into_id IS NULL
+SELECT id, name, normalized_name, slug, description, is_enabled, created_at, updated_at FROM directory.tags WHERE normalized_name = $1
 `
 
 func (q *Queries) GetTagByNormalizedName(ctx context.Context, normalizedName string) (DirectoryTag, error) {
@@ -816,13 +813,8 @@ func (q *Queries) GetTagByNormalizedName(ctx context.Context, normalizedName str
 		&i.Slug,
 		&i.Description,
 		&i.IsEnabled,
-		&i.MergedIntoID,
-		&i.MergedBy,
-		&i.MergedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SystemKey,
-		&i.IsFixed,
 	)
 	return i, err
 }
@@ -883,34 +875,33 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
    AND ($3::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = $3::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug($3::text)
    ))
    AND ($4::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
-       WHERE cascade.id = site.tag_cascade_id AND tag.is_enabled
-         AND tag.merged_into_id IS NULL AND tag.slug = $4::text
+       WHERE cascade.id = site.tag_cascade_id
+         AND tag.slug = directory.canonical_tag_slug($4::text)
    ))
-   AND (cardinality($5::text[]) = 0 OR (
+   AND (cardinality(directory.canonical_tag_slugs($5::text[])) = 0 OR (
        SELECT count(DISTINCT tag.slug)
        FROM directory.site_tags AS assignment
        JOIN directory.tags AS tag ON tag.id = assignment.tag_id
        WHERE assignment.site_id = site.id AND assignment.role = 'TERTIARY'
-         AND tag.is_enabled AND tag.merged_into_id IS NULL
-         AND tag.slug = ANY($5::text[])
-   ) = cardinality($5::text[]))
+
+         AND tag.slug = ANY(directory.canonical_tag_slugs($5::text[]))
+   ) = cardinality(directory.canonical_tag_slugs($5::text[])))
    AND (
-       cardinality($6::text[]) = 0
+       cardinality(directory.canonical_tag_slugs($6::text[])) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
              JOIN directory.tags AS tag ON tag.id = assignment.tag_id
             WHERE assignment.site_id = site.id
               AND assignment.role = 'WARNING'
-              AND tag.is_enabled
-              AND tag.merged_into_id IS NULL
-              AND tag.slug = ANY($6::text[])
+
+              AND tag.slug = ANY(directory.canonical_tag_slugs($6::text[]))
 		   )
    )
    AND (
@@ -1056,7 +1047,7 @@ SELECT tag.name, tag.slug, assignment.role,
   FROM assignments AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
   JOIN directory.sites AS site ON site.id = assignment.site_id
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND tag.is_enabled AND tag.merged_into_id IS NULL
+ WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
  GROUP BY tag.id, tag.name, tag.slug, assignment.role
  ORDER BY assignment.role, normal_count DESC, abnormal_count DESC, tag.name, tag.slug
 `
@@ -1152,7 +1143,7 @@ SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
   JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
  WHERE cascade.scope = 'SITE' AND cascade.is_enabled
    AND level1.is_enabled AND level2.is_enabled
-   AND level1.merged_into_id IS NULL AND level2.merged_into_id IS NULL
+
  ORDER BY cascade.sort_order, cascade.id
 `
 
@@ -1274,8 +1265,8 @@ func (q *Queries) ListEnabledSoftwareComponents(ctx context.Context) ([]Director
 }
 
 const listEnabledTags = `-- name: ListEnabledTags :many
-SELECT id, name, normalized_name, slug, description, is_enabled, merged_into_id, merged_by, merged_at, created_at, updated_at, system_key, is_fixed FROM directory.tags
- WHERE is_enabled AND merged_into_id IS NULL
+SELECT id, name, normalized_name, slug, description, is_enabled, created_at, updated_at FROM directory.tags
+ WHERE is_enabled
  ORDER BY name, id
 `
 
@@ -1295,13 +1286,8 @@ func (q *Queries) ListEnabledTags(ctx context.Context) ([]DirectoryTag, error) {
 			&i.Slug,
 			&i.Description,
 			&i.IsEnabled,
-			&i.MergedIntoID,
-			&i.MergedBy,
-			&i.MergedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.SystemKey,
-			&i.IsFixed,
 		); err != nil {
 			return nil, err
 		}
@@ -1412,6 +1398,60 @@ func (q *Queries) ListPublicSiteSoftwareComponents(ctx context.Context, siteID p
 	return items, nil
 }
 
+const listPublicSiteTagCascades = `-- name: ListPublicSiteTagCascades :many
+SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
+       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
+       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
+  FROM directory.tag_cascades AS cascade
+  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
+  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
+ WHERE cascade.scope = 'SITE' AND cascade.merged_into_id IS NULL
+
+ ORDER BY cascade.sort_order, cascade.id
+`
+
+type ListPublicSiteTagCascadesRow struct {
+	ID          pgtype.UUID
+	TaxonomyKey string
+	SortOrder   int16
+	Level1ID    pgtype.UUID
+	Level1Name  string
+	Level1Slug  string
+	Level2ID    pgtype.UUID
+	Level2Name  string
+	Level2Slug  string
+}
+
+func (q *Queries) ListPublicSiteTagCascades(ctx context.Context) ([]ListPublicSiteTagCascadesRow, error) {
+	rows, err := q.db.Query(ctx, listPublicSiteTagCascades)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublicSiteTagCascadesRow{}
+	for rows.Next() {
+		var i ListPublicSiteTagCascadesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TaxonomyKey,
+			&i.SortOrder,
+			&i.Level1ID,
+			&i.Level1Name,
+			&i.Level1Slug,
+			&i.Level2ID,
+			&i.Level2Name,
+			&i.Level2Slug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicSiteTags = `-- name: ListPublicSiteTags :many
 WITH assignments AS (
 	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at
@@ -1427,8 +1467,6 @@ SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assign
 	FROM assignments AS assignment
 	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
 	WHERE true
-   AND tag.is_enabled
-   AND tag.merged_into_id IS NULL
  ORDER BY assignment.role, assignment.position NULLS LAST, tag.name
 `
 
@@ -1491,8 +1529,6 @@ SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assign
 	FROM assignments AS assignment
 	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
 	WHERE true
-   AND tag.is_enabled
-   AND tag.merged_into_id IS NULL
  ORDER BY assignment.site_id, assignment.role, assignment.position NULLS LAST, tag.name
 `
 
@@ -1993,14 +2029,14 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
        WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
-         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+
          AND tag.name = $1::text
    ))
    AND ($2::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
        WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
-         AND cascade.is_enabled AND tag.is_enabled AND tag.merged_into_id IS NULL
+
          AND tag.name = $2::text
    ))
  ORDER BY random()

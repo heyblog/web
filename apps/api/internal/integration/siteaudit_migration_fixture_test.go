@@ -23,9 +23,10 @@ import (
 )
 
 type auditMigrationFixture struct {
-	provider *goose.Provider
-	pool     *pgxpool.Pool
-	admin    *pgx.Conn
+	container *postgres.PostgresContainer
+	provider  *goose.Provider
+	pool      *pgxpool.Pool
+	admin     *pgx.Conn
 }
 
 func newAuditMigrationFixture(t *testing.T) auditMigrationFixture {
@@ -72,7 +73,7 @@ func newAuditMigrationFixture(t *testing.T) auditMigrationFixture {
 		t.Fatalf("connect audit runtime: %v", err)
 	}
 	t.Cleanup(pool.Close)
-	return auditMigrationFixture{provider: provider, pool: pool, admin: admin}
+	return auditMigrationFixture{provider: provider, pool: pool, admin: admin, container: container}
 }
 
 func (fixture auditMigrationFixture) pendingCreate(t *testing.T, host string) siteaudit.SubmissionResult {

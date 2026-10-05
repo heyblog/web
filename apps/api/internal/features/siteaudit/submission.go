@@ -40,7 +40,7 @@ func (service *Service) Submit(
 		return SubmissionResult{}, err
 	}
 	if action == ActionCreate || action == ActionUpdate {
-		proposed, err = service.repository.PrepareSubmission(ctx, proposed)
+		proposed, err = service.repository.PrepareSubmission(ctx, proposed, base)
 		if err != nil {
 			return SubmissionResult{}, err
 		}

@@ -3,7 +3,14 @@ import { forwardClientAddress } from '../transport/client-ip.server.ts';
 
 import type { ProblemDetails } from './auth.types.ts';
 
-const forwardResponseHeaders = ['content-type', 'www-authenticate'] as const;
+const forwardResponseHeaders = [
+  'content-type',
+  'www-authenticate',
+  'retry-after',
+  'ratelimit-limit',
+  'ratelimit-remaining',
+  'ratelimit-reset',
+] as const;
 
 export async function requestAuthAPI(
   request: Request,
@@ -15,7 +22,18 @@ export async function requestAuthAPI(
 ): Promise<Response> {
   const configuration = loadWebServerConfig();
   const upstreamURL = new URL(path, configuration.apiBaseUrl);
-  const timeoutMs = upstreamURL.pathname === '/auth/github/callback' ? 55_000 : 10_000;
+  const timeoutMs =
+    upstreamURL.pathname === '/auth/github/callback'
+      ? 55_000
+      : /^\/management\/site-audits\/[^/]+\/(review|review-draft)$/.test(upstreamURL.pathname)
+        ? 40_000
+        : [
+              '/management/taxonomy/slug-generation',
+              '/management/system-settings',
+              '/management/system-settings/models',
+            ].includes(upstreamURL.pathname)
+          ? 20_000
+          : 10_000;
   const headers = new Headers({
     Accept: 'application/json',
     'X-HeyBlog-Web-Token': configuration.apiWebToken,

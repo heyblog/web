@@ -20,6 +20,7 @@ type Querier interface {
 	AssignSiteSoftwareComponent(ctx context.Context, arg AssignSiteSoftwareComponentParams) (DirectorySiteSoftwareComponent, error)
 	AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (DirectorySiteTag, error)
 	BumpUserAuthVersion(ctx context.Context, id pgtype.UUID) error
+	CacheGeneratedSlug(ctx context.Context, arg CacheGeneratedSlugParams) error
 	CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error
@@ -34,6 +35,7 @@ type Querier interface {
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (IdentityApiKey, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
 	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
+	CreateManagedTag(ctx context.Context, arg CreateManagedTagParams) (DirectoryTag, error)
 	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error
 	CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error)
 	CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams) (DirectorySiteAudit, error)
@@ -44,6 +46,7 @@ type Querier interface {
 	DeleteAPIClientScopes(ctx context.Context, clientID pgtype.UUID) error
 	DeleteDraftAnnouncement(ctx context.Context, arg DeleteDraftAnnouncementParams) (int64, error)
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
+	DeleteManagedTag(ctx context.Context, id pgtype.UUID) error
 	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error
 	DeleteSiteFeeds(ctx context.Context, siteID pgtype.UUID) error
@@ -53,11 +56,16 @@ type Querier interface {
 	DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error
 	DirectoryIsEmpty(ctx context.Context) (bool, error)
 	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
+	EnableCanonicalTag(ctx context.Context, id pgtype.UUID) error
+	ExistingTagSlug(ctx context.Context, normalizedName string) (string, error)
 	FindAPIKeyCredential(ctx context.Context, publicID string) (FindAPIKeyCredentialRow, error)
+	FinishSlugJobClaim(ctx context.Context, arg FinishSlugJobClaimParams) (DirectorySlugGenerationJob, error)
 	GetAPIClient(ctx context.Context, id pgtype.UUID) (IdentityApiClient, error)
 	GetActiveBannerAnnouncement(ctx context.Context) (ContentAnnouncement, error)
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
-	GetEnabledSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetEnabledSiteTagCascadeRow, error)
+	GetCanonicalCascade(ctx context.Context, id pgtype.UUID) (GetCanonicalCascadeRow, error)
+	GetCanonicalTag(ctx context.Context, id pgtype.UUID) (DirectoryTag, error)
+	GetGeneratedSlug(ctx context.Context, cacheKey string) (string, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
 	GetIncrementalSource(ctx context.Context, sourceKey string) (GetIncrementalSourceRow, error)
 	GetLatestActiveAPIKey(ctx context.Context, arg GetLatestActiveAPIKeyParams) (IdentityApiKey, error)
@@ -66,6 +74,7 @@ type Querier interface {
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
 	GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetPublicFriendGraph(ctx context.Context, centerID pgtype.UUID) ([]byte, error)
+	GetReadableSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetReadableSiteTagCascadeRow, error)
 	GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash []byte) (DirectorySiteAudit, error)
 	GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error)
@@ -75,6 +84,8 @@ type Querier interface {
 	GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (DirectorySiteIcon, error)
 	GetSiteIconHash(ctx context.Context, siteID pgtype.UUID) ([]byte, error)
 	GetSiteSourceByKey(ctx context.Context, sourceKey string) (DirectorySiteSource, error)
+	GetSlugJob(ctx context.Context, id pgtype.UUID) (DirectorySlugGenerationJob, error)
+	GetSlugModelSetting(ctx context.Context) (GetSlugModelSettingRow, error)
 	GetSoftwareComponentByID(ctx context.Context, id pgtype.UUID) (DirectorySoftwareComponent, error)
 	GetSoftwareComponentByNormalizedName(ctx context.Context, normalizedName string) (DirectorySoftwareComponent, error)
 	GetTagByNormalizedName(ctx context.Context, normalizedName string) (DirectoryTag, error)
@@ -86,6 +97,7 @@ type Querier interface {
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	InsertFeed(ctx context.Context, arg InsertFeedParams) error
 	InsertFriendLinks(ctx context.Context, links []byte) error
+	InsertImportedTagAlias(ctx context.Context, arg InsertImportedTagAliasParams) error
 	InsertIncrementalOrigin(ctx context.Context, arg InsertIncrementalOriginParams) (int64, error)
 	InsertIncrementalSource(ctx context.Context, arg InsertIncrementalSourceParams) (int64, error)
 	InsertOrigin(ctx context.Context, arg InsertOriginParams) error
@@ -93,10 +105,12 @@ type Querier interface {
 	InsertSite(ctx context.Context, arg InsertSiteParams) error
 	InsertSiteSoftwareComponent(ctx context.Context, arg InsertSiteSoftwareComponentParams) error
 	InsertSiteTag(ctx context.Context, arg InsertSiteTagParams) error
+	InsertSlugJob(ctx context.Context, arg InsertSlugJobParams) (DirectorySlugGenerationJob, error)
 	InsertSoftwareComponent(ctx context.Context, arg InsertSoftwareComponentParams) error
 	InsertSoftwareDependency(ctx context.Context, arg InsertSoftwareDependencyParams) error
 	InsertSource(ctx context.Context, arg InsertSourceParams) (pgtype.UUID, error)
 	InsertTag(ctx context.Context, arg InsertTagParams) error
+	LeaseSlugJob(ctx context.Context, arg LeaseSlugJobParams) (DirectorySlugGenerationJob, error)
 	ListAPIClientScopes(ctx context.Context) ([]IdentityApiClientScope, error)
 	ListAPIClientScopesByClient(ctx context.Context, clientID pgtype.UUID) ([]string, error)
 	ListAPIClients(ctx context.Context) ([]IdentityApiClient, error)
@@ -115,9 +129,12 @@ type Querier interface {
 	ListFriendLinks(ctx context.Context, arg ListFriendLinksParams) ([]ListFriendLinksRow, error)
 	ListIncrementalFriendPairs(ctx context.Context) ([]ListIncrementalFriendPairsRow, error)
 	ListIncrementalSites(ctx context.Context) ([]ListIncrementalSitesRow, error)
+	ListManagedCascades(ctx context.Context) ([]DirectoryTagCascade, error)
+	ListManagedTags(ctx context.Context) ([]DirectoryTag, error)
 	ListPublicAnnouncementArchive(ctx context.Context, arg ListPublicAnnouncementArchiveParams) ([]ContentAnnouncement, error)
 	ListPublicSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListPublicSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteSoftwareComponentsRow, error)
+	ListPublicSiteTagCascades(ctx context.Context) ([]ListPublicSiteTagCascadesRow, error)
 	ListPublicSiteTags(ctx context.Context, id pgtype.UUID) ([]ListPublicSiteTagsRow, error)
 	ListPublicSiteTagsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]ListPublicSiteTagsBySiteIDsRow, error)
 	ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error)
@@ -128,7 +145,9 @@ type Querier interface {
 	ListSiteResources(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteResource, error)
 	ListSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListSiteSoftwareComponentsRow, error)
 	ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListSiteTagsRow, error)
+	ListSlugJobs(ctx context.Context, arg ListSlugJobsParams) ([]DirectorySlugGenerationJob, error)
 	ListSoftwareComponentDependencies(ctx context.Context, componentID pgtype.UUID) ([]ListSoftwareComponentDependenciesRow, error)
+	ListTagIdentityAliases(ctx context.Context) ([]DirectoryTagIdentityAlias, error)
 	ListUserManagementPermissions(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
 	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
@@ -138,22 +157,34 @@ type Querier interface {
 	LockIncrementalSites(ctx context.Context) error
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
+	LockSlugJob(ctx context.Context, id pgtype.UUID) (DirectorySlugGenerationJob, error)
+	LockSlugJobTag(ctx context.Context, id pgtype.UUID) (LockSlugJobTagRow, error)
+	LockTaxonomy(ctx context.Context) error
+	NextSlugJob(ctx context.Context) (DirectorySlugGenerationJob, error)
 	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
+	ReadableSiteCascades(ctx context.Context) ([]ReadableSiteCascadesRow, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams) (DirectorySiteAudit, error)
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error
 	RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	ReserveTaxonomySlug(ctx context.Context, arg ReserveTaxonomySlugParams) error
 	RetireAPIKeyForRotation(ctx context.Context, arg RetireAPIKeyForRotationParams) error
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	SaveSiteAuditReviewDraft(ctx context.Context, arg SaveSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
+	SaveSlugModelSetting(ctx context.Context, arg SaveSlugModelSettingParams) (SaveSlugModelSettingRow, error)
 	SearchSitesForSubmission(ctx context.Context, query string) ([]DirectorySite, error)
+	SelectSlugJobTags(ctx context.Context, arg SelectSlugJobTagsParams) ([]SelectSlugJobTagsRow, error)
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
+	SetSlugJobTag(ctx context.Context, arg SetSlugJobTagParams) error
 	SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
+	SlugCandidateOccupied(ctx context.Context, arg SlugCandidateOccupiedParams) (bool, error)
+	SlugJobActorAuthorized(ctx context.Context, id pgtype.UUID) (bool, error)
 	SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	TaxonomySlugOwner(ctx context.Context, slug string) ([]pgtype.UUID, error)
 	TouchAPIKeyUsage(ctx context.Context, arg TouchAPIKeyUsageParams) error
 	TryAcquireImportLock(ctx context.Context, lockName string) (bool, error)
 	UnassignAllSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) error
@@ -164,8 +195,11 @@ type Querier interface {
 	UnlinkOAuthIdentity(ctx context.Context, arg UnlinkOAuthIdentityParams) error
 	UpdateAPIClient(ctx context.Context, arg UpdateAPIClientParams) (IdentityApiClient, error)
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (ContentAnnouncement, error)
+	UpdateManagedTag(ctx context.Context, arg UpdateManagedTagParams) error
 	UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressParams) (DirectorySite, error)
 	UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSiteDirectoryProfileParams) (DirectorySite, error)
+	UpdateSlugJob(ctx context.Context, arg UpdateSlugJobParams) (DirectorySlugGenerationJob, error)
+	UpdateSlugModelSetting(ctx context.Context, arg UpdateSlugModelSettingParams) (UpdateSlugModelSettingRow, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (IdentityUser, error)
 	UpsertFriendLink(ctx context.Context, arg UpsertFriendLinkParams) error
 	UpsertGitHubIdentity(ctx context.Context, arg UpsertGitHubIdentityParams) (IdentityOauthIdentity, error)

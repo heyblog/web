@@ -2,6 +2,7 @@ package dataimport
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -64,13 +65,29 @@ func insertClassification(ctx context.Context, queries *dbgen.Queries, plan Plan
 		}); err != nil {
 			return fmt.Errorf("insert tags: %w", err)
 		}
+		if err := queries.InsertImportedTagAlias(ctx, dbgen.InsertImportedTagAliasParams{AliasID: mustUUID(row.ID), Name: row.Name, NormalizedName: row.NormalizedName}); err != nil {
+			return fmt.Errorf("archive import identity: %w", err)
+		}
 	}
+	seenTags := map[string]string{}
 	for _, row := range plan.SiteTags {
 		if row.Role != "WARNING" {
 			continue
 		}
+		canonical, err := queries.GetCanonicalTag(ctx, mustUUID(row.TagID))
+		if err != nil {
+			return err
+		}
+		key := row.SiteID + ":" + fmt.Sprint(canonical.ID.Bytes)
+		if note, exists := seenTags[key]; exists {
+			if note != row.Note {
+				return errors.New("imported duplicate warning tags have conflicting notes")
+			}
+			continue
+		}
+		seenTags[key] = row.Note
 		if err := queries.InsertSiteTag(ctx, dbgen.InsertSiteTagParams{
-			SiteID: mustUUID(row.SiteID), TagID: mustUUID(row.TagID), Role: row.Role,
+			SiteID: mustUUID(row.SiteID), TagID: canonical.ID, Role: row.Role,
 			Position: nil, Note: nullableText(row.Note),
 		}); err != nil {
 			return fmt.Errorf("insert site tags: %w", err)

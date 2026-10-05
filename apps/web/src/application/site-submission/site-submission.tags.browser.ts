@@ -32,10 +32,13 @@ export function selectClassificationTag(form: EditableSubmission, option: Option
   const level = option.level;
   form.tags = form.tags.filter(
     (tag) =>
-      tag.id !== option.id &&
-      tag.name.trim().toLocaleLowerCase() !== option.name.trim().toLocaleLowerCase() &&
-      tag.level !== level &&
-      (level !== 1 || tag.level !== 2),
+      !(
+        tag.role === 'TERTIARY' &&
+        (tag.id === option.id ||
+          tag.name.trim().toLocaleLowerCase() === option.name.trim().toLocaleLowerCase())
+      ) &&
+      tag.role !== (level === 1 ? 'PRIMARY' : 'SECONDARY') &&
+      (level !== 1 || tag.role !== 'SECONDARY'),
   );
   const selected: SelectedTag = {
     id: option.id,
@@ -72,8 +75,11 @@ export function selectTertiaryTag(form: EditableSubmission, option: Option): voi
   form.tags.push(selected);
 }
 
-export function removeTag(form: EditableSubmission, id: string): void {
-  const removedTag = form.tags.find((tag) => tag.id === id);
-  form.tags = form.tags.filter((tag) => tag.id !== id);
-  if (removedTag?.level === 1) form.tags = form.tags.filter((tag) => tag.level !== 2);
+export function removeTag(form: EditableSubmission, id: string, role?: SelectedTag['role']): void {
+  const removedTag = form.tags.find(
+    (tag) => tag.id === id && (role === undefined || tag.role === role),
+  );
+  form.tags = form.tags.filter((tag) => tag.id !== id || (role !== undefined && tag.role !== role));
+  if (removedTag?.role === 'PRIMARY')
+    form.tags = form.tags.filter((tag) => tag.role !== 'SECONDARY');
 }
