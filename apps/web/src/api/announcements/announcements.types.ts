@@ -10,6 +10,8 @@ export interface AnnouncementAction {
 }
 
 export interface PublicAnnouncement {
+  readonly publishedAt: string;
+  readonly updatedAt: string;
   readonly id: string;
   readonly title: string;
   readonly bodyMarkdown: string | null;
@@ -176,6 +178,8 @@ export function isPublicAnnouncement(value: unknown): value is PublicAnnouncemen
     typeof value.title === 'string' &&
     nullableString(value.bodyMarkdown) &&
     isDate(value.startsAt) &&
+    isDate(value.publishedAt) &&
+    isDate(value.updatedAt) &&
     (value.endsAt === null || isDate(value.endsAt)) &&
     (value.action === null ||
       (isRecord(value.action) &&

@@ -8,6 +8,12 @@ All file references are repository-root-relative. This file refines `AGENTS.md` 
   `apps/web/astro.config.ts`, and `apps/web/tsconfig.json`.
 - Commands: `apps/web/mise.toml`; release version: root `mise.toml#vars.project_version`.
 - Site metadata: `apps/web/src/site.config.ts`; content schemas: `apps/web/src/content.config.ts`.
+- SEO policy is shared in `src/shared/indexing.ts`; runtime sitemap composition/cache belongs to
+  `src/application/seo`, API sitemap DTOs/reads to `src/api/sitemap`, and Astro content reads remain
+  in integrations. Sitemap uses only public data, 60-second snapshots, bounded cursor reads and
+  complete XML responses; no incoming credentials enter its cache. `robots.txt` and `llms.txt`
+  are build outputs from `src/shared/crawlers.ts`. Content update times are optional source dates;
+  never substitute build/file timestamps or edit the generated content snapshot.
 - Announcement transport is owned by `src/api/announcements`; editor state, inline-markup
   projection, draft field validation, banner dismissal and carousel playback by `src/application/announcements`. `marked` parses only
   inline source into escaped Svelte nodes; never render announcement source as raw HTML or MDX.

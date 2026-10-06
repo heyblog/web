@@ -55,6 +55,7 @@ func loadProfile(
 	}
 	profile := SiteProfile{
 		SiteCard:     card,
+		IsIndexable:  row.Visibility == "VISIBLE",
 		TertiaryTags: []Topic{},
 		Warnings:     []Warning{},
 		Feeds:        make([]Feed, 0, len(feeds)),

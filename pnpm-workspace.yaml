@@ -6,6 +6,7 @@ overrides:
   devalue@<5.9.3: ^6.0.2
   http-cache-semantics@<4.3.0: 4.3.0
   'nanoid@<3.3.18': 3.3.19
+  source-map-js@<1.2.2: 1.2.2
 
 enableGlobalVirtualStore: false
 
@@ -15,6 +16,7 @@ minimumReleaseAgeIgnoreMissingTime: false
 minimumReleaseAgeExclude:
   # Allow the exact security fix before the normal release waiting period.
   - http-cache-semantics@4.3.0
+  - source-map-js@1.2.2
 trustPolicy: no-downgrade
 trustPolicyExclude:
   # Exact locked version reviewed after pnpm reported a registry trust downgrade.

@@ -11,15 +11,50 @@ import { dev } from 'astro';
 import jsQR from 'jsqr';
 import { PNG } from 'pngjs';
 
+import { parseSiteDirectorySearchParams } from '../src/application/site-directory/site-directory.shared.ts';
+
 import { profile } from './site-og.fixture.ts';
 
 test('development keeps page scripts and QR images working after graph workers load', async () => {
   // Given: a fresh dev server and an isolated API with public fixture data.
   const directory = await mkdtemp(join(tmpdir(), 'heyblog-dev-'));
+  let emptyLists = false;
   const api = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
     if (request.url === `/sites/id/${profile.shortId}`) {
       response.end(JSON.stringify(profile));
+    } else if (request.url === '/sites/options') {
+      response.end(
+        JSON.stringify({ classifications: [], tertiaryTags: [], warnings: [], technologies: [] }),
+      );
+    } else if (request.url?.startsWith('/sites?')) {
+      const query = parseSiteDirectorySearchParams(
+        new URL(request.url, 'http://api.test').searchParams,
+      );
+      const totalPages = emptyLists ? 1 : 2;
+      const page = Math.min(query.page, totalPages);
+      response.end(
+        JSON.stringify({
+          items: [],
+          pagination: { page, pageSize: 24, totalItems: emptyLists ? 0 : 48, totalPages },
+          query: { ...query, page },
+          statusCounts: { normal: emptyLists ? 0 : 48, abnormal: 0 },
+        }),
+      );
+    } else if (request.url?.startsWith('/announcements?')) {
+      const page = Number(new URL(request.url, 'http://api.test').searchParams.get('page'));
+      response.end(
+        JSON.stringify({ announcements: [], total: emptyLists ? 0 : 40, page, pageSize: 20 }),
+      );
+    } else if (request.url?.startsWith('/sitemap?')) {
+      response.end(
+        JSON.stringify({
+          items: request.url.includes('kind=sites')
+            ? [{ id: '019ded7f-4be3-7168-8953-b64109326083', shortId: profile.shortId }]
+            : [],
+          nextAfter: null,
+        }),
+      );
     } else if (request.url === '/home') {
       response.end(JSON.stringify({ siteCount: 0, announcements: [], sites: [] }));
     } else {
@@ -83,6 +118,71 @@ test('development keeps page scripts and QR images working after graph workers l
       assert.match(html, /PublicHeader\.astro/u, path);
     }
 
+    // SEO metadata and XML must be visible in the actual server-rendered response.
+    const detail = await get(`/site/${profile.shortId}`);
+    const detailHtml = await detail.text();
+    assert.equal(detail.status, 200);
+    assert.ok(detailHtml.includes(`href="https://www.heyblog.net/site/${profile.shortId}"`));
+    assert.ok(detailHtml.includes('property="og:site_name" content="HeyBlog"'));
+    const json = detailHtml.match(
+      /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/,
+    )?.[1];
+    assert.ok(json, 'server-rendered JSON-LD');
+    const graph: unknown = JSON.parse(json);
+    assert.ok(JSON.stringify(graph).includes(profile.homepageUrl));
+    assert.ok(!detailHtml.includes('article:published_time'));
+    const sitemap = await get('/sitemap.xml');
+    assert.equal(sitemap.status, 200);
+    assert.match(sitemap.headers.get('content-type') ?? '', /application\/xml/);
+    assert.match(await sitemap.text(), /sitemap-sites-1.xml/);
+    const siteMap = await get('/sitemap-sites-1.xml');
+    assert.ok((await siteMap.text()).includes(`https://www.heyblog.net/site/${profile.shortId}`));
+    const staticMap = await get('/sitemap-static-1.xml');
+    const staticXml = await staticMap.text();
+    assert.match(staticXml, /\/blog\/2026081201/);
+    assert.doesNotMatch(staticXml, /\/login|\/management|\/site\/go|\/site\/submissions/);
+    const filtered = await get('/site/?q=test');
+    assert.equal(filtered.status, 200);
+    assert.match(filtered.headers.get('X-Robots-Tag') ?? '', /noindex/);
+    const paged = await get('/site/?page=2');
+    assert.equal(paged.status, 200);
+    assert.equal(paged.headers.get('X-Robots-Tag'), null);
+    assert.ok((await paged.text()).includes('href="https://www.heyblog.net/site?page=2"'));
+    // Given: two public pages, including an API that clamps site requests to page 2.
+    // When: a crawler requests a nonexistent page on either list.
+    for (const path of ['/site/?page=999', '/announcements?page=999']) {
+      const response = await get(path);
+      const html = await response.text();
+      // Then: the actual HTTP response and rendered metadata exclude that page from search.
+      assert.equal(response.status, 404, path);
+      assert.match(response.headers.get('X-Robots-Tag') ?? '', /noindex/, path);
+      assert.match(html, /name="robots" content="noindex/, path);
+      assert.doesNotMatch(html, /application\/ld\+json/, path);
+    }
+    const announcementPage = await get('/announcements?page=2');
+    assert.equal(announcementPage.status, 200);
+    assert.equal(announcementPage.headers.get('X-Robots-Tag'), null);
+    assert.ok(
+      (await announcementPage.text()).includes(
+        'href="https://www.heyblog.net/announcements?page=2"',
+      ),
+    );
+    emptyLists = true;
+    for (const path of ['/site', '/announcements']) {
+      const response = await get(path);
+      assert.equal(response.status, 200, `empty first page: ${path}`);
+      assert.equal(response.headers.get('X-Robots-Tag'), null, path);
+      await response.text();
+    }
+    emptyLists = false;
+    const login = await get('/login');
+    const loginHtml = await login.text();
+    assert.match(login.headers.get('X-Robots-Tag') ?? '', /noindex/);
+    assert.match(loginHtml, /name="robots" content="noindex/);
+    assert.doesNotMatch(loginHtml, /application\/ld\+json/);
+    const alias = await fetch(origin + '/sitemap-index.xml', { redirect: 'manual' });
+    assert.equal(alias.status, 308);
+    assert.equal(alias.headers.get('Location'), '/sitemap.xml');
     const image = await get(`/og/site/${profile.shortId}.png`);
     assert.equal(image.status, 200);
     assert.equal(image.headers.get('content-type'), 'image/png');

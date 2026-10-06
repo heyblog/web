@@ -19,6 +19,8 @@ if (!list) {
   if (Astro.response.status === 503) Astro.response.headers.set('Retry-After', '30');
 }
 const pageCount = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
+const outOfRange = list !== null && page > pageCount;
+if (outOfRange) Astro.response.status = 404;
 ---
 
 <PublicLayout title="公告 | HeyBlog" description="HeyBlog 站点公告" canonicalPath="/announcements">
@@ -26,7 +28,14 @@ const pageCount = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
     <header class="border-b border-line pb-6">
       <h1 class="text-3xl font-bold">公告</h1>
     </header>
-    {!list ? (
+    {outOfRange ? (
+      <div class="py-8" role="alert">
+        <p>该分页不存在。</p>
+        <a class="mt-4 inline-flex min-h-11 items-center text-tint-fg" href="/announcements">
+          返回公告列表
+        </a>
+      </div>
+    ) : !list ? (
       <div class="py-8" role="alert">
         <p>{result.kind === 'bad-request' ? '分页参数无效。' : '公告暂时无法加载。'}</p>
         <a class="mt-4 inline-flex min-h-11 items-center text-tint-fg" href="/announcements">
@@ -65,7 +74,7 @@ const pageCount = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
         ))}
       </div>
     )}
-    {list && list.total > list.pageSize ? (
+    {list && !outOfRange && list.total > list.pageSize ? (
       <nav class="mt-6 flex items-center justify-between gap-4" aria-label="公告分页">
         {page > 1 ? (
           <a

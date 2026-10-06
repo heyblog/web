@@ -6,6 +6,7 @@ import ContentBody from '@/components/content-page/ContentBody.astro';
 import ContentToc from '@/components/content-page/ContentToc.astro';
 import ContentTocBehavior from '@/components/content-page/ContentTocBehavior.astro';
 import EntryHeader from '@/components/content-page/EntryHeader.astro';
+import type { StructuredData } from '@/shared/structured-data';
 
 import PublicLayout from './PublicLayout.astro';
 
@@ -28,6 +29,8 @@ interface BackLink {
 }
 
 interface Props extends MarkdownFrontmatter {
+  ogType?: 'website' | 'article';
+  structuredData?: readonly StructuredData[];
   backLink?: BackLink;
   canonicalPath?: string;
   headings?: TocHeading[];
@@ -52,7 +55,8 @@ const suppressLeadingHeading = shouldSuppressLeadingContentTitle(title, headings
   {title}
   {description}
   {canonicalPath}
-  ogType="article"
+  ogType={Astro.props.ogType ?? 'website'}
+  structuredData={Astro.props.structuredData}
   publishedTime={createTime}
   modifiedTime={updateTime}
 >

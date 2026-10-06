@@ -1,7 +1,11 @@
 import { siteConfig } from '../site.config.ts';
 
+import { isIndexablePath, listingSeo } from './indexing.ts';
+
 export interface PageMetadataInput {
   pathname: string;
+  search?: string;
+  status?: number;
   title?: string;
   siteName?: string;
   description?: string;
@@ -17,7 +21,7 @@ export interface PageMetadataInput {
   modifiedTime?: string | Date;
 }
 
-function toIsoDate(value: string | Date | undefined): string | undefined {
+export function toIsoDate(value: string | Date | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -36,7 +40,16 @@ export function pageTitleWithBrand(value: string): string {
 export function resolvePageMetadata(input: PageMetadataInput) {
   const pageTitle = input.title?.trim();
   const title = pageTitle ? pageTitleWithBrand(pageTitle) : siteConfig.title;
-  const canonicalUrl = new URL(input.canonicalPath ?? input.pathname, siteConfig.url).toString();
+  const listing = listingSeo(input.pathname, input.search);
+  const canonical = new URL(
+    listing.isListing ? listing.canonicalPath : (input.canonicalPath ?? listing.canonicalPath),
+    siteConfig.url,
+  );
+  canonical.pathname = canonical.pathname.replace(/\/+$/, '') || '/';
+  canonical.hash = '';
+  const canonicalUrl = canonical.toString();
+  const indexable =
+    isIndexablePath(input.pathname) && listing.indexable && (input.status ?? 200) < 400;
   const imageUrl = new URL(
     input.imagePath ?? siteConfig.openGraph.imagePath,
     siteConfig.url,
@@ -46,11 +59,11 @@ export function resolvePageMetadata(input: PageMetadataInput) {
     title,
     siteName: input.siteName?.trim() || siteConfig.name,
     description: input.description?.trim() || siteConfig.description,
-    robots: input.robots?.trim() || siteConfig.robots,
+    robots: indexable ? input.robots?.trim() || siteConfig.robots : 'noindex, follow',
     canonicalUrl,
     imageUrl,
     imageAlt: input.imageAlt?.trim() || siteConfig.openGraph.imageAlt,
-    imageType: input.imageType ?? (input.imagePath ? undefined : 'image/svg+xml'),
+    imageType: input.imageType ?? (input.imagePath ? undefined : 'image/png'),
     imageWidth: input.imageWidth ?? (input.imagePath ? undefined : 1200),
     imageHeight: input.imageHeight ?? (input.imagePath ? undefined : 630),
     ogType: input.ogType ?? siteConfig.openGraph.type,

@@ -210,6 +210,8 @@ func TestHomeMapsLeadingAnnouncementActions(t *testing.T) {
 					ActionPath:        testCase.path,
 					ActionExternalUrl: testCase.external,
 					StartsAt:          timestamp(time.Date(2026, time.August, 11, 0, 0, 0, 0, time.UTC)),
+					PublishedAt:       timestamp(time.Date(2026, time.August, 10, 0, 0, 0, 0, time.UTC)),
+					UpdatedAt:         timestamp(time.Date(2026, time.August, 12, 0, 0, 0, 0, time.UTC)),
 				},
 			})
 
@@ -275,7 +277,10 @@ func TestHomeRejectsMalformedAnnouncementPersistenceData(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			service := New(queryStub{count: 0, announcement: testCase.announcement})
+			row := testCase.announcement
+			row.PublishedAt = startsAt
+			row.UpdatedAt = startsAt
+			service := New(queryStub{count: 0, announcement: row})
 			_, err := service.Home(context.Background())
 			var applicationError *apperror.Error
 			if !errors.As(err, &applicationError) || applicationError.Kind() != apperror.KindInternal {
@@ -320,6 +325,9 @@ func TestSiteProfileMapsOnlyPublicReadModel(t *testing.T) {
 	if profile.HomepageURL != "https://example.com/blog" || profile.Feeds[0].URL != "https://example.com/feed.xml" {
 		t.Fatalf("profile URLs = homepage:%q feed:%#v", profile.HomepageURL, profile.Feeds)
 	}
+	if !profile.IsIndexable {
+		t.Fatal("visible site is not indexable")
+	}
 	if profile.Classification == nil || profile.Classification.Level1.Name != "技术" || len(profile.Warnings) != 1 {
 		t.Fatalf("profile tags = classification:%#v warnings:%#v", profile.Classification, profile.Warnings)
 	}
@@ -346,6 +354,9 @@ func TestSiteProfileAllowsHiddenSitesWithoutExposingVisibilityReason(t *testing.
 	}
 	if profile.DirectoryStatus != DirectoryStatusAbnormal {
 		t.Fatalf("directory status = %q, want abnormal", profile.DirectoryStatus)
+	}
+	if profile.IsIndexable {
+		t.Fatal("hidden site is indexable")
 	}
 }
 
@@ -414,6 +425,8 @@ func timestamp(value time.Time) pgtype.Timestamptz {
 }
 
 type queryStub struct {
+	sitemapSites             func(context.Context, pgtype.UUID) ([]dbgen.ListSitemapSitesRow, error)
+	sitemapAnnouncements     func(context.Context, pgtype.UUID) ([]dbgen.ListSitemapAnnouncementsRow, error)
 	count                    int64
 	countErr                 error
 	directoryCounts          dbgen.CountDirectorySitesByStatusRow

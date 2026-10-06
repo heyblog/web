@@ -289,6 +289,10 @@ type recordingOperation struct {
 
 type importTestPublicViews struct{}
 
+func (importTestPublicViews) Sitemap(context.Context, publicview.SitemapQuery) (publicview.SitemapPage, error) {
+	return publicview.SitemapPage{Items: []publicview.SitemapItem{}}, nil
+}
+
 func (importTestPublicViews) Home(context.Context) (publicview.Home, error) {
 	return publicview.Home{}, nil
 }

@@ -32,6 +32,7 @@ const blogs = defineCollection({
     title: z.string(),
     description: z.string(),
     create_time: z.date(),
+    update_time: z.date().optional(),
     category: z.string(),
     editors: z.array(reference('members')),
     tags: z.array(z.string()).default([]),
@@ -49,6 +50,7 @@ const docs = defineCollection({
     title: z.string(),
     description: z.string(),
     create_time: z.date(),
+    update_time: z.date().optional(),
     editors: z.array(reference('members')),
   }),
 });

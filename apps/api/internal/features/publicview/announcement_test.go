@@ -12,8 +12,8 @@ func TestHomeReturnsAllActiveMainAnnouncementsInQueryOrder(t *testing.T) {
 	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	body := "**Full body**"
 	service := New(queryStub{announcements: []dbgen.ContentAnnouncement{
-		{Title: "First", Kind: "MAIN", Status: "PUBLISHED", ActionType: "NONE", Priority: 10, StartsAt: timestamp(start), BodyMarkdown: &body},
-		{Title: "Second", Kind: "MAIN", Status: "PUBLISHED", ActionType: "NONE", Priority: 5, StartsAt: timestamp(start.Add(time.Hour))},
+		{Title: "First", Kind: "MAIN", Status: "PUBLISHED", ActionType: "NONE", Priority: 10, StartsAt: timestamp(start), PublishedAt: timestamp(start.Add(-time.Hour)), UpdatedAt: timestamp(start.Add(time.Minute)), BodyMarkdown: &body},
+		{Title: "Second", Kind: "MAIN", Status: "PUBLISHED", ActionType: "NONE", Priority: 5, StartsAt: timestamp(start.Add(time.Hour)), PublishedAt: timestamp(start), UpdatedAt: timestamp(start.Add(time.Hour))},
 	}})
 	// When the home read model is assembled.
 	view, err := service.Home(context.Background())

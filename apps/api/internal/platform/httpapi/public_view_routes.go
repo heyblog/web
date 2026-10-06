@@ -54,6 +54,7 @@ type customSiteIdentifierInput struct {
 }
 
 func registerPublicViewRoutes(api huma.API, webToken string, reader publicview.Reader) {
+	registerSitemapRoute(api, webToken, reader)
 	registerAnnouncementReadRoutes(api, webToken, reader)
 	registerGraphRoutes(api, webToken, reader)
 	registerSiteIconRoute(api, webToken, reader)

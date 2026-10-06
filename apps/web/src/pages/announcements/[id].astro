@@ -5,6 +5,8 @@ import { loadPublicAnnouncement } from '@/api/announcements/announcements.server
 import { isUUID } from '@/api/announcements/announcements.types';
 import AnnouncementInline from '@/components/announcements/AnnouncementInline.svelte';
 import PublicLayout from '@/layouts/PublicLayout.astro';
+import { contentDescription } from '@/shared/content/description';
+import { articleStructuredData, breadcrumbStructuredData } from '@/shared/structured-data';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'no-store');
@@ -13,17 +15,53 @@ const result = isUUID(id)
   ? await loadPublicAnnouncement(Astro.request, id)
   : { kind: 'not-found' as const };
 const announcement = result.kind === 'success' ? result.data : null;
+const announcementPath = `/announcements/${(announcement?.id ?? id).toLowerCase()}`;
 if (!announcement) {
   Astro.response.status = result.kind === 'not-found' ? 404 : 503;
   if (Astro.response.status === 503) Astro.response.headers.set('Retry-After', '30');
 }
+const description = contentDescription(
+  announcement?.bodyMarkdown ?? undefined,
+  announcement?.title ?? 'HeyBlog 站点公告',
+);
+const publishedTime = announcement
+  ? new Date(
+      Math.max(Date.parse(announcement.startsAt), Date.parse(announcement.publishedAt)),
+    ).toISOString()
+  : undefined;
+const modifiedTime =
+  announcement && publishedTime
+    ? new Date(
+        Math.max(Date.parse(publishedTime), Date.parse(announcement.updatedAt)),
+      ).toISOString()
+    : undefined;
 ---
 
 <PublicLayout
   title={`${announcement?.title ?? '公告'} | HeyBlog`}
-  canonicalPath={`/announcements/${id}`}
+  canonicalPath={announcementPath}
   ogType="article"
-  publishedTime={announcement?.startsAt}
+  {description}
+  {publishedTime}
+  {modifiedTime}
+  structuredData={
+    announcement
+      ? [
+          articleStructuredData({
+            title: announcement.title,
+            description,
+            path: announcementPath,
+            publishedTime,
+            modifiedTime,
+          }),
+          breadcrumbStructuredData([
+            { name: '首页', path: '/' },
+            { name: '公告', path: '/announcements' },
+            { name: announcement.title, path: announcementPath },
+          ]),
+        ]
+      : undefined
+  }
   robots={announcement ? undefined : 'noindex, nofollow'}
 >
   <div class="mx-auto w-full max-w-4xl px-4 py-10 sm:px-8 sm:py-16">

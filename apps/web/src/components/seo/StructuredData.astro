@@ -1,0 +1,16 @@
+---
+import { createHash } from 'node:crypto';
+
+import { serializeStructuredData, type StructuredData } from '@/shared/structured-data';
+
+interface Props {
+  graph: readonly StructuredData[];
+}
+const json = serializeStructuredData(Astro.props.graph);
+// Astro renders byte children verbatim; only the script-safe JSON serializer supplies these bytes.
+const JsonLdTag = 'script';
+const bytes = new TextEncoder().encode(json);
+Astro.csp?.insertScriptHash(`sha256-${createHash('sha256').update(bytes).digest('base64')}`);
+---
+
+<JsonLdTag type="application/ld+json">{bytes}</JsonLdTag>

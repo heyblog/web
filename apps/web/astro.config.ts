@@ -1,7 +1,6 @@
 // @ts-check
 import mdx from '@astrojs/mdx';
 import node from '@astrojs/node';
-import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
@@ -77,5 +76,5 @@ export default defineConfig({
       noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs', 'marked'],
     },
   },
-  integrations: [buildMetadataIntegration(), svelte(), mdx(), sitemap()],
+  integrations: [buildMetadataIntegration(), svelte(), mdx()],
 });

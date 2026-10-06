@@ -6,6 +6,8 @@ import type { ApiJsonResult } from '@/api/transport/client.server';
 import { siteProfileMetadata } from '@/application/site-og/site-og.metadata.server';
 import { canonicalSitePath } from '@/application/site-profile/site-profile.shared';
 import PublicLayout from '@/layouts/PublicLayout.astro';
+import { breadcrumbStructuredData } from '@/shared/structured-data';
+import { siteConfig } from '@/site.config';
 
 import SiteProfileHeader from './SiteProfileHeader.astro';
 import SiteProfileResources from './SiteProfileResources.astro';
@@ -27,9 +29,27 @@ const metadata = profile ? siteProfileMetadata(profile) : { title, description }
 <PublicLayout
   {...metadata}
   canonicalPath={profile ? canonicalSitePath(profile) : requestedPath}
-  robots={profile ? undefined : 'noindex, nofollow'}
-  publishedTime={profile?.joinedAt}
-  modifiedTime={profile?.updatedAt}
+  robots={profile?.isIndexable ? undefined : 'noindex, nofollow'}
+  structuredData={
+    profile
+      ? [
+          {
+            '@type': 'WebPage',
+            '@id': `${siteConfig.url}${canonicalSitePath(profile)}#webpage`,
+            url: `${siteConfig.url}${canonicalSitePath(profile)}`,
+            name: profile.name,
+            description: metadata.description,
+            isPartOf: { '@id': `${siteConfig.url}/#website` },
+            about: { '@type': 'WebSite', name: profile.name, url: profile.homepageUrl },
+          },
+          breadcrumbStructuredData([
+            { name: '首页', path: '/' },
+            { name: '博客列表', path: '/site' },
+            { name: profile.name, path: canonicalSitePath(profile) },
+          ]),
+        ]
+      : undefined
+  }
 >
   <div
     class="mx-auto w-[min(calc(100%-2rem),64rem)] flex-1 py-6 sm:w-[min(calc(100%-3rem),64rem)] sm:py-8"
