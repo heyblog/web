@@ -97,7 +97,7 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 	var healthcheckToken string
 	var webToken string
 	wantPool := &pgxpool.Pool{}
-	wantViews := publicview.New(nil)
+	wantViews := publicview.New(nil, nil)
 	dependencies.pool = wantPool
 	dependencies.views = wantViews
 	err := run(ctx, applicationTestConfig(), discardLogger(), applicationOperations{

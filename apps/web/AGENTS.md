@@ -56,6 +56,13 @@ layer and browser-module boundaries.
 
 ## Rendering and Same-Origin Safety
 
+- Site homepage navigation uses `application/site-outbound` and `/site/out/{shortId}`; external
+  resources and management snapshots use the same link attributes without click tracking. Links
+  isolate the opener, disclose only the origin and add the canonical public hostname as UTM source,
+  including development. `api/site-metrics` owns bounded same-origin impression POSTs and private
+  outbound resolution. PublicLayout observes qualified displays with document-local deduplication;
+  no persistent browser identity is used. Random manual navigation stops the automatic timer.
+
 - Tag dictionaries use global tag identity; classification roles belong to paths and selections, so
   PRIMARY and SECONDARY may share an ID. Batch slug jobs retain editable previews in component memory,
   recover persisted tasks through the API, and cancel polling on unmount. Candidate edits and applies
@@ -144,3 +151,5 @@ Use existing test tooling. For structure-only changes preserve templates, classe
 hydration directives, text, assets, and motion; compare affected browser states when tests alone
 cannot prove equivalence. Check the route's rendering/cache choice, same-origin forwarding,
 browser import graph, and relevant feature tests before completion.
+
+OG image generation reads `/sites/id/{identifier}/metadata` so image requests do not increment public display metrics.

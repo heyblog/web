@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { SiteCardView } from '@/api/sites/site-card.types';
+  import SiteClickCount from '@/components/site-profile/SiteClickCount.svelte';
 
   let { site }: { site: SiteCardView } = $props();
   const accessLabels = {
@@ -9,9 +10,10 @@
   } as const;
 </script>
 
-<article aria-label="随机博客预览" class="min-w-0">
+<article aria-label="随机博客预览" class="min-w-0" data-site-impression={site.shortId}>
   <h2 class="text-2xl/tight font-bold wrap-break-word sm:text-3xl/tight">{site.name}</h2>
   <p class="mt-3 font-mono text-sm/6 break-all text-fg-muted">{site.homepageUrl}</p>
+  <div class="mt-3"><SiteClickCount count={site.metrics.clickCount} /></div>
   <p class="mt-5 text-base/7 wrap-break-word text-fg-muted">
     {site.summary.trim() || '该博客暂无简介。'}
   </p>

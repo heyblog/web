@@ -30,6 +30,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `apps/api/internal/features/publicview` assembles read-side DTOs. Its `Queries` interface is a
   composition-time contract; helpers receive only their consumer-specific query interfaces.
   Retain the `New` composition entry point and sqlc query types without pure-forwarding stores.
+- `features/sitestats` owns independent cumulative counters and atomic click/impression idempotency.
+  Publicview receives its recorder explicitly: primary display queries record retrievals before DTO
+  assembly; successful views record responses. Auxiliary, management, import and outbound-target
+  reads are excluded. Image generation uses the non-counted /sites/id/{identifier}/metadata read. Never update directory.sites to record metrics. Outbound resolution remains
+  usable when metric writes or click limits fail; removed sites remain unavailable.
 - `apps/api/internal/features/siteaudit` keeps permission, revision, merge, and decision flow in
   services. `Store` returns business types; `AuditTransaction` binds business operations to one
   transaction. SQL, pgtype conversions, row mapping, canonical writes, and transaction lifecycle

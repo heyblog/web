@@ -121,7 +121,7 @@ func newCredentialFixture(t *testing.T) credentialFixture {
 	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment,
 		HTTP:   config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: credentialWebToken,
-		HealthcheckToken: "credential-integration-health-token", PublicViews: publicview.New(nil),
+		HealthcheckToken: "credential-integration-health-token", PublicViews: publicview.New(nil, nil),
 	})
 	if err != nil {
 		t.Fatal(err)

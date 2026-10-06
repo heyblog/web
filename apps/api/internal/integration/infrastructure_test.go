@@ -86,6 +86,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyDirectorySiteTimestampSchema(ctx, t, pool)
 	verifyDirectoryConstraints(ctx, t, pool)
 	verifyPublicViewQueries(ctx, t, pool)
+	verifySiteMetrics(ctx, t, pool)
 	verifyDirectoryQueries(ctx, t, pool)
 	verifyRandomClassificationSelection(ctx, t, pool)
 	verifyTagAndIconConstraints(ctx, t, pool)

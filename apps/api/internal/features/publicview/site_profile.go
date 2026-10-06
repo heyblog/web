@@ -1,6 +1,8 @@
 package publicview
 
-import "time"
+import (
+	"time"
+)
 
 type SiteCard struct {
 	ShortID         string          `json:"shortId"`
@@ -13,6 +15,7 @@ type SiteCard struct {
 	DirectoryStatus DirectoryStatus `json:"directoryStatus"`
 	JoinedAt        time.Time       `json:"joinedAt"`
 	UpdatedAt       time.Time       `json:"updatedAt"`
+	Metrics         SiteMetrics     `json:"metrics"`
 }
 
 type SiteProfile struct {

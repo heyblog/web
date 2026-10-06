@@ -18,6 +18,7 @@ func redisOptions(input config.RedisConfig) (*redis.Options, error) {
 	options.DialTimeout = input.DialTimeout
 	options.ReadTimeout = input.ReadTimeout
 	options.WriteTimeout = input.WriteTimeout
+	options.ContextTimeoutEnabled = true
 
 	return options, nil
 }

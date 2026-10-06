@@ -20,6 +20,7 @@ import (
 	"heyblog-api/internal/features/exampleapi"
 	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/features/siteaudit"
+	"heyblog-api/internal/features/sitestats"
 	"heyblog-api/internal/features/sluggeneration"
 	"heyblog-api/internal/features/taxonomy"
 	"heyblog-api/internal/infrastructure/mail"
@@ -183,6 +184,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		return nil, err
 	}
 	keyService := apikey.NewService(apikey.NewRepository(dependencies.DatabasePool()), time.Now)
+	sitestats.RegisterRoutes(router.API, sitestats.New(dependencies.DatabasePool(), options.Logger), options.WebToken, dependencies.RedisClient())
 	exampleapi.RegisterRoutes(router.API, keyService)
 	service := dataimport.NewService(dataimport.NewRepository(dependencies.DatabasePool()), site.NewShortID)
 	dataimport.RegisterRoutes(router.API, service, keyService, options.Logger)

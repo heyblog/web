@@ -45,7 +45,7 @@ func TestManagementRoutesEnforceRoleAndPermission(t *testing.T) {
 	} {
 		t.Run(route.method+route.path, func(t *testing.T) {
 			// Given an administrator without announcement management permission.
-			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", PublicViews: publicview.New(nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -69,7 +69,7 @@ func TestManagementRoutesEnforceRoleAndPermission(t *testing.T) {
 
 func TestManagementRoutesRequireWebToken(t *testing.T) {
 	// Given a route with an authenticated system administrator.
-	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", PublicViews: publicview.New(nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 	if err != nil {
 		t.Fatal(err)
 	}

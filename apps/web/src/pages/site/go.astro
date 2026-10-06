@@ -54,11 +54,7 @@ const linkClass =
       <>
         <section class="rounded-md border border-line bg-surface p-5 shadow-2xs sm:p-6">
           <SiteGoPreview site={page.site} />
-          <SiteGoControls
-            client:load
-            rerollHref={page.rerollHref}
-            targetUrl={page.site.homepageUrl}
-          />
+          <SiteGoControls client:load rerollHref={page.rerollHref} shortId={page.site.shortId} />
         </section>
         <a class:list={[linkClass, 'mt-4']} href={page.editorHref} data-astro-prefetch="false">
           生成跳转链接

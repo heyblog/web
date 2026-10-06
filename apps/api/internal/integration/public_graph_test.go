@@ -30,7 +30,7 @@ func verifyPublicFriendGraph(ctx context.Context, t *testing.T, pool *pgxpool.Po
 			t.Fatal(err)
 		}
 	}
-	service := publicview.New(queries)
+	service := publicview.New(queries, nil)
 	// When
 	graph, err := service.SiteGraphByIdentifier(ctx, publicview.SiteIdentifier{Kind: publicview.IdentifierShortID, Value: "G1a2B3c4D"})
 	// Then

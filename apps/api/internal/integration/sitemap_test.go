@@ -68,7 +68,7 @@ func verifySitemapQueries(ctx context.Context, t *testing.T, pool *pgxpool.Pool)
 		t.Fatalf("insert announcement visibility edges: %v", err)
 	}
 	queries := dbgen.New(tx)
-	service := publicview.New(queries)
+	service := publicview.New(queries, nil)
 	siteRows, err := queries.ListSitemapSites(ctx, pgtype.UUID{})
 	if err != nil || len(siteRows) != 1001 {
 		t.Fatalf("site query lookahead count = %d, %v", len(siteRows), err)

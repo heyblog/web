@@ -188,7 +188,7 @@ func newExampleTestRouter(t *testing.T, authenticator apikey.Authenticator) *htt
 		HTTP:             config.HTTPConfig{MaxBodyBytes: 1024, TrustedProxies: []string{}, CORS: config.CORSConfig{}},
 		HealthcheckToken: "test-healthcheck-token-0123456789abcdef",
 		WebToken:         "test-web-service-token-0123456789abcdef",
-		PublicViews:      publicview.New(nil),
+		PublicViews:      publicview.New(nil, nil),
 	})
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)

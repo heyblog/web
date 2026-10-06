@@ -70,5 +70,15 @@ func (service *Service) loadGraph(ctx context.Context, centerID pgtype.UUID) (Fr
 	if err := json.Unmarshal(data, &graph); err != nil {
 		return FriendGraph{}, internalError(err, "decode friend graph")
 	}
+	if service.metrics != nil {
+		ids := make([]string, 0, len(graph.Nodes))
+		for _, node := range graph.Nodes {
+			if node.ShortID != nil {
+				ids = append(ids, *node.ShortID)
+			}
+		}
+		service.metrics.RecordQuery(ctx, ids)
+		service.metrics.RecordResponse(ctx, ids)
+	}
 	return graph, nil
 }

@@ -4,6 +4,7 @@
   import type { SiteGraph } from '@/api/sites/site-graph.types';
   import type { GraphIndex, GraphRelation } from '@/application/site-graph/site-graph.model';
   import { graphHref, nodeDetailHref } from '@/application/site-graph/site-graph.shared';
+  import { siteOutboundAttributes } from '@/application/site-outbound/site-outbound.shared';
 
   import GraphNodeList from './GraphNodeList.svelte';
 
@@ -45,7 +46,11 @@
 </script>
 
 {#if node}
-  <section class="min-w-0 border-b border-line p-4" aria-label="选中的博客">
+  <section
+    class="min-w-0 border-b border-line p-4"
+    aria-label="选中的博客"
+    data-site-impression={node.shortId ?? undefined}
+  >
     <div class="flex items-start justify-between gap-3">
       <h2 class="min-w-0 text-base font-semibold wrap-anywhere">{node.name}</h2>
       {#if !node.shortId}<span
@@ -59,9 +64,9 @@
       >
       <a
         class={[buttonClasses, 'bg-tint text-tint-fg']}
-        href={node.homepageUrl}
-        target="_blank"
-        rel="noopener noreferrer">访问博客<IconArrowUpRight size={16} /></a
+        {...siteOutboundAttributes(
+          node.shortId ? { shortId: node.shortId } : { url: node.homepageUrl },
+        )}>访问博客<IconArrowUpRight size={16} /></a
       >
       {#if detail}<a class={buttonClasses} href={detail}>博客详情</a>{/if}
     </div>

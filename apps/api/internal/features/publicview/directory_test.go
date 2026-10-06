@@ -28,7 +28,7 @@ func TestDirectoryClampsPageAndBuildsCurrentSiteCards(t *testing.T) {
 
 	row := testSite("A1b2C3d4E")
 	feedRef := "/blog/feed.xml"
-	service := New(queryStub{
+	service := newTestService(queryStub{
 		directoryCounts: dbgen.CountDirectorySitesByStatusRow{NormalCount: 25, AbnormalCount: 4},
 		listDirectory: func(
 			_ context.Context,
@@ -72,7 +72,7 @@ func TestDirectoryClampsPageAndBuildsCurrentSiteCards(t *testing.T) {
 func TestDirectoryOptionsSeparateTagRolesAndTechnologies(t *testing.T) {
 	t.Parallel()
 
-	service := New(queryStub{
+	service := newTestService(queryStub{
 		directoryCascades: []dbgen.ListPublicSiteTagCascadesRow{{
 			Level1Name: "技术", Level1Slug: "technology", Level2Name: "写作", Level2Slug: "writing",
 		}},
@@ -131,7 +131,7 @@ func TestDirectoryQueryParametersKeepStableRandomState(t *testing.T) {
 func TestDirectoryUsesAbnormalCountAndHiddenVisibility(t *testing.T) {
 	t.Parallel()
 
-	service := New(queryStub{
+	service := newTestService(queryStub{
 		directoryCounts: dbgen.CountDirectorySitesByStatusRow{NormalCount: 8, AbnormalCount: 3},
 		listDirectory: func(
 			_ context.Context,

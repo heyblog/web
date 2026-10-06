@@ -21,7 +21,7 @@ test('development keeps page scripts and QR images working after graph workers l
   let emptyLists = false;
   const api = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
-    if (request.url === `/sites/id/${profile.shortId}`) {
+    if (request.url === `/sites/id/${profile.shortId}/metadata`) {
       response.end(JSON.stringify(profile));
     } else if (request.url === '/sites/options') {
       response.end(

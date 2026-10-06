@@ -30,6 +30,7 @@ type Reader interface {
 	DirectoryOptions(context.Context) (DirectoryOptions, error)
 	RandomSite(context.Context, RandomSiteQuery) (RandomSiteView, error)
 	SiteByIdentifier(context.Context, SiteIdentifier) (SiteProfile, error)
+	SiteMetadataByIdentifier(context.Context, SiteIdentifier) (SiteProfile, error)
 	SiteIconByIdentifier(context.Context, SiteIdentifier) (SiteIcon, error)
 	SiteByCustomID(context.Context, string) (SiteProfile, error)
 }

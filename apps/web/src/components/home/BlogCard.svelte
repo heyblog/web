@@ -31,6 +31,7 @@
     ]}
     data-blog-card
     data-site-id={site.shortId}
+    data-site-impression={site.shortId}
   >
     <button
       bind:this={openerElement}

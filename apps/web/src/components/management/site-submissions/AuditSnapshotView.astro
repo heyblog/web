@@ -1,5 +1,6 @@
 ---
 import type { Snapshot } from '@/api/site-submission/site-submission.types';
+import { siteOutboundAttributes } from '@/application/site-outbound/site-outbound.shared';
 
 interface Props {
   snapshot: Snapshot;
@@ -29,7 +30,7 @@ const roleLabels: Readonly<Record<string, string>> = {
     <div class="min-w-0 bg-surface p-4">
       <dt class="text-xs text-fg-muted">主页地址</dt>
       <dd class="mt-1 break-all">
-        <a class="text-tint-fg hover:underline" href={address}>
+        <a class="text-tint-fg hover:underline" {...siteOutboundAttributes({ url: address })}>
           {address}
         </a>
       </dd>

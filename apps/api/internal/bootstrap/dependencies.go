@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/features/sitestats"
 	"heyblog-api/internal/infrastructure/cache"
 	"heyblog-api/internal/infrastructure/database"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
@@ -99,7 +100,7 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		Redis:              redisClient,
 		MailSender:         mailSender,
 		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address, configuration.Auth.VerificationTTL),
-		views:              publicview.New(dbgen.New(pool)),
+		views:              publicview.New(dbgen.New(pool), sitestats.New(pool, nil)),
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},

@@ -15,6 +15,8 @@ import {
   resolveVisibleTagCount,
 } from '../src/components/home/blog-card-layout.shared.ts';
 
+import { profile } from './site-og.fixture.ts';
+
 test('blog card expansion does not emit inline styles blocked by the CSP', async () => {
   const source = await readFile(
     new URL('../src/components/home/BlogCardContent.svelte', import.meta.url),
@@ -194,4 +196,17 @@ test('clamps an expanded card to the viewport inset when its source is near an e
     width: 420,
     maxHeight: 688,
   });
+});
+
+test('home refresh rejects missing, negative, and unsafe metric counts', () => {
+  const card = { ...profile, defaultFeed: null, sitemapUrl: null };
+  const view = { siteCount: 1, announcements: [], sites: [card] };
+  assert.ok(parseHomeView(view));
+  for (const metrics of [
+    undefined,
+    { ...profile.metrics, clickCount: -1 },
+    { ...profile.metrics, clickCount: Number.MAX_SAFE_INTEGER + 1 },
+  ]) {
+    assert.equal(parseHomeView({ ...view, sites: [{ ...card, metrics }] }), null);
+  }
 });

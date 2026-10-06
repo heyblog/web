@@ -65,7 +65,7 @@ func TestSiteIconHTTPWithDatabase(t *testing.T) {
 	}
 	t.Cleanup(pool.Close)
 	queries := dbgen.New(pool)
-	service := publicview.New(queries)
+	service := publicview.New(queries, nil)
 	token := "site-icon-integration-web-token-123456"
 	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: token, HealthcheckToken: "site-icon-health-token-123456", PublicViews: service})
 	if err != nil {

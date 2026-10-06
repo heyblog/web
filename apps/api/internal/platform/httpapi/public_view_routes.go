@@ -156,6 +156,22 @@ func registerPublicViewRoutes(api huma.API, webToken string, reader publicview.R
 	})
 
 	Register(api, register(huma.Operation{
+		OperationID: "get-site-metadata", Method: http.MethodGet,
+		Path: "/sites/id/{identifier}/metadata", Summary: "Get site metadata for image generation",
+		Errors: []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusServiceUnavailable},
+	}), func(ctx context.Context, input *siteIdentifierInput) (*publicViewOutput[publicview.SiteProfile], error) {
+		identifier, err := parseSiteIdentifier(input.Identifier)
+		if err != nil {
+			return nil, err
+		}
+		view, err := reader.SiteMetadataByIdentifier(ctx, identifier)
+		if err != nil {
+			return nil, err
+		}
+		return &publicViewOutput[publicview.SiteProfile]{CacheControl: "no-store", Body: view}, nil
+	})
+
+	Register(api, register(huma.Operation{
 		OperationID: "get-site-by-custom-id",
 		Method:      http.MethodGet,
 		Path:        "/sites/custom/{customId}",
