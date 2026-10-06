@@ -3,13 +3,18 @@ package publicview
 import (
 	"context"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type DirectoryOption struct {
-	Value         string `json:"value"`
-	Label         string `json:"label"`
-	NormalCount   int64  `json:"normalCount"`
-	AbnormalCount int64  `json:"abnormalCount"`
+	ID            string   `json:"id,omitempty"`
+	LabelID       string   `json:"label_id,omitempty"`
+	Synonyms      []string `json:"synonyms,omitempty"`
+	Value         string   `json:"value"`
+	Label         string   `json:"label"`
+	NormalCount   int64    `json:"normalCount"`
+	AbnormalCount int64    `json:"abnormalCount"`
 }
 
 type DirectoryOptions struct {
@@ -44,7 +49,7 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 	counts := make(map[string]DirectoryOption, len(tags))
 	for _, tag := range tags {
 		option := DirectoryOption{
-			Value: tag.Slug, Label: tag.Name,
+			ID: uuidText(tag.ID), LabelID: uuidText(tag.LabelID), Synonyms: tag.Synonyms, Value: tag.Slug, Label: tag.Name,
 			NormalCount: tag.NormalCount, AbnormalCount: tag.AbnormalCount,
 		}
 		switch tag.Role {
@@ -66,18 +71,31 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 	classificationIndex := make(map[string]int)
 	for _, cascade := range cascades {
 		level1 := counts["PRIMARY:"+cascade.Level1Slug]
-		level1.Value, level1.Label = cascade.Level1Slug, cascade.Level1Name
+		level1.Value, level1.Label, level1.ID, level1.LabelID, level1.Synonyms = cascade.Level1Slug, cascade.Level1Name, uuidText(cascade.Level1ID), uuidText(cascade.Level1LabelID), cascade.Level1Synonyms
 		level2 := counts["SECONDARY:"+cascade.Level2Slug]
-		level2.Value, level2.Label = cascade.Level2Slug, cascade.Level2Name
-		index, exists := classificationIndex[level1.Value]
+		level2.Value, level2.Label, level2.ID, level2.LabelID, level2.Synonyms = cascade.Level2Slug, cascade.Level2Name, uuidText(cascade.Level2ID), uuidText(cascade.Level2LabelID), cascade.Level2Synonyms
+		key := level1.LabelID
+		if key == "" {
+			key = level1.Value
+		}
+		index, exists := classificationIndex[key]
 		if !exists {
 			index = len(options.Classifications)
-			classificationIndex[level1.Value] = index
+			classificationIndex[key] = index
 			options.Classifications = append(options.Classifications, DirectoryClassificationOption{
 				DirectoryOption: level1, Children: []DirectoryOption{},
 			})
 		}
-		options.Classifications[index].Children = append(options.Classifications[index].Children, level2)
+		duplicate := false
+		for _, child := range options.Classifications[index].Children {
+			if child.LabelID != "" && child.LabelID == level2.LabelID || child.LabelID == "" && child.Value == level2.Value {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			options.Classifications[index].Children = append(options.Classifications[index].Children, level2)
+		}
 	}
 	for _, technology := range technologies {
 		options.Technologies = append(options.Technologies, DirectoryOption{
@@ -86,4 +104,11 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 		})
 	}
 	return options, nil
+}
+
+func uuidText(id pgtype.UUID) string {
+	if !id.Valid {
+		return ""
+	}
+	return fmt.Sprintf("%x-%x-%x-%x-%x", id.Bytes[:4], id.Bytes[4:6], id.Bytes[6:8], id.Bytes[8:10], id.Bytes[10:])
 }

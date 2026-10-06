@@ -13,8 +13,18 @@
   type Props = {
     readonly options: SiteDirectoryOptions;
     readonly query: SiteDirectoryQuery;
-    readonly onToggle: (name: SiteDirectoryFilterName, value: string, selected: boolean) => void;
-    readonly onClassificationChange: (level1: string, level2: string) => void;
+    readonly onToggle: (
+      name: SiteDirectoryFilterName,
+      value: string,
+      selected: boolean,
+      labelID?: string,
+    ) => void;
+    readonly onClassificationChange: (
+      level1: string,
+      level2: string,
+      level1LabelID?: string,
+      level2LabelID?: string,
+    ) => void;
     readonly onFeedChange: (feed: SiteDirectoryFeed) => void;
   };
 

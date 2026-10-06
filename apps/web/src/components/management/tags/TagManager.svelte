@@ -39,7 +39,9 @@
     (data?.tags ?? []).filter(
       (tag) =>
         (!search ||
-          `${tag.name} ${tag.slug}`.toLowerCase().includes(search.trim().toLowerCase())) &&
+          `${tag.labels.map((label) => label.name).join(' ')} ${tag.slug}`
+            .toLowerCase()
+            .includes(search.trim().toLowerCase())) &&
         (!roleFilter || tag.roles.includes(roleFilter)) &&
         (statusFilter === 'all' || (statusFilter === 'active' ? tag.is_enabled : !tag.is_enabled)),
     ),

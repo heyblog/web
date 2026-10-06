@@ -221,6 +221,9 @@ func normalizeTags(inputs []TagInput) ([]TagSnapshot, error) {
 				return nil, fmt.Errorf("%w: tertiary tag proposals must not exceed 100 characters", ErrInvalidSubmission)
 			}
 		}
+		if id == "" && strings.TrimSpace(input.LabelID) != "" {
+			return nil, fmt.Errorf("%w: new tag proposals cannot select a label", ErrInvalidSubmission)
+		}
 		key := id
 		if key == "" {
 			key = "name:" + strings.ToLower(name)
@@ -230,7 +233,7 @@ func normalizeTags(inputs []TagInput) ([]TagSnapshot, error) {
 			return nil, fmt.Errorf("%w: selected tags must be unique", ErrInvalidSubmission)
 		}
 		seen[key] = struct{}{}
-		tags = append(tags, TagSnapshot{ID: id, SuggestedName: name, Slug: strings.TrimSpace(input.Slug), Description: strings.TrimSpace(input.Description), Role: expectedRole, Level: level, ParentID: strings.TrimSpace(input.ParentID)})
+		tags = append(tags, TagSnapshot{ID: id, LabelID: strings.TrimSpace(input.LabelID), SuggestedName: name, Slug: strings.TrimSpace(input.Slug), Description: strings.TrimSpace(input.Description), Role: expectedRole, Level: level, ParentID: strings.TrimSpace(input.ParentID)})
 	}
 	if levelCounts[1] != 1 || levelCounts[2] != 1 || levelCounts[3] > 20 {
 		return nil, fmt.Errorf("%w: exactly one first-level and one second-level tag are required; tertiary tags are limited to twenty", ErrInvalidSubmission)

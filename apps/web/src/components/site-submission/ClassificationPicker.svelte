@@ -4,6 +4,7 @@
   import {
     removeTag,
     selectClassificationTag,
+    tagOptionKey,
   } from '@/application/site-submission/site-submission.tags.browser';
 
   interface Props {
@@ -31,7 +32,7 @@
       if (selectedLevel1) removeTag(form, selectedLevel1.id, 'PRIMARY');
       return;
     }
-    const option = level1Options.find((candidate) => candidate.id === value.value);
+    const option = level1Options.find((candidate) => tagOptionKey(candidate) === value.value);
     if (option) selectClassificationTag(form, option);
   }
 
@@ -42,7 +43,7 @@
       if (selectedLevel2) removeTag(form, selectedLevel2.id, 'SECONDARY');
       return;
     }
-    const option = level2Options.find((candidate) => candidate.id === value.value);
+    const option = level2Options.find((candidate) => tagOptionKey(candidate) === value.value);
     if (option) selectClassificationTag(form, option);
   }
 </script>
@@ -54,12 +55,24 @@
       一级分类
       <select
         class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
-        value={selectedLevel1?.id ?? ''}
+        value={selectedLevel1 ? tagOptionKey(selectedLevel1) : ''}
         onchange={changeLevel1}
       >
         <option value="">请选择一级分类</option>
-        {#each level1Options as option (option.id)}
-          <option value={option.id}>{option.name}</option>
+        {#if selectedLevel1 && !level1Options.some((option) => tagOptionKey(option) === tagOptionKey(selectedLevel1))}<option
+            value={tagOptionKey(selectedLevel1)}
+            disabled>{selectedLevel1.name}（已停用）</option
+          >{/if}
+        {#each level1Options as option (tagOptionKey(option))}
+          <option
+            value={tagOptionKey(option)}
+            disabled={selectedLevel1?.id === option.id &&
+              tagOptionKey(selectedLevel1) !== tagOptionKey(option)}
+            >{option.name}{selectedLevel1?.id === option.id &&
+            tagOptionKey(selectedLevel1) !== tagOptionKey(option)
+              ? '（已选择同义名称）'
+              : ''}</option
+          >
         {/each}
       </select>
     </label>
@@ -67,13 +80,25 @@
       二级分类
       <select
         class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 disabled:cursor-not-allowed disabled:border-line disabled:bg-subtle disabled:text-fg-muted sm:min-h-10"
-        value={selectedLevel2?.id ?? ''}
+        value={selectedLevel2 ? tagOptionKey(selectedLevel2) : ''}
         disabled={!selectedLevel1}
         onchange={changeLevel2}
       >
         <option value="">{selectedLevel1 ? '请选择二级分类' : '请先选择一级分类'}</option>
-        {#each level2Options as option (option.id)}
-          <option value={option.id}>{option.name}</option>
+        {#if selectedLevel2 && !level2Options.some((option) => tagOptionKey(option) === tagOptionKey(selectedLevel2))}<option
+            value={tagOptionKey(selectedLevel2)}
+            disabled>{selectedLevel2.name}（已停用）</option
+          >{/if}
+        {#each level2Options as option (tagOptionKey(option))}
+          <option
+            value={tagOptionKey(option)}
+            disabled={selectedLevel2?.id === option.id &&
+              tagOptionKey(selectedLevel2) !== tagOptionKey(option)}
+            >{option.name}{selectedLevel2?.id === option.id &&
+            tagOptionKey(selectedLevel2) !== tagOptionKey(option)
+              ? '（已选择同义名称）'
+              : ''}</option
+          >
         {/each}
       </select>
     </label>

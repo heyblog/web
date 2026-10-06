@@ -91,8 +91,8 @@ and focused tests referenced below, not additional package-level AGENTS files.
   audit JSON remains history. Sources: `apps/api/internal/features/siteaudit/submission.go`,
   `apps/api/internal/features/siteaudit/review_draft.go`, and
   `apps/api/internal/features/siteaudit/repository_taxonomy.go`.
-- Random reads select VISIBLE sites, including warned sites, using exact canonical classification
-  names rather than slugs. Validate before selection, retain a normal null result when no candidate
+- Random reads select VISIBLE sites, including warned sites, using confirmed classification
+  names and synonyms rather than slugs. Validate before selection, retain a normal null result when no candidate
   exists, and keep preview Web-only. Preserve operation-specific errors/cache policy rather than
   mapping every database failure to unavailable; see
   `apps/api/internal/features/publicview/errors.go` and
@@ -108,7 +108,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
 
 ## Configuration and External Services
 
-- `features/taxonomy` owns a globally unique tag dictionary, shared SITE/ARTICLE path changes,
+- `features/taxonomy` owns semantic tag concepts with globally unique confirmed names in
+  `directory.tag_labels`, one enabled default name per concept, and chosen label IDs on object
+  assignments. `directory.tag_dictionary` projects default names and atomically writes concept
+  creation/default renames through a migration-owned view trigger. Admin label changes use taxonomy
+  permission and revision checks; referenced or default names cannot be physically deleted. It owns shared SITE/ARTICLE path changes,
   preview fingerprints, and historical ID/system-key/slug aliases. Roles belong to paths and object
   associations; a path may use the same tag in both roles. Audit, import, and management writes share
   the taxonomy transaction advisory lock. Existing disabled references remain readable. Migration 19
@@ -125,7 +129,8 @@ and focused tests referenced below, not additional package-level AGENTS files.
   an explicit resume. YAML `ai.batch` bounds request size, task size, and output tokens. Audit
   preparation generates at most twenty new tag slugs in two provider calls outside transactions,
   with a 35s total deadline and final revision/canonical checks inside the write transaction.
-  Migrations 19 and 20 refuse destructive downgrade; restore a pre-upgrade backup for production
+  Migration 21 retains the main-branch site metrics schema; label migration 22 follows it.
+  Migrations 19, 20, and 22 refuse destructive downgrade; restore a pre-upgrade backup for production
   rollback. Legacy migrations retain isolated rollback coverage.
 
 - `apps/api/internal/platform/config` alone discovers YAML/environment inputs and exports typed runtime

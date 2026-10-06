@@ -60,7 +60,7 @@ func (service *Service) approve(ctx context.Context, transaction AuditTransactio
 		}
 	}
 
-	final, err = transaction.ResolveTaxonomy(ctx, reviewer, final)
+	final, err = transaction.ResolveTaxonomy(ctx, reviewer, final, current)
 	if err != nil {
 		return Audit{}, err
 	}

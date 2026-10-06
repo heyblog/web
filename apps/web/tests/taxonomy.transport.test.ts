@@ -236,6 +236,8 @@ test('tag and structural payload validators preserve optional descriptions and r
 test('DTO parsers reject malformed successes and accept alias history', () => {
   const tag = {
     id: tagID,
+    default_label_id: otherID,
+    labels: [{ id: otherID, tag_id: tagID, name: '中文标签', is_enabled: true }],
     name: '中文标签',
     slug: 'legacy-中文',
     description: '',
@@ -247,8 +249,19 @@ test('DTO parsers reject malformed successes and accept alias history', () => {
   assert.ok(parseTaxonomy({ tags: [tag], cascades: [], revision }));
   assert.equal(parseTaxonomy({ tags: [{ ...tag, site_count: -1 }], cascades: [], revision }), null);
   assert.equal(parseTaxonomy({ tags: [tag], cascades: [], revision: 2 }), null);
-  assert.equal(parseSlug({ slug: '中文', source: 'ai', model_id: 'model' }), null);
-  assert.ok(parseSlug({ slug: 'chinese-tag', source: 'cache', model_id: 'model' }));
+  assert.equal(
+    parseSlug({ slug: '中文', source: 'ai', model_id: 'model', state: 'ready', conflicts: [] }),
+    null,
+  );
+  assert.ok(
+    parseSlug({
+      slug: 'chinese-tag',
+      source: 'cache',
+      model_id: 'model',
+      state: 'ready',
+      conflicts: [],
+    }),
+  );
   assert.equal(
     parsePreview({
       revision,
@@ -348,5 +361,67 @@ test('dictionary and path requests accept shared endpoints and reject retired hi
       'POST',
     ),
     false,
+  );
+});
+
+test('label routes require bounded names, revisions, authentication and same-origin requests', async () => {
+  const input = { name: 'algorithm', expected_revision: revision };
+  const stub = backend();
+  const response = await forwardTaxonomyManagement(
+    mutation(input),
+    `${tagID}/labels`,
+    stub.upstream,
+  );
+  assert.equal(response.status, 429);
+  assert.equal(stub.calls[1]?.path, `/management/taxonomy/tags/${tagID}/labels`);
+  assert.equal(
+    validManagementPayload({ ...input, slug: 'algorithm' }, `${tagID}/labels`, 'POST'),
+    false,
+  );
+  assert.equal(
+    validManagementPayload({ ...input, is_enabled: false }, `${tagID}/labels/${otherID}`, 'PUT'),
+    true,
+  );
+  assert.equal(
+    validManagementPayload(
+      { label_id: otherID, expected_revision: revision },
+      `${tagID}/default-label`,
+      'POST',
+    ),
+    true,
+  );
+  const crossed = backend();
+  assert.equal(
+    (
+      await forwardTaxonomyManagement(
+        mutation(input, { Origin: 'https://attacker.example.test' }),
+        `${tagID}/labels`,
+        crossed.upstream,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(crossed.calls.length, 0);
+});
+
+test('slug collision parsing preserves candidate and confirmed concept for mapping', () => {
+  const result = parseSlug({
+    slug: 'algorithm',
+    source: 'ai',
+    model_id: 'test',
+    state: 'needs_confirmation',
+    conflicts: [{ id: tagID, name: '算法', slug: 'algorithm' }],
+  });
+  assert.equal(result?.state, 'needs_confirmation');
+  assert.equal(result?.conflicts[0]?.id, tagID);
+  assert.equal(
+    parseSlug({
+      slug: 'algorithm',
+      source: 'ai',
+      model_id: 'test',
+      state: 'ready',
+      conflicts: [{ id: 'bad' }],
+    }),
+    null,
   );
 });

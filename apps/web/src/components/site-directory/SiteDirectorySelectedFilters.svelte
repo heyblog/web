@@ -6,6 +6,10 @@
     SiteDirectoryOptions,
     SiteDirectoryQuery,
   } from '@/api/sites/site-directory.types';
+  import {
+    directoryOptionSelected,
+    selectedDirectoryOption,
+  } from '@/application/site-directory/site-directory.labels';
 
   type SelectedFilter = {
     readonly key: string;
@@ -31,11 +35,6 @@
   ]);
   const labels = $derived(
     new Map([
-      ...options.classifications.flatMap((option) => [
-        [`level1:${option.value}`, option.label] as const,
-        ...option.children.map((child) => [`level2:${child.value}`, child.label] as const),
-      ]),
-      ...options.tertiaryTags.map((option) => [`tertiary:${option.value}`, option.label] as const),
       ...options.warnings.map((option) => [`warning:${option.value}`, option.label] as const),
       ...options.technologies.map(
         (option) => [`technology:${option.value}`, option.label] as const,
@@ -49,7 +48,9 @@
         key: `level1:${query.level1}`,
         name: 'classification',
         value: 'level1',
-        label: labels.get(`level1:${query.level1}`) ?? query.level1,
+        label:
+          selectedDirectoryOption(options.classifications, query.level1, query.level1_label_id)
+            ?.label ?? query.level1,
       });
     }
     if (query.level2) {
@@ -57,7 +58,14 @@
         key: `level2:${query.level2}`,
         name: 'classification',
         value: 'level2',
-        label: labels.get(`level2:${query.level2}`) ?? query.level2,
+        label:
+          selectedDirectoryOption(
+            options.classifications
+              .filter((option) => option.value === query.level1)
+              .flatMap((option) => option.children),
+            query.level2,
+            query.level2_label_id,
+          )?.label ?? query.level2,
       });
     }
     const groups = [
@@ -75,7 +83,18 @@
           label:
             name === 'access'
               ? (accessLabels.get(value) ?? value)
-              : (labels.get(`${name}:${value}`) ?? value),
+              : name === 'tertiary'
+                ? (options.tertiaryTags.find(
+                    (option) =>
+                      option.value === value &&
+                      directoryOptionSelected(
+                        options.tertiaryTags,
+                        option,
+                        query.tertiary,
+                        query.tertiary_label_ids,
+                      ),
+                  )?.label ?? value)
+                : (labels.get(`${name}:${value}`) ?? value),
         });
       }
     }

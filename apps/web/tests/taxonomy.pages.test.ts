@@ -34,6 +34,8 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
           tags: [
             {
               id: tagID,
+              default_label_id: tagID,
+              labels: [{ id: tagID, tag_id: tagID, name: '中文标签', is_enabled: true }],
               name: '中文标签',
               slug: 'chinese-tag',
               description: '',

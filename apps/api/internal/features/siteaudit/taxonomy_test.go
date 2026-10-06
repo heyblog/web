@@ -11,23 +11,23 @@ import (
 )
 
 type existingTagQueries struct {
-	tag dbgen.DirectoryTag
+	tag dbgen.DirectoryTagDictionary
 }
 
 type existingComponentQueries struct {
 	component dbgen.DirectorySoftwareComponent
 }
 
-func (queries existingTagQueries) ListManagedTags(context.Context) ([]dbgen.DirectoryTag, error) {
-	return []dbgen.DirectoryTag{queries.tag}, nil
+func (queries existingTagQueries) ListManagedTags(context.Context) ([]dbgen.DirectoryTagDictionary, error) {
+	return []dbgen.DirectoryTagDictionary{queries.tag}, nil
 }
 
-func (queries existingTagQueries) GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTag, error) {
+func (queries existingTagQueries) GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTagDictionary, error) {
 	return queries.tag, nil
 }
 
-func (existingTagQueries) CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTag, error) {
-	return dbgen.DirectoryTag{}, nil
+func (existingTagQueries) CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTagDictionary, error) {
+	return dbgen.DirectoryTagDictionary{}, nil
 }
 
 func (queries existingComponentQueries) GetSoftwareComponentByID(context.Context, pgtype.UUID) (dbgen.DirectorySoftwareComponent, error) {
@@ -50,7 +50,7 @@ func TestResolveTagMapsSuggestionToExistingEntryWithoutTaxonomyPermission(t *tes
 
 	resolved, err := resolveTag(
 		context.Background(),
-		existingTagQueries{tag: dbgen.DirectoryTag{ID: existingID, Name: "Astro", NormalizedName: "astro", IsEnabled: true}},
+		existingTagQueries{tag: dbgen.DirectoryTagDictionary{ID: existingID, Name: "Astro", NormalizedName: "astro", IsEnabled: true}},
 		reviewer,
 		TagSnapshot{SuggestedName: "Astro", Role: "TERTIARY", Level: 3},
 	)
@@ -132,3 +132,10 @@ func TestTertiaryAssignmentAcceptsIntrinsicClassificationLevel(t *testing.T) {
 }
 
 func (existingTagQueries) EnableCanonicalTag(context.Context, pgtype.UUID) error { return nil }
+
+func (queries existingTagQueries) GetTagLabel(_ context.Context, id pgtype.UUID) (dbgen.DirectoryTagLabel, error) {
+	return dbgen.DirectoryTagLabel{ID: id, TagID: queries.tag.ID, Name: queries.tag.Name, IsEnabled: queries.tag.IsEnabled}, nil
+}
+func (queries existingTagQueries) GetTagLabelByNormalizedName(context.Context, string) (dbgen.DirectoryTagLabel, error) {
+	return dbgen.DirectoryTagLabel{ID: queries.tag.DefaultLabelID, TagID: queries.tag.ID, Name: queries.tag.Name, IsEnabled: queries.tag.IsEnabled}, nil
+}

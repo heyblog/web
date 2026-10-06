@@ -63,8 +63,17 @@ func normalizeSnapshotTaxonomy(ctx context.Context, q *dbgen.Queries, snapshot S
 		}
 		primaryID, _ = uuidString(first.ID)
 		secondaryID, _ = uuidString(second.ID)
-		primary := TagSnapshot{ID: primaryID, Name: first.Name, Slug: first.Slug, Description: first.Description, Role: "PRIMARY", Level: 1}
-		secondary := TagSnapshot{ID: secondaryID, Name: second.Name, Slug: second.Slug, Description: second.Description, Role: "SECONDARY", Level: 2, ParentID: primaryID}
+		primary, labelErr := canonicalTagLabel(ctx, q, tagByRole(snapshot.Tags, "PRIMARY"), first, true)
+		if labelErr != nil {
+			return Snapshot{}, labelErr
+		}
+		primary.Role, primary.Level = "PRIMARY", 1
+		secondary, labelErr := canonicalTagLabel(ctx, q, tagByRole(snapshot.Tags, "SECONDARY"), second, true)
+		if labelErr != nil {
+			return Snapshot{}, labelErr
+		}
+		secondary.Role, secondary.Level, secondary.ParentID = "SECONDARY", 2, primaryID
+
 		snapshot.TagCascadeID, _ = uuidString(c.ID)
 		snapshot.Classification = &CascadeSnapshot{ID: snapshot.TagCascadeID, TaxonomyKey: c.TaxonomyKey, Level1: primary, Level2: secondary}
 		tags = append(tags, primary, secondary)
@@ -86,11 +95,10 @@ func normalizeSnapshotTaxonomy(ctx context.Context, q *dbgen.Queries, snapshot S
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("resolve historical tag: %w", err)
 		}
-		tag.ID, _ = uuidString(row.ID)
-		tag.Name = row.Name
-		tag.Slug = row.Slug
-		tag.Description = row.Description
-		tag.SuggestedName = ""
+		tag, err = canonicalTagLabel(ctx, q, tag, row, true)
+		if err != nil {
+			return Snapshot{}, err
+		}
 		tag.Level = 3
 		tag.ParentID = ""
 		if tag.Role == "TERTIARY" && (tag.ID == primaryID || tag.ID == secondaryID) {

@@ -113,11 +113,11 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 		t.Fatalf("remove directory role fixture: %v", err)
 	}
 	for _, siteID := range []pgtype.UUID{visibleBoth, hiddenBoth, removedBoth} {
-		if _, updateErr := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2 WHERE id = $1`, siteID, firstCascade.ID); updateErr != nil {
+		if _, updateErr := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2, primary_label_id=NULL, secondary_label_id=NULL WHERE id = $1`, siteID, firstCascade.ID); updateErr != nil {
 			t.Fatalf("assign first directory cascade: %v", updateErr)
 		}
 	}
-	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2 WHERE id = $1`, visiblePartial, secondCascade.ID); err != nil {
+	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2, primary_label_id=NULL, secondary_label_id=NULL WHERE id = $1`, visiblePartial, secondCascade.ID); err != nil {
 		t.Fatalf("assign second directory cascade: %v", err)
 	}
 	assign := func(siteID, tagID pgtype.UUID, position int16) {
@@ -382,7 +382,7 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 		{name: "Canonical Topic", normalizedName: "canonical topic", slug: "canonical-topic", enabled: true, id: &canonicalTagID},
 	} {
 		if err := connection.QueryRow(ctx, `
-			INSERT INTO directory.tags (name, normalized_name, slug, is_enabled)
+			INSERT INTO directory.tag_dictionary (name, normalized_name, slug, is_enabled)
 			VALUES ($1, $2, $3, $4)
 			RETURNING id
 		`, fixture.name, fixture.normalizedName, fixture.slug, fixture.enabled).Scan(fixture.id); err != nil {
@@ -398,7 +398,9 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 		}
 	}
 	if _, err := connection.Exec(ctx, `
-		UPDATE directory.site_tags SET tag_id=$2 WHERE tag_id=$1
+		UPDATE directory.site_tags
+		SET tag_id=$2, label_id=(SELECT default_label_id FROM directory.tags WHERE id=$2)
+		WHERE tag_id=$1
 	`, mergedTagID, canonicalTagID); err != nil {
 		t.Fatalf("merge public view tag fixture: %v", err)
 	}

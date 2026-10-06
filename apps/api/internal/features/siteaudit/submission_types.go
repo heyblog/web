@@ -13,6 +13,7 @@ type ResourceInput struct {
 }
 
 type TagInput struct {
+	LabelID       string `json:"label_id,omitempty"`
 	ID            string `json:"id"`
 	SuggestedName string `json:"suggested_name"`
 	Slug          string `json:"slug"`

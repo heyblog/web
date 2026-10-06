@@ -37,10 +37,10 @@ func (repository *Repository) ImportTaxonomy(ctx context.Context, bundle TagTaxo
 		} else if !errors.Is(lookupErr, pgx.ErrNoRows) {
 			return Counts{}, lookupErr
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO directory.tags(id,name,normalized_name,slug,description,is_enabled) VALUES($1,$2,lower(btrim($2)),$3,COALESCE($4,''),true) ON CONFLICT DO NOTHING`, id, tag.Name, "legacy-"+tag.TagID, tag.Description); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO directory.tag_dictionary(id,name,normalized_name,slug,description,is_enabled) SELECT $1,$2,lower(btrim($2)),$3,COALESCE($4,''),true WHERE NOT EXISTS(SELECT 1 FROM directory.tag_labels WHERE normalized_name=lower(btrim($2)))`, id, tag.Name, "legacy-"+tag.TagID, tag.Description); err != nil {
 			return Counts{}, fmt.Errorf("insert imported tag: %w", err)
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot) SELECT $1,id,jsonb_build_object('id',$1::text,'name',$2::text) FROM directory.tags WHERE normalized_name=lower(btrim($2)) ON CONFLICT(alias_id) DO NOTHING`, id, tag.Name); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot) SELECT $1,tag_id,jsonb_build_object('id',$1::text,'name',$2::text) FROM directory.tag_labels WHERE normalized_name=lower(btrim($2)) ON CONFLICT(alias_id) DO NOTHING`, id, tag.Name); err != nil {
 			return Counts{}, err
 		}
 	}
@@ -68,7 +68,8 @@ func importSiteTaxonomy(ctx context.Context, tx pgx.Tx, site SiteTagTaxonomyMigr
 	if !path.IsEnabled {
 		return errors.New("imported classification is disabled; update the import mapping")
 	}
-	assignments := make([]pgtype.UUID, 0, len(site.TertiaryTags))
+	type selectedTag struct{ id, label pgtype.UUID }
+	assignments := make([]selectedTag, 0, len(site.TertiaryTags))
 	seen := map[pgtype.UUID]bool{}
 	for _, tag := range site.TertiaryTags {
 		var id pgtype.UUID
@@ -91,22 +92,36 @@ func importSiteTaxonomy(ctx context.Context, tx pgx.Tx, site SiteTagTaxonomyMigr
 			continue
 		}
 		seen[canonical.ID] = true
-		assignments = append(assignments, canonical.ID)
+		label, err := importedTagLabel(ctx, tx, site.SiteID, canonical.ID, canonical.DefaultLabelID, tag.Name, id)
+		if err != nil {
+			return err
+		}
+		assignments = append(assignments, selectedTag{id: canonical.ID, label: label})
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM directory.site_tags WHERE site_id=$1::uuid AND role='TERTIARY'`, site.SiteID); err != nil {
 		return err
 	}
-	result, err := tx.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id=$2,revision=revision+1 WHERE id=$1::uuid`, site.SiteID, path.ID)
+	result, err := tx.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id=$2,primary_label_id=COALESCE((SELECT id FROM directory.tag_labels WHERE id=directory.sites.primary_label_id AND tag_id=$3),(SELECT default_label_id FROM directory.tags WHERE id=$3)),secondary_label_id=COALESCE((SELECT id FROM directory.tag_labels WHERE id=directory.sites.secondary_label_id AND tag_id=$4),(SELECT default_label_id FROM directory.tags WHERE id=$4)),revision=revision+1 WHERE id=$1::uuid`, site.SiteID, path.ID, path.Level1TagID, path.Level2TagID)
 	if err != nil {
 		return err
 	}
 	if result.RowsAffected() != 1 {
 		return errors.New("imported taxonomy site does not exist")
 	}
-	for i, id := range assignments {
-		if _, err = tx.Exec(ctx, `INSERT INTO directory.site_tags(site_id,tag_id,role,assignment_source,position) VALUES($1::uuid,$2,'TERTIARY','IMPORTED',$3)`, site.SiteID, id, i+1); err != nil {
+	for i, a := range assignments {
+		if _, err = tx.Exec(ctx, `INSERT INTO directory.site_tags(site_id,tag_id,label_id,role,assignment_source,position) VALUES($1::uuid,$2,$4,'TERTIARY','IMPORTED',$3)`, site.SiteID, a.id, i+1, a.label); err != nil {
 			return fmt.Errorf("assign imported tag: %w", err)
 		}
 	}
 	return nil
+}
+
+// Existing selected names survive repeated imports; new assignments use confirmed owned names.
+func importedTagLabel(ctx context.Context, tx pgx.Tx, siteID string, tagID, defaultID pgtype.UUID, name string, historicalID pgtype.UUID) (pgtype.UUID, error) {
+	var label pgtype.UUID
+	err := tx.QueryRow(ctx, `SELECT COALESCE(
+ (SELECT l.id FROM directory.site_tags a JOIN directory.tag_labels l ON l.id=a.label_id WHERE a.site_id=$1::uuid AND a.tag_id=$2 AND l.tag_id=$2),
+ (SELECT l.id FROM directory.tag_labels l WHERE l.tag_id=$2 AND l.is_enabled AND l.normalized_name=lower(btrim($3))),
+ (SELECT l.id FROM directory.tag_labels l WHERE l.tag_id=$2 AND l.is_enabled AND l.id=$4),$5::uuid)`, siteID, tagID, name, historicalID, defaultID).Scan(&label)
+	return label, err
 }

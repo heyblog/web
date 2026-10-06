@@ -94,7 +94,18 @@ func (fixture auditMigrationFixture) pendingCreate(t *testing.T, host string) si
 		t.Fatalf("get fixture migration version: %v", err)
 	}
 	if version >= 11 {
-		cascades, listErr := dbgen.New(fixture.pool).ListEnabledSiteTagCascades(ctx)
+		var cascades []dbgen.ListEnabledSiteTagCascadesRow
+		var listErr error
+		if version >= 22 {
+			cascades, listErr = dbgen.New(fixture.pool).ListEnabledSiteTagCascades(ctx)
+		} else {
+			rows, queryErr := fixture.pool.Query(ctx, `SELECT c.id,c.taxonomy_key,c.sort_order,p.id,p.name,p.slug,s.id,s.name,s.slug FROM directory.tag_cascades c JOIN directory.tags p ON p.id=c.level1_tag_id JOIN directory.tags s ON s.id=c.level2_tag_id WHERE c.scope='SITE' AND c.is_enabled AND p.is_enabled AND s.is_enabled ORDER BY c.sort_order,c.id`)
+			if queryErr != nil {
+				listErr = queryErr
+			} else {
+				cascades, listErr = pgx.CollectRows(rows, pgx.RowToStructByPos[dbgen.ListEnabledSiteTagCascadesRow])
+			}
+		}
 		if listErr != nil || len(cascades) == 0 {
 			t.Fatalf("get audit fixture cascade: %v", listErr)
 		}

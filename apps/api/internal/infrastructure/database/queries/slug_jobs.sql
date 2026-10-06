@@ -1,6 +1,6 @@
 -- name: SelectSlugJobTags :many
 SELECT id,name,slug,description,is_enabled,updated_at
-FROM directory.tags
+FROM directory.tag_dictionary
 WHERE (sqlc.arg(kind)::text <> 'ids' OR id = ANY(sqlc.arg(ids)::uuid[]))
   AND (sqlc.arg(kind)::text <> 'invalid' OR slug LIKE 'legacy-%' OR slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$' OR char_length(slug)>128)
   AND (sqlc.arg(kind)::text <> 'filter' OR
@@ -63,7 +63,7 @@ AND (u.role='SYS_ADMIN' OR (u.role='ADMIN' AND EXISTS(
 SELECT 1 FROM identity.user_management_permissions p WHERE p.user_id=u.id AND p.permission_key='taxonomy.manage'))))::boolean;
 
 -- name: LockSlugJobTag :one
-SELECT id,name,slug,description,is_enabled,updated_at FROM directory.tags WHERE id=$1 FOR UPDATE;
+SELECT id,name,slug,description,is_enabled,updated_at FROM directory.tag_dictionary WHERE id=$1 FOR UPDATE;
 
 -- name: SetSlugJobTag :exec
 UPDATE directory.tags SET slug=$2 WHERE id=$1;

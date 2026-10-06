@@ -35,19 +35,22 @@ const (
 )
 
 type DirectoryQuery struct {
-	Page         int32           `json:"page"`
-	Query        string          `json:"q"`
-	Level1       string          `json:"level1"`
-	Level2       string          `json:"level2"`
-	TertiaryTags []string        `json:"tertiary"`
-	Warnings     []string        `json:"warning"`
-	Technologies []string        `json:"technology"`
-	AccessScopes []string        `json:"access"`
-	Feed         DirectoryFeed   `json:"feed"`
-	Status       DirectoryStatus `json:"status"`
-	Sort         DirectorySort   `json:"sort"`
-	Order        DirectoryOrder  `json:"order"`
-	Seed         string          `json:"seed"`
+	Level1LabelID    string          `json:"level1_label_id"`
+	Level2LabelID    string          `json:"level2_label_id"`
+	TertiaryLabelIDs []string        `json:"tertiary_label_ids"`
+	Page             int32           `json:"page"`
+	Query            string          `json:"q"`
+	Level1           string          `json:"level1"`
+	Level2           string          `json:"level2"`
+	TertiaryTags     []string        `json:"tertiary"`
+	Warnings         []string        `json:"warning"`
+	Technologies     []string        `json:"technology"`
+	AccessScopes     []string        `json:"access"`
+	Feed             DirectoryFeed   `json:"feed"`
+	Status           DirectoryStatus `json:"status"`
+	Sort             DirectorySort   `json:"sort"`
+	Order            DirectoryOrder  `json:"order"`
+	Seed             string          `json:"seed"`
 }
 
 type DirectoryView struct {
@@ -93,6 +96,11 @@ func DefaultDirectoryQuery(now time.Time) DirectoryQuery {
 }
 
 func (service *Service) Directory(ctx context.Context, query DirectoryQuery) (DirectoryView, error) {
+	var err error
+	query, err = resolveDirectoryLabels(ctx, service.directory, query)
+	if err != nil {
+		return DirectoryView{}, err
+	}
 	countParameters := query.countParameters()
 	counts, err := service.directory.CountDirectorySitesByStatus(ctx, countParameters)
 	if err != nil {

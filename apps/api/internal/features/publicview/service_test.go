@@ -595,3 +595,7 @@ func (stub queryStub) ListPublicSiteSoftwareComponents(
 ) ([]dbgen.ListPublicSiteSoftwareComponentsRow, error) {
 	return stub.technologies, stub.technologiesErr
 }
+
+func (stub queryStub) ResolveDirectoryLabel(_ context.Context, in dbgen.ResolveDirectoryLabelParams) (dbgen.ResolveDirectoryLabelRow, error) {
+	return dbgen.ResolveDirectoryLabelRow{Slug: in.Slug}, nil
+}

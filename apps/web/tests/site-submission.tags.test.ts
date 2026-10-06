@@ -6,13 +6,15 @@ import {
   emptySubmission,
 } from '../src/application/site-submission/site-submission.browser.ts';
 import {
+  matchingTagOptions,
   removeTag,
   selectClassificationTag,
   selectTertiaryTag,
+  tagSelectionReason,
   tertiaryTagOptions,
 } from '../src/application/site-submission/site-submission.tags.browser.ts';
 
-test('deduplicates fixed dictionary entries while excluding selected tags and warnings', () => {
+test('deduplicates labels while retaining selected concepts for disabled-choice feedback', () => {
   const form = emptySubmission();
   selectClassificationTag(form, { id: 'computer', name: '计算机', level: 1 });
   selectTertiaryTag(form, { id: 'selected', name: '已选', level: 3 });
@@ -31,7 +33,7 @@ test('deduplicates fixed dictionary entries while excluding selected tags and wa
 
   assert.deepEqual(
     result.map((tag) => tag.id),
-    ['life'],
+    ['computer', 'life', 'selected'],
   );
 });
 
@@ -177,4 +179,27 @@ test('tertiary exclusion only concerns the selected object classification', () =
     form.tags.map((tag) => [tag.id, tag.role]),
     [['life', 'PRIMARY']],
   );
+});
+
+test('confirmed synonyms share identity, expand search and preserve the chosen label', () => {
+  const options = [
+    { id: 'algorithm', label_id: 'zh', name: '算法', level: 3 as const },
+    { id: 'algorithm', label_id: 'en', name: 'algorithm', level: 3 as const },
+    { id: 'life', label_id: 'other', name: '生活', level: 3 as const },
+  ];
+  const form = emptySubmission();
+  assert.deepEqual(
+    matchingTagOptions('算法', options).map((option) => option.label_id),
+    ['zh', 'en'],
+  );
+  selectTertiaryTag(form, options[0]);
+  assert.equal(tagSelectionReason(options[1], form.tags), '已选择“算法”');
+  selectTertiaryTag(form, options[1]);
+  assert.equal(form.tags.length, 1);
+  assert.equal(buildSubmissionPayload(form).site.tags[0]?.label_id, 'zh');
+  removeTag(form, 'algorithm');
+  assert.equal(tagSelectionReason(options[1], form.tags), '');
+  selectTertiaryTag(form, options[1]);
+  assert.equal(form.tags[0]?.name, 'algorithm');
+  assert.equal(buildSubmissionPayload(form).site.tags[0]?.label_id, 'en');
 });

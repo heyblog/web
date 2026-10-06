@@ -14,6 +14,7 @@ type ResourceSnapshot struct {
 }
 
 type TagSnapshot struct {
+	LabelID       string `json:"label_id,omitempty"`
 	ID            string `json:"id,omitempty"`
 	Name          string `json:"name,omitempty"`
 	SuggestedName string `json:"suggested_name,omitempty"`

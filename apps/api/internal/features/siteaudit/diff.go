@@ -132,8 +132,8 @@ func tagValues(tags []TagSnapshot) map[string]string {
 		if tag.Role == "WARNING" {
 			continue
 		}
-		key := tag.ID
-		if key == "" {
+		key := tag.Role + ":" + tag.ID
+		if tag.ID == "" {
 			key = tag.Role + ":" + tag.SuggestedName
 		}
 		role := "标签"

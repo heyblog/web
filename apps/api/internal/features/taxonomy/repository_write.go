@@ -38,7 +38,13 @@ func applyPlan(ctx context.Context, tx pgx.Tx, p changePlan) error {
 		}
 	}
 	for source, target := range p.Merged {
-		if _, err := tx.Exec(ctx, `INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot) SELECT id,$2::uuid,to_jsonb(t) FROM directory.tags t WHERE id=$1::uuid ON CONFLICT(alias_id) DO UPDATE SET tag_id=EXCLUDED.tag_id`, source, target); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE directory.tags SET updated_at=now() WHERE id=$1::uuid`, target); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot) SELECT id,$2::uuid,to_jsonb(t)||jsonb_build_object('labels',(SELECT jsonb_agg(to_jsonb(l)) FROM directory.tag_labels l WHERE l.tag_id=$1::uuid)) FROM directory.tag_dictionary t WHERE id=$1::uuid ON CONFLICT(alias_id) DO UPDATE SET tag_id=EXCLUDED.tag_id`, source, target); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE directory.tag_labels SET tag_id=$2::uuid,updated_at=now() WHERE tag_id=$1::uuid`, source, target); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE directory.tag_identity_aliases SET tag_id=$2::uuid WHERE tag_id=$1::uuid`, source, target); err != nil {
@@ -53,6 +59,13 @@ func applyPlan(ctx context.Context, tx pgx.Tx, p changePlan) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM directory.tags WHERE id=$1::uuid`, source); err != nil {
 			return err
 		}
+	}
+	ids := []string{}
+	for source, target := range p.Merged {
+		ids = append(ids, source, target)
+	}
+	if len(ids) > 0 {
+		return invalidateSlugPreviews(ctx, tx, ids)
 	}
 	return nil
 }
@@ -77,19 +90,19 @@ func deleteAssignments(ctx context.Context, tx pgx.Tx, o object) error {
 	return err
 }
 func writeObject(ctx context.Context, tx pgx.Tx, o object) error {
-	query := `UPDATE directory.sites SET tag_cascade_id=$2::uuid,revision=revision+1 WHERE id=$1::uuid`
+	query := `UPDATE directory.sites SET tag_cascade_id=$2::uuid,primary_label_id=$3::uuid,secondary_label_id=$4::uuid,revision=revision+1 WHERE id=$1::uuid`
 	if o.Scope == "ARTICLE" {
-		query = `UPDATE content.articles SET tag_cascade_id=$2::uuid WHERE id=$1::uuid`
+		query = `UPDATE content.articles SET tag_cascade_id=$2::uuid,primary_label_id=$3::uuid,secondary_label_id=$4::uuid WHERE id=$1::uuid`
 	}
-	if _, err := tx.Exec(ctx, query, o.ID, o.CascadeID); err != nil {
+	if _, err := tx.Exec(ctx, query, o.ID, o.CascadeID, o.PrimaryLabelID, o.SecondaryLabelID); err != nil {
 		return err
 	}
 	for _, a := range o.Tags {
-		query = `INSERT INTO directory.site_tags(site_id,tag_id,role,assignment_source,position,note,created_at) VALUES($1::uuid,$2::uuid,$3,$4,NULLIF($5,0),$6,$7::timestamptz)`
+		query = `INSERT INTO directory.site_tags(site_id,tag_id,role,assignment_source,position,note,created_at,label_id) VALUES($1::uuid,$2::uuid,$3,$4,NULLIF($5,0),$6,$7::timestamptz,$8::uuid)`
 		if o.Scope == "ARTICLE" {
-			query = `INSERT INTO content.article_tags(article_id,tag_id,role,assignment_source,position,note,created_at) VALUES($1::uuid,$2::uuid,$3,$4,NULLIF($5,0),$6,$7::timestamptz)`
+			query = `INSERT INTO content.article_tags(article_id,tag_id,role,assignment_source,position,note,created_at,label_id) VALUES($1::uuid,$2::uuid,$3,$4,NULLIF($5,0),$6,$7::timestamptz,$8::uuid)`
 		}
-		if _, err := tx.Exec(ctx, query, o.ID, a.TagID, a.Role, a.Source, a.Position, a.Note, a.CreatedAt); err != nil {
+		if _, err := tx.Exec(ctx, query, o.ID, a.TagID, a.Role, a.Source, a.Position, a.Note, a.CreatedAt, a.LabelID); err != nil {
 			return err
 		}
 	}

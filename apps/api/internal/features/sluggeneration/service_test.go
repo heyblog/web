@@ -13,7 +13,7 @@ func TestEnglishGenerationAndCollisionExclusion(t *testing.T) {
 	service, store, provider, guard := testService()
 	store.occupied["machine-learning"] = "other"
 	got, err := service.Generate(context.Background(), Identity{UserID: "user"}, SlugGenerationInput{Name: " Machine  Learning "})
-	if err != nil || got.Slug != "machine-learning-2" || got.Source != "local" || provider.calls != 0 || guard.charged != 0 {
+	if err != nil || got.Slug != "machine-learning" || got.State != "needs_confirmation" || got.Source != "local" || provider.calls != 0 || guard.charged != 0 {
 		t.Fatalf("result=%+v error=%v paid=%d", got, err, guard.charged)
 	}
 	got, err = service.Generate(context.Background(), Identity{UserID: "user"}, SlugGenerationInput{Name: "Machine Learning", TagID: "other"})
@@ -23,7 +23,7 @@ func TestEnglishGenerationAndCollisionExclusion(t *testing.T) {
 }
 
 func TestComplexNamesUseAIAndCacheIsContextAndModelSpecific(t *testing.T) {
-	for _, name := range []string{"编程", "Go 开发", "C++", "C#", ".NET"} {
+	for _, name := range []string{"编程", "Go 开发", "アルゴリズム", "algorithme 算法", "C++", "C#", ".NET"} {
 		t.Run(name, func(t *testing.T) {
 			service, store, provider, guard := testService()
 			input := SlugGenerationInput{Name: name, ParentName: "技术"}
@@ -33,7 +33,7 @@ func TestComplexNamesUseAIAndCacheIsContextAndModelSpecific(t *testing.T) {
 			}
 			store.occupied["programming"] = "other"
 			cached, err := service.Generate(context.Background(), Identity{UserID: "user"}, input)
-			if err != nil || cached.Source != "cache" || cached.Slug != "programming-2" || provider.calls != 1 || guard.charged != 1 {
+			if err != nil || cached.Source != "cache" || cached.Slug != "programming" || cached.State != "needs_confirmation" || provider.calls != 1 || guard.charged != 1 {
 				t.Fatalf("cached=%+v error=%v", cached, err)
 			}
 			input.ParentName = "生活"

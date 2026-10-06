@@ -70,7 +70,7 @@ func TestDictionaryUpgradeFromDeployedAndDevelopment(t *testing.T) {
 			if err := f.pool.QueryRow(ctx, `SELECT bool_and(level1_tag_id=level2_tag_id) FROM directory.tag_cascades WHERE taxonomy_key='other/topic-other-other'`).Scan(&self); err != nil || !self {
 				t.Fatal("fallback not self-linked", err)
 			}
-			if _, err := f.pool.Exec(ctx, `INSERT INTO directory.tags(name,normalized_name,slug,is_enabled) VALUES('生活','生活','another-life',false)`); err == nil {
+			if _, err := f.pool.Exec(ctx, `INSERT INTO directory.tag_dictionary(name,normalized_name,slug,is_enabled) VALUES('生活','生活','another-life',false)`); err == nil {
 				t.Fatal("disabled duplicate accepted")
 			}
 			if _, err := f.provider.DownTo(ctx, 18); err == nil || !strings.Contains(err.Error(), "restore the pre-upgrade") {

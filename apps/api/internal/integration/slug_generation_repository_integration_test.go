@@ -91,7 +91,7 @@ func TestSlugGenerationRepository(t *testing.T) {
 		t.Fatalf("cached=%q err=%v", cached, err)
 	}
 	var id string
-	if err := admin.QueryRow(ctx, `INSERT INTO directory.tags (name, normalized_name, slug) VALUES ('Slug fixture','slug fixture','slug-fixture') RETURNING id::text`).Scan(&id); err != nil {
+	if err := admin.QueryRow(ctx, `INSERT INTO directory.tag_dictionary (name, normalized_name, slug) VALUES ('Slug fixture','slug fixture','slug-fixture') RETURNING id::text`).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := admin.Exec(ctx, `INSERT INTO directory.tag_slug_aliases(slug,tag_id) VALUES ('old-slug-fixture',$1::uuid)`, id); err != nil {
@@ -101,6 +101,14 @@ func TestSlugGenerationRepository(t *testing.T) {
 		occupied, err := repository.Occupied(ctx, slug, "")
 		if err != nil || !occupied {
 			t.Fatalf("occupied %s=%v err=%v", slug, occupied, err)
+		}
+		conflicts, err := repository.Conflicts(ctx, slug, "")
+		if err != nil || len(conflicts) != 1 || conflicts[0].ID != id || conflicts[0].Slug != "slug-fixture" {
+			t.Fatalf("conflicts=%+v err=%v", conflicts, err)
+		}
+		ownConflicts, err := repository.Conflicts(ctx, slug, id)
+		if err != nil || len(ownConflicts) != 0 {
+			t.Fatalf("own conflicts=%+v err=%v", ownConflicts, err)
 		}
 		occupied, err = repository.Occupied(ctx, slug, id)
 		if err != nil || occupied {

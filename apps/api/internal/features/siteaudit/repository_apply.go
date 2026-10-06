@@ -53,6 +53,15 @@ func (transaction *auditTransaction) applySnapshot(
 		}
 		return pgtype.UUID{}, 0, fmt.Errorf("apply reviewed site snapshot: %w", err)
 	}
+	if action == ActionCreate || action == ActionUpdate {
+		primary, secondary, labelErr := classificationLabelIDs(final)
+		if labelErr != nil {
+			return pgtype.UUID{}, 0, labelErr
+		}
+		if labelErr = queries.SetSiteClassificationLabels(ctx, dbgen.SetSiteClassificationLabelsParams{ID: siteID, PrimaryLabelID: primary, SecondaryLabelID: secondary}); labelErr != nil {
+			return pgtype.UUID{}, 0, labelErr
+		}
+	}
 	final.Revision = row.Revision
 	if action == ActionCreate || action == ActionUpdate {
 		if err := syncAssociations(ctx, queries, siteID, final, reviewerID, createsProgramDependencies); err != nil {

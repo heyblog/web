@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -54,12 +53,23 @@ func (service *Service) Generate(ctx context.Context, identity Identity, input S
 	if input.Name == "" {
 		return Result{}, apperror.New(apperror.KindValidation, "invalid_tag_name", "tag name is required")
 	}
+	if lookup, ok := service.store.(tagSlugLookup); ok {
+		slug, err := lookup.ExistingSlug(ctx, strings.ToLower(input.Name))
+		if err != nil {
+			return Result{}, unavailable()
+		}
+		if slug != "" {
+			if input.TagID != "" {
+				return service.candidateResult(ctx, slug, input.TagID, "existing", "")
+			}
+			return Result{Slug: slug, Source: "existing", State: "ready", Conflicts: []SlugConflict{}}, nil
+		}
+	}
 	if simpleName.MatchString(input.Name) {
 		candidate := strings.ToLower(strings.Join(strings.Fields(input.Name), "-"))
 		// Repeated separators have a single canonical representation.
 		candidate = strings.Join(strings.FieldsFunc(candidate, func(r rune) bool { return r == '-' }), "-")
-		slug, err := service.unique(ctx, candidate, input.TagID)
-		return Result{Slug: slug, Source: "local", ModelID: ""}, err
+		return service.candidateResult(ctx, candidate, input.TagID, "local", "")
 	}
 	settings, err := service.Settings(ctx)
 	if err != nil {
@@ -81,8 +91,7 @@ func (service *Service) Generate(ctx context.Context, identity Identity, input S
 		return Result{}, unavailable()
 	}
 	if candidate != "" {
-		slug, err := service.unique(ctx, candidate, input.TagID)
-		return Result{Slug: slug, Source: "cache", ModelID: settings.ModelID}, err
+		return service.candidateResult(ctx, candidate, input.TagID, "cache", settings.ModelID)
 	}
 	if !settings.Configured {
 		return Result{}, unavailable()
@@ -102,8 +111,7 @@ func (service *Service) Generate(ctx context.Context, identity Identity, input S
 		return Result{}, unavailable()
 	}
 	if candidate != "" {
-		slug, err := service.unique(ctx, candidate, input.TagID)
-		return Result{Slug: slug, Source: "cache", ModelID: settings.ModelID}, err
+		return service.candidateResult(ctx, candidate, input.TagID, "cache", settings.ModelID)
 	}
 	if err := service.guard.Charge(ctx, identity.UserID); err != nil {
 		return Result{}, err
@@ -118,24 +126,5 @@ func (service *Service) Generate(ctx context.Context, identity Identity, input S
 	if err := service.store.Cache(ctx, key, candidate); err != nil {
 		return Result{}, unavailable()
 	}
-	slug, err := service.unique(ctx, candidate, input.TagID)
-	return Result{Slug: slug, Source: "ai", ModelID: settings.ModelID}, err
-}
-
-func (service *Service) unique(ctx context.Context, base, tagID string) (string, error) {
-	for index := 1; index <= 10000; index++ {
-		candidate := base
-		if index > 1 {
-			suffix := fmt.Sprintf("-%d", index)
-			candidate = strings.TrimRight(base[:min(len(base), 128-len(suffix))], "-") + suffix
-		}
-		occupied, err := service.store.Occupied(ctx, candidate, tagID)
-		if err != nil {
-			return "", unavailable()
-		}
-		if !occupied {
-			return candidate, nil
-		}
-	}
-	return "", apperror.New(apperror.KindConflict, "slug_collision", "no unique slug candidate is available")
+	return service.candidateResult(ctx, candidate, input.TagID, "ai", settings.ModelID)
 }

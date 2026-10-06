@@ -29,7 +29,7 @@ func verifyTagAndIconConstraints(ctx context.Context, t *testing.T, connection *
 		{name: "Personal", normalizedName: "personal", slug: "personal", destination: &alternateTertiaryTagID},
 	} {
 		if err := connection.QueryRow(ctx, `
-			INSERT INTO directory.tags (name, normalized_name, slug)
+			INSERT INTO directory.tag_dictionary (name, normalized_name, slug)
 			VALUES ($1, $2, $3)
 			RETURNING id
 		`, tag.name, tag.normalizedName, tag.slug).Scan(tag.destination); err != nil {
@@ -37,13 +37,13 @@ func verifyTagAndIconConstraints(ctx context.Context, t *testing.T, connection *
 		}
 	}
 	if _, err := connection.Exec(ctx, `
-		INSERT INTO directory.tags (name, normalized_name, slug)
-		VALUES ('Duplicate name', 'technology', 'different-slug')
+		INSERT INTO directory.tag_dictionary (name, normalized_name, slug)
+		VALUES (' TECHNOLOGY ', 'technology', 'different-slug')
 	`); err == nil {
 		t.Fatal("duplicate normalized tag name unexpectedly succeeded")
 	}
 	if _, err := connection.Exec(ctx, `
-		INSERT INTO directory.tags (name, normalized_name, slug)
+		INSERT INTO directory.tag_dictionary (name, normalized_name, slug)
 		VALUES ('Duplicate slug', 'different name', 'technology')
 	`); err == nil {
 		t.Fatal("duplicate tag slug unexpectedly succeeded")

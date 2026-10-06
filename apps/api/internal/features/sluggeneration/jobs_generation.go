@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -167,40 +166,31 @@ func (service *JobService) generateChunk(ctx context.Context, job *jobRecord) er
 }
 func (service *JobService) allocate(ctx context.Context, job *jobRecord) error {
 	slices.SortFunc(job.Items, func(a, b jobItemRecord) int { return strings.Compare(a.TagID, b.TagID) })
-	reserved := map[string]bool{}
+	candidates := map[string][]int{}
 	for i, item := range job.Items {
-		if item.State == "applied" {
-			reserved[item.Slug] = true
-			continue
+		if item.State == "ready" || item.State == "applied" || item.State == "needs_confirmation" {
+			candidates[item.Slug] = append(candidates[item.Slug], i)
 		}
+	}
+	for i, item := range job.Items {
 		if item.State != "ready" {
 			continue
 		}
-		base := item.Slug
-		found := false
-		for suffix := 1; suffix <= 10000; suffix++ {
-			candidate := base
-			if suffix > 1 {
-				tail := fmt.Sprintf("-%d", suffix)
-				candidate = strings.TrimRight(base[:min(len(base), 128-len(tail))], "-") + tail
-			}
-			if reserved[candidate] {
-				continue
-			}
-			occupied, err := service.generation.store.Occupied(ctx, candidate, item.TagID)
-			if err != nil {
-				return unavailable()
-			}
-			if !occupied {
-				job.Items[i].Slug = candidate
-				reserved[candidate] = true
-				found = true
-				break
+		result, err := service.generation.candidateResult(ctx, item.Slug, item.TagID, item.Source, job.ModelID)
+		if err != nil {
+			return err
+		}
+		for _, otherIndex := range candidates[item.Slug] {
+			other := job.Items[otherIndex]
+			if other.TagID != item.TagID {
+				result.State = "needs_confirmation"
+				result.Conflicts = append(result.Conflicts, SlugConflict{ID: other.TagID, Name: other.Name, Slug: other.Slug})
 			}
 		}
-		if !found {
-			job.Items[i].State = "failed"
-			job.Items[i].ErrorCode = "slug_collision"
+		job.Items[i].Conflicts = result.Conflicts
+		if result.State == "needs_confirmation" {
+			job.Items[i].State = "needs_confirmation"
+			job.Items[i].ErrorCode = "slug_needs_confirmation"
 		}
 	}
 	return nil

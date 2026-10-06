@@ -77,5 +77,6 @@ func RegisterRoutes(api huma.API, s *Service, webToken string) error {
 		body, err := s.Apply(ctx, input.Body)
 		return &output[Catalog]{CacheControl: "no-store", Body: body}, err
 	})
+	registerLabelRoutes(api, s, operation)
 	return nil
 }

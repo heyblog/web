@@ -56,19 +56,28 @@ export async function forwardTaxonomyManagement(
     path === 'changes/apply' ||
     path === 'slug-generation' ||
     path === 'cascades';
-  const allowed = job
-    ? slugJobMethods(path)
-    : path === ''
-      ? ['GET', 'POST']
-      : path === 'settings'
-        ? ['GET', 'PUT']
-        : path === 'models'
-          ? ['GET']
-          : actions
-            ? ['POST']
-            : isUUID(path)
-              ? ['PUT', 'DELETE']
-              : [];
+  const parts = path.split('/');
+  const labelRoute =
+    isUUID(parts[0]) &&
+    ((parts.length === 2 && (parts[1] === 'labels' || parts[1] === 'default-label')) ||
+      (parts.length === 3 && parts[1] === 'labels' && isUUID(parts[2])));
+  const allowed = labelRoute
+    ? parts.length === 2
+      ? ['POST']
+      : ['PUT', 'DELETE']
+    : job
+      ? slugJobMethods(path)
+      : path === ''
+        ? ['GET', 'POST']
+        : path === 'settings'
+          ? ['GET', 'PUT']
+          : path === 'models'
+            ? ['GET']
+            : actions
+              ? ['POST']
+              : isUUID(path)
+                ? ['PUT', 'DELETE']
+                : [];
   if (allowed.length === 0) return problem(404, 'not_found');
   if (!allowed.includes(request.method)) return problem(405, 'method_not_allowed');
   const incomingURL = new URL(request.url);

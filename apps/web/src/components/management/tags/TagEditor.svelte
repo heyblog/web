@@ -6,6 +6,7 @@
   import { taxonomyMessage } from '@/application/taxonomy/taxonomy.messages';
 
   import SlugField from './SlugField.svelte';
+  import TagLabels from './TagLabels.svelte';
   import { inputClass, outlineClass, primaryClass } from './tags.styles';
 
   interface Props {
@@ -21,6 +22,8 @@
   let description = $state(untrack(() => tag?.description ?? ''));
   let enabled = $state(untrack(() => tag?.is_enabled ?? true));
   let pending = $state(false);
+  let labelsBusy = $state(false);
+  let labelsDirty = $state(false);
   let generating = $state(false);
   let error = $state('');
   let confirmDelete = $state(false);
@@ -31,8 +34,8 @@
       description !== (tag?.description ?? '') ||
       enabled !== (tag?.is_enabled ?? true),
   );
-  $effect(() => ondirty(dirty));
-  $effect(() => onbusy(pending || generating));
+  $effect(() => ondirty(dirty || labelsDirty));
+  $effect(() => onbusy(pending || generating || labelsBusy));
 
   async function deleteStep(confirm: boolean): Promise<void> {
     confirmDelete = confirm;
@@ -42,7 +45,7 @@
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (pending || generating) return;
+    if (pending || generating || labelsBusy || labelsDirty) return;
     pending = true;
     error = '';
     const common = {
@@ -58,7 +61,7 @@
   }
 
   async function remove(): Promise<void> {
-    if (!tag || pending) return;
+    if (!tag || pending || generating || labelsBusy || labelsDirty) return;
     pending = true;
     error = '';
     const result = await deleteTag(tag.id, data.revision);
@@ -96,7 +99,7 @@
         bind:value={name}
         required
         maxlength="120"
-        disabled={pending || generating}
+        disabled={pending || generating || labelsBusy || labelsDirty}
       /></label
     >
     <SlugField
@@ -104,7 +107,7 @@
       {name}
       {description}
       tagID={tag?.id ?? ''}
-      disabled={pending}
+      disabled={pending || labelsBusy || labelsDirty}
       onbusy={(value) => (generating = value)}
     />
     {#if tag}<p class="text-xs text-fg-muted">
@@ -115,26 +118,29 @@
         class="min-h-28 rounded-md border border-line-strong bg-surface p-3"
         bind:value={description}
         maxlength="2000"
-        disabled={pending || generating}></textarea></label
+        disabled={pending || generating || labelsBusy || labelsDirty}></textarea></label
     >
     {#if tag}
       <label class="flex min-h-11 items-center gap-3 text-sm"
         ><input
           type="checkbox"
           bind:checked={enabled}
-          disabled={pending || generating}
+          disabled={pending || generating || labelsBusy || labelsDirty}
         />启用标签</label
       >
       <p class="text-xs text-fg-muted">停用后无法新增引用，现有引用仍会显示。</p>
     {/if}
     <div class="flex flex-wrap justify-between gap-3 border-t border-line pt-5">
-      <button class={primaryClass} type="submit" disabled={pending || generating || !dirty}
+      <button
+        class={primaryClass}
+        type="submit"
+        disabled={pending || generating || labelsBusy || labelsDirty || !dirty}
         >{pending ? '正在保存…' : '保存标签'}</button
       >
       {#if tag}<button
           class="min-h-11 rounded-md px-3 text-sm text-danger-fg hover:bg-danger-bg disabled:opacity-50"
           type="button"
-          disabled={pending || generating}
+          disabled={pending || generating || labelsBusy || labelsDirty}
           onclick={() => deleteStep(true)}>删除标签</button
         >{/if}
     </div>
@@ -143,3 +149,14 @@
       {error}
     </p>{/if}
 </form>
+
+{#if tag && !confirmDelete}
+  <TagLabels
+    {tag}
+    {data}
+    disabled={pending || generating || dirty}
+    {onsaved}
+    onbusy={(value) => (labelsBusy = value)}
+    ondirty={(value) => (labelsDirty = value)}
+  />
+{/if}

@@ -93,6 +93,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/management/api-clients/{id}/keys",
 		"/management/taxonomy/tags", "/management/taxonomy/tags/{id}",
 		"/management/taxonomy/cascades",
+		"/management/taxonomy/tags/{id}/labels", "/management/taxonomy/tags/{id}/labels/{label_id}", "/management/taxonomy/tags/{id}/default-label",
 		"/management/taxonomy/changes/preview", "/management/taxonomy/changes/apply",
 		"/management/taxonomy/slug-generation", "/management/system-settings", "/management/system-settings/models",
 		"/management/taxonomy/slug-jobs", "/management/taxonomy/slug-jobs/{id}",
@@ -124,6 +125,10 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		{method: "put", path: "/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
 		{method: "delete", path: "/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/management/site-audits/{auditId}/review", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/management/taxonomy/tags/{id}/labels", schemes: []string{"webToken", "accessCookie"}},
+		{method: "put", path: "/management/taxonomy/tags/{id}/labels/{label_id}", schemes: []string{"webToken", "accessCookie"}},
+		{method: "delete", path: "/management/taxonomy/tags/{id}/labels/{label_id}", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/management/taxonomy/tags/{id}/default-label", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/management/taxonomy/slug-generation", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/management/taxonomy/changes/apply", schemes: []string{"webToken", "accessCookie"}},
 		{method: "put", path: "/management/system-settings", schemes: []string{"webToken", "accessCookie"}},
@@ -187,8 +192,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 88 {
-		t.Fatalf("documented operation count = %d, want 88", operationCount)
+	if operationCount != 92 {
+		t.Fatalf("documented operation count = %d, want 92", operationCount)
 	}
 	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

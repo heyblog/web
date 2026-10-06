@@ -24,8 +24,9 @@ var (
 	directoryAllowedParameters = map[string]struct{}{
 		"page": {}, "q": {}, "level1": {}, "level2": {}, "tertiary": {}, "warning": {},
 		"technology": {}, "access": {}, "feed": {}, "status": {}, "sort": {},
-		"order": {}, "seed": {},
+		"order": {}, "seed": {}, "level1_label_id": {}, "level2_label_id": {}, "tertiary_label_id": {},
 	}
+	directoryUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	directorySlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	directorySeedPattern = regexp.MustCompile(`^[A-Za-z0-9:_-]+$`)
 )
@@ -81,6 +82,23 @@ func parseDirectoryQuery(values url.Values, now time.Time) (publicview.Directory
 	query.TertiaryTags, err = readDirectorySlugs(values, "tertiary")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
+	}
+	query.Level1LabelID, _, err = readDirectorySingle(values, "level1_label_id")
+	if err != nil {
+		return publicview.DirectoryQuery{}, err
+	}
+	query.Level2LabelID, _, err = readDirectorySingle(values, "level2_label_id")
+	if err != nil {
+		return publicview.DirectoryQuery{}, err
+	}
+	query.TertiaryLabelIDs, err = readDirectoryFilterValues(values, "tertiary_label_id")
+	if err != nil {
+		return publicview.DirectoryQuery{}, err
+	}
+	for _, id := range append([]string{query.Level1LabelID, query.Level2LabelID}, query.TertiaryLabelIDs...) {
+		if id != "" && !directoryUUIDPattern.MatchString(id) {
+			return publicview.DirectoryQuery{}, invalidDirectoryQuery("label_id", "contains an invalid value")
+		}
 	}
 	query.Warnings, err = readDirectorySlugs(values, "warning")
 	if err != nil {

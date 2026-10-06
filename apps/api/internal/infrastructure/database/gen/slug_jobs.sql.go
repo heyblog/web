@@ -230,7 +230,7 @@ func (q *Queries) LockSlugJob(ctx context.Context, id pgtype.UUID) (DirectorySlu
 }
 
 const lockSlugJobTag = `-- name: LockSlugJobTag :one
-SELECT id,name,slug,description,is_enabled,updated_at FROM directory.tags WHERE id=$1 FOR UPDATE
+SELECT id,name,slug,description,is_enabled,updated_at FROM directory.tag_dictionary WHERE id=$1 FOR UPDATE
 `
 
 type LockSlugJobTagRow struct {
@@ -286,7 +286,7 @@ func (q *Queries) NextSlugJob(ctx context.Context) (DirectorySlugGenerationJob, 
 
 const selectSlugJobTags = `-- name: SelectSlugJobTags :many
 SELECT id,name,slug,description,is_enabled,updated_at
-FROM directory.tags
+FROM directory.tag_dictionary
 WHERE ($1::text <> 'ids' OR id = ANY($2::uuid[]))
   AND ($1::text <> 'invalid' OR slug LIKE 'legacy-%' OR slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$' OR char_length(slug)>128)
   AND ($1::text <> 'filter' OR
