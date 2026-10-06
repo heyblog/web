@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { SiteProfile } from '../../api/sites/site-profile.types.ts';
-import { pageTitleWithBrand } from '../../shared/seo.ts';
+import { siteConfig } from '../../site.config.ts';
 
 import { siteOgContent } from './site-og.model.ts';
 
@@ -20,7 +20,7 @@ export function siteProfileMetadata(profile: SiteProfile) {
   const content = siteOgContent(profile);
   return {
     title: content.name,
-    siteName: pageTitleWithBrand(content.name),
+    siteName: siteConfig.name,
     description: content.description,
     imagePath: siteOgImagePath(profile),
     imageAlt: `${content.name}的博客分享卡片`,

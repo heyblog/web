@@ -82,6 +82,7 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 		t.Fatalf("sqlc Ping() = (%d, %v), want (1, nil)", result, err)
 	}
 
+	verifySitemapQueries(ctx, t, pool)
 	verifyDirectorySiteTimestampSchema(ctx, t, pool)
 	verifyDirectoryConstraints(ctx, t, pool)
 	verifyPublicViewQueries(ctx, t, pool)

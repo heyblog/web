@@ -27,11 +27,15 @@ const fallbackOptions: SiteDirectoryOptions = {
 const initialView = directoryResult.kind === 'success' ? directoryResult.data : fallbackView;
 const options = optionsResult.kind === 'success' ? optionsResult.data : fallbackOptions;
 const unavailable = directoryResult.kind !== 'success';
+const outOfRange =
+  directoryResult.kind === 'success' && query.page > directoryResult.data.pagination.totalPages;
 
 Astro.response.headers.set('Cache-Control', 'no-store');
 if (unavailable) {
   Astro.response.status = 503;
   Astro.response.headers.set('Retry-After', '30');
+} else if (outOfRange) {
+  Astro.response.status = 404;
 }
 ---
 
@@ -40,13 +44,19 @@ if (unavailable) {
   description="浏览 HeyBlog 收录的公开独立博客。"
   canonicalPath="/site"
 >
-  {unavailable ? (
+  {unavailable || outOfRange ? (
     <section class="mx-auto flex min-h-96 w-[min(calc(100%-2rem),80rem)] flex-col items-center justify-center py-16 text-center sm:w-[min(calc(100%-3rem),80rem)]">
       <span class="inline-flex size-12 items-center justify-center rounded-md bg-subtle font-mono text-sm font-semibold text-fg-muted">
         HB
       </span>
-      <h1 class="mt-4 text-xl font-semibold">博客列表暂不可用</h1>
-      <p class="mt-2 text-sm text-fg-muted">请稍后重新加载。</p>
+      <h1 class="mt-4 text-xl font-semibold">{outOfRange ? '该分页不存在' : '博客列表暂不可用'}</h1>
+      {outOfRange ? (
+        <a class="mt-2 inline-flex min-h-11 items-center text-tint-fg" href="/site">
+          返回博客列表
+        </a>
+      ) : (
+        <p class="mt-2 text-sm text-fg-muted">请稍后重新加载。</p>
+      )}
     </section>
   ) : (
     <SiteDirectoryPage client:load {initialView} {options} />

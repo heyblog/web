@@ -2,10 +2,12 @@
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner.astro';
 import PublicHeader from '@/components/chrome/PublicHeader.astro';
 import SiteFooter from '@/components/chrome/SiteFooter.astro';
+import type { StructuredData } from '@/shared/structured-data';
 
 import BaseLayout from './BaseLayout.astro';
 
 interface Props {
+  structuredData?: readonly StructuredData[];
   title?: string;
   siteName?: string;
   description?: string;

@@ -11,7 +11,7 @@ export const siteConfig: SiteConfig = {
   themeStorageKey: 'heyblog-theme',
   openGraph: {
     type: 'website',
-    imagePath: '/og-default.svg',
+    imagePath: '/og-default.png',
     imageAlt: 'HeyBlog 分享卡片',
   },
   twitterCard: 'summary_large_image',

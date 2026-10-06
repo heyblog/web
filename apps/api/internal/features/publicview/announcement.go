@@ -14,6 +14,8 @@ type Announcement struct {
 	Title        string              `json:"title"`
 	BodyMarkdown *string             `json:"bodyMarkdown"`
 	StartsAt     time.Time           `json:"startsAt"`
+	PublishedAt  time.Time           `json:"publishedAt"`
+	UpdatedAt    time.Time           `json:"updatedAt"`
 	EndsAt       *time.Time          `json:"endsAt"`
 	Action       *AnnouncementAction `json:"action"`
 }
@@ -44,9 +46,9 @@ func loadAnnouncements(ctx context.Context, queries AnnouncementQueries) ([]Anno
 }
 
 func mapAnnouncement(row dbgen.ContentAnnouncement) (*Announcement, error) {
-	if !row.StartsAt.Valid {
+	if !row.StartsAt.Valid || !row.PublishedAt.Valid || !row.UpdatedAt.Valid {
 		return nil, internalError(
-			errors.New("announcement start time is invalid"),
+			errors.New("announcement timestamps are invalid"),
 			"map leading announcement",
 		)
 	}
@@ -69,7 +71,7 @@ func mapAnnouncement(row dbgen.ContentAnnouncement) (*Announcement, error) {
 	if row.EndsAt.Valid {
 		endsAt = &row.EndsAt.Time
 	}
-	return &Announcement{ID: row.ID.String(), Title: row.Title, BodyMarkdown: row.BodyMarkdown, StartsAt: row.StartsAt.Time, EndsAt: endsAt, Action: action}, nil
+	return &Announcement{ID: row.ID.String(), Title: row.Title, BodyMarkdown: row.BodyMarkdown, StartsAt: row.StartsAt.Time, PublishedAt: row.PublishedAt.Time, UpdatedAt: row.UpdatedAt.Time, EndsAt: endsAt, Action: action}, nil
 }
 
 func mapAnnouncementAction(row dbgen.ContentAnnouncement) (*AnnouncementAction, error) {

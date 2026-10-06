@@ -7,6 +7,7 @@ import { resolveContentEditors } from '@/application/static-content/static-conte
 import ContentEntryMeta from '@/components/content-page/ContentEntryMeta.astro';
 import { readBlogEntries } from '@/integrations/content/content.server';
 import MarkdownContentLayout from '@/layouts/MarkdownContentLayout.astro';
+import { articleStructuredData, breadcrumbStructuredData } from '@/shared/structured-data';
 
 interface Props {
   entry: CollectionEntry<'blogs'>;
@@ -29,6 +30,23 @@ const editors = await resolveContentEditors(entry.data.editors);
 ---
 
 <MarkdownContentLayout
+  ogType="article"
+  structuredData={[
+    articleStructuredData({
+      title: entry.data.title,
+      description: entry.data.description,
+      path: `/blog/${entry.id}`,
+      publishedTime: entry.data.create_time,
+      modifiedTime: entry.data.update_time,
+      authors: editors,
+    }),
+    breadcrumbStructuredData([
+      { name: '首页', path: '/' },
+      { name: '项目博客', path: '/blog' },
+      { name: entry.data.title, path: `/blog/${entry.id}` },
+    ]),
+  ]}
+  update_time={entry.data.update_time}
   title={entry.data.title}
   description={entry.data.description}
   create_time={entry.data.create_time}

@@ -17,6 +17,7 @@ type SiteCard struct {
 
 type SiteProfile struct {
 	SiteCard
+	IsIndexable    bool                       `json:"isIndexable"`
 	IconHash       *string                    `json:"iconHash"`
 	Classification *SiteProfileClassification `json:"classification"`
 	TertiaryTags   []Topic                    `json:"tertiaryTags"`

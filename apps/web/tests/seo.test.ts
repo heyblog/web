@@ -25,7 +25,7 @@ test('resolves site-specific image metadata without changing platform defaults',
     imageHeight: 630,
   });
   const platform = resolvePageMetadata({ pathname: '/' });
-  // Then: all overrides are preserved and the default SVG stays correctly typed.
+  // Then: all overrides are preserved and the default PNG stays correctly typed.
   assert.equal(site.siteName, '测试站点 | HeyBlog');
   assert.equal(site.description, '站点简介');
   assert.equal(site.imageUrl, 'https://www.heyblog.net/og/site/123456789.png?v=abc');
@@ -33,5 +33,5 @@ test('resolves site-specific image metadata without changing platform defaults',
   assert.equal(site.imageWidth, 1200);
   assert.equal(site.imageHeight, 630);
   assert.equal(platform.siteName, 'HeyBlog');
-  assert.equal(platform.imageType, 'image/svg+xml');
+  assert.equal(platform.imageType, 'image/png');
 });

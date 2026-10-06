@@ -680,6 +680,7 @@ func (function readinessFunc) Ready(ctx context.Context) error {
 }
 
 type publicViewReaderStub struct {
+	sitemap          func(context.Context, publicview.SitemapQuery) (publicview.SitemapPage, error)
 	home             func(context.Context) (publicview.Home, error)
 	directory        func(context.Context, publicview.DirectoryQuery) (publicview.DirectoryView, error)
 	directoryOptions func(context.Context) (publicview.DirectoryOptions, error)

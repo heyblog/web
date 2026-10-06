@@ -5,6 +5,7 @@ import { type SiteProfile } from '../src/api/sites/site-profile.types.ts';
 import { canonicalSiteRedirectPath } from '../src/application/site-profile/site-profile.shared.ts';
 
 const profile: SiteProfile = {
+  isIndexable: true,
   iconHash: null,
   shortId: '38FycC0ow',
   customId: 'wuke',

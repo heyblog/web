@@ -22,6 +22,7 @@ type SiteIdentifier struct {
 
 type Reader interface {
 	AnnouncementReader
+	Sitemap(context.Context, SitemapQuery) (SitemapPage, error)
 	Graph(context.Context) (FriendGraph, error)
 	SiteGraphByIdentifier(context.Context, SiteIdentifier) (FriendGraph, error)
 	Home(context.Context) (Home, error)
@@ -114,6 +115,7 @@ type IconQueries interface {
 }
 
 type Queries interface {
+	SitemapQueries
 	AnnouncementReadQueries
 	GraphQueries
 	HomeQueries

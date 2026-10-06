@@ -15,7 +15,7 @@ test('uses site content and updates image versions only when visible content cha
   // Given / When: a profile, a renamed profile, and a metadata-only update.
   const metadata = siteProfileMetadata(profile);
   // Then: site-specific copy and stable, content-addressed short-ID URLs.
-  assert.equal(metadata.siteName, `${profile.name} | HeyBlog`);
+  assert.equal(metadata.siteName, 'HeyBlog');
   assert.equal(metadata.description, profile.summary);
   assert.match(metadata.imagePath, /^\/og\/site\/38FycC0ow\.png\?v=[a-f0-9]{16}$/u);
   assert.notEqual(siteOgImagePath({ ...profile, name: '新名称' }), metadata.imagePath);

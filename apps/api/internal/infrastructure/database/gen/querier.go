@@ -145,6 +145,8 @@ type Querier interface {
 	ListSiteResources(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteResource, error)
 	ListSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListSiteSoftwareComponentsRow, error)
 	ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListSiteTagsRow, error)
+	ListSitemapAnnouncements(ctx context.Context, afterID pgtype.UUID) ([]ListSitemapAnnouncementsRow, error)
+	ListSitemapSites(ctx context.Context, afterID pgtype.UUID) ([]ListSitemapSitesRow, error)
 	ListSlugJobs(ctx context.Context, arg ListSlugJobsParams) ([]DirectorySlugGenerationJob, error)
 	ListSoftwareComponentDependencies(ctx context.Context, componentID pgtype.UUID) ([]ListSoftwareComponentDependenciesRow, error)
 	ListTagIdentityAliases(ctx context.Context) ([]DirectoryTagIdentityAlias, error)

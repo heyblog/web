@@ -92,6 +92,14 @@ and focused tests referenced below, not additional package-level AGENTS files.
   mapping every database failure to unavailable; see
   `apps/api/internal/features/publicview/errors.go` and
   `apps/api/internal/platform/httpapi/public_view_random_test.go`.
+- Sitemap reads at `/sitemap` retain the Web-token guard and public-view rate policy. Accept only
+  `kind=sites|announcements` and an optional UUID cursor `after`; paginate by ascending UUID with
+  at most 1,000 items. Include VISIBLE sites and the same announcements as public detail, including
+  expired announcements and archives created after their start. API owns visibility and real
+  publication/update timestamps; Web owns canonical URLs, XML, sharding, and caching. Sources:
+  `apps/api/internal/features/publicview/sitemap.go`,
+  `apps/api/internal/infrastructure/database/queries/sitemap.sql`, and
+  `apps/api/internal/platform/httpapi/public_view_sitemap.go`.
 
 ## Configuration and External Services
 
