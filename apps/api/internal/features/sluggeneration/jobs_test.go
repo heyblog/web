@@ -116,7 +116,7 @@ func TestJobBatchesPersistDispatchAndAllocateStableCandidates(t *testing.T) {
 	if provider.batchCalls != 1 || guard.charged != 1 || guard.released != 1 || !jobs.dispatched {
 		t.Fatalf("paid dispatch calls=%d guard=%+v", provider.batchCalls, guard)
 	}
-	if jobs.job.Status != "ready" || jobs.job.Items[0].TagID != "a" || jobs.job.Items[0].Slug != "life-2" || jobs.job.Items[1].Slug != "life-3" {
+	if jobs.job.Status != "ready" || jobs.job.Items[0].TagID != "a" || jobs.job.Items[0].Slug != "life" || jobs.job.Items[1].Slug != "life" || jobs.job.Items[0].State != "needs_confirmation" || jobs.job.Items[1].State != "needs_confirmation" {
 		t.Fatalf("preview=%+v", jobs.job)
 	}
 	if jobs.saves != 3 {
@@ -217,6 +217,7 @@ func TestReviewAutomaticallyGeneratesMissingSlugAndRequiresTaxonomyPermission(t 
 
 func TestReviewTwentyMissingChineseTagsUsesTwoPaidCalls(t *testing.T) {
 	service, _, provider, guard := testService()
+	provider.batchUnique = true
 	tags := make([]siteaudit.TagSnapshot, 20)
 	for i := range tags {
 		tags[i] = siteaudit.TagSnapshot{SuggestedName: fmt.Sprintf("中文%d", i), Role: "TERTIARY", Level: 3}
@@ -245,5 +246,22 @@ func TestPaidCandidatesPersistBeforeCacheFailure(t *testing.T) {
 	}
 	if jobs.saves != 3 {
 		t.Fatalf("dispatch/result/pause persistence saves=%d", jobs.saves)
+	}
+}
+
+func TestConfirmationCanBeResolvedWithManualDistinctSlugWithoutProvider(t *testing.T) {
+	// Given a completed preview where both meanings translated to the same slug.
+	service, jobs, provider, _, _ := jobFixture()
+	if err := service.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if publicJob(jobs.job).Counts.NeedsConfirmation != 2 {
+		t.Fatalf("missing confirmation states: %+v", jobs.job)
+	}
+	// When an administrator confirms distinct meanings by assigning independent slugs.
+	result, err := service.Edit(context.Background(), "job", Identity{}, JobEditInput{ExpectedRevision: strconv.FormatInt(jobs.job.Revision, 10), Items: []JobEdit{{TagID: "a", Slug: "life"}, {TagID: "b", Slug: "life-records"}}})
+	// Then the items are ready and no additional paid request occurs.
+	if err != nil || result.Counts.Ready != 2 || result.Counts.NeedsConfirmation != 0 || provider.batchCalls != 1 {
+		t.Fatalf("result=%+v err=%v paid=%d", result, err, provider.batchCalls)
 	}
 }

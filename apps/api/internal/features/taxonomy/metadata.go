@@ -17,7 +17,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Catalog, error
 			return err
 		}
 		for _, tag := range g.Tags {
-			if strings.EqualFold(strings.TrimSpace(input.Name), strings.TrimSpace(tag.Name)) {
+			if matchesLabel(tag, input.Name) {
 				if tag.Enabled {
 					return invalid("duplicate_tag_name")
 				}
@@ -60,6 +60,16 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Cat
 		if protectedTag(tag) && !input.Enabled {
 			return invalid("fallback_protected")
 		}
+		for _, other := range g.Tags {
+			if other.ID != id && matchesLabel(other, input.Name) {
+				return invalid("duplicate_tag_name")
+			}
+		}
+		for _, l := range tag.Labels {
+			if l.ID != tag.DefaultLabelID && strings.EqualFold(strings.TrimSpace(l.Name), strings.TrimSpace(input.Name)) {
+				return invalid("duplicate_tag_name")
+			}
+		}
 		q := dbgen.New(tx)
 		if err := checkSlug(ctx, q, input.Slug, id); err != nil {
 			return err
@@ -80,6 +90,9 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Cat
 			if _, err = tx.Exec(ctx, `UPDATE directory.tag_cascades SET is_enabled=false WHERE level1_tag_id=$1 OR level2_tag_id=$1`, uuid); err != nil {
 				return err
 			}
+		}
+		if err := invalidateSlugPreviews(ctx, tx, []string{id}); err != nil {
+			return err
 		}
 		fresh, err := readGraph(ctx, tx)
 		result = fresh.Catalog
@@ -143,4 +156,13 @@ func checkSlug(ctx context.Context, q *dbgen.Queries, slug, id string) error {
 		}
 	}
 	return nil
+}
+
+func matchesLabel(t Tag, name string) bool {
+	for _, l := range t.Labels {
+		if strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(l.Name)) {
+			return true
+		}
+	}
+	return strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(t.Name))
 }

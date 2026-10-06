@@ -72,3 +72,15 @@ func (repository *Repository) ExistingSlug(ctx context.Context, name string) (st
 	}
 	return slug, err
 }
+
+func (repository *Repository) Conflicts(ctx context.Context, slug, tagID string) ([]SlugConflict, error) {
+	rows, err := repository.queries.SlugCandidateConflicts(ctx, dbgen.SlugCandidateConflictsParams{Slug: slug, TagID: tagID})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]SlugConflict, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, SlugConflict{ID: row.ID.String(), Name: row.Name, Slug: row.Slug})
+	}
+	return result, nil
+}

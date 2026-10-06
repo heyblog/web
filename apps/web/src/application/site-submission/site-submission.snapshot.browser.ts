@@ -26,23 +26,32 @@ export function applySnapshot(
   }));
   form.sitemap = snapshot.resources.find((item) => item.kind === 'SITEMAP')?.url ?? '';
   form.linkPage = snapshot.resources.find((item) => item.kind === 'LINK_PAGE')?.url ?? '';
-  form.tags = snapshot.tags.filter(isEditableTagSnapshot).map((tag) => ({
-    id: tag.id || nextDraftID('tag'),
-    name:
-      tag.name ||
-      tag.suggested_name ||
-      options.tags.find(
-        (option) =>
-          option.id === tag.id && (option.role === tag.role || option.level === tag.level),
-      )?.name ||
-      tag.id,
-    role: tag.role,
-    level: tag.level,
-    parent_id: tag.parent_id,
-    suggestedName: tag.suggested_name || undefined,
-    slug: tag.slug,
-    description: tag.description,
-  }));
+  form.tags = snapshot.tags.filter(isEditableTagSnapshot).map((tag) => {
+    const labelID =
+      tag.label_id ||
+      options.tags.find((option) => option.id === tag.id && option.name === tag.name)?.label_id ||
+      options.tags.find((option) => option.id === tag.id)?.label_id;
+    return {
+      id: tag.id || nextDraftID('tag'),
+      ...(labelID ? { label_id: labelID } : {}),
+      name:
+        tag.name ||
+        tag.suggested_name ||
+        options.tags.find(
+          (option) =>
+            option.id === tag.id &&
+            (!tag.label_id || option.label_id === tag.label_id) &&
+            (option.role === tag.role || option.level === tag.level),
+        )?.name ||
+        tag.id,
+      role: tag.role,
+      level: tag.level,
+      parent_id: tag.parent_id,
+      suggestedName: tag.suggested_name || undefined,
+      slug: tag.slug,
+      description: tag.description,
+    };
+  });
   const program = snapshot.components.find((item) => item.role === 'SITE_PROGRAM');
   if (!program) {
     form.program = { kind: 'none' };

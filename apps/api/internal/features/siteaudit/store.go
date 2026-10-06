@@ -26,7 +26,7 @@ type AuditTransaction interface {
 	ReadLockedAudit(context.Context) (Audit, error)
 	LockSiteSnapshot(context.Context, string) (Snapshot, error)
 	PrepareSubmission(context.Context, Snapshot, Snapshot) (Snapshot, error)
-	ResolveTaxonomy(context.Context, auth.User, Snapshot) (Snapshot, error)
+	ResolveTaxonomy(context.Context, auth.User, Snapshot, Snapshot) (Snapshot, error)
 	ApplySite(context.Context, reviewedSite, func() (string, error)) (Snapshot, error)
 	Approve(context.Context, decisionRecord) (Audit, error)
 	Reject(context.Context, decisionRecord) (Audit, error)

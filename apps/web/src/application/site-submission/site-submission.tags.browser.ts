@@ -1,30 +1,50 @@
 import type { Option } from '../../api/site-submission/site-submission.types.ts';
 
 import type { EditableSubmission, SelectedTag } from './site-submission.browser.ts';
+import { matchesSubmissionOption } from './site-submission.search.ts';
 
 export function tertiaryTagOptions(
   options: readonly Option[],
-  tags: readonly SelectedTag[],
+  _tags: readonly SelectedTag[],
 ): Option[] {
   const candidates = new Map<string, Option>();
-  const seenIDs = new Set<string>();
+  const seenNames = new Set<string>();
   for (const option of options) {
     const name = option.name.trim().toLocaleLowerCase();
-    if (
-      option.role === 'WARNING' ||
-      seenIDs.has(option.id) ||
-      candidates.has(name) ||
-      tags.some(
-        (tag) =>
-          tag.id === option.id ||
-          tag.name.trim().toLocaleLowerCase() === option.name.trim().toLocaleLowerCase(),
-      )
-    )
-      continue;
-    candidates.set(name, option);
-    seenIDs.add(option.id);
+    const key = tagOptionKey(option);
+    if (option.role === 'WARNING' || candidates.has(key) || seenNames.has(name)) continue;
+    // Labels remain visible so the picker can explain why an equivalent name is unavailable.
+    candidates.set(key, option);
+    seenNames.add(name);
   }
   return [...candidates.values()];
+}
+
+export function tagOptionKey(option: Pick<Option, 'id' | 'label_id'>): string {
+  return option.label_id || option.id;
+}
+
+export function tagSelectionReason(option: Option, tags: readonly SelectedTag[]): string {
+  const existing = tags.find(
+    (tag) =>
+      tag.id === option.id ||
+      tag.name.trim().toLocaleLowerCase() === option.name.trim().toLocaleLowerCase(),
+  );
+  return existing ? `已选择“${existing.name}”` : '';
+}
+
+export function matchingTagOptions(query: string, options: readonly Option[]): Option[] {
+  const term = query.trim().toLocaleLowerCase();
+  const concepts = new Set(
+    options
+      .filter((option) =>
+        [option.name, ...(option.synonyms ?? [])].some((name) =>
+          matchesSubmissionOption(term, name),
+        ),
+      )
+      .map((option) => option.id),
+  );
+  return options.filter((option) => concepts.has(option.id));
 }
 
 export function selectClassificationTag(form: EditableSubmission, option: Option): void {
@@ -42,6 +62,7 @@ export function selectClassificationTag(form: EditableSubmission, option: Option
   );
   const selected: SelectedTag = {
     id: option.id,
+    ...(option.label_id ? { label_id: option.label_id } : {}),
     name: option.name,
     role: level === 1 ? 'PRIMARY' : 'SECONDARY',
     level,
@@ -63,6 +84,7 @@ export function selectTertiaryTag(form: EditableSubmission, option: Option): voi
     return;
   const selected: SelectedTag = {
     id: option.id,
+    ...(option.label_id ? { label_id: option.label_id } : {}),
     name: option.name.trim(),
     role: 'TERTIARY',
     level: 3,

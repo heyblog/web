@@ -1,4 +1,19 @@
+export interface ManagedLabel {
+  readonly id: string;
+  readonly tag_id: string;
+  readonly name: string;
+  readonly is_enabled: boolean;
+}
+
+export interface SlugConflict {
+  readonly id: string;
+  readonly name: string;
+  readonly slug: string;
+}
+
 export interface ManagedTag {
+  readonly default_label_id: string;
+  readonly labels: readonly ManagedLabel[];
   readonly id: string;
   readonly name: string;
   readonly slug: string;
@@ -38,6 +53,13 @@ export interface TaxonomyChange {
 }
 
 export interface ChangePreview {
+  readonly retained_labels: readonly {
+    readonly object_id: string;
+    readonly scope: string;
+    readonly tag_id: string;
+    readonly label_id: string;
+    readonly name: string;
+  }[];
   readonly revision: string;
   readonly fingerprint: string;
   readonly site_count: number;
@@ -59,8 +81,10 @@ export interface SlugInput {
 }
 
 export interface GeneratedSlug {
+  readonly state: 'ready' | 'needs_confirmation';
+  readonly conflicts: readonly SlugConflict[];
   readonly slug: string;
-  readonly source: 'local' | 'ai' | 'cache';
+  readonly source: 'local' | 'ai' | 'cache' | 'existing';
   readonly model_id: string;
 }
 
@@ -93,10 +117,34 @@ function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+function isLabel(value: unknown): value is ManagedLabel {
+  return (
+    isRecord(value) &&
+    isUUID(value.id) &&
+    isUUID(value.tag_id) &&
+    typeof value.name === 'string' &&
+    typeof value.is_enabled === 'boolean'
+  );
+}
+
+export function isSlugConflict(value: unknown): value is SlugConflict {
+  return (
+    isRecord(value) &&
+    isUUID(value.id) &&
+    typeof value.name === 'string' &&
+    typeof value.slug === 'string'
+  );
+}
+
 function isTag(value: unknown): value is ManagedTag {
   return (
     isRecord(value) &&
     isUUID(value.id) &&
+    isUUID(value.default_label_id) &&
+    Array.isArray(value.labels) &&
+    value.labels.every(isLabel) &&
+    value.labels.every((label) => label.tag_id === value.id) &&
+    value.labels.some((label) => label.id === value.default_label_id && label.is_enabled) &&
     typeof value.name === 'string' &&
     typeof value.slug === 'string' &&
     typeof value.description === 'string' &&
@@ -136,6 +184,13 @@ export function parseTaxonomy(value: unknown): TaxonomyData | null {
 }
 
 export function parsePreview(value: unknown): ChangePreview | null {
+  const isRetained = (label: unknown): label is ChangePreview['retained_labels'][number] =>
+    isRecord(label) &&
+    isUUID(label.object_id) &&
+    (label.scope === 'SITE' || label.scope === 'ARTICLE') &&
+    isUUID(label.tag_id) &&
+    isUUID(label.label_id) &&
+    typeof label.name === 'string';
   const isPath = (path: unknown): path is ChangePreview['paths'][number] =>
     isRecord(path) &&
     isUUID(path.cascade_id) &&
@@ -150,7 +205,9 @@ export function parsePreview(value: unknown): ChangePreview | null {
     Array.isArray(value.blockers) &&
     value.blockers.every((item) => typeof item === 'string') &&
     Array.isArray(value.paths) &&
-    value.paths.every(isPath)
+    value.paths.every(isPath) &&
+    Array.isArray(value.retained_labels) &&
+    value.retained_labels.every(isRetained)
     ? {
         revision: value.revision,
         fingerprint: value.fingerprint,
@@ -159,6 +216,7 @@ export function parsePreview(value: unknown): ChangePreview | null {
         removed_duplicates: value.removed_duplicates,
         blockers: value.blockers,
         paths: value.paths,
+        retained_labels: value.retained_labels,
       }
     : null;
 }
@@ -167,8 +225,20 @@ export function parseSlug(value: unknown): GeneratedSlug | null {
   return isRecord(value) &&
     typeof value.slug === 'string' &&
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.slug) &&
-    (value.source === 'local' || value.source === 'ai' || value.source === 'cache') &&
-    typeof value.model_id === 'string'
-    ? { slug: value.slug, source: value.source, model_id: value.model_id }
+    (value.source === 'existing' ||
+      value.source === 'local' ||
+      value.source === 'ai' ||
+      value.source === 'cache') &&
+    typeof value.model_id === 'string' &&
+    (value.state === 'ready' || value.state === 'needs_confirmation') &&
+    Array.isArray(value.conflicts) &&
+    value.conflicts.every(isSlugConflict)
+    ? {
+        slug: value.slug,
+        source: value.source,
+        model_id: value.model_id,
+        state: value.state,
+        conflicts: value.conflicts,
+      }
     : null;
 }

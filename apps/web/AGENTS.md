@@ -63,10 +63,15 @@ layer and browser-module boundaries.
   outbound resolution. PublicLayout observes qualified displays with document-local deduplication;
   no persistent browser identity is used. Random manual navigation stops the automatic timer.
 
+- Tag concepts share one slug across admin-confirmed names. Selections carry concept `id` and
+  optional `label_id`, preserving chosen names on content. Selector rows use label IDs, search expands
+  confirmed synonym groups, and duplicate concepts cannot be chosen as tertiary tags. Directory URL
+  label parameters restore presentation only; canonical slug filters determine results.
 - Tag dictionaries use global tag identity; classification roles belong to paths and selections, so
   PRIMARY and SECONDARY may share an ID. Batch slug jobs retain editable previews in component memory,
   recover persisted tasks through the API, and cancel polling on unmount. Candidate edits and applies
-  use task revisions; only selected successful items are submitted.
+  use task revisions; only selected successful items are submitted. Conflicting candidates remain
+  `needs_confirmation` until an administrator maps synonyms or supplies an independent slug.
 - Tag management and system settings use the purpose-built authenticated boundary in
   `src/api/taxonomy`. Payload validators reject arbitrary prompts, models, and endpoints; mutations
   require matching Origin and same-origin fetch metadata. Only SYS_ADMIN changes global AI settings.

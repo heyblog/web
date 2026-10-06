@@ -16,6 +16,26 @@ export function validManagementPayload(
   method: string,
 ): value is Readonly<Record<string, unknown>> {
   if (!isRecord(value)) return false;
+  const parts = path.split('/');
+  if (isUUID(parts[0]) && (parts[1] === 'labels' || parts[1] === 'default-label')) {
+    if (parts[1] === 'default-label')
+      return (
+        fields(value, ['label_id', 'expected_revision']) &&
+        isUUID(value.label_id) &&
+        isTaxonomyRevision(value.expected_revision)
+      );
+    if (method === 'DELETE')
+      return fields(value, ['expected_revision']) && isTaxonomyRevision(value.expected_revision);
+    return (
+      fields(value, ['name', 'is_enabled', 'expected_revision']) &&
+      stringValue(value.name, 120) &&
+      value.name.trim() !== '' &&
+      (method === 'POST'
+        ? value.is_enabled === undefined
+        : typeof value.is_enabled === 'boolean') &&
+      isTaxonomyRevision(value.expected_revision)
+    );
+  }
   if (path === 'slug-generation')
     return (
       fields(value, ['name', 'description', 'parent_name', 'tag_id']) &&

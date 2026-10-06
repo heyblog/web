@@ -50,14 +50,14 @@ SELECT site.*
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
        WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
 
-         AND tag.name = sqlc.arg(level1_tag_name)::text
+         AND EXISTS(SELECT 1 FROM directory.tag_labels l WHERE l.tag_id=tag.id AND l.is_enabled AND l.name=sqlc.arg(level1_tag_name)::text)
    ))
    AND (sqlc.arg(level2_tag_name)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level2_tag_id
        WHERE cascade.id = site.tag_cascade_id AND cascade.scope = 'SITE'
 
-         AND tag.name = sqlc.arg(level2_tag_name)::text
+         AND EXISTS(SELECT 1 FROM directory.tag_labels l WHERE l.tag_id=tag.id AND l.is_enabled AND l.name=sqlc.arg(level2_tag_name)::text)
    ))
  ORDER BY random()
  LIMIT 1;
@@ -67,31 +67,34 @@ SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
        level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
        level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
   FROM directory.tag_cascades AS cascade
-  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
-  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
+  JOIN directory.tag_dictionary AS level1 ON level1.id = cascade.level1_tag_id
+  JOIN directory.tag_dictionary AS level2 ON level2.id = cascade.level2_tag_id
  WHERE cascade.scope = 'SITE' AND cascade.is_enabled
    AND level1.is_enabled AND level2.is_enabled
 
  ORDER BY cascade.sort_order, cascade.id;
 
 -- name: ListPublicSiteTagCascades :many
-SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
-       level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug,
-       level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug
-  FROM directory.tag_cascades AS cascade
-  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
-  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
- WHERE cascade.scope = 'SITE' AND cascade.merged_into_id IS NULL
-
- ORDER BY cascade.sort_order, cascade.id;
+SELECT cascade.id,cascade.taxonomy_key,cascade.sort_order,
+ level1.id AS level1_id,p.id AS level1_label_id,p.name AS level1_name,level1.slug AS level1_slug,
+ level2.id AS level2_id,s.id AS level2_label_id,s.name AS level2_name,level2.slug AS level2_slug,
+ ARRAY(SELECT l.name FROM directory.tag_labels l WHERE l.tag_id=level1.id AND l.is_enabled ORDER BY l.name)::text[] AS level1_synonyms,
+ ARRAY(SELECT l.name FROM directory.tag_labels l WHERE l.tag_id=level2.id AND l.is_enabled ORDER BY l.name)::text[] AS level2_synonyms
+ FROM directory.tag_cascades cascade
+ JOIN directory.tags level1 ON level1.id=cascade.level1_tag_id
+ JOIN directory.tags level2 ON level2.id=cascade.level2_tag_id
+ JOIN directory.tag_labels p ON p.tag_id=level1.id AND p.is_enabled
+ JOIN directory.tag_labels s ON s.tag_id=level2.id AND s.is_enabled
+ WHERE cascade.scope='SITE' AND cascade.merged_into_id IS NULL
+ ORDER BY cascade.sort_order,cascade.id,p.name,s.name;
 
 -- name: GetReadableSiteTagCascade :one
 SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
        level1.id AS level1_id, level1.name AS level1_name, level1.slug AS level1_slug, level1.description AS level1_description,
        level2.id AS level2_id, level2.name AS level2_name, level2.slug AS level2_slug, level2.description AS level2_description
   FROM directory.tag_cascades AS cascade
-  JOIN directory.tags AS level1 ON level1.id = cascade.level1_tag_id
-  JOIN directory.tags AS level2 ON level2.id = cascade.level2_tag_id
+  JOIN directory.tag_dictionary AS level1 ON level1.id = cascade.level1_tag_id
+  JOIN directory.tag_dictionary AS level2 ON level2.id = cascade.level2_tag_id
  WHERE cascade.id = $1 AND cascade.scope = 'SITE' AND cascade.merged_into_id IS NULL;
 
 -- name: CountVisibleSites :one
@@ -110,6 +113,12 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
            lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
            lower(sqlc.arg(query_text)::text)
        ) > 0
+       OR EXISTS (
+          SELECT 1 FROM directory.tag_labels l
+          WHERE strpos(l.normalized_name,lower(sqlc.arg(query_text)::text))>0
+          AND (EXISTS(SELECT 1 FROM directory.site_tags a WHERE a.site_id=site.id AND a.tag_id=l.tag_id)
+               OR EXISTS(SELECT 1 FROM directory.tag_cascades c WHERE c.id=site.tag_cascade_id AND l.tag_id IN(c.level1_tag_id,c.level2_tag_id)))
+       )
    )
    AND (sqlc.arg(level1_tag_slug)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
@@ -188,6 +197,12 @@ SELECT site.*
            lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
            lower(sqlc.arg(query_text)::text)
        ) > 0
+       OR EXISTS (
+          SELECT 1 FROM directory.tag_labels l
+          WHERE strpos(l.normalized_name,lower(sqlc.arg(query_text)::text))>0
+          AND (EXISTS(SELECT 1 FROM directory.site_tags a WHERE a.site_id=site.id AND a.tag_id=l.tag_id)
+               OR EXISTS(SELECT 1 FROM directory.tag_cascades c WHERE c.id=site.tag_cascade_id AND l.tag_id IN(c.level1_tag_id,c.level2_tag_id)))
+       )
    )
    AND (sqlc.arg(level1_tag_slug)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
@@ -289,15 +304,17 @@ WITH assignments AS (
 	  FROM directory.site_tags AS assignment
 	 WHERE assignment.role IN ('TERTIARY', 'WARNING')
 )
-SELECT tag.name, tag.slug, assignment.role,
+SELECT tag.id,label.id AS label_id,label.name,tag.slug,assignment.role,
+ ARRAY(SELECT l.name FROM directory.tag_labels l WHERE l.tag_id=tag.id AND l.is_enabled ORDER BY l.name)::text[] AS synonyms,
 	   count(DISTINCT assignment.site_id) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
 	   count(DISTINCT assignment.site_id) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
   FROM assignments AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+  JOIN directory.tag_labels label ON label.tag_id=tag.id AND label.is_enabled
   JOIN directory.sites AS site ON site.id = assignment.site_id
  WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
- GROUP BY tag.id, tag.name, tag.slug, assignment.role
- ORDER BY assignment.role, normal_count DESC, abnormal_count DESC, tag.name, tag.slug;
+ GROUP BY tag.id,label.id,label.name,tag.slug,assignment.role
+ ORDER BY assignment.role, normal_count DESC, abnormal_count DESC,label.name,tag.slug;
 
 -- name: ListDirectoryTechnologyOptions :many
 SELECT component.name, component.normalized_name,
@@ -457,17 +474,17 @@ SELECT * FROM directory.site_icons WHERE site_id = $1;
 SELECT sha256 FROM directory.site_icons WHERE site_id = $1;
 
 -- name: CreateTag :one
-INSERT INTO directory.tags (name, normalized_name, slug, description)
+INSERT INTO directory.tag_dictionary (name, normalized_name, slug, description)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: ListEnabledTags :many
-SELECT * FROM directory.tags
+SELECT * FROM directory.tag_dictionary
  WHERE is_enabled
  ORDER BY name, id;
 
 -- name: GetTagByNormalizedName :one
-SELECT * FROM directory.tags WHERE normalized_name = $1;
+SELECT t.* FROM directory.tag_dictionary t JOIN directory.tag_labels l ON l.tag_id=t.id WHERE l.normalized_name=$1;
 
 -- name: AssignSiteTag :one
 INSERT INTO directory.site_tags (
@@ -476,55 +493,60 @@ INSERT INTO directory.site_tags (
     role,
     assignment_source,
     position,
-    note
-) VALUES ($1, $2, $3, $4, $5, $6)
+    note,
+    label_id
+) VALUES ($1, $2, $3, $4, $5, $6, sqlc.narg(label_id)::uuid)
 ON CONFLICT (site_id, tag_id) DO UPDATE
    SET role = EXCLUDED.role,
        assignment_source = EXCLUDED.assignment_source,
        position = EXCLUDED.position,
-       note = EXCLUDED.note
+       note = EXCLUDED.note,
+       label_id = EXCLUDED.label_id
 RETURNING *;
 
 -- name: ListSiteTags :many
-SELECT assignment.*, tag.name, tag.slug, tag.description
+SELECT assignment.*, label.name, tag.slug, tag.description
   FROM directory.site_tags AS assignment
   JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+  JOIN directory.tag_labels label ON label.id=assignment.label_id
  WHERE assignment.site_id = $1
- ORDER BY assignment.role, assignment.position NULLS LAST, tag.name;
+ ORDER BY assignment.role, assignment.position NULLS LAST, label.name;
 
 -- name: ListPublicSiteTags :many
 WITH assignments AS (
-	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at
+	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at,site.primary_label_id AS label_id
 	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = $1
 	UNION ALL
-	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text, 'SYSTEM'::text, NULL::smallint, NULL::text, site.joined_at
+	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text, 'SYSTEM'::text, NULL::smallint, NULL::text, site.joined_at,site.secondary_label_id
 	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = $1
 	UNION ALL
-	SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at
+	SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at,assignment.label_id
 	  FROM directory.site_tags AS assignment WHERE assignment.site_id = $1 AND assignment.role IN ('TERTIARY', 'WARNING')
 )
-SELECT assignment.*, tag.name, tag.slug, tag.description
+SELECT assignment.*, label.name, tag.slug, tag.description
 	FROM assignments AS assignment
 	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+	JOIN directory.tag_labels label ON label.id=assignment.label_id
 	WHERE true
- ORDER BY assignment.role, assignment.position NULLS LAST, tag.name;
+ ORDER BY assignment.role, assignment.position NULLS LAST, label.name;
 
 -- name: ListPublicSiteTagsBySiteIDs :many
 WITH assignments AS (
-	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at
+	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, 'SYSTEM'::text AS assignment_source, NULL::smallint AS position, NULL::text AS note, site.joined_at AS created_at,site.primary_label_id AS label_id
 	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = ANY(sqlc.arg(site_ids)::uuid[])
 	UNION ALL
-	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text, 'SYSTEM'::text, NULL::smallint, NULL::text, site.joined_at
+	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text, 'SYSTEM'::text, NULL::smallint, NULL::text, site.joined_at,site.secondary_label_id
 	  FROM directory.sites AS site JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id WHERE site.id = ANY(sqlc.arg(site_ids)::uuid[])
 	UNION ALL
-	SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at
+	SELECT assignment.site_id, assignment.tag_id, assignment.role, assignment.assignment_source, assignment.position, assignment.note, assignment.created_at,assignment.label_id
 	  FROM directory.site_tags AS assignment WHERE assignment.site_id = ANY(sqlc.arg(site_ids)::uuid[]) AND assignment.role IN ('TERTIARY', 'WARNING')
 )
-SELECT assignment.*, tag.name, tag.slug, tag.description
+SELECT assignment.*, label.name, tag.slug, tag.description
 	FROM assignments AS assignment
 	JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+	JOIN directory.tag_labels label ON label.id=assignment.label_id
 	WHERE true
- ORDER BY assignment.site_id, assignment.role, assignment.position NULLS LAST, tag.name;
+ ORDER BY assignment.site_id, assignment.role, assignment.position NULLS LAST, label.name;
 
 -- name: UnassignSiteTag :exec
 DELETE FROM directory.site_tags WHERE site_id = $1 AND tag_id = $2;
@@ -670,3 +692,7 @@ SELECT *
     OR short_id = sqlc.arg(query)::text
  ORDER BY visibility, name, id
  LIMIT 12;
+
+-- name: ResolveDirectoryLabel :one
+SELECT t.slug,COALESCE((SELECT l.id FROM directory.tag_labels l WHERE l.tag_id=t.id AND l.id::text=ANY(sqlc.arg(label_ids)::text[]) AND l.is_enabled ORDER BY array_position(sqlc.arg(label_ids)::text[],l.id::text) LIMIT 1),t.default_label_id)::uuid AS label_id
+FROM directory.tags t WHERE t.slug=directory.canonical_tag_slug(sqlc.arg(slug)::text);

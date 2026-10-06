@@ -30,10 +30,15 @@ func publicJob(job jobRecord) Job {
 	}
 	result.Counts.Total = len(job.Items)
 	for _, item := range job.Items {
+		if item.Conflicts == nil {
+			item.Conflicts = []SlugConflict{}
+		}
 		result.Items = append(result.Items, item.JobItem)
 		switch item.State {
 		case "ready":
 			result.Counts.Ready++
+		case "needs_confirmation":
+			result.Counts.NeedsConfirmation++
 		case "failed", "stale":
 			result.Counts.Failed++
 		case "applied":
@@ -185,11 +190,14 @@ func (service *JobService) Edit(ctx context.Context, id string, identity Identit
 		}
 		for i, item := range job.Items {
 			if slug, ok := edits[item.TagID]; ok {
-				if item.State != "ready" {
+				if item.State != "ready" && item.State != "needs_confirmation" {
 					return jobFailure("slug_job_item_not_ready")
 				}
 				job.Items[i].Slug = slug
 				job.Items[i].Source = "manual"
+				job.Items[i].State = "ready"
+				job.Items[i].ErrorCode = ""
+				job.Items[i].Conflicts = []SlugConflict{}
 				delete(edits, item.TagID)
 			}
 		}

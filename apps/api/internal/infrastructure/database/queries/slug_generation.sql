@@ -30,4 +30,7 @@ SELECT EXISTS (
 )::boolean;
 
 -- name: ExistingTagSlug :one
-SELECT slug FROM directory.tags WHERE normalized_name=$1;
+SELECT t.slug FROM directory.tags t JOIN directory.tag_labels l ON l.tag_id=t.id WHERE l.normalized_name=$1 AND l.is_enabled AND t.is_enabled;
+
+-- name: SlugCandidateConflicts :many
+SELECT t.id,t.name,t.slug FROM directory.tag_dictionary t WHERE t.id::text<>sqlc.arg(tag_id)::text AND (t.slug=sqlc.arg(slug)::text OR EXISTS(SELECT 1 FROM directory.tag_slug_aliases a WHERE a.tag_id=t.id AND a.slug=sqlc.arg(slug)::text));

@@ -21,7 +21,7 @@ func prepareSubmission(ctx context.Context, queries *dbgen.Queries, snapshot, cu
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("list canonical submission tags: %w", err)
 	}
-	tagsByID := make(map[string]dbgen.DirectoryTag, len(tags))
+	tagsByID := make(map[string]dbgen.DirectoryTagDictionary, len(tags))
 	for _, tag := range tags {
 		id, idErr := uuidString(tag.ID)
 		if idErr != nil {
@@ -53,10 +53,23 @@ func prepareSubmission(ctx context.Context, queries *dbgen.Queries, snapshot, cu
 		if !exists || (!canonical.IsEnabled && !snapshotHasTag(current, tag.ID)) {
 			return Snapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "a selected tag is no longer available")
 		}
-		snapshot.Tags[index].Name = canonical.Name
-		snapshot.Tags[index].SuggestedName = ""
-		snapshot.Tags[index].Slug = canonical.Slug
-		snapshot.Tags[index].Description = canonical.Description
+		// An omitted name in an unrelated update retains the existing selection.
+		if tag.LabelID == "" && tag.Name == "" && tag.SuggestedName == "" {
+			for _, existing := range current.Tags {
+				if existing.ID == tag.ID && existing.Role == tag.Role {
+					tag.LabelID, tag.Name = existing.LabelID, existing.Name
+					break
+				}
+			}
+		}
+		selected, labelErr := canonicalTagLabel(ctx, queries, tag, canonical, snapshotHasTagLabel(current, tag))
+		if labelErr != nil {
+			return Snapshot{}, labelErr
+		}
+		snapshot.Tags[index] = selected
+	}
+	if err := validateTagConcepts(snapshot.Tags); err != nil {
+		return Snapshot{}, err
 	}
 	if hasStructuredTags(snapshot.Tags) {
 		var level1, level2 TagSnapshot

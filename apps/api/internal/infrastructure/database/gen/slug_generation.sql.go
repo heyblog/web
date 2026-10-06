@@ -7,6 +7,8 @@ package dbgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const cacheGeneratedSlug = `-- name: CacheGeneratedSlug :exec
@@ -25,7 +27,7 @@ func (q *Queries) CacheGeneratedSlug(ctx context.Context, arg CacheGeneratedSlug
 }
 
 const existingTagSlug = `-- name: ExistingTagSlug :one
-SELECT slug FROM directory.tags WHERE normalized_name=$1
+SELECT t.slug FROM directory.tags t JOIN directory.tag_labels l ON l.tag_id=t.id WHERE l.normalized_name=$1 AND l.is_enabled AND t.is_enabled
 `
 
 func (q *Queries) ExistingTagSlug(ctx context.Context, normalizedName string) (string, error) {
@@ -86,6 +88,41 @@ func (q *Queries) SaveSlugModelSetting(ctx context.Context, arg SaveSlugModelSet
 	var i SaveSlugModelSettingRow
 	err := row.Scan(&i.ModelID, &i.Revision)
 	return i, err
+}
+
+const slugCandidateConflicts = `-- name: SlugCandidateConflicts :many
+SELECT t.id,t.name,t.slug FROM directory.tag_dictionary t WHERE t.id::text<>$1::text AND (t.slug=$2::text OR EXISTS(SELECT 1 FROM directory.tag_slug_aliases a WHERE a.tag_id=t.id AND a.slug=$2::text))
+`
+
+type SlugCandidateConflictsParams struct {
+	TagID string
+	Slug  string
+}
+
+type SlugCandidateConflictsRow struct {
+	ID   pgtype.UUID
+	Name string
+	Slug string
+}
+
+func (q *Queries) SlugCandidateConflicts(ctx context.Context, arg SlugCandidateConflictsParams) ([]SlugCandidateConflictsRow, error) {
+	rows, err := q.db.Query(ctx, slugCandidateConflicts, arg.TagID, arg.Slug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SlugCandidateConflictsRow{}
+	for rows.Next() {
+		var i SlugCandidateConflictsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Slug); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const slugCandidateOccupied = `-- name: SlugCandidateOccupied :one

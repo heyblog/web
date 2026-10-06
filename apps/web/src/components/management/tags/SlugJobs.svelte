@@ -49,6 +49,7 @@
     pending: '等待生成',
     running: '正在生成',
     ready: '待应用',
+    needs_confirmation: '需确认含义',
     failed: '生成失败',
     stale: '标签已变化',
     applied: '已应用',
@@ -254,8 +255,8 @@
   {#if job}
     <div class="grid gap-3">
       <p class="text-sm" role="status">
-        {statusText[job.status]} · {job.counts.ready} 个待应用 · {job.counts.failed} 个失败 · {job
-          .counts.applied} 个已应用 / 共 {job.counts.total} 个
+        {statusText[job.status]} · {job.counts.needs_confirmation} 个需确认 · {job.counts.ready} 个待应用
+        · {job.counts.failed} 个失败 · {job.counts.applied} 个已应用 / 共 {job.counts.total} 个
       </p>
       {#if job.pause_code}<p class="text-sm text-warning-fg">
           {taxonomyMessage(job.pause_code)}{#if job.resume_after}
@@ -324,15 +325,21 @@
                   value={edits[item.tag_id] ?? item.slug}
                   aria-label={`${item.name} 的候选 slug`}
                   maxlength="128"
-                  disabled={busy || item.state !== 'ready' || job.status !== 'ready'}
+                  disabled={busy ||
+                    !['ready', 'needs_confirmation'].includes(item.state) ||
+                    job.status !== 'ready'}
                   oninput={(event) => {
                     edits[item.tag_id] = event.currentTarget.value;
                     confirm = false;
                   }}
                 /></td
               ><td class="p-3"
-                >{stateText[item.state]}{#if item.error_code}<span
-                    class="mt-1 block text-xs text-danger-fg"
+                >{stateText[item.state]}{#if item.conflicts.length}<p
+                    class="mt-1 text-xs text-warning-fg"
+                  >
+                    与 {item.conflicts.map((conflict) => conflict.name).join('、')} 共用候选。相同含义请合并；不同含义请修改
+                    slug。
+                  </p>{/if}{#if item.error_code}<span class="mt-1 block text-xs text-danger-fg"
                     >{taxonomyMessage(item.error_code)}</span
                   >{/if}</td
               ></tr

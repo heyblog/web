@@ -12,8 +12,8 @@ import (
 )
 
 const createManagedTag = `-- name: CreateManagedTag :one
-INSERT INTO directory.tags(name,normalized_name,slug,description)
-VALUES($1,lower(btrim($1)),$2,$3) RETURNING id, name, normalized_name, slug, description, is_enabled, created_at, updated_at
+INSERT INTO directory.tag_dictionary(name,normalized_name,slug,description)
+VALUES($1,lower(btrim($1)),$2,$3) RETURNING id, name, normalized_name, slug, description, is_enabled, created_at, updated_at, default_label_id
 `
 
 type CreateManagedTagParams struct {
@@ -22,9 +22,9 @@ type CreateManagedTagParams struct {
 	Description string
 }
 
-func (q *Queries) CreateManagedTag(ctx context.Context, arg CreateManagedTagParams) (DirectoryTag, error) {
+func (q *Queries) CreateManagedTag(ctx context.Context, arg CreateManagedTagParams) (DirectoryTagDictionary, error) {
 	row := q.db.QueryRow(ctx, createManagedTag, arg.Name, arg.Slug, arg.Description)
-	var i DirectoryTag
+	var i DirectoryTagDictionary
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -34,6 +34,7 @@ func (q *Queries) CreateManagedTag(ctx context.Context, arg CreateManagedTagPara
 		&i.IsEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultLabelID,
 	)
 	return i, err
 }
@@ -95,13 +96,13 @@ func (q *Queries) GetCanonicalCascade(ctx context.Context, id pgtype.UUID) (GetC
 }
 
 const getCanonicalTag = `-- name: GetCanonicalTag :one
-SELECT t.id, t.name, t.normalized_name, t.slug, t.description, t.is_enabled, t.created_at, t.updated_at FROM directory.tags t
+SELECT t.id, t.name, t.normalized_name, t.slug, t.description, t.is_enabled, t.created_at, t.updated_at, t.default_label_id FROM directory.tag_dictionary t
 WHERE t.id=$1 OR t.id=(SELECT a.tag_id FROM directory.tag_identity_aliases a WHERE a.alias_id=$1)
 `
 
-func (q *Queries) GetCanonicalTag(ctx context.Context, id pgtype.UUID) (DirectoryTag, error) {
+func (q *Queries) GetCanonicalTag(ctx context.Context, id pgtype.UUID) (DirectoryTagDictionary, error) {
 	row := q.db.QueryRow(ctx, getCanonicalTag, id)
-	var i DirectoryTag
+	var i DirectoryTagDictionary
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -111,8 +112,91 @@ func (q *Queries) GetCanonicalTag(ctx context.Context, id pgtype.UUID) (Director
 		&i.IsEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultLabelID,
 	)
 	return i, err
+}
+
+const getTagLabel = `-- name: GetTagLabel :one
+SELECT id, tag_id, name, normalized_name, is_enabled, created_at, updated_at FROM directory.tag_labels WHERE id=$1
+`
+
+func (q *Queries) GetTagLabel(ctx context.Context, id pgtype.UUID) (DirectoryTagLabel, error) {
+	row := q.db.QueryRow(ctx, getTagLabel, id)
+	var i DirectoryTagLabel
+	err := row.Scan(
+		&i.ID,
+		&i.TagID,
+		&i.Name,
+		&i.NormalizedName,
+		&i.IsEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getTagLabelByNormalizedName = `-- name: GetTagLabelByNormalizedName :one
+SELECT id, tag_id, name, normalized_name, is_enabled, created_at, updated_at FROM directory.tag_labels WHERE normalized_name=$1
+`
+
+func (q *Queries) GetTagLabelByNormalizedName(ctx context.Context, normalizedName string) (DirectoryTagLabel, error) {
+	row := q.db.QueryRow(ctx, getTagLabelByNormalizedName, normalizedName)
+	var i DirectoryTagLabel
+	err := row.Scan(
+		&i.ID,
+		&i.TagID,
+		&i.Name,
+		&i.NormalizedName,
+		&i.IsEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listEnabledTagLabels = `-- name: ListEnabledTagLabels :many
+SELECT l.id, l.tag_id, l.name, l.normalized_name, l.is_enabled, l.created_at, l.updated_at,t.slug FROM directory.tag_labels l JOIN directory.tags t ON t.id=l.tag_id WHERE l.is_enabled AND t.is_enabled ORDER BY l.name,l.id
+`
+
+type ListEnabledTagLabelsRow struct {
+	ID             pgtype.UUID
+	TagID          pgtype.UUID
+	Name           string
+	NormalizedName string
+	IsEnabled      bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	Slug           string
+}
+
+func (q *Queries) ListEnabledTagLabels(ctx context.Context) ([]ListEnabledTagLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listEnabledTagLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEnabledTagLabelsRow{}
+	for rows.Next() {
+		var i ListEnabledTagLabelsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TagID,
+			&i.Name,
+			&i.NormalizedName,
+			&i.IsEnabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Slug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listManagedCascades = `-- name: ListManagedCascades :many
@@ -151,18 +235,18 @@ func (q *Queries) ListManagedCascades(ctx context.Context) ([]DirectoryTagCascad
 }
 
 const listManagedTags = `-- name: ListManagedTags :many
-SELECT id, name, normalized_name, slug, description, is_enabled, created_at, updated_at FROM directory.tags ORDER BY id
+SELECT id, name, normalized_name, slug, description, is_enabled, created_at, updated_at, default_label_id FROM directory.tag_dictionary ORDER BY id
 `
 
-func (q *Queries) ListManagedTags(ctx context.Context) ([]DirectoryTag, error) {
+func (q *Queries) ListManagedTags(ctx context.Context) ([]DirectoryTagDictionary, error) {
 	rows, err := q.db.Query(ctx, listManagedTags)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []DirectoryTag{}
+	items := []DirectoryTagDictionary{}
 	for rows.Next() {
-		var i DirectoryTag
+		var i DirectoryTagDictionary
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -172,6 +256,7 @@ func (q *Queries) ListManagedTags(ctx context.Context) ([]DirectoryTag, error) {
 			&i.IsEnabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DefaultLabelID,
 		); err != nil {
 			return nil, err
 		}
@@ -213,6 +298,38 @@ func (q *Queries) ListTagIdentityAliases(ctx context.Context) ([]DirectoryTagIde
 	return items, nil
 }
 
+const listTagLabels = `-- name: ListTagLabels :many
+SELECT id, tag_id, name, normalized_name, is_enabled, created_at, updated_at FROM directory.tag_labels ORDER BY tag_id,created_at,id
+`
+
+func (q *Queries) ListTagLabels(ctx context.Context) ([]DirectoryTagLabel, error) {
+	rows, err := q.db.Query(ctx, listTagLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DirectoryTagLabel{}
+	for rows.Next() {
+		var i DirectoryTagLabel
+		if err := rows.Scan(
+			&i.ID,
+			&i.TagID,
+			&i.Name,
+			&i.NormalizedName,
+			&i.IsEnabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockTaxonomy = `-- name: LockTaxonomy :exec
 SELECT pg_advisory_xact_lock(74821953)
 `
@@ -225,7 +342,7 @@ func (q *Queries) LockTaxonomy(ctx context.Context) error {
 const readableSiteCascades = `-- name: ReadableSiteCascades :many
 SELECT c.id, c.scope, c.taxonomy_key, c.level1_tag_id, c.level2_tag_id, c.sort_order, c.is_enabled, c.created_at, c.updated_at, c.merged_into_id, p.name AS level1_name,p.slug AS level1_slug,p.description AS level1_description,
  s.name AS level2_name,s.slug AS level2_slug,s.description AS level2_description
-FROM directory.tag_cascades c JOIN directory.tags p ON p.id=c.level1_tag_id JOIN directory.tags s ON s.id=c.level2_tag_id
+FROM directory.tag_cascades c JOIN directory.tag_dictionary p ON p.id=c.level1_tag_id JOIN directory.tag_dictionary s ON s.id=c.level2_tag_id
 WHERE c.scope='SITE' AND c.merged_into_id IS NULL ORDER BY c.sort_order,c.id
 `
 
@@ -300,6 +417,21 @@ func (q *Queries) ReserveTaxonomySlug(ctx context.Context, arg ReserveTaxonomySl
 	return err
 }
 
+const setSiteClassificationLabels = `-- name: SetSiteClassificationLabels :exec
+UPDATE directory.sites SET primary_label_id=$2,secondary_label_id=$3 WHERE id=$1
+`
+
+type SetSiteClassificationLabelsParams struct {
+	ID               pgtype.UUID
+	PrimaryLabelID   pgtype.UUID
+	SecondaryLabelID pgtype.UUID
+}
+
+func (q *Queries) SetSiteClassificationLabels(ctx context.Context, arg SetSiteClassificationLabelsParams) error {
+	_, err := q.db.Exec(ctx, setSiteClassificationLabels, arg.ID, arg.PrimaryLabelID, arg.SecondaryLabelID)
+	return err
+}
+
 const taxonomySlugOwner = `-- name: TaxonomySlugOwner :many
 SELECT t.id FROM directory.tags t WHERE t.slug=$1
 UNION SELECT a.tag_id AS id FROM directory.tag_slug_aliases a WHERE a.slug=$1
@@ -326,7 +458,7 @@ func (q *Queries) TaxonomySlugOwner(ctx context.Context, slug string) ([]pgtype.
 }
 
 const updateManagedTag = `-- name: UpdateManagedTag :exec
-UPDATE directory.tags SET name=$2,normalized_name=lower(btrim($2)),slug=$3,description=$4,is_enabled=$5 WHERE id=$1
+UPDATE directory.tag_dictionary SET name=$2,normalized_name=lower(btrim($2)),slug=$3,description=$4,is_enabled=$5 WHERE id=$1
 `
 
 type UpdateManagedTagParams struct {

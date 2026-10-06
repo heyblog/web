@@ -49,10 +49,10 @@ func TestDurableSlugJobsPreviewApplyAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	var first, second string
-	if err = f.pool.QueryRow(ctx, `INSERT INTO directory.tags(name,normalized_name,slug)VALUES('Batch Alpha','batch alpha','legacy-batch-alpha') RETURNING id::text`).Scan(&first); err != nil {
+	if err = f.pool.QueryRow(ctx, `INSERT INTO directory.tag_dictionary(name,normalized_name,slug)VALUES('Batch Alpha','batch alpha','legacy-batch-alpha') RETURNING id::text`).Scan(&first); err != nil {
 		t.Fatal(err)
 	}
-	if err = f.pool.QueryRow(ctx, `INSERT INTO directory.tags(name,normalized_name,slug)VALUES('Batch Beta','batch beta','legacy-batch-beta') RETURNING id::text`).Scan(&second); err != nil {
+	if err = f.pool.QueryRow(ctx, `INSERT INTO directory.tag_dictionary(name,normalized_name,slug)VALUES('Batch Beta','batch beta','legacy-batch-beta') RETURNING id::text`).Scan(&second); err != nil {
 		t.Fatal(err)
 	}
 	configuration := config.AIConfig{Timeout: 15 * time.Second, DefaultModel: "deepseek/deepseek-flash", Limits: config.AILimits{UserPerMinute: 100, IPPerMinute: 100, UserPerDay: 100, GlobalPerDay: 500, Concurrent: 2}, Batch: config.AIBatchConfig{Size: 10, MaxTags: 500, MaxOutputTokens: 4096}}
@@ -176,6 +176,47 @@ func TestDurableSlugJobsPreviewApplyAndRestart(t *testing.T) {
 	}
 	if _, err = jobs.Control(ctx, job.ID, identity, sluggeneration.JobControlInput{Action: "cancel"}); err != nil {
 		t.Fatal(err)
+	}
+	// Given different confirmed concepts whose local names normalize to one candidate.
+	var gamma, gammaVariant string
+	if err = f.pool.QueryRow(ctx, `INSERT INTO directory.tag_dictionary(name,normalized_name,slug) VALUES('Batch Gamma','batch gamma','gamma-original') RETURNING id::text`).Scan(&gamma); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.pool.QueryRow(ctx, `INSERT INTO directory.tag_dictionary(name,normalized_name,slug) VALUES('Batch-Gamma','batch-gamma','gamma-variant-original') RETURNING id::text`).Scan(&gammaVariant); err != nil {
+		t.Fatal(err)
+	}
+	conflictJob, err := jobs.Create(ctx, identity, sluggeneration.CreateJobInput{Selection: sluggeneration.JobSelection{Kind: "ids", IDs: []string{gamma, gammaVariant}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// When their preview is generated and persisted by the worker.
+	if err = jobs.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	conflictJob, err = jobs.Get(ctx, conflictJob.ID, identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Then both candidates need confirmation and an unresolved item cannot apply.
+	if conflictJob.Counts.NeedsConfirmation != 2 || conflictJob.Counts.Ready != 0 {
+		t.Fatalf("conflict preview=%+v", conflictJob)
+	}
+	for _, item := range conflictJob.Items {
+		if item.Slug != "batch-gamma" || len(item.Conflicts) == 0 {
+			t.Fatalf("missing conflict=%+v", item)
+		}
+	}
+	if _, err = jobs.Apply(ctx, conflictJob.ID, identity, sluggeneration.JobApplyInput{ExpectedRevision: conflictJob.Revision, TagIDs: []string{gamma}}); err == nil {
+		t.Fatal("unresolved candidate applied")
+	}
+	// An explicit independent spelling resolves the ambiguity without provider configuration.
+	conflictJob, err = jobs.Edit(ctx, conflictJob.ID, identity, sluggeneration.JobEditInput{ExpectedRevision: conflictJob.Revision, Items: []sluggeneration.JobEdit{{TagID: gamma, Slug: "batch-gamma"}, {TagID: gammaVariant, Slug: "batch-gamma-variant"}}})
+	if err != nil || conflictJob.Counts.Ready != 2 || conflictJob.Counts.NeedsConfirmation != 0 {
+		t.Fatalf("manual resolution=%+v %v", conflictJob, err)
+	}
+	conflictJob, err = jobs.Apply(ctx, conflictJob.ID, identity, sluggeneration.JobApplyInput{ExpectedRevision: conflictJob.Revision, TagIDs: []string{gamma, gammaVariant}})
+	if err != nil || conflictJob.Status != "completed" {
+		t.Fatalf("manual apply=%+v %v", conflictJob, err)
 	}
 	job = create()
 	if _, err = f.pool.Exec(ctx, `UPDATE identity.users SET role='USER' WHERE id=$1::uuid`, owner); err != nil {

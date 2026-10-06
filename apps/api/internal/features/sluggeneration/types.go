@@ -55,9 +55,11 @@ type SlugGenerationInput struct {
 	TagID       string `json:"tag_id,omitempty" maxLength:"36"`
 }
 type Result struct {
-	Slug    string `json:"slug"`
-	Source  string `json:"source" enum:"local,ai,cache"`
-	ModelID string `json:"model_id"`
+	Slug      string         `json:"slug"`
+	Source    string         `json:"source" enum:"local,ai,cache,existing"`
+	ModelID   string         `json:"model_id"`
+	State     string         `json:"state" enum:"ready,needs_confirmation"`
+	Conflicts []SlugConflict `json:"conflicts"`
 }
 type Settings struct {
 	ModelID    string `json:"model_id"`
@@ -76,4 +78,10 @@ type Model struct {
 type Models struct {
 	Models     []Model `json:"models"`
 	Configured bool    `json:"configured"`
+}
+
+type SlugConflict struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
 }

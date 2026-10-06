@@ -18,10 +18,11 @@ import (
 var validSlug = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type tagQueries interface {
-	ListManagedTags(context.Context) ([]dbgen.DirectoryTag, error)
-	GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTag, error)
+	tagLabelQueries
+	ListManagedTags(context.Context) ([]dbgen.DirectoryTagDictionary, error)
+	GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTagDictionary, error)
 	EnableCanonicalTag(context.Context, pgtype.UUID) error
-	CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTag, error)
+	CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTagDictionary, error)
 }
 
 type componentQueries interface {
@@ -30,18 +31,34 @@ type componentQueries interface {
 	CreateSoftwareComponent(context.Context, dbgen.CreateSoftwareComponentParams) (dbgen.DirectorySoftwareComponent, error)
 }
 
-func resolveTaxonomy(ctx context.Context, queries *dbgen.Queries, reviewer auth.User, snapshot Snapshot) (Snapshot, error) {
+func resolveTaxonomy(ctx context.Context, queries *dbgen.Queries, reviewer auth.User, snapshot, current Snapshot) (Snapshot, error) {
 	var err error
 	snapshot, err = normalizeSnapshotTaxonomy(ctx, queries, snapshot)
 	if err != nil {
 		return Snapshot{}, err
 	}
 	for index, tag := range snapshot.Tags {
+		if tag.ID != "" {
+			id, parseErr := parseUUID(tag.ID)
+			if parseErr != nil {
+				return Snapshot{}, parseErr
+			}
+			canonical, readErr := queries.GetCanonicalTag(ctx, id)
+			if readErr != nil {
+				return Snapshot{}, readErr
+			}
+			if _, labelErr := canonicalTagLabel(ctx, queries, tag, canonical, snapshotHasTagLabel(current, tag)); labelErr != nil {
+				return Snapshot{}, labelErr
+			}
+		}
 		resolved, err := resolveTag(ctx, queries, reviewer, tag)
 		if err != nil {
 			return Snapshot{}, err
 		}
 		snapshot.Tags[index] = resolved
+	}
+	if err := validateTagConcepts(snapshot.Tags); err != nil {
+		return Snapshot{}, err
 	}
 	snapshot, err = normalizeSnapshotTaxonomy(ctx, queries, snapshot)
 	if err != nil {
@@ -104,11 +121,7 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 		}
 		for _, row := range rows {
 			if row.ID == id {
-				tag.Name = row.Name
-				tag.Slug = row.Slug
-				tag.Description = row.Description
-				tag.SuggestedName = ""
-				return tag, nil
+				return canonicalTagLabel(ctx, queries, tag, row, true)
 			}
 		}
 		return TagSnapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "a selected tag is no longer available")
@@ -123,13 +136,9 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 			if err := queries.EnableCanonicalTag(ctx, existing.ID); err != nil {
 				return TagSnapshot{}, err
 			}
+			existing.IsEnabled = true
 		}
-		tag.ID, _ = uuidString(existing.ID)
-		tag.Name = existing.Name
-		tag.Slug = existing.Slug
-		tag.Description = existing.Description
-		tag.SuggestedName = ""
-		return tag, nil
+		return canonicalTagLabel(ctx, queries, tag, existing, false)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return TagSnapshot{}, fmt.Errorf("find tag by normalized name: %w", err)
 	}
@@ -154,10 +163,7 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 	if err != nil {
 		return TagSnapshot{}, fmt.Errorf("create reviewed tag: %w", err)
 	}
-	tag.ID, _ = uuidString(created.ID)
-	tag.Name = created.Name
-	tag.SuggestedName = ""
-	return tag, nil
+	return canonicalTagLabel(ctx, queries, tag, created, false)
 }
 
 func resolveComponent(ctx context.Context, queries componentQueries, reviewer auth.User, component ComponentSnapshot) (ComponentSnapshot, error) {

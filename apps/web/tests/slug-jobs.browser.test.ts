@@ -17,7 +17,7 @@ const job = {
   model_id: 'model',
   pause_code: '',
   resume_after: '',
-  counts: { total: 1, ready: 1, failed: 0, applied: 0 },
+  counts: { total: 1, ready: 1, needs_confirmation: 0, failed: 0, applied: 0 },
   items: [
     {
       tag_id: id,
@@ -25,6 +25,7 @@ const job = {
       original_slug: 'legacy-id',
       slug: 'life',
       state: 'ready',
+      conflicts: [],
       error_code: '',
       source: 'cache',
     },

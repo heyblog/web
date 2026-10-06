@@ -5,13 +5,56 @@ export interface BrowserRequestOptions {
   readonly fetch?: typeof globalThis.fetch;
 }
 
-interface ProblemPayload {
-  readonly code?: unknown;
+export interface SubmissionProblem {
+  readonly code: string;
+  readonly slugCandidates: readonly string[];
+  readonly slugConflicts: readonly string[];
 }
 
-export async function readSubmissionProblemCode(response: Response): Promise<string> {
-  const payload = (await response.json().catch(() => null)) as ProblemPayload | null;
-  return typeof payload?.code === 'string' ? payload.code : 'request_failed';
+export async function readSubmissionProblem(response: Response): Promise<SubmissionProblem> {
+  const payload: unknown = await response.json().catch(() => null);
+  const result: SubmissionProblem = {
+    code: 'request_failed',
+    slugCandidates: [],
+    slugConflicts: [],
+  };
+  if (!payload || typeof payload !== 'object' || !('code' in payload)) return result;
+  const code = typeof payload.code === 'string' ? payload.code : result.code;
+  if (
+    code !== 'slug_needs_confirmation' ||
+    !('invalid_params' in payload) ||
+    !Array.isArray(payload.invalid_params)
+  )
+    return { ...result, code };
+
+  const slugCandidates: string[] = [];
+  const slugConflicts: string[] = [];
+  const params: readonly unknown[] = payload.invalid_params;
+  for (const param of params.slice(0, 21)) {
+    if (
+      !param ||
+      typeof param !== 'object' ||
+      !('name' in param) ||
+      typeof param.name !== 'string' ||
+      !('reason' in param) ||
+      typeof param.reason !== 'string'
+    )
+      continue;
+    if (
+      /^tags\..+\.slug$/.test(param.name) &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(param.reason) &&
+      param.reason.length <= 160
+    ) {
+      slugCandidates.push(param.reason);
+    } else if (
+      /^conflicts\.(?:[0-9a-f-]{36})?$/.test(param.name) &&
+      /^.{1,120} \([a-z0-9]+(?:-[a-z0-9]+)*\)$/.test(param.reason) &&
+      param.reason.length <= 283
+    ) {
+      slugConflicts.push(param.reason);
+    }
+  }
+  return { code, slugCandidates, slugConflicts };
 }
 
 export function submissionEndpoint(action: AuditAction, siteShortID: string): string {

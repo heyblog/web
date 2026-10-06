@@ -197,7 +197,7 @@ func TestTaxonomyManagement(t *testing.T) {
 		t.Fatalf("disabled batched tags: %#v %v", batched, err)
 	}
 	options, err := queries.ListDirectoryTagOptions(ctx)
-	if err != nil || len(options) != 4 {
+	if err != nil || len(options) != 6 {
 		t.Fatalf("disabled filter options: %#v %v", options, err)
 	}
 	counts, err := queries.CountDirectorySitesByStatus(ctx, dbgen.CountDirectorySitesByStatusParams{Level1TagSlug: second.Slug, Level2TagSlug: child.Slug, TertiaryTagSlugs: []string{tertiary.Slug, "renamed-slug"}, WarningSlugs: []string{warning.Slug}, TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any"})

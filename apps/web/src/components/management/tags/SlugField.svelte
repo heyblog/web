@@ -44,6 +44,10 @@
       ) {
         message = '内容已变化，请重新生成。';
       } else if (result.ok) {
+        if (result.value.state === 'needs_confirmation') {
+          error = `候选“${result.value.slug}”与${result.value.conflicts.map((tag) => `“${tag.name}”`).join('、') || '其他标签'}冲突。相同含义请在标签管理中添加同义名称或合并标签；不同含义请填写独立 slug。`;
+          return;
+        }
         value = result.value.slug;
         message = '已生成，请确认后保存。';
       } else error = taxonomyMessage(result.code);

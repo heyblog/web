@@ -44,12 +44,13 @@ func (store *memoryStore) Occupied(_ context.Context, slug, tagID string) (bool,
 }
 
 type testProvider struct {
-	calls      int
-	modelCalls int
-	err        error
-	models     []string
-	model      string
-	input      tokenhub.Input
+	calls       int
+	batchUnique bool
+	modelCalls  int
+	err         error
+	models      []string
+	model       string
+	input       tokenhub.Input
 }
 
 func (provider *testProvider) Generate(_ context.Context, model string, input tokenhub.Input) (string, error) {
@@ -68,7 +69,11 @@ func (provider *testProvider) GenerateBatch(_ context.Context, model string, inp
 	provider.model = model
 	results := make([]tokenhub.BatchResult, 0, len(inputs))
 	for _, input := range inputs {
-		results = append(results, tokenhub.BatchResult{ID: input.ID, Slug: "programming"})
+		slug := "programming"
+		if provider.batchUnique {
+			slug += "-" + input.ID
+		}
+		results = append(results, tokenhub.BatchResult{ID: input.ID, Slug: slug})
 	}
 	return results, provider.err
 }

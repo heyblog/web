@@ -61,8 +61,8 @@ func (transaction *auditTransaction) LockSiteSnapshot(ctx context.Context, siteI
 	return loadSnapshot(ctx, transaction.queries, id)
 }
 
-func (transaction *auditTransaction) ResolveTaxonomy(ctx context.Context, reviewer auth.User, snapshot Snapshot) (Snapshot, error) {
-	return resolveTaxonomy(ctx, transaction.queries, reviewer, snapshot)
+func (transaction *auditTransaction) ResolveTaxonomy(ctx context.Context, reviewer auth.User, snapshot, current Snapshot) (Snapshot, error) {
+	return resolveTaxonomy(ctx, transaction.queries, reviewer, snapshot, current)
 }
 
 func (transaction *auditTransaction) ApplySite(ctx context.Context, change reviewedSite, newShortID func() (string, error)) (Snapshot, error) {

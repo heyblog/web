@@ -1,8 +1,16 @@
-import { isRecord, isRevision, isUUID } from './taxonomy.types.ts';
+import {
+  isRecord,
+  isRevision,
+  isSlugConflict,
+  isUUID,
+  type SlugConflict,
+} from './taxonomy.types.ts';
 
 export type SlugJobStatus = 'queued' | 'running' | 'paused' | 'ready' | 'cancelled' | 'completed';
-export type SlugItemState = 'pending' | 'running' | 'ready' | 'failed' | 'stale' | 'applied';
+export type SlugItemState =
+  'pending' | 'running' | 'ready' | 'failed' | 'stale' | 'applied' | 'needs_confirmation';
 export interface SlugJobItem {
+  readonly conflicts: readonly SlugConflict[];
   readonly tag_id: string;
   readonly name: string;
   readonly original_slug: string;
@@ -21,6 +29,7 @@ export interface SlugJob {
   readonly counts: {
     readonly total: number;
     readonly ready: number;
+    readonly needs_confirmation: number;
     readonly failed: number;
     readonly applied: number;
   };
@@ -41,7 +50,15 @@ const statuses: readonly unknown[] = [
   'cancelled',
   'completed',
 ];
-const states: readonly unknown[] = ['pending', 'running', 'ready', 'failed', 'stale', 'applied'];
+const states: readonly unknown[] = [
+  'pending',
+  'running',
+  'ready',
+  'failed',
+  'stale',
+  'applied',
+  'needs_confirmation',
+];
 function isItem(value: unknown): value is SlugJobItem {
   return (
     isRecord(value) &&
@@ -51,7 +68,9 @@ function isItem(value: unknown): value is SlugJobItem {
     typeof value.slug === 'string' &&
     states.includes(value.state) &&
     typeof value.error_code === 'string' &&
-    typeof value.source === 'string'
+    typeof value.source === 'string' &&
+    Array.isArray(value.conflicts) &&
+    value.conflicts.every(isSlugConflict)
   );
 }
 function isJob(value: unknown): value is SlugJob {
@@ -64,7 +83,7 @@ function isJob(value: unknown): value is SlugJob {
     typeof value.pause_code === 'string' &&
     typeof value.resume_after === 'string' &&
     isRecord(value.counts) &&
-    ['total', 'ready', 'failed', 'applied'].every((key) => {
+    ['total', 'ready', 'failed', 'applied', 'needs_confirmation'].every((key) => {
       const count = value.counts;
       return (
         isRecord(count) &&

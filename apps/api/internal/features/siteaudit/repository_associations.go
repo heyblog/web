@@ -78,10 +78,14 @@ func syncTags(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, t
 		if err != nil {
 			return err
 		}
+		labelID, err := parseOptionalUUID(tag.LabelID)
+		if err != nil {
+			return err
+		}
 		var tagPosition *int16
 		position++
 		tagPosition = &position
-		if _, err := queries.AssignSiteTag(ctx, dbgen.AssignSiteTagParams{SiteID: siteID, TagID: tagID, Role: tag.Role, AssignmentSource: "MANUAL", Position: tagPosition}); err != nil {
+		if _, err := queries.AssignSiteTag(ctx, dbgen.AssignSiteTagParams{SiteID: siteID, TagID: tagID, LabelID: labelID, Role: tag.Role, AssignmentSource: "MANUAL", Position: tagPosition}); err != nil {
 			return fmt.Errorf("assign reviewed tag: %w", err)
 		}
 	}

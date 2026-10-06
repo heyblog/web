@@ -120,8 +120,8 @@ func (q *Queries) InsertFriendLinks(ctx context.Context, links []byte) error {
 
 const insertImportedTagAlias = `-- name: InsertImportedTagAlias :exec
 INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot)
-SELECT $1::uuid,t.id,jsonb_build_object('id',$1::uuid,'name',$2::text)
-FROM directory.tags t WHERE t.normalized_name=$3
+SELECT $1::uuid,t.tag_id,jsonb_build_object('id',$1::uuid,'name',$2::text)
+FROM directory.tag_labels t WHERE t.normalized_name=$3
 ON CONFLICT(alias_id) DO NOTHING
 `
 
@@ -437,21 +437,9 @@ func (q *Queries) InsertSource(ctx context.Context, arg InsertSourceParams) (pgt
 }
 
 const insertTag = `-- name: InsertTag :exec
-INSERT INTO directory.tags (
-    id,
-    name,
-    normalized_name,
-    slug,
-    description,
-    is_enabled
-) VALUES (
-    $1::uuid,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6
-) ON CONFLICT(normalized_name) DO NOTHING
+INSERT INTO directory.tag_dictionary(id,name,normalized_name,slug,description,is_enabled)
+SELECT $1::uuid,$2::text,$3::text,$4::text,$5::text,$6::boolean
+WHERE NOT EXISTS(SELECT 1 FROM directory.tag_labels WHERE normalized_name=$3::text)
 `
 
 type InsertTagParams struct {

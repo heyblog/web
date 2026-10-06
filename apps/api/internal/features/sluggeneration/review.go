@@ -24,10 +24,14 @@ func (service *Service) ReviewedTags(ctx context.Context, user auth.User, ip str
 	result := slices.Clone(tags)
 	inputs := make([]tokenhub.BatchInput, 0, 20)
 	seen := map[string]string{}
-	reserved := map[string]bool{}
+	reserved := map[string]SlugConflict{}
 	for _, tag := range result {
 		if tag.Slug != "" {
-			reserved[tag.Slug] = true
+			name := tag.Name
+			if name == "" {
+				name = tag.SuggestedName
+			}
+			reserved[tag.Slug] = SlugConflict{ID: tag.ID, Name: name, Slug: tag.Slug}
 		}
 	}
 	for i, tag := range result {
@@ -74,22 +78,19 @@ func (service *Service) ReviewedTags(ctx context.Context, user auth.User, ip str
 			}
 			for _, input := range chunk {
 				base := candidates[input.ID]
-				slug, err := service.unique(ctx, base, "")
+				candidate, err := service.candidateResult(ctx, base, "", "", "")
 				if err != nil {
 					return nil, err
 				}
-				for suffix := 2; reserved[slug]; suffix++ {
-					if suffix > 10000 {
-						return nil, jobFailure("slug_collision")
-					}
-					tail := fmt.Sprintf("-%d", suffix)
-					candidate := strings.TrimRight(base[:min(len(base), 128-len(tail))], "-") + tail
-					slug, err = service.unique(ctx, candidate, "")
-					if err != nil {
-						return nil, err
-					}
+				if candidate.State == "needs_confirmation" {
+					return nil, needsConfirmation(input.Name, candidate)
 				}
-				reserved[slug] = true
+				slug := candidate.Slug
+				if prior, exists := reserved[slug]; exists {
+					return nil, needsConfirmation(input.Name, Result{Slug: slug, State: "needs_confirmation", Conflicts: []SlugConflict{prior}})
+				}
+
+				reserved[slug] = SlugConflict{Name: input.Name, Slug: slug}
 				seen[strings.ToLower(input.Name)] = slug
 			}
 		}

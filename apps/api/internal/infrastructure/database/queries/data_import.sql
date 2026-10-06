@@ -95,26 +95,14 @@ INSERT INTO directory.site_resources (
 );
 
 -- name: InsertTag :exec
-INSERT INTO directory.tags (
-    id,
-    name,
-    normalized_name,
-    slug,
-    description,
-    is_enabled
-) VALUES (
-    sqlc.arg(id)::uuid,
-    sqlc.arg(name),
-    sqlc.arg(normalized_name),
-    sqlc.arg(slug),
-    sqlc.arg(description),
-    sqlc.arg(is_enabled)
-) ON CONFLICT(normalized_name) DO NOTHING;
+INSERT INTO directory.tag_dictionary(id,name,normalized_name,slug,description,is_enabled)
+SELECT sqlc.arg(id)::uuid,sqlc.arg(name)::text,sqlc.arg(normalized_name)::text,sqlc.arg(slug)::text,sqlc.arg(description)::text,sqlc.arg(is_enabled)::boolean
+WHERE NOT EXISTS(SELECT 1 FROM directory.tag_labels WHERE normalized_name=sqlc.arg(normalized_name)::text);
 
 -- name: InsertImportedTagAlias :exec
 INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot)
-SELECT sqlc.arg(alias_id)::uuid,t.id,jsonb_build_object('id',sqlc.arg(alias_id)::uuid,'name',sqlc.arg(name)::text)
-FROM directory.tags t WHERE t.normalized_name=sqlc.arg(normalized_name)
+SELECT sqlc.arg(alias_id)::uuid,t.tag_id,jsonb_build_object('id',sqlc.arg(alias_id)::uuid,'name',sqlc.arg(name)::text)
+FROM directory.tag_labels t WHERE t.normalized_name=sqlc.arg(normalized_name)
 ON CONFLICT(alias_id) DO NOTHING;
 
 -- name: InsertSiteTag :exec

@@ -19,19 +19,21 @@ type CreateJobInput struct {
 	ExpectedRevision string       `json:"expected_revision,omitempty"`
 }
 type JobItem struct {
-	TagID        string `json:"tag_id"`
-	Name         string `json:"name"`
-	OriginalSlug string `json:"original_slug"`
-	Slug         string `json:"slug"`
-	State        string `json:"state" enum:"pending,running,ready,failed,stale,applied"`
-	ErrorCode    string `json:"error_code"`
-	Source       string `json:"source"`
+	TagID        string         `json:"tag_id"`
+	Name         string         `json:"name"`
+	OriginalSlug string         `json:"original_slug"`
+	Slug         string         `json:"slug"`
+	State        string         `json:"state" enum:"pending,running,ready,needs_confirmation,failed,stale,applied"`
+	ErrorCode    string         `json:"error_code"`
+	Source       string         `json:"source"`
+	Conflicts    []SlugConflict `json:"conflicts"`
 }
 type JobCounts struct {
-	Total   int `json:"total"`
-	Ready   int `json:"ready"`
-	Failed  int `json:"failed"`
-	Applied int `json:"applied"`
+	Total             int `json:"total"`
+	Ready             int `json:"ready"`
+	Failed            int `json:"failed"`
+	Applied           int `json:"applied"`
+	NeedsConfirmation int `json:"needs_confirmation"`
 }
 type Job struct {
 	ID          string    `json:"id"`

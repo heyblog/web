@@ -1,6 +1,6 @@
 import {
   type BrowserRequestOptions,
-  readSubmissionProblemCode,
+  readSubmissionProblem,
   requestSiteAvailability,
   submitSite,
 } from '../../api/site-submission/site-submission.browser.ts';
@@ -31,6 +31,10 @@ const problemMessages: Readonly<Record<string, string>> = {
   taxonomy_permission_required: '当前账号无权新建分类或技术条目。',
   taxonomy_metadata_required: '请补全新程序或技术条目的资料。',
   invalid_tag: '所选标签已不可用，请刷新后重新选择。',
+  invalid_tag_label: '所选标签名称已不可用，请刷新后重新选择。',
+  slug_needs_confirmation:
+    '新标签的 slug 与已有标签冲突。相同含义请在标签管理中添加同义名称或合并标签；不同含义请填写独立 slug 后重新审核。',
+  slug_conflict: '该 slug 已被占用，请选择已有标签或填写独立 slug。',
   invalid_component: '所选程序或技术已不可用，请刷新后重试。',
   invalid_program_dependency: '程序技术栈包含无效或循环依赖。',
   program_already_exists: '该程序已存在，请改为选择目录中的程序。',
@@ -57,8 +61,15 @@ export class SiteSubmissionProblem extends Error {
 }
 
 async function responseProblem(response: Response): Promise<SiteSubmissionProblem> {
-  const code = await readSubmissionProblemCode(response);
-  return new SiteSubmissionProblem(code, problemMessages[code] ?? fallbackProblemMessage);
+  const problem = await readSubmissionProblem(response);
+  let message = problemMessages[problem.code] ?? fallbackProblemMessage;
+  if (problem.code === 'slug_needs_confirmation') {
+    const candidate = problem.slugCandidates.join('、');
+    const conflicts = problem.slugConflicts.join('、');
+    if (candidate) message += ` 候选 slug：${candidate}。`;
+    if (conflicts) message += ` 冲突标签：${conflicts}。`;
+  }
+  return new SiteSubmissionProblem(problem.code, message);
 }
 
 export async function problemDetail(response: Response): Promise<string> {

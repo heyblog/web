@@ -46,6 +46,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00019_tag_dictionary.sql",
 		"00020_slug_generation_jobs.sql",
 		"00021_site_metrics.sql",
+		"00022_tag_labels.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -75,6 +76,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"directory.tag_assignment_archive",
 		"directory.tag_cascades",
 		"directory.tag_identity_aliases",
+		"directory.tag_labels",
 		"directory.tag_slug_aliases",
 		"directory.tags",
 		"identity.api_client_scopes",

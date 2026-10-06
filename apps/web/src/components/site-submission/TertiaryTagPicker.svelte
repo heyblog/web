@@ -5,10 +5,12 @@
   import type { Option } from '@/api/site-submission/site-submission.types';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
   import { nextDraftID } from '@/application/site-submission/site-submission.draft-id.browser';
-  import { matchesSubmissionOption } from '@/application/site-submission/site-submission.search';
   import {
+    matchingTagOptions,
     removeTag,
     selectTertiaryTag,
+    tagOptionKey,
+    tagSelectionReason,
     tertiaryTagOptions,
   } from '@/application/site-submission/site-submission.tags.browser';
 
@@ -24,11 +26,7 @@
   let activeIndex = $state(0);
   let picker: HTMLElement;
   const selected = $derived(form.tags.filter((tag) => tag.role === 'TERTIARY'));
-  const filtered = $derived(
-    tertiaryTagOptions(options, form.tags).filter((option) =>
-      matchesSubmissionOption(query, option.name),
-    ),
-  );
+  const filtered = $derived(matchingTagOptions(query, tertiaryTagOptions(options, form.tags)));
   const normalizedQuery = $derived(query.trim().toLocaleLowerCase());
   const canSuggest = $derived(
     selected.length < 20 &&
@@ -41,13 +39,16 @@
   const optionCount = $derived(filtered.length + Number(canSuggest));
   const activeOptionID = $derived(
     activeIndex < filtered.length
-      ? `${pickerID}-option-${filtered[activeIndex]?.id}`
+      ? filtered[activeIndex]
+        ? `${pickerID}-option-${tagOptionKey(filtered[activeIndex])}`
+        : undefined
       : canSuggest
         ? `${pickerID}-custom`
         : undefined,
   );
 
   function choose(option: Option): void {
+    if (tagSelectionReason(option, form.tags) || selected.length >= 20) return;
     selectTertiaryTag(form, option);
     query = '';
     activeIndex = 0;
@@ -149,21 +150,24 @@
         aria-label="可选三级标签"
         aria-multiselectable="true"
       >
-        {#each filtered as option, index (option.id)}
+        {#each filtered as option, index (tagOptionKey(option))}
           <button
-            id={`${pickerID}-option-${option.id}`}
+            id={`${pickerID}-option-${tagOptionKey(option)}`}
             class="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm px-3 text-left text-sm hover:bg-subtle focus-visible:bg-subtle disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-10"
             class:bg-subtle={index === activeIndex}
             type="button"
             role="option"
-            aria-selected="false"
+            aria-selected={Boolean(tagSelectionReason(option, form.tags))}
             tabindex="-1"
-            disabled={selected.length >= 20}
+            disabled={selected.length >= 20 || Boolean(tagSelectionReason(option, form.tags))}
             onmousedown={(event) => event.preventDefault()}
             onmouseenter={() => (activeIndex = index)}
             onclick={() => choose(option)}
           >
             <span class="min-w-0 flex-1 wrap-anywhere">{option.name}</span>
+            {#if tagSelectionReason(option, form.tags)}<span class="text-xs"
+                >{tagSelectionReason(option, form.tags)}</span
+              >{/if}
           </button>
         {/each}
         {#if canSuggest}

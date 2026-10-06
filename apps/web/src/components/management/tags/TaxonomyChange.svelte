@@ -127,6 +127,18 @@
                 {path.scope === 'SITE' ? '站点' : '文章'}：{path.label}
               </li>{/each}
           </ul>{/if}
+        {#if preview.retained_labels.length}<details class="text-sm">
+            <summary class="min-h-11 cursor-pointer"
+              >保留的引用名称（{preview.retained_labels.length}）</summary
+            >
+            <ul class="max-h-48 overflow-y-auto text-xs text-fg-muted">
+              {#each preview.retained_labels as label (`${label.scope}:${label.object_id}:${label.tag_id}`)}<li
+                >
+                  {label.scope === 'SITE' ? '站点' : '文章'}
+                  {label.object_id.slice(-8)}：{label.name}
+                </li>{/each}
+            </ul>
+          </details>{/if}
         {#if preview.blockers.length}
           <p class="text-sm">完善迁移目标后，请重新预览完整影响。</p>
           <ul class="grid list-disc gap-2 pl-5 text-sm text-warning-fg">

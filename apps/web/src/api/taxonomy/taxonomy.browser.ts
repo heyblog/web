@@ -80,3 +80,29 @@ export const saveSettings = (modelID: string, revision: string) =>
 
 export const createCascade = (body: Readonly<Record<string, unknown>>) =>
   requestManagement('/management/tags/data/cascades', 'POST', parseTaxonomy, body);
+
+export const saveLabel = (
+  tagID: string,
+  labelID: string,
+  body: Readonly<Record<string, unknown>>,
+) =>
+  requestManagement(
+    `/management/tags/data/${encodeURIComponent(tagID)}/labels${labelID ? `/${encodeURIComponent(labelID)}` : ''}`,
+    labelID ? 'PUT' : 'POST',
+    parseTaxonomy,
+    body,
+  );
+export const deleteLabel = (tagID: string, labelID: string, revision: string) =>
+  requestManagement(
+    `/management/tags/data/${encodeURIComponent(tagID)}/labels/${encodeURIComponent(labelID)}`,
+    'DELETE',
+    parseTaxonomy,
+    { expected_revision: revision },
+  );
+export const setDefaultLabel = (tagID: string, labelID: string, revision: string) =>
+  requestManagement(
+    `/management/tags/data/${encodeURIComponent(tagID)}/default-label`,
+    'POST',
+    parseTaxonomy,
+    { label_id: labelID, expected_revision: revision },
+  );
