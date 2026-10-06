@@ -45,6 +45,7 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00018_system_ai_settings.sql",
 		"00019_tag_dictionary.sql",
 		"00020_slug_generation_jobs.sql",
+		"00021_site_metrics.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)
@@ -59,6 +60,8 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"directory.site_audits",
 		"directory.site_feeds",
 		"directory.site_icons",
+		"directory.site_metric_events",
+		"directory.site_metrics",
 		"directory.site_origins",
 		"directory.site_resources",
 		"directory.site_software_components",

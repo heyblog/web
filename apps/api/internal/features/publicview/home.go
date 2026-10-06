@@ -52,7 +52,7 @@ func (service *Service) Home(ctx context.Context) (Home, error) {
 		)
 	}
 
-	sites, err := loadRandomSites(ctx, service.home, count)
+	sites, err := loadRandomSites(ctx, service.home, count, service.metrics)
 	if err != nil {
 		return Home{}, err
 	}
@@ -60,10 +60,11 @@ func (service *Service) Home(ctx context.Context) (Home, error) {
 	if err != nil {
 		return Home{}, err
 	}
+	service.attachMetrics(ctx, sites)
 	return Home{SiteCount: count, Announcements: announcements, Sites: sites}, nil
 }
 
-func loadRandomSites(ctx context.Context, queries HomeSiteQueries, count int64) ([]HomeSiteCard, error) {
+func loadRandomSites(ctx context.Context, queries HomeSiteQueries, count int64, recorder MetricsRecorder) ([]HomeSiteCard, error) {
 	if count == 0 {
 		return []HomeSiteCard{}, nil
 	}
@@ -75,5 +76,5 @@ func loadRandomSites(ctx context.Context, queries HomeSiteQueries, count int64) 
 		return nil, internalError(errors.New("random site query exceeded its limit"), "validate random visible sites")
 	}
 
-	return loadSiteCards(ctx, queries, rows)
+	return loadSiteCards(ctx, queries, rows, recorder)
 }

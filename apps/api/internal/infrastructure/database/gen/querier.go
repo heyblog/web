@@ -83,6 +83,8 @@ type Querier interface {
 	GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error)
 	GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (DirectorySiteIcon, error)
 	GetSiteIconHash(ctx context.Context, siteID pgtype.UUID) ([]byte, error)
+	GetSiteMetrics(ctx context.Context, shortIds []string) ([]GetSiteMetricsRow, error)
+	GetSiteOutboundTarget(ctx context.Context, shortID string) (GetSiteOutboundTargetRow, error)
 	GetSiteSourceByKey(ctx context.Context, sourceKey string) (DirectorySiteSource, error)
 	GetSlugJob(ctx context.Context, id pgtype.UUID) (DirectorySlugGenerationJob, error)
 	GetSlugModelSetting(ctx context.Context) (GetSlugModelSettingRow, error)
@@ -95,6 +97,7 @@ type Querier interface {
 	GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error)
 	ImportLockCapacity(ctx context.Context) (int32, error)
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
+	IncrementSiteDisplayMetrics(ctx context.Context, arg IncrementSiteDisplayMetricsParams) error
 	InsertFeed(ctx context.Context, arg InsertFeedParams) error
 	InsertFriendLinks(ctx context.Context, links []byte) error
 	InsertImportedTagAlias(ctx context.Context, arg InsertImportedTagAliasParams) error
@@ -167,6 +170,7 @@ type Querier interface {
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
 	ReadableSiteCascades(ctx context.Context) ([]ReadableSiteCascadesRow, error)
+	RecordSiteMetricEvents(ctx context.Context, arg RecordSiteMetricEventsParams) error
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams) (DirectorySiteAudit, error)
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error

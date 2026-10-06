@@ -41,7 +41,7 @@ func verifyAnnouncementManagement(ctx context.Context, t *testing.T, pool *pgxpo
 	if err != nil {
 		t.Fatal(err)
 	}
-	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "announcement-test", HealthcheckToken: "health-test", PublicViews: publicview.New(dbgen.New(pool)), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "announcement-test", HealthcheckToken: "health-test", PublicViews: publicview.New(dbgen.New(pool), nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 	if err != nil {
 		t.Fatal(err)
 	}

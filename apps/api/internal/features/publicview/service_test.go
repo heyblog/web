@@ -44,7 +44,7 @@ func TestHomeLoadsFreshRandomCardsWithPublicResources(t *testing.T) {
 			SiteID: first.ID, Kind: "SITEMAP", LocationType: "RELATIVE", UrlRef: &sitemapRef,
 		}},
 	}
-	service := New(queries)
+	service := newTestService(queries)
 
 	view, err := service.Home(context.Background())
 	if err != nil {
@@ -81,7 +81,7 @@ func TestHomeRejectsInvalidRandomSiteUpdatedAt(t *testing.T) {
 
 	row := testSite("A1b2C3d4E")
 	row.UpdatedAt = pgtype.Timestamptz{}
-	service := New(queryStub{
+	service := newTestService(queryStub{
 		count: 1,
 		listRandom: func(context.Context, int32) ([]dbgen.DirectorySite, error) {
 			return []dbgen.DirectorySite{row}, nil
@@ -99,7 +99,7 @@ func TestHomeRejectsInvalidRandomSiteUpdatedAt(t *testing.T) {
 func TestHomeReturnsEmptySitesWithoutAssociationQueries(t *testing.T) {
 	t.Parallel()
 
-	service := New(queryStub{count: 0, announcementErr: pgx.ErrNoRows})
+	service := newTestService(queryStub{count: 0, announcementErr: pgx.ErrNoRows})
 	view, err := service.Home(context.Background())
 	if err != nil {
 		t.Fatalf("Home() error = %v", err)
@@ -113,7 +113,7 @@ func TestHomeRejectsNegativeDirectoryCount(t *testing.T) {
 	t.Parallel()
 
 	listCalled := false
-	service := New(queryStub{
+	service := newTestService(queryStub{
 		count: -1,
 		listRandom: func(context.Context, int32) ([]dbgen.DirectorySite, error) {
 			listCalled = true
@@ -162,7 +162,7 @@ func TestHomeMapsRandomCardQueryFailuresToInternalErrors(t *testing.T) {
 				announcementErr: pgx.ErrNoRows,
 			}
 			testCase.configure(&stub)
-			_, err := New(stub).Home(context.Background())
+			_, err := newTestService(stub).Home(context.Background())
 			var applicationError *apperror.Error
 			if !errors.As(err, &applicationError) || applicationError.Kind() != apperror.KindInternal {
 				t.Fatalf("Home() error = %v, want internal application error", err)
@@ -199,7 +199,7 @@ func TestHomeMapsLeadingAnnouncementActions(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			service := New(queryStub{
+			service := newTestService(queryStub{
 				count: 0,
 				announcement: dbgen.ContentAnnouncement{
 					Kind:              string(content.KindMain),
@@ -280,7 +280,7 @@ func TestHomeRejectsMalformedAnnouncementPersistenceData(t *testing.T) {
 			row := testCase.announcement
 			row.PublishedAt = startsAt
 			row.UpdatedAt = startsAt
-			service := New(queryStub{count: 0, announcement: row})
+			service := newTestService(queryStub{count: 0, announcement: row})
 			_, err := service.Home(context.Background())
 			var applicationError *apperror.Error
 			if !errors.As(err, &applicationError) || applicationError.Kind() != apperror.KindInternal {
@@ -314,7 +314,7 @@ func TestSiteProfileMapsOnlyPublicReadModel(t *testing.T) {
 			Role: "FRAMEWORK", Name: "Astro", HomepageUrl: &homepage, RepositoryUrl: &repository, IsOpenSource: true,
 		}},
 	}
-	service := New(queries)
+	service := newTestService(queries)
 
 	profile, err := service.SiteByIdentifier(context.Background(), SiteIdentifier{
 		Kind: IdentifierShortID, Value: row.ShortID,
@@ -343,7 +343,7 @@ func TestSiteProfileAllowsHiddenSitesWithoutExposingVisibilityReason(t *testing.
 	hidden.Visibility = "HIDDEN"
 	reason := "internal review state"
 	hidden.VisibilityReason = &reason
-	service := New(queryStub{byShortID: hidden})
+	service := newTestService(queryStub{byShortID: hidden})
 
 	profile, err := service.SiteByIdentifier(context.Background(), SiteIdentifier{
 		Kind: IdentifierShortID, Value: "A1b2C3d4E",
@@ -376,7 +376,7 @@ func TestSiteProfileTreatsRemovedAndMissingSitesAsNotFound(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			service := New(test.queries)
+			service := newTestService(test.queries)
 			_, err := service.SiteByIdentifier(context.Background(), SiteIdentifier{
 				Kind: IdentifierShortID, Value: "A1b2C3d4E",
 			})
@@ -391,7 +391,7 @@ func TestSiteProfileTreatsRemovedAndMissingSitesAsNotFound(t *testing.T) {
 func TestSiteProfileRejectsInvalidIdentifierBeforeQuery(t *testing.T) {
 	t.Parallel()
 
-	service := New(queryStub{})
+	service := newTestService(queryStub{})
 	_, err := service.SiteByIdentifier(context.Background(), SiteIdentifier{
 		Kind: IdentifierShortID, Value: "bad",
 	})

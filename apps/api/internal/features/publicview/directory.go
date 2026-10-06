@@ -119,10 +119,11 @@ func (service *Service) Directory(ctx context.Context, query DirectoryQuery) (Di
 	if err != nil {
 		return DirectoryView{}, internalError(err, "list directory sites")
 	}
-	cards, err := loadSiteCards(ctx, service.directory, rows)
+	cards, err := loadSiteCards(ctx, service.directory, rows, service.metrics)
 	if err != nil {
 		return DirectoryView{}, err
 	}
+	service.attachMetrics(ctx, cards)
 	query.Page = parameters.Page
 	return DirectoryView{
 		Items: cards,

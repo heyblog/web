@@ -1,5 +1,5 @@
 import { loadSiteIcon, type SiteIconResult } from '../../api/sites/site-icon.server.ts';
-import { loadSiteByIdentifier } from '../../api/sites/site-profile.server.ts';
+import { loadSiteMetadataByIdentifier } from '../../api/sites/site-profile.server.ts';
 import { type SiteProfile } from '../../api/sites/site-profile.types.ts';
 import type { ApiJsonResult } from '../../api/transport/client.server.ts';
 
@@ -21,7 +21,7 @@ function unavailable(): Response {
 
 export function createSiteOgHandler(dependencies: SiteOgDependencies) {
   return async (identifier: string, request: Request): Promise<Response> => {
-    const result = await (dependencies.load ?? loadSiteByIdentifier)(identifier, request);
+    const result = await (dependencies.load ?? loadSiteMetadataByIdentifier)(identifier, request);
     switch (result.kind) {
       case 'bad-request':
       case 'not-found':

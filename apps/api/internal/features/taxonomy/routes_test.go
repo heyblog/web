@@ -28,7 +28,7 @@ func TestManagementRoutesEnforceBothGuards(t *testing.T) {
 		{"POST", "/changes/apply", `{"kind":"merge","source_id":"id","expected_revision":"version"}`},
 	} {
 		t.Run(route.method+route.path, func(t *testing.T) {
-			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "web-test", HealthcheckToken: "health-test", PublicViews: publicview.New(nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "web-test", HealthcheckToken: "health-test", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 			if err != nil {
 				t.Fatal(err)
 			}

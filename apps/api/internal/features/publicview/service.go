@@ -11,8 +11,9 @@ type Service struct {
 	icons         IconQueries
 	announcements AnnouncementReadQueries
 	sitemap       SitemapQueries
+	metrics       MetricsRecorder
 }
 
-func New(queries Queries) *Service {
-	return &Service{graph: queries, home: queries, directory: queries, options: queries, random: queries, lookup: queries, profile: queries, icons: queries, announcements: queries, sitemap: queries}
+func New(queries Queries, metrics MetricsRecorder) *Service {
+	return &Service{graph: queries, home: queries, directory: queries, options: queries, random: queries, lookup: queries, profile: queries, icons: queries, announcements: queries, sitemap: queries, metrics: metrics}
 }

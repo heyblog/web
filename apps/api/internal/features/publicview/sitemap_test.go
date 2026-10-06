@@ -47,7 +47,7 @@ func TestSitemapPagesExposeCursorOnlyWhenMoreRowsExist(t *testing.T) {
 					},
 				}
 				// When the service assembles the sitemap page.
-				page, err := New(queries).Sitemap(context.Background(), SitemapQuery{Kind: kind, After: after})
+				page, err := newTestService(queries).Sitemap(context.Background(), SitemapQuery{Kind: kind, After: after})
 				// Then the lookahead is excluded and the cursor identifies the last emitted item.
 				if err != nil {
 					t.Fatal(err)
@@ -74,7 +74,7 @@ func TestSitemapQueryFailureRetainsExistingInternalErrorPolicy(t *testing.T) {
 			t.Parallel()
 			// Given a failed sitemap query.
 			failure := errors.New("query failed")
-			service := New(queryStub{
+			service := newTestService(queryStub{
 				sitemapSites:         func(context.Context, pgtype.UUID) ([]dbgen.ListSitemapSitesRow, error) { return nil, failure },
 				sitemapAnnouncements: func(context.Context, pgtype.UUID) ([]dbgen.ListSitemapAnnouncementsRow, error) { return nil, failure },
 			})
@@ -98,7 +98,7 @@ func TestAnnouncementDetailReturnsActualPublicationAndUpdateTimes(t *testing.T) 
 		PublishedAt: timestamp(start.Add(-time.Hour)), UpdatedAt: timestamp(start.Add(time.Minute)),
 	}
 	// When the public detail read maps persistence metadata.
-	view, err := New(queryStub{announcement: row}).AnnouncementByID(context.Background(), "00000000-0000-7000-8000-000000000001")
+	view, err := newTestService(queryStub{announcement: row}).AnnouncementByID(context.Background(), "00000000-0000-7000-8000-000000000001")
 	// Then neither date is synthesized from the scheduled start.
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func TestSitemapAnnouncementRejectsMissingPersistenceTimestamps(t *testing.T) {
 			case "updatedAt":
 				row.UpdatedAt = pgtype.Timestamptz{}
 			}
-			service := New(queryStub{sitemapAnnouncements: func(context.Context, pgtype.UUID) ([]dbgen.ListSitemapAnnouncementsRow, error) {
+			service := newTestService(queryStub{sitemapAnnouncements: func(context.Context, pgtype.UUID) ([]dbgen.ListSitemapAnnouncementsRow, error) {
 				return []dbgen.ListSitemapAnnouncementsRow{row}, nil
 			}})
 			// When the sitemap read maps that row.

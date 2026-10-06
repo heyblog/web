@@ -2,6 +2,7 @@ import type { SiteProfile } from '../src/api/sites/site-profile.types.ts';
 
 export const profile: SiteProfile = {
   isIndexable: true,
+  metrics: { clickCount: 0, impressionCount: 0, responseCount: 0, queryCount: 0 },
   iconHash: null,
   shortId: '38FycC0ow',
   customId: 'wuke',

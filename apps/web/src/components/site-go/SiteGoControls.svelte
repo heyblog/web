@@ -2,17 +2,30 @@
   import { IconArrowRight, IconRefresh } from '@tabler/icons-svelte';
   import { onMount } from 'svelte';
 
-  let { rerollHref, targetUrl }: { rerollHref: string; targetUrl: string } = $props();
+  import {
+    siteOutboundAttributes,
+    siteOutboundPath,
+  } from '@/application/site-outbound/site-outbound.shared';
+
+  let { rerollHref, shortId }: { rerollHref: string; shortId: string } = $props();
   let remaining = $state(10);
   let paused = $state(false);
   let ready = $state(false);
+  let stopped = $state(false);
+  let timer: number | undefined;
+  function stopCountdown(event: MouseEvent): void {
+    if (event.button !== 0 && event.button !== 1) return;
+    if (timer !== undefined) window.clearInterval(timer);
+    timer = undefined;
+    stopped = true;
+  }
   onMount(() => {
     ready = true;
-    const timer = window.setInterval(() => {
+    timer = window.setInterval(() => {
       if (paused || document.hidden) return;
       if (remaining <= 1) {
         window.clearInterval(timer);
-        window.location.assign(targetUrl);
+        window.location.assign(siteOutboundPath(shortId));
         return;
       }
       remaining -= 1;
@@ -23,14 +36,21 @@
 
 <div class="mt-6 border-t border-line pt-5">
   <p class="text-sm text-fg-muted">
-    {ready ? (paused ? '已暂停自动跳转' : `${remaining} 秒后自动前往`) : '点击下方链接前往博客'}
+    {ready
+      ? stopped
+        ? '已停止自动跳转'
+        : paused
+          ? '已暂停自动跳转'
+          : `${remaining} 秒后自动前往`
+      : '点击下方链接前往博客'}
   </p>
   <div class="mt-4 flex flex-wrap items-center gap-2">
     <a
       class="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg transition-colors duration-(--motion-fast) hover:bg-primary-hover sm:min-h-10"
-      href={targetUrl}
-      rel="noreferrer"
-      data-astro-prefetch="false"
+      {...siteOutboundAttributes({ shortId })}
+      onclick={stopCountdown}
+      onauxclick={stopCountdown}
+      oncontextmenu={() => (paused = true)}
     >
       立即前往 <IconArrowRight aria-hidden="true" size={16} stroke={1.8} />
     </a>
@@ -41,7 +61,7 @@
     >
       <IconRefresh aria-hidden="true" size={16} stroke={1.8} />重新随机
     </a>
-    {#if ready}
+    {#if ready && !stopped}
       <button
         class="inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium text-fg-muted transition-colors duration-(--motion-fast) hover:bg-subtle hover:text-fg sm:min-h-10"
         type="button"

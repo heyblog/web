@@ -49,7 +49,7 @@ func TestSiteProfileIconHash(t *testing.T) {
 				queries.iconErr = nil
 			}
 			// When reading the profile.
-			profile, err := New(queries).SiteByIdentifier(t.Context(), SiteIdentifier{Kind: IdentifierShortID, Value: "A1b2C3d4E"})
+			profile, err := newTestService(queries).SiteByIdentifier(t.Context(), SiteIdentifier{Kind: IdentifierShortID, Value: "A1b2C3d4E"})
 			// Then only its digest is exposed, with null for missing icons.
 			if err != nil {
 				t.Fatal(err)
@@ -89,7 +89,7 @@ func TestSiteIconStatusAndNormalization(t *testing.T) {
 			row.Visibility = test.visibility
 			queries := iconQueries{queryStub: queryStub{byShortID: row}, icon: dbgen.DirectorySiteIcon{Content: test.content, Sha256: bytes.Repeat([]byte{0xcd}, 32)}, iconErr: test.queryErr}
 			// When reading its icon.
-			icon, err := New(queries).SiteIconByIdentifier(t.Context(), SiteIdentifier{Kind: IdentifierShortID, Value: row.ShortID})
+			icon, err := newTestService(queries).SiteIconByIdentifier(t.Context(), SiteIdentifier{Kind: IdentifierShortID, Value: row.ShortID})
 			// Then the status and successful PNG follow the public contract.
 			if test.want != "" {
 				var appErr *apperror.Error

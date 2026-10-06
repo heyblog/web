@@ -20,7 +20,15 @@ type siteCardBatch struct {
 func loadSiteCards(
 	ctx context.Context, queries CardQueries,
 	rows []dbgen.DirectorySite,
+	recorder MetricsRecorder,
 ) ([]HomeSiteCard, error) {
+	if recorder != nil {
+		ids := make([]string, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ShortID
+		}
+		recorder.RecordQuery(ctx, ids)
+	}
 	cards := make([]HomeSiteCard, len(rows))
 	siteIDs := make([]pgtype.UUID, len(rows))
 	cardIndex := make(map[pgtype.UUID]int, len(rows))

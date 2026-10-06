@@ -14,7 +14,7 @@ import (
 
 func testRouter(t *testing.T, service *Service) *httpapi.Router {
 	t.Helper()
-	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "test-health", PublicViews: publicview.New(nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "test-health", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 	if err != nil {
 		t.Fatal(err)
 	}

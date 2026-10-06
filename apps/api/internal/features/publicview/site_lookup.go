@@ -20,6 +20,16 @@ func (service *Service) SiteByIdentifier(
 	if errors.As(err, &applicationError) {
 		return SiteProfile{}, err
 	}
+	return service.displayProfile(ctx, profileLookup{row: row, err: err})
+}
+
+// SiteMetadataByIdentifier assembles image metadata without display metrics.
+func (service *Service) SiteMetadataByIdentifier(ctx context.Context, identifier SiteIdentifier) (SiteProfile, error) {
+	row, err := siteRowByIdentifier(ctx, service.lookup, identifier)
+	var applicationError *apperror.Error
+	if errors.As(err, &applicationError) {
+		return SiteProfile{}, err
+	}
 	return loadProfile(ctx, service.profile, profileLookup{row: row, err: err})
 }
 
@@ -51,5 +61,20 @@ func (service *Service) SiteByCustomID(ctx context.Context, customID string) (Si
 		return SiteProfile{}, badIdentifier("customId")
 	}
 	row, err := service.lookup.GetSiteByCustomID(ctx, &customID)
-	return loadProfile(ctx, service.profile, profileLookup{row: row, err: err})
+	return service.displayProfile(ctx, profileLookup{row: row, err: err})
+}
+
+func (service *Service) displayProfile(ctx context.Context, lookup profileLookup) (SiteProfile, error) {
+	ids := []string{lookup.row.ShortID}
+	if lookup.err == nil && service.metrics != nil {
+		service.metrics.RecordQuery(ctx, ids)
+	}
+	profile, err := loadProfile(ctx, service.profile, lookup)
+	if err != nil {
+		return SiteProfile{}, err
+	}
+	if service.metrics != nil {
+		profile.Metrics = service.metrics.RecordResponse(ctx, ids)[profile.ShortID]
+	}
+	return profile, nil
 }

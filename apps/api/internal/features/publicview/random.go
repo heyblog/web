@@ -33,10 +33,11 @@ func (service *Service) RandomSite(ctx context.Context, query RandomSiteQuery) (
 	if err != nil {
 		return RandomSiteView{}, internalError(err, "pick random visible site")
 	}
-	cards, err := loadSiteCards(ctx, service.random, []dbgen.DirectorySite{row})
+	cards, err := loadSiteCards(ctx, service.random, []dbgen.DirectorySite{row}, service.metrics)
 	if err != nil {
 		return RandomSiteView{}, err
 	}
+	service.attachMetrics(ctx, cards)
 	return RandomSiteView{Site: &cards[0]}, nil
 }
 

@@ -19,6 +19,18 @@ export function loadSiteByIdentifier(
   });
 }
 
+export function loadSiteMetadataByIdentifier(
+  identifier: string,
+  request?: Request,
+): Promise<ApiJsonResult<SiteProfile>> {
+  if (!shortIdPattern.test(identifier) && !uuidPattern.test(identifier))
+    return Promise.resolve({ kind: 'not-found' });
+  return fetchApiJson<SiteProfile>(`/sites/id/${encodeURIComponent(identifier)}/metadata`, {
+    request,
+    signal: request?.signal,
+  });
+}
+
 export function loadSiteByCustomID(
   customID: string,
   request?: Request,

@@ -71,3 +71,7 @@ func TestSiteIconRoute(t *testing.T) {
 		})
 	}
 }
+
+func (stub publicViewReaderStub) SiteMetadataByIdentifier(ctx context.Context, identifier publicview.SiteIdentifier) (publicview.SiteProfile, error) {
+	return stub.SiteByIdentifier(ctx, identifier)
+}

@@ -11,7 +11,7 @@ func TestHomeReturnsAllActiveMainAnnouncementsInQueryOrder(t *testing.T) {
 	// Given multiple main announcements ordered by the authoritative query.
 	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	body := "**Full body**"
-	service := New(queryStub{announcements: []dbgen.ContentAnnouncement{
+	service := newTestService(queryStub{announcements: []dbgen.ContentAnnouncement{
 		{Title: "First", Kind: "MAIN", Status: "PUBLISHED", ActionType: "NONE", Priority: 10, StartsAt: timestamp(start), PublishedAt: timestamp(start.Add(-time.Hour)), UpdatedAt: timestamp(start.Add(time.Minute)), BodyMarkdown: &body},
 		{Title: "Second", Kind: "MAIN", Status: "PUBLISHED", ActionType: "NONE", Priority: 5, StartsAt: timestamp(start.Add(time.Hour)), PublishedAt: timestamp(start), UpdatedAt: timestamp(start.Add(time.Hour))},
 	}})

@@ -1,4 +1,5 @@
 import { isDate, isPublicAnnouncement, isRecord } from '../announcements/announcements.types.ts';
+import { isSiteMetricCounts } from '../site-metrics/site-metrics.types.ts';
 import type { HomeSiteCard, HomeSiteTopic } from '../sites/site-card.types.ts';
 
 import type { HomeView } from './home.types.ts';
@@ -10,6 +11,7 @@ function isTopic(value: unknown): value is HomeSiteTopic {
 function isSite(value: unknown): value is HomeSiteCard {
   return (
     isRecord(value) &&
+    isSiteMetricCounts(value.metrics) &&
     typeof value.shortId === 'string' &&
     (value.customId === null || typeof value.customId === 'string') &&
     typeof value.name === 'string' &&

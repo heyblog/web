@@ -211,6 +211,7 @@
 <svelte:document onkeydown={handleDocumentKeydown} />
 
 <dialog
+  data-site-impression={site.shortId}
   bind:this={dialog}
   tabindex="-1"
   id={dialogId}

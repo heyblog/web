@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { IconEye, IconFileText } from '@tabler/icons-svelte';
+  import { IconFileText } from '@tabler/icons-svelte';
+
+  import SiteClickCount from '@/components/site-profile/SiteClickCount.svelte';
 
   import type { BlogCardPlannedFields, BlogCardUpdateTone } from './blog-card-layout.shared';
 
   type Props = {
     readonly plannedFields?: BlogCardPlannedFields;
+    readonly clickCount: number;
   };
 
   const updateToneClasses = {
@@ -15,25 +18,15 @@
   } as const satisfies Record<BlogCardUpdateTone, string>;
   const numberFormat = new Intl.NumberFormat('zh-CN');
 
-  let { plannedFields }: Props = $props();
+  let { plannedFields, clickCount }: Props = $props();
   const visible = $derived(
-    plannedFields?.visitCount !== undefined ||
-      plannedFields?.articleCount !== undefined ||
-      plannedFields?.contentUpdated !== undefined,
+    plannedFields?.articleCount !== undefined || plannedFields?.contentUpdated !== undefined,
   );
 </script>
 
 <div class="mt-2 flex h-5 items-center gap-3 overflow-hidden text-xs text-fg-muted">
+  <SiteClickCount count={clickCount} />
   {#if visible}
-    {#if plannedFields?.visitCount !== undefined}
-      <span
-        class="inline-flex shrink-0 items-center gap-1 tabular-nums"
-        aria-label={`访问 ${numberFormat.format(plannedFields.visitCount)} 次`}
-      >
-        <IconEye aria-hidden="true" size={14} stroke={1.8} />
-        {numberFormat.format(plannedFields.visitCount)}
-      </span>
-    {/if}
     {#if plannedFields?.articleCount !== undefined}
       <span
         class="inline-flex shrink-0 items-center gap-1 tabular-nums"

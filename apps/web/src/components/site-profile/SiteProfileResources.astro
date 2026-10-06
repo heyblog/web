@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-svelte';
 
 import type { SiteProfile } from '@/api/sites/site-profile.types';
+import { siteOutboundAttributes } from '@/application/site-outbound/site-outbound.shared';
 interface Props {
   profile: SiteProfile;
 }
@@ -49,9 +50,7 @@ const resourceLabels: Record<SiteProfile['resources'][number]['kind'], string> =
           <li class="border-b border-line last:border-b-0">
             <a
               class="group flex min-h-16 items-center gap-3 py-3"
-              href={feed.url}
-              rel="noreferrer"
-              target="_blank"
+              {...siteOutboundAttributes({ url: feed.url })}
             >
               <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
                 <IconRss aria-hidden="true" size={17} stroke={1.8} />
@@ -76,9 +75,7 @@ const resourceLabels: Record<SiteProfile['resources'][number]['kind'], string> =
           <li class="border-b border-line last:border-b-0">
             <a
               class="group flex min-h-16 items-center gap-3 py-3"
-              href={resource.url}
-              rel="noreferrer"
-              target="_blank"
+              {...siteOutboundAttributes({ url: resource.url })}
             >
               <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-subtle text-tint-fg">
                 {resource.kind === 'SITEMAP' ? (
@@ -125,9 +122,7 @@ const resourceLabels: Record<SiteProfile['resources'][number]['kind'], string> =
               {href ? (
                 <a
                   class="ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-md text-fg-muted transition-[background-color,color,scale] duration-(--motion-fast) hover:bg-subtle hover:text-tint-fg active:scale-96 sm:size-10"
-                  href={href}
-                  rel="noreferrer"
-                  target="_blank"
+                  {...siteOutboundAttributes({ url: href })}
                   aria-label={
                     technology.homepageUrl
                       ? `访问 ${technology.name} 官网`

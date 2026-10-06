@@ -42,3 +42,8 @@ const {
   </main>
   {showFooter ? <SiteFooter /> : null}
 </BaseLayout>
+
+<script>
+  import { startSiteImpressions } from '@/application/site-metrics/site-impressions.browser';
+  startSiteImpressions(document);
+</script>

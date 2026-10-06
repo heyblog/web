@@ -1,3 +1,5 @@
+import type { SiteMetricCounts } from '../site-metrics/site-metrics.types.ts';
+
 export interface SiteCardBase {
   shortId: string;
   customId: string | null;
@@ -9,6 +11,7 @@ export interface SiteCardBase {
   directoryStatus: 'normal' | 'abnormal';
   joinedAt: string;
   updatedAt: string;
+  metrics: SiteMetricCounts;
 }
 
 export interface SiteCardView extends SiteCardBase {
@@ -21,8 +24,8 @@ export interface SiteCardView extends SiteCardBase {
 
 export type HomeSiteCard = SiteCardView;
 
-// TODO(home-card): restore visitCount, articleCount, the content-last-updated marker, old
-// tone/color logic, feedback action, and legacy UUID tracking when authoritative APIs exist.
+// TODO(home-card): restore articleCount, the content-last-updated marker and feedback
+// action when authoritative APIs exist.
 
 export interface HomeSiteTopic {
   name: string;

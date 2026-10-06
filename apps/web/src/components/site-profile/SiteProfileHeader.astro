@@ -3,8 +3,10 @@ import { IconExternalLink } from '@tabler/icons-svelte';
 
 import type { SiteProfile } from '@/api/sites/site-profile.types';
 import { siteOgImagePath } from '@/application/site-og/site-og.metadata.server';
+import { siteOutboundAttributes } from '@/application/site-outbound/site-outbound.shared';
 
 import SiteCardPreview from './SiteCardPreview.svelte';
+import SiteClickCount from './SiteClickCount.svelte';
 interface Props {
   profile: SiteProfile;
 }
@@ -26,7 +28,7 @@ const badgeClass =
   'inline-flex min-h-5 items-center rounded-sm px-2 text-xs font-medium wrap-anywhere';
 ---
 
-<section aria-labelledby="site-profile-title">
+<section aria-labelledby="site-profile-title" data-site-impression={profile.shortId}>
   <div class="grid min-w-0 gap-6 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-start sm:gap-8">
     <div class="min-w-0">
       <div class="flex min-w-0 items-start gap-4">
@@ -64,6 +66,7 @@ const badgeClass =
       </div>
     </div>
     <div class="grid min-w-0 gap-6">
+      <SiteClickCount count={profile.metrics.clickCount} />
       <dl class="grid min-w-0 gap-3 text-sm">
         <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
           <dt class="text-xs font-medium text-fg-muted">加入时间</dt>
@@ -80,9 +83,7 @@ const badgeClass =
       </dl>
       <a
         class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium whitespace-nowrap text-primary-fg transition-[background-color,scale] duration-(--motion-fast) hover:bg-primary-hover active:scale-96 active:bg-primary-active motion-reduce:scale-100 motion-reduce:transform-none sm:min-h-10"
-        href={profile.homepageUrl}
-        rel="noreferrer"
-        target="_blank"
+        {...siteOutboundAttributes({ shortId: profile.shortId })}
       >
         访问博客
         <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />

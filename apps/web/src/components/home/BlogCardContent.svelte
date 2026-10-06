@@ -3,6 +3,7 @@
   import type { Attachment } from 'svelte/attachments';
 
   import { type HomeSiteCard } from '@/api/sites/site-card.types';
+  import { siteOutboundAttributes } from '@/application/site-outbound/site-outbound.shared';
   import { formatSiteUpdatedAt } from '@/application/site-profile/site-card.shared';
 
   import {
@@ -93,9 +94,7 @@
       <h3 class="min-w-0 text-xl/snug font-semibold" id={titleId}>
         <a
           class="pointer-events-auto relative z-10 flex max-w-full min-w-0 items-center gap-1.5 rounded-sm outline-none hover:text-tint-fg focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          href={site.homepageUrl}
-          target="_blank"
-          rel="noreferrer"
+          {...siteOutboundAttributes({ shortId: site.shortId })}
         >
           <span class="truncate">{site.name}</span>
           <IconExternalLink class="shrink-0" aria-hidden="true" size={15} stroke={1.8} />
@@ -152,7 +151,7 @@
     </div>
   </div>
 
-  <BlogCardPlannedMetrics {plannedFields} />
+  <BlogCardPlannedMetrics {plannedFields} clickCount={site.metrics.clickCount} />
 
   <div data-card-section="details" data-expanded={expanded} aria-hidden={!expanded}>
     <div class="overflow-hidden">
