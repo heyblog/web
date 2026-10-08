@@ -36,7 +36,7 @@ ALTER ROLE migrator SET session_preload_libraries = 'age';
 ALTER ROLE api_runtime SET session_preload_libraries = 'age';
 
 REVOKE ALL ON DATABASE :"database_name" FROM PUBLIC;
-GRANT CONNECT, CREATE ON DATABASE :"database_name" TO migrator;
+GRANT CONNECT, CREATE, TEMPORARY ON DATABASE :"database_name" TO migrator;
 GRANT CONNECT ON DATABASE :"database_name" TO api_runtime;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA ag_catalog TO migrator;

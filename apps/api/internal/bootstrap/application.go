@@ -16,6 +16,7 @@ import (
 	"heyblog-api/internal/features/announcement"
 	"heyblog-api/internal/features/apikey"
 	"heyblog-api/internal/features/auth"
+	"heyblog-api/internal/features/databasebackup"
 	"heyblog-api/internal/features/dataimport"
 	"heyblog-api/internal/features/exampleapi"
 	"heyblog-api/internal/features/publicview"
@@ -180,6 +181,9 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 
 func newApplicationHandler(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config) (http.Handler, error) {
 	options.BodyLimitOverrides = dataimport.BodyLimitOverrides()
+	for route, limit := range databasebackup.BodyLimitOverrides() {
+		options.BodyLimitOverrides[route] = limit
+	}
 	router, err := httpapi.NewRouter(options)
 	if err != nil {
 		return nil, err
@@ -198,6 +202,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
 		return nil, err
 	}
+	databasebackup.RegisterRoutes(router.API, databasebackup.New(dependencies.DatabasePool()), authService, options.WebToken, options.Logger)
 	if err := announcement.RegisterRoutes(router.API, announcement.NewService(announcement.NewRepository(dependencies.DatabasePool()), authService), options.WebToken); err != nil {
 		return nil, err
 	}

@@ -24,7 +24,7 @@ func TestOwnerManagementUpgradePreservesMainDataAndLabels(t *testing.T) {
 	require.NoError(t, err)
 
 	// When the owner migrations apply, the old audit and friend edge survive.
-	_, err = f.provider.Up(ctx)
+	_, err = f.provider.UpTo(ctx, 25)
 	require.NoError(t, err)
 	version, err := f.provider.GetDBVersion(ctx)
 	require.NoError(t, err)

@@ -20,6 +20,7 @@ type Querier interface {
 	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (ContentAnnouncement, error)
 	AssignSiteSoftwareComponent(ctx context.Context, arg AssignSiteSoftwareComponentParams) (DirectorySiteSoftwareComponent, error)
 	AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (DirectorySiteTag, error)
+	BeginDatabaseRestore(ctx context.Context, adminID pgtype.UUID) error
 	BumpUserAuthVersion(ctx context.Context, id pgtype.UUID) error
 	CacheGeneratedSlug(ctx context.Context, arg CacheGeneratedSlugParams) error
 	CanReadAccountAudit(ctx context.Context, arg CanReadAccountAuditParams) (bool, error)
@@ -66,6 +67,7 @@ type Querier interface {
 	EnableCanonicalTag(ctx context.Context, id pgtype.UUID) error
 	ExistingTagSlug(ctx context.Context, normalizedName string) (string, error)
 	FindAPIKeyCredential(ctx context.Context, publicID string) (FindAPIKeyCredentialRow, error)
+	FinishDatabaseRestore(ctx context.Context) error
 	FinishSiteClaim(ctx context.Context, arg FinishSiteClaimParams) (int64, error)
 	FinishSlugJobClaim(ctx context.Context, arg FinishSlugJobClaimParams) (DirectorySlugGenerationJob, error)
 	GetAPIClient(ctx context.Context, id pgtype.UUID) (IdentityApiClient, error)
@@ -210,6 +212,8 @@ type Querier interface {
 	ReserveTaxonomySlug(ctx context.Context, arg ReserveTaxonomySlugParams) error
 	ResolveDirectoryLabel(ctx context.Context, arg ResolveDirectoryLabelParams) (ResolveDirectoryLabelRow, error)
 	ResolveOwnershipUser(ctx context.Context, dollar_1 pgtype.UUID) (string, error)
+	RestoreDatabaseGraphRow(ctx context.Context, arg RestoreDatabaseGraphRowParams) error
+	RestoreDatabaseRow(ctx context.Context, arg RestoreDatabaseRowParams) error
 	RetireAPIKeyForRotation(ctx context.Context, arg RetireAPIKeyForRotationParams) error
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	SaveSiteAuditReviewDraft(ctx context.Context, arg SaveSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
