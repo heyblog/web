@@ -141,8 +141,12 @@ func verifySiteAuditMaintenance(ctx context.Context, t *testing.T, service *site
 		_, err = service.Review(ctx, reviewer, siteaudit.ReviewInput{AuditID: result.AuditID, Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: current.Revision + 1})
 		assertSiteAuditServiceError(t, err, "site_revision_changed", http.StatusConflict)
 		approved, err := service.Review(ctx, reviewer, siteaudit.ReviewInput{AuditID: result.AuditID, Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: current.Revision})
-		if err != nil || approved.FinalSnapshot.Revision != current.Revision+1 {
+		if err != nil {
 			t.Fatalf("approve %s = %#v / %v", action, approved, err)
+		}
+		canonical, err := service.ResolveSite(ctx, "Life12345")
+		if err != nil || canonical.Revision <= current.Revision || approved.FinalSnapshot.Revision != canonical.Revision {
+			t.Fatalf("approve %s final revision = %d, canonical = %#v / %v", action, approved.FinalSnapshot.Revision, canonical, err)
 		}
 		wantVisibility := "VISIBLE"
 		if action == siteaudit.ActionDelete {

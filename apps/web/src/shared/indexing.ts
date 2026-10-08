@@ -1,6 +1,12 @@
-const privatePrefixes = ['/management', '/auth', '/api', '/_server-islands', '/site/submissions'];
-const privatePages = new Set([
+const privatePrefixes = [
   '/dashboard',
+  '/management',
+  '/auth',
+  '/api',
+  '/_server-islands',
+  '/site/submissions',
+];
+const privatePages = new Set([
   '/login',
   '/register',
   '/forgot-password',

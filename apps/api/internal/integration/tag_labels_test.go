@@ -81,7 +81,7 @@ func TestTagLabelsUpgradeAndSemanticMerge(t *testing.T) {
 		t.Fatal("label migration left metadata triggers disabled", err)
 	}
 	version, err := f.provider.GetDBVersion(ctx)
-	if err != nil || version != 22 {
+	if err != nil || version != 25 {
 		t.Fatalf("tag labels migration version=%d err=%v", version, err)
 	}
 	var clicks, impressions, responses, queries, events int64

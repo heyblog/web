@@ -1,0 +1,79 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import { parseClaim } from '@/api/site-management/site-management.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import { claimMethodLabels } from '@/application/site-management/messages';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import ClaimReview from '@/components/site-management/ClaimReview.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+if (!(
+  user.role === 'SYS_ADMIN' ||
+  (user.role === 'ADMIN' && user.permissions.includes('site_audit.review'))
+))
+  return Astro.redirect('/forbidden');
+const response = await requestAuthAPI(
+  Astro.request,
+  `/management/site-claims/${Astro.params.claimId ?? ''}`,
+);
+if (response.status === 404) return Astro.redirect('/management/site-claims');
+const claim = response.ok ? parseClaim(await response.json()) : null;
+---
+
+<ManagementLayout
+  title="认证审核详情"
+  heading="认证审核详情"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: user.display_name, email: user.email ?? '', roleLabel: user.role }}
+  navigation={[...managementNavigation(user)]}
+>
+  <AuthNotice message={claim ? null : '认证申请暂时无法加载，请刷新重试。'} />
+  {claim ? (
+    <>
+      <dl class="mb-8 grid gap-4 border-b border-line pb-6">
+        <div>
+          <dt class="text-xs text-fg-muted">验证地址</dt>
+          <dd class="mt-1 text-sm break-all">{claim.address}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-fg-muted">申请用户</dt>
+          <dd class="mt-1 font-mono text-sm break-all">{claim.user_id}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-fg-muted">认证方式</dt>
+          <dd class="mt-1 text-sm">{claimMethodLabels[claim.method]}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-fg-muted">归属说明</dt>
+          <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.evidence || '未填写'}</dd>
+        </div>
+        {claim.evidence_url ? (
+          <div>
+            <dt class="text-xs text-fg-muted">公开证据</dt>
+            <dd class="mt-1 text-sm break-all">
+              <a
+                class="text-tint-fg underline"
+                href={/^https?:\/\//.test(claim.evidence_url) ? claim.evidence_url : undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {claim.evidence_url}
+              </a>
+            </dd>
+          </div>
+        ) : null}
+        {claim.review_reason ? (
+          <div>
+            <dt class="text-xs text-fg-muted">审核意见</dt>
+            <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.review_reason}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <ClaimReview client:load initial={claim} />
+    </>
+  ) : null}
+</ManagementLayout>

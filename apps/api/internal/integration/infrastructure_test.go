@@ -103,6 +103,8 @@ func TestPostgresAGEInfrastructure(t *testing.T) {
 	verifyAnnouncementActorDeletionSemantics(ctx, t, pool, migrationURL)
 	verifyUserDeletionSemantics(ctx, t, pool, migrationURL)
 	verifyAuthenticationFlows(ctx, t, pool)
+	verifySiteClaims(ctx, t, pool)
+	verifyOwnerSiteWorkflows(ctx, t, pool)
 	verifyMigrationRollback(ctx, t, adminConnection, migrationURL)
 }
 

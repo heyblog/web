@@ -25,6 +25,9 @@ type DiffViews struct {
 }
 
 type Audit struct {
+	SourceChannel        string     `json:"source_channel"`
+	SubmitterUserID      string     `json:"submitter_user_id,omitempty"`
+	SourceSiteID         string     `json:"source_site_id,omitempty"`
 	ID                   string     `json:"id"`
 	Action               Action     `json:"action"`
 	Status               Status     `json:"status"`

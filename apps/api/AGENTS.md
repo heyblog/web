@@ -22,7 +22,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
 - `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `announcement`, `siteaudit`,
-  `dataimport`, `publicview`, `taxonomy`, `sluggeneration`, and `exampleapi`. Preserve their feature boundaries and colocated
+  `dataimport`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, `sluggeneration`, and `exampleapi`. Preserve their feature boundaries and colocated
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
   `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
@@ -91,6 +91,15 @@ and focused tests referenced below, not additional package-level AGENTS files.
   audit JSON remains history. Sources: `apps/api/internal/features/siteaudit/submission.go`,
   `apps/api/internal/features/siteaudit/review_draft.go`, and
   `apps/api/internal/features/siteaudit/repository_taxonomy.go`.
+- Authenticated site control belongs to `features/sitemanagement`; authenticated directory editing
+  and submission provenance belong to the account operations in `features/siteaudit`. Site claims
+  bind applicant, site, exact canonical address and one-time proof; one ownership generation grants
+  editing authority. Owner updates require approval and address changes consume a matching verified
+  proof in the same transaction. Existing registered friend links apply directly through graph
+  wrappers; new targets share CREATE audits and deferred recommendations are applied only while
+  their captured ownership generation is still valid. Manual certification, revoke and reassignment
+  use site-review authorization, with self-review forbidden. Never persist raw verification tokens,
+  fetch private network addresses, or expose another submitter's contact through a shared target.
 - Random reads select VISIBLE sites, including warned sites, using confirmed classification
   names and synonyms rather than slugs. Validate before selection, retain a normal null result when no candidate
   exists, and keep preview Web-only. Preserve operation-specific errors/cache policy rather than

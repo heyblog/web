@@ -1,0 +1,36 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import type { AuditDetail } from '@/api/site-submission/site-submission.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { auditActionLabels, auditStatusLabels } from '@/application/site-management/messages';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import AuditActionView from '@/components/management/site-submissions/AuditActionView.astro';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+const response = await requestAuthAPI(
+  Astro.request,
+  `/account/site-submissions/${Astro.params.auditId ?? ''}`,
+);
+if (response.status === 404 || response.status === 403)
+  return Astro.redirect('/dashboard/submissions');
+const detail: AuditDetail | null = response.ok ? await response.json() : null;
+---
+
+<DashboardLayout title="提交详情" heading="提交详情" {user} currentPath={Astro.url.pathname}>
+  <AuthNotice message={detail ? null : '申请详情暂时无法加载，请刷新重试。'} />
+  {detail ? (
+    <>
+      <div class="mb-6 flex flex-wrap justify-between gap-3">
+        <strong>{auditActionLabels[detail.action]}</strong>
+        <span class="text-sm text-fg-muted">{auditStatusLabels[detail.status]}</span>
+      </div>
+      {detail.reviewer_comment ? (
+        <p class="mb-6 text-sm whitespace-pre-wrap">{detail.reviewer_comment}</p>
+      ) : null}
+      <AuditActionView {detail} />
+    </>
+  ) : null}
+</DashboardLayout>

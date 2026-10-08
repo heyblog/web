@@ -110,6 +110,9 @@ layer and browser-module boundaries.
 - Authentication transport lives in `apps/web/src/api/auth`; session checks, safe local `next`
   paths, and page redirects live in `apps/web/src/application/auth`. Web guards improve experience;
   the Go API remains the authorization authority.
+- `/dashboard` owns the user workbench, with separate sites, claims, submissions, and security
+  routes. `apps/web/src/api/site-management` owns account/claim DTOs and the bounded, authenticated
+  route whitelist for `/api/account` and `/api/site-management`; never widen it to arbitrary paths.
 - Preserve accepted HTTP methods, URLs, statuses, Cookie/Set-Cookie handling, cancellation,
   timeouts, redirects, request counts, and failure mappings. Consult the API layer rules and
   route's focused tests before changing forwarding behavior.
@@ -146,6 +149,7 @@ layer and browser-module boundaries.
 Run from the repository root using `apps/web/mise.toml`:
 
 - `mise run //apps/web:test`: focused Node tests for transport and critical browser/server logic.
+  Test files run serially because development-server tests share Astro's root `.astro` directory.
 - `mise run //apps/web:check`: formatting, ESLint/Stylelint, and Astro/TypeScript checks.
 - `mise run //apps/web:verify`: tests, checks, and build.
 - `mise run //apps/web:dev` or `mise run //apps/web:preview`: task-managed development or build

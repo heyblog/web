@@ -164,7 +164,8 @@ func (fixture auditMigrationFixture) evidenceOutsideTaxonomy(t *testing.T) strin
 	t.Helper()
 	var evidence string
 	err := fixture.pool.QueryRow(t.Context(), `SELECT jsonb_agg(
-		(to_jsonb(audit) - ARRAY['base_snapshot', 'proposed_snapshot', 'review_draft_snapshot', 'final_snapshot'])
+		(to_jsonb(audit) - ARRAY['base_snapshot', 'proposed_snapshot', 'review_draft_snapshot', 'final_snapshot',
+		    'submitter_user_id', 'source_channel', 'source_site_id', 'ownership_id'])
 		|| jsonb_build_object(
 		    'base_snapshot', base_snapshot - ARRAY['tag_cascade_id', 'classification', 'tags'],
 		    'proposed_snapshot', proposed_snapshot - ARRAY['tag_cascade_id', 'classification', 'tags'],

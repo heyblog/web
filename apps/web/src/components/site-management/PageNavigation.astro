@@ -1,0 +1,39 @@
+---
+interface Props {
+  page: number;
+  hasNext: boolean;
+}
+const { page, hasNext } = Astro.props;
+const href = (value: number) => {
+  const query = new URLSearchParams(Astro.url.search);
+  query.set('page', String(value));
+  return `?${query}`;
+};
+---
+
+<nav
+  class="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5 text-sm"
+  aria-label="分页"
+>
+  {page > 1 ? (
+    <a
+      class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4"
+      href={href(page - 1)}
+    >
+      上一页
+    </a>
+  ) : (
+    <span class="text-fg-muted">上一页</span>
+  )}
+  <span class="text-fg-muted">第 {page} 页</span>
+  {hasNext ? (
+    <a
+      class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4"
+      href={href(page + 1)}
+    >
+      下一页
+    </a>
+  ) : (
+    <span class="text-fg-muted">下一页</span>
+  )}
+</nav>

@@ -63,13 +63,13 @@ const actions: Readonly<Record<string, FormAction>> = {
         next_password: nextPassword,
       };
     },
-    success: () => '/dashboard?status=password-updated',
+    success: () => '/dashboard/security?status=password-updated',
   },
   logout: { upstream: '/auth/logout', body: () => ({}), success: () => '/login' },
   'github/unbind': {
     upstream: '/auth/github/unbind',
     body: () => ({}),
-    success: () => '/dashboard?status=github-updated',
+    success: () => '/dashboard/security?status=github-updated',
   },
 };
 
@@ -82,7 +82,11 @@ export const POST: APIRoute = async ({ params, request }) => {
   const proposedPassword = form.get('password') ?? form.get('next_password');
   if (confirmation !== null && confirmation !== proposedPassword) {
     const fallback =
-      path === 'register' ? '/register' : path === 'password' ? '/dashboard' : '/reset-password';
+      path === 'register'
+        ? '/register'
+        : path === 'password'
+          ? '/dashboard/security'
+          : '/reset-password';
     return Response.redirect(pageLocation(request, `${fallback}?error=password_mismatch`), 303);
   }
   const body = action.body(form);
@@ -99,7 +103,7 @@ export const POST: APIRoute = async ({ params, request }) => {
             : path.startsWith('password/reset')
               ? '/reset-password'
               : path === 'password' || path === 'github/unbind'
-                ? '/dashboard'
+                ? '/dashboard/security'
                 : path.includes('verify')
                   ? '/verify-email'
                   : '/login';
@@ -126,7 +130,7 @@ export const GET: APIRoute = async ({ params, request }) => {
     const code = await readProblemCode(response);
     const fallback =
       path === 'github/callback' && incoming.searchParams.get('intent') === 'bind'
-        ? '/dashboard'
+        ? '/dashboard/security'
         : '/login';
     return Response.redirect(
       pageLocation(request, `${fallback}?error=${encodeURIComponent(code)}`),

@@ -59,5 +59,5 @@ SELECT * FROM directory.tag_labels WHERE normalized_name=$1;
 -- name: ListEnabledTagLabels :many
 SELECT l.*,t.slug FROM directory.tag_labels l JOIN directory.tags t ON t.id=l.tag_id WHERE l.is_enabled AND t.is_enabled ORDER BY l.name,l.id;
 
--- name: SetSiteClassificationLabels :exec
-UPDATE directory.sites SET primary_label_id=$2,secondary_label_id=$3 WHERE id=$1;
+-- name: SetSiteClassificationLabels :one
+UPDATE directory.sites SET primary_label_id=$2,secondary_label_id=$3 WHERE id=$1 RETURNING revision;

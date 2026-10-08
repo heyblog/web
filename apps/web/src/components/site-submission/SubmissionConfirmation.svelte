@@ -1,15 +1,17 @@
 <script lang="ts">
   import type { AuditAction } from '@/api/site-submission/site-submission.types';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
+  import type { AccountSubmissionContact } from '@/application/site-submission/site-submission.validation';
 
   interface Props {
     action: AuditAction;
     form: EditableSubmission;
     validationVisible: boolean;
     onchange: () => void;
+    accountContact?: AccountSubmissionContact;
   }
 
-  let { action, form = $bindable(), validationVisible, onchange }: Props = $props();
+  let { action, form = $bindable(), validationVisible, onchange, accountContact }: Props = $props();
   const contactInvalid = $derived(
     validationVisible &&
       (form.contactName.trim().length > 0 !== form.contactEmail.trim().length > 0 ||
@@ -36,45 +38,54 @@
     </label>
   {/if}
 
-  <fieldset class="grid min-w-0 gap-3">
-    <legend class="text-sm font-semibold">联系方式（选填）</legend>
-    <p class="text-xs text-fg-muted" id="contact-requirements">
-      称呼和邮箱需要同时填写或同时留空。
-    </p>
-    <div class="grid min-w-0 gap-4 sm:grid-cols-2">
-      <label class="grid min-w-0 gap-1.5 text-sm">
-        称呼
-        <input
-          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3 sm:min-h-10"
-          class:border-danger={contactInvalid}
-          bind:value={form.contactName}
-          maxlength="100"
-          aria-invalid={contactInvalid}
-          aria-describedby="contact-requirements"
-          oninput={onchange}
-        />
-      </label>
-      <label class="grid min-w-0 gap-1.5 text-sm">
-        邮箱
-        <input
-          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3 sm:min-h-10"
-          class:border-danger={contactInvalid}
-          type="email"
-          bind:value={form.contactEmail}
-          maxlength="320"
-          aria-invalid={contactInvalid}
-          aria-describedby="contact-requirements"
-          oninput={onchange}
-        />
-      </label>
+  {#if accountContact}
+    <div class="grid gap-2 text-sm">
+      <h3 class="font-semibold">账号联系方式</h3>
+      <p>{accountContact.name}</p>
+      {#if accountContact.email}<p class="break-all">{accountContact.email}</p>
+        <p class="text-xs text-fg-muted">审核结果将发送至账号绑定的邮箱。</p>
+      {:else}<p class="text-xs text-fg-muted">账号尚未绑定邮箱，暂时无法接收审核邮件。</p>{/if}
     </div>
-  </fieldset>
+  {:else}<fieldset class="grid min-w-0 gap-3">
+      <legend class="text-sm font-semibold">联系方式（选填）</legend>
+      <p class="text-xs text-fg-muted" id="contact-requirements">
+        称呼和邮箱需要同时填写或同时留空。
+      </p>
+      <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+        <label class="grid min-w-0 gap-1.5 text-sm">
+          称呼
+          <input
+            class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3 sm:min-h-10"
+            class:border-danger={contactInvalid}
+            bind:value={form.contactName}
+            maxlength="100"
+            aria-invalid={contactInvalid}
+            aria-describedby="contact-requirements"
+            oninput={onchange}
+          />
+        </label>
+        <label class="grid min-w-0 gap-1.5 text-sm">
+          邮箱
+          <input
+            class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3 sm:min-h-10"
+            class:border-danger={contactInvalid}
+            type="email"
+            bind:value={form.contactEmail}
+            maxlength="320"
+            aria-invalid={contactInvalid}
+            aria-describedby="contact-requirements"
+            oninput={onchange}
+          />
+        </label>
+      </div>
+    </fieldset>{/if}
 
   <label class="flex min-h-11 items-center gap-3 text-sm sm:min-h-10">
     <input
       class="size-4 accent-primary"
       type="checkbox"
       bind:checked={form.notifyByEmail}
+      disabled={Boolean(accountContact && !accountContact.email)}
       {onchange}
     />
     通过邮件接收审核结果

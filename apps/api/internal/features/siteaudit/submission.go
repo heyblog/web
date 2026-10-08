@@ -17,6 +17,10 @@ func (service *Service) Submit(
 	targetShortID string,
 	input SubmissionInput,
 ) (SubmissionResult, error) {
+	return service.submit(ctx, action, targetShortID, input, submissionProvenance{Channel: "ANONYMOUS"})
+}
+
+func (service *Service) submit(ctx context.Context, action Action, targetShortID string, input SubmissionInput, provenance submissionProvenance) (SubmissionResult, error) {
 	normalized, err := NormalizeSubmission(action, input)
 	if err != nil {
 		return SubmissionResult{}, err
@@ -53,10 +57,13 @@ func (service *Service) Submit(
 		return SubmissionResult{}, err
 	}
 	auditID, err := service.repository.CreateSubmission(ctx, submissionRecord{
-		Action: action, Base: base, Proposed: proposed, Input: normalized, LookupHash: secretHash,
+		Action: action, Base: base, Proposed: proposed, Input: normalized, LookupHash: secretHash, Provenance: provenance,
 	})
 	if err != nil {
 		return SubmissionResult{}, err
+	}
+	if provenance.UserID != "" {
+		secret = ""
 	}
 	return SubmissionResult{AuditID: auditID, LookupToken: secret, Action: action, Status: StatusPending, ShortID: targetShortID}, nil
 }

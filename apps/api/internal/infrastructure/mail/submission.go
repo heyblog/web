@@ -11,6 +11,7 @@ type SubmissionDecision struct {
 	Action          string
 	Status          string
 	ReviewerComment string
+	Account         bool
 }
 
 type SubmissionMailer struct {
@@ -34,7 +35,11 @@ func (mailer *SubmissionMailer) SendDecision(ctx context.Context, decision Submi
 	if comment := strings.TrimSpace(decision.ReviewerComment); comment != "" {
 		text += "\n\n审核意见：\n" + comment
 	}
-	text += "\n\n请使用提交时保存的查询凭证查看完整状态。"
+	if decision.Account {
+		text += "\n\n请登录 HeyBlog，在“我的提交”中查看完整状态。"
+	} else {
+		text += "\n\n请使用提交时保存的查询凭证查看完整状态。"
+	}
 	if err := mailer.sender.Send(ctx, Message{From: mailer.from, To: decision.Recipient, Subject: "HeyBlog 站点申请审核结果", Text: text}); err != nil {
 		return fmt.Errorf("send submission decision email: %w", err)
 	}

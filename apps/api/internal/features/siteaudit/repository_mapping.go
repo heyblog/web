@@ -8,6 +8,13 @@ import (
 
 func auditFromRow(row dbgen.DirectorySiteAudit) (Audit, error) {
 	audit := Audit{Action: Action(row.Action), Status: Status(row.Status), RequestReason: row.RequestReason, NotifyByEmail: row.NotifyByEmail}
+	audit.SourceChannel = row.SourceChannel
+	if row.SubmitterUserID.Valid {
+		audit.SubmitterUserID, _ = uuidString(row.SubmitterUserID)
+	}
+	if row.SourceSiteID.Valid {
+		audit.SourceSiteID, _ = uuidString(row.SourceSiteID)
+	}
 	var err error
 	if audit.ID, err = uuidString(row.ID); err != nil {
 		return Audit{}, err
@@ -69,6 +76,13 @@ func mapAuditListItem(row dbgen.ListSiteAuditsForManagementRow) (AuditListItem, 
 		return AuditListItem{}, fmt.Errorf("decode audit list snapshot: %w", err)
 	}
 	item := AuditListItem{ID: id, Action: Action(row.Action), Status: Status(row.Status), SiteName: proposed.Name, SiteAddress: snapshotAddress(proposed), SubmitterName: stringValue(row.SubmitterName), SubmitterEmail: stringValue(row.SubmitterEmail), ReviewedAt: timestampPointer(row.ReviewedAt), CreatedAt: row.CreatedAt.Time}
+	item.SourceChannel = row.SourceChannel
+	if row.SubmitterUserID.Valid {
+		item.SubmitterUserID, _ = uuidString(row.SubmitterUserID)
+	}
+	if row.SourceSiteID.Valid {
+		item.SourceSiteID, _ = uuidString(row.SourceSiteID)
+	}
 	if row.SiteID.Valid {
 		item.SiteID, err = uuidString(row.SiteID)
 	}

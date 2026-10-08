@@ -213,7 +213,7 @@ test('OAuth callback maps the API redirect back to the current Web origin', () =
 test('OAuth entry links opt out of Astro prefetch', async () => {
   const [loginSource, dashboardSource] = await Promise.all([
     readFile(new URL('../src/pages/login.astro', import.meta.url), 'utf8'),
-    readFile(new URL('../src/pages/dashboard.astro', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/dashboard/security.astro', import.meta.url), 'utf8'),
   ]);
 
   assert.match(loginSource, /data-astro-prefetch="false"/u);

@@ -1,0 +1,67 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import { parseClaims } from '@/api/site-management/site-management.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { managementNavigation } from '@/application/management/navigation';
+import { claimMethodLabels, claimStatusLabels } from '@/application/site-management/messages';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+if (!(
+  user.role === 'SYS_ADMIN' ||
+  (user.role === 'ADMIN' && user.permissions.includes('site_audit.review'))
+))
+  return Astro.redirect('/forbidden');
+const page = Math.max(1, Number(Astro.url.searchParams.get('page')) || 1);
+const response = await requestAuthAPI(
+  Astro.request,
+  `/management/site-claims?page=${page}&page_size=20`,
+);
+const items = response.ok ? parseClaims(await response.json()) : [];
+---
+
+<ManagementLayout
+  title="站点认证审核"
+  heading="站点认证审核"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: user.display_name, email: user.email ?? '', roleLabel: user.role }}
+  navigation={[...managementNavigation(user)]}
+>
+  <AuthNotice message={response.ok ? null : '认证申请暂时无法加载，请刷新重试。'} />
+  <ul class="divide-y divide-line">
+    {items.map((claim) => (
+      <li>
+        <a class="grid gap-2 py-5" href={`/management/site-claims/${claim.id}`}>
+          <div class="flex flex-wrap justify-between gap-3">
+            <strong class="text-sm break-all">{claim.address}</strong>
+            <span class="text-sm text-fg-muted">{claimStatusLabels[claim.status]}</span>
+          </div>
+          <span class="text-sm text-fg-muted">
+            {claimMethodLabels[claim.method]} · {claim.user_id}
+          </span>
+          <time class="text-xs text-fg-muted">
+            {new Date(claim.created_at).toLocaleString('zh-CN')}
+          </time>
+        </a>
+      </li>
+    ))}
+  </ul>
+  {response.ok && items.length === 0 ? (
+    <p class="py-8 text-sm text-fg-muted">暂无认证申请。</p>
+  ) : null}
+  <nav class="mt-6 flex justify-between gap-3" aria-label="分页">
+    <a
+      class="inline-flex min-h-11 items-center text-sm text-tint-fg"
+      href={`?page=${Math.max(1, page - 1)}`}
+    >
+      上一页
+    </a>
+    <span class="self-center text-sm">第 {page} 页</span>
+    <a class="inline-flex min-h-11 items-center text-sm text-tint-fg" href={`?page=${page + 1}`}>
+      下一页
+    </a>
+  </nav>
+</ManagementLayout>

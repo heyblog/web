@@ -1,0 +1,54 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import type { Snapshot } from '@/api/site-submission/site-submission.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+const response = await requestAuthAPI(Astro.request, '/account/sites');
+const payload: { items: readonly Snapshot[] } = response.ok ? await response.json() : { items: [] };
+---
+
+<DashboardLayout title="我的站点" heading="我的站点" {user} currentPath={Astro.url.pathname}>
+  <AuthNotice message={response.ok ? null : '站点列表暂时无法加载，请刷新重试。'} />
+  <div class="mb-6 flex flex-wrap gap-3">
+    <a
+      class="inline-flex min-h-11 items-center rounded-sm bg-primary px-5 font-semibold text-primary-fg"
+      href="/dashboard/claims"
+    >
+      认证站点
+    </a>
+    <a
+      class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 text-sm"
+      href="/dashboard/sites/new"
+    >
+      提交新站点
+    </a>
+  </div>
+  <ul class="divide-y divide-line">
+    {payload.items.map((site) => (
+      <li class="flex flex-wrap items-center justify-between gap-4 py-5">
+        <div class="min-w-0">
+          <h2 class="font-semibold">{site.name}</h2>
+          <p class="mt-1 text-sm break-all text-fg-muted">
+            {site.scheme}://{site.normalized_host}
+            {site.base_path}
+          </p>
+          <p class="mt-2 text-sm text-success-fg">已认证</p>
+        </div>
+        <a
+          class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 text-sm"
+          href={`/dashboard/sites/${site.short_id}`}
+        >
+          管理站点
+        </a>
+      </li>
+    ))}
+  </ul>
+  {response.ok && payload.items.length === 0 ? (
+    <p class="py-10 text-sm text-fg-muted">暂无已认证站点。</p>
+  ) : null}
+</DashboardLayout>

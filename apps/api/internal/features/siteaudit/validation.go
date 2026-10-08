@@ -19,6 +19,12 @@ func siteURLPurposeConflict(detail string) error {
 }
 
 func BuildProposedSnapshot(input SiteInput, base Snapshot) (Snapshot, error) {
+	if input.AccessScope != "" {
+		if input.AccessScope != "CN_ONLY" && input.AccessScope != "GLOBAL_ONLY" && input.AccessScope != "ALL" {
+			return Snapshot{}, fmt.Errorf("%w: unsupported access scope", ErrInvalidSubmission)
+		}
+		base.AccessScope = input.AccessScope
+	}
 	name := strings.TrimSpace(input.Name)
 	summary := strings.TrimSpace(input.Summary)
 	if name == "" || len(name) > 160 {

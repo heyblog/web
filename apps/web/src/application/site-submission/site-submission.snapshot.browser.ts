@@ -17,6 +17,10 @@ export function applySnapshot(
   form.name = snapshot.name;
   form.url = `${snapshot.scheme}://${snapshot.normalized_host}${snapshot.base_path}`;
   form.summary = snapshot.summary;
+  form.accessScope =
+    snapshot.access_scope === 'CN_ONLY' || snapshot.access_scope === 'GLOBAL_ONLY'
+      ? snapshot.access_scope
+      : 'ALL';
   form.feeds = snapshot.feeds.map((feed) => ({
     id: nextDraftID('feed'),
     name: feed.name,
