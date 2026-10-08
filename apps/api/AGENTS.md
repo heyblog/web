@@ -22,7 +22,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
 - `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `announcement`, `siteaudit`,
-  `dataimport`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, `sluggeneration`, and `exampleapi`. Preserve their feature boundaries and colocated
+  `dataimport`, `databasebackup`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, `sluggeneration`, and `exampleapi`. Preserve their feature boundaries and colocated
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
   `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
@@ -160,6 +160,22 @@ and focused tests referenced below, not additional package-level AGENTS files.
   `apps/api/internal/platform/httpapi/public_view_icon_test.go`.
 
 ## Data Access and Lifecycle
+
+- `features/databasebackup` owns versioned full-database JSON transfer at
+  `/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
+  and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
+  these routes. Private temporary files are streamed and removed after each request.
+- Backup protocol version 1, schema version 2 covers all 38 identity/directory/content tables and complete AGE
+  logical vertices and edges. SQL migration 26 freezes the schema inventory; schema evolution
+  requires an explicit backup compatibility change. Binary columns use Base64 and bigint columns
+  use decimal strings. Never decode row JSON through floating-point numbers.
+- Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
+  and maps structured actor references to the retained target administrator. It accepts only
+  untouched initialization seeds plus that administrator's authentication records. Migrations
+  26/27 own narrow SECURITY DEFINER entry points and a protected transaction-local guard; runtime
+  never receives direct graph privileges or unrestricted restore privileges. Migrator requires
+  database TEMPORARY permission for transaction-local guards. Graph and all table writes are
+  locked, verified and committed atomically; ordinary database constraints remain active.
 
 - Internal data import accepts paired version-3 `blogs`/`graph` bundles. The default `initial`
   mode requires an empty directory. Explicit multipart `mode=incremental` accepts `nodes`/`edges`

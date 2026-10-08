@@ -50,6 +50,8 @@ func TestMigrationFilesDescribeGreenfieldSchemas(t *testing.T) {
 		"00023_site_claims.sql",
 		"00024_owner_site_audits.sql",
 		"00025_owner_management_fixes.sql",
+		"00026_database_backup.sql",
+		"00027_database_backup_graph.sql",
 	}
 	if strings.Join(gotFiles, "\n") != strings.Join(wantFiles, "\n") {
 		t.Fatalf("migration files = %v, want %v", gotFiles, wantFiles)

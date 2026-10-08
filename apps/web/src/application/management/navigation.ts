@@ -51,6 +51,11 @@ export function managementNavigation(
   }
   if (user.role === 'SYS_ADMIN') {
     items.push({
+      label: '数据备份',
+      href: '/management/database-backup',
+      description: '导出和恢复完整业务数据',
+    });
+    items.push({
       label: '系统设置',
       href: '/management/system-settings',
       description: '设置 Slug 生成模型',

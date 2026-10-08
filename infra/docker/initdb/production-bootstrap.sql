@@ -98,7 +98,7 @@ CREATE EXTENSION IF NOT EXISTS age;
 COMMENT ON EXTENSION age IS 'Apache AGE provides the authoritative directed site friend-link graph.';
 
 REVOKE ALL ON DATABASE heyblog FROM PUBLIC;
-GRANT CONNECT, CREATE ON DATABASE heyblog TO migrator;
+GRANT CONNECT, CREATE, TEMPORARY ON DATABASE heyblog TO migrator;
 GRANT CONNECT ON DATABASE heyblog TO api_runtime;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA ag_catalog TO migrator;

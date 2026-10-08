@@ -56,6 +56,14 @@ layer and browser-module boundaries.
 
 ## Rendering and Same-Origin Safety
 
+- Database backup transport lives in `src/api/database-backup`; file selection, confirmation and
+  safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
+  Purpose-built POST forwarding streams attachments and multipart files without parsing backup data
+  in Web. Keep Cookie/Web-token authorization, same-origin metadata, private no-store, 512 MiB file
+  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Inspection contains
+  counts and administrator mapping only. Never retry restoration automatically; an uncertain result
+  requires fresh inspection. Browser state holds selected files only until navigation.
+
 - Site homepage navigation uses `application/site-outbound` and `/site/out/{shortId}`; external
   resources and management snapshots use the same link attributes without click tracking. Links
   isolate the opener, disclose only the origin and add the canonical public hostname as UTM source,
