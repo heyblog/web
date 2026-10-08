@@ -109,6 +109,15 @@ const statusLabels: Readonly<Record<AuditStatus, string>> = {
           <span class="font-medium">{item.site_name || '未命名站点'}</span>
           <span class="text-xs break-all text-fg-muted">{item.site_address}</span>
           <span class="text-sm text-fg-muted">{item.submitter_name || '匿名提交者'}</span>
+          <span class="text-xs text-fg-muted">
+            {item.source_channel === 'OWNER_FRIEND_LINK'
+              ? '站长友链推荐'
+              : item.source_channel === 'OWNER_UPDATE'
+                ? '站长资料变更'
+                : item.source_channel === 'ACCOUNT_SUBMISSION'
+                  ? '用户提交'
+                  : '公开提交'}
+          </span>
           <time class="text-xs text-fg-muted">
             {new Date(item.created_at).toLocaleString('zh-CN')}
           </time>
@@ -146,6 +155,15 @@ const statusLabels: Readonly<Record<AuditStatus, string>> = {
               <td class="p-3">
                 {item.submitter_name || '匿名'}
                 <span class="block text-xs text-fg-muted">{item.submitter_email}</span>
+                <span class="block text-xs text-fg-muted">
+                  {item.source_channel === 'OWNER_FRIEND_LINK'
+                    ? '站长友链推荐'
+                    : item.source_channel === 'OWNER_UPDATE'
+                      ? '站长资料变更'
+                      : item.source_channel === 'ACCOUNT_SUBMISSION'
+                        ? '用户提交'
+                        : '公开提交'}
+                </span>
               </td>
               <td class="p-3">{new Date(item.created_at).toLocaleString('zh-CN')}</td>
               <td class="p-3">

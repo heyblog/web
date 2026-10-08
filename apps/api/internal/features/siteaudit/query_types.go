@@ -12,16 +12,19 @@ type PublicAuditResult struct {
 }
 
 type AuditListItem struct {
-	ID             string     `json:"id"`
-	Action         Action     `json:"action"`
-	Status         Status     `json:"status"`
-	SiteID         string     `json:"site_id,omitempty"`
-	SiteName       string     `json:"site_name"`
-	SiteAddress    string     `json:"site_address"`
-	SubmitterName  string     `json:"submitter_name,omitempty"`
-	SubmitterEmail string     `json:"submitter_email,omitempty"`
-	ReviewedAt     *time.Time `json:"reviewed_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
+	SourceChannel   string     `json:"source_channel"`
+	SubmitterUserID string     `json:"submitter_user_id,omitempty"`
+	SourceSiteID    string     `json:"source_site_id,omitempty"`
+	ID              string     `json:"id"`
+	Action          Action     `json:"action"`
+	Status          Status     `json:"status"`
+	SiteID          string     `json:"site_id,omitempty"`
+	SiteName        string     `json:"site_name"`
+	SiteAddress     string     `json:"site_address"`
+	SubmitterName   string     `json:"submitter_name,omitempty"`
+	SubmitterEmail  string     `json:"submitter_email,omitempty"`
+	ReviewedAt      *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 type AuditPage struct {

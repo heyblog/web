@@ -65,6 +65,28 @@ const statusLabels = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '�
       </p>
     </div>
   </section>
+  <dl class="mb-6 grid gap-4 border-b border-line pb-6 sm:grid-cols-3">
+    <div>
+      <dt class="text-xs text-fg-muted">提交渠道</dt>
+      <dd class="mt-1 text-sm">
+        {detail.source_channel === 'OWNER_FRIEND_LINK'
+          ? '站长友链推荐'
+          : detail.source_channel === 'OWNER_UPDATE'
+            ? '站长资料变更'
+            : detail.source_channel === 'ACCOUNT_SUBMISSION'
+              ? '用户提交'
+              : '公开提交'}
+      </dd>
+    </div>
+    <div>
+      <dt class="text-xs text-fg-muted">提交用户</dt>
+      <dd class="mt-1 font-mono text-sm break-all">{detail.submitter_user_id || '匿名'}</dd>
+    </div>
+    <div>
+      <dt class="text-xs text-fg-muted">来源站点</dt>
+      <dd class="mt-1 font-mono text-sm break-all">{detail.source_site_id || '无'}</dd>
+    </div>
+  </dl>
   <div
     class:list={[
       'grid items-start gap-6',

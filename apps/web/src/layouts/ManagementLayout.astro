@@ -28,7 +28,8 @@ interface Props {
 }
 
 const { title, heading, currentPath, eyebrow = '管理中心', identity, navigation } = Astro.props;
-const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
+const isActive = (href: string) =>
+  currentPath === href || (href !== '/dashboard' && currentPath.startsWith(`${href}/`));
 const activeNavigation = navigation.find((item) => isActive(item.href));
 ---
 

@@ -1,3 +1,4 @@
+import { accountRequest } from '../../api/site-management/site-management.browser.ts';
 import {
   type BrowserRequestOptions,
   readSubmissionProblem,
@@ -23,6 +24,9 @@ const problemMessages: Readonly<Record<string, string>> = {
   site_address_conflict: '该站点已在目录中，请改为提交更新申请。',
   audit_not_found: '查询凭证无效或申请不存在。',
   site_not_found: '未找到该站点。',
+  site_ownership_required: '当前账号已无权编辑该站点，请重新认证站点。',
+  site_ownership_changed: '站点归属已变化，请刷新站点资料后重试。',
+  verified_site_address_required: '请先在“验证新地址”中认证新的主页地址，再提交修改。',
   site_already_removed: '该站点已处于删除状态。',
   site_not_removed: '该站点当前无需恢复。',
   audit_already_reviewed: '该申请已处理，请刷新页面。',
@@ -79,12 +83,19 @@ export async function problemDetail(response: Response): Promise<string> {
 export async function submitForm(
   action: AuditAction,
   form: EditableSubmission,
-  options: BrowserRequestOptions = {},
+  options: BrowserRequestOptions & { readonly accountEndpoint?: string } = {},
 ): Promise<SubmissionResult> {
-  const response = await submitSite(
-    { action, siteShortID: form.siteShortId, payload: buildSubmissionPayload(form, action) },
-    options,
-  );
+  const response = options.accountEndpoint
+    ? await accountRequest(options.accountEndpoint, {
+        method: 'POST',
+        body: buildSubmissionPayload(form, action),
+        signal: options.signal,
+        fetch: options.fetch,
+      })
+    : await submitSite(
+        { action, siteShortID: form.siteShortId, payload: buildSubmissionPayload(form, action) },
+        options,
+      );
   if (!response.ok) throw await responseProblem(response);
   return (await response.json()) as SubmissionResult;
 }

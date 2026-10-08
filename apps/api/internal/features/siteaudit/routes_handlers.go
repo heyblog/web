@@ -200,6 +200,7 @@ func boundedInteger(raw string, fallback, minimum, maximum int32) int32 {
 }
 
 func mapServiceError(err error, operation string) error {
+	err = accountWriteError(err)
 	var authError *auth.AuthError
 	if errors.As(err, &authError) {
 		kind := apperror.KindUnauthorized

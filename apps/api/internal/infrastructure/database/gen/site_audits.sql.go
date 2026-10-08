@@ -20,7 +20,7 @@ UPDATE directory.site_audits
        reviewed_by = $4,
        reviewed_at = clock_timestamp()
  WHERE id = $5 AND status = 'PENDING'
-RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
 `
 
 type ApproveSiteAuditParams struct {
@@ -63,6 +63,10 @@ func (q *Queries) ApproveSiteAudit(ctx context.Context, arg ApproveSiteAuditPara
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
@@ -97,9 +101,13 @@ INSERT INTO directory.site_audits (
     request_reason,
     submitter_name,
     submitter_email,
-    notify_by_email
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+    notify_by_email,
+    submitter_user_id, source_channel, source_site_id, ownership_id
+) VALUES ($1, $2, $3, $4,
+    $5, $6, $7, $8,
+    $9, $10, $11,
+    COALESCE(NULLIF($12::text, ''), 'ANONYMOUS'), $13, $14)
+RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
 `
 
 type CreateSiteAuditParams struct {
@@ -113,6 +121,10 @@ type CreateSiteAuditParams struct {
 	SubmitterName    *string
 	SubmitterEmail   *string
 	NotifyByEmail    bool
+	SubmitterUserID  pgtype.UUID
+	SourceChannel    string
+	SourceSiteID     pgtype.UUID
+	OwnershipID      pgtype.UUID
 }
 
 func (q *Queries) CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams) (DirectorySiteAudit, error) {
@@ -127,6 +139,10 @@ func (q *Queries) CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams
 		arg.SubmitterName,
 		arg.SubmitterEmail,
 		arg.NotifyByEmail,
+		arg.SubmitterUserID,
+		arg.SourceChannel,
+		arg.SourceSiteID,
+		arg.OwnershipID,
 	)
 	var i DirectorySiteAudit
 	err := row.Scan(
@@ -152,6 +168,10 @@ func (q *Queries) CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
@@ -166,7 +186,7 @@ UPDATE directory.site_audits
    AND status = 'PENDING'
    AND action IN ('CREATE', 'UPDATE')
    AND review_draft_revision = $3
-RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
 `
 
 type DiscardSiteAuditReviewDraftParams struct {
@@ -201,12 +221,16 @@ func (q *Queries) DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSi
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
 
 const getSiteAuditByID = `-- name: GetSiteAuditByID :one
-SELECT id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+SELECT id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
   FROM directory.site_audits
  WHERE id = $1
 `
@@ -237,12 +261,16 @@ func (q *Queries) GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (Directo
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
 
 const getSiteAuditByLookupHash = `-- name: GetSiteAuditByLookupHash :one
-SELECT id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+SELECT id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
   FROM directory.site_audits
  WHERE lookup_secret_hash = $1
 `
@@ -273,12 +301,17 @@ func (q *Queries) GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
 
 const listSiteAuditsForManagement = `-- name: ListSiteAuditsForManagement :many
 SELECT id, action, status, site_id, submitter_name, submitter_email,
+       submitter_user_id, source_channel, source_site_id,
        proposed_snapshot,
        reviewed_by, reviewed_at, created_at, updated_at
   FROM directory.site_audits
@@ -302,6 +335,9 @@ type ListSiteAuditsForManagementRow struct {
 	SiteID           pgtype.UUID
 	SubmitterName    *string
 	SubmitterEmail   *string
+	SubmitterUserID  pgtype.UUID
+	SourceChannel    string
+	SourceSiteID     pgtype.UUID
 	ProposedSnapshot []byte
 	ReviewedBy       pgtype.UUID
 	ReviewedAt       pgtype.Timestamptz
@@ -330,6 +366,9 @@ func (q *Queries) ListSiteAuditsForManagement(ctx context.Context, arg ListSiteA
 			&i.SiteID,
 			&i.SubmitterName,
 			&i.SubmitterEmail,
+			&i.SubmitterUserID,
+			&i.SourceChannel,
+			&i.SourceSiteID,
 			&i.ProposedSnapshot,
 			&i.ReviewedBy,
 			&i.ReviewedAt,
@@ -347,7 +386,7 @@ func (q *Queries) ListSiteAuditsForManagement(ctx context.Context, arg ListSiteA
 }
 
 const lockSiteAuditByID = `-- name: LockSiteAuditByID :one
-SELECT id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+SELECT id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
   FROM directory.site_audits
  WHERE id = $1
  FOR UPDATE
@@ -379,6 +418,10 @@ func (q *Queries) LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (Direct
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
@@ -390,7 +433,7 @@ UPDATE directory.site_audits
        reviewed_by = $2,
        reviewed_at = clock_timestamp()
  WHERE id = $3 AND status = 'PENDING'
-RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
 `
 
 type RejectSiteAuditParams struct {
@@ -425,6 +468,10 @@ func (q *Queries) RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }
@@ -439,7 +486,7 @@ UPDATE directory.site_audits
    AND status = 'PENDING'
    AND action IN ('CREATE', 'UPDATE')
    AND review_draft_revision = $4
-RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at
+RETURNING id, lookup_secret_hash, action, status, site_id, base_revision, base_snapshot, proposed_snapshot, review_draft_snapshot, review_draft_revision, review_draft_updated_by, review_draft_updated_at, final_snapshot, request_reason, submitter_name, submitter_email, notify_by_email, reviewer_comment, reviewed_by, reviewed_at, created_at, updated_at, submitter_user_id, source_channel, source_site_id, ownership_id
 `
 
 type SaveSiteAuditReviewDraftParams struct {
@@ -480,6 +527,10 @@ func (q *Queries) SaveSiteAuditReviewDraft(ctx context.Context, arg SaveSiteAudi
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubmitterUserID,
+		&i.SourceChannel,
+		&i.SourceSiteID,
+		&i.OwnershipID,
 	)
 	return i, err
 }

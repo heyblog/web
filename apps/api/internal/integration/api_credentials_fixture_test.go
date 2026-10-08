@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
@@ -34,6 +35,7 @@ import (
 const credentialWebToken = "credential-integration-web-token-123456"
 
 type credentialFixture struct {
+	redis   *redis.Client
 	pool    *pgxpool.Pool
 	service *apikey.Service
 	auth    *auth.Service
@@ -130,7 +132,7 @@ func newCredentialFixture(t *testing.T) credentialFixture {
 		t.Fatal(err)
 	}
 	exampleapi.RegisterRoutes(router.API, service)
-	return credentialFixture{pool: pool, service: service, auth: authService, router: router, actor: actor.ID, access: tokens[0]}
+	return credentialFixture{pool: pool, service: service, auth: authService, router: router, actor: actor.ID, access: tokens[0], redis: redisClient}
 }
 
 func (fixture credentialFixture) create(t *testing.T, audience apikey.Audience) apikey.Credential {

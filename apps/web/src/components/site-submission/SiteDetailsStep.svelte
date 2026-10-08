@@ -159,4 +159,15 @@
       bind:value={form.summary}
       maxlength="2000"></textarea>
   </label>
+  <label class="grid gap-2 text-sm">
+    访问范围
+    <select
+      class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
+      bind:value={form.accessScope}
+    >
+      <option value="ALL">全球可访问</option>
+      <option value="CN_ONLY">仅中国大陆可访问</option>
+      <option value="GLOBAL_ONLY">仅中国大陆以外可访问</option>
+    </select>
+  </label>
 </div>

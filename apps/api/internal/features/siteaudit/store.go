@@ -17,6 +17,7 @@ type Store interface {
 	ExistingSiteForHost(context.Context, string) (*SiteSearchResult, error)
 	ListAudits(context.Context, *Status, *Action, int32, int32) (AuditPage, error)
 	AuditDetail(context.Context, string) (Audit, error)
+	DecisionRecipients(context.Context, string) ([]string, error)
 	InTransaction(context.Context, func(AuditTransaction) error) error
 }
 
@@ -40,6 +41,14 @@ type submissionRecord struct {
 	Proposed   Snapshot
 	Input      SubmissionInput
 	LookupHash []byte
+	Provenance submissionProvenance
+}
+
+type submissionProvenance struct {
+	UserID       string
+	Channel      string
+	SourceSiteID string
+	OwnershipID  string
 }
 
 type reviewedSite struct {

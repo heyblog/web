@@ -91,6 +91,15 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/management/api-clients", "/management/api-clients/{id}",
 		"/management/api-clients/{id}/rotate", "/management/api-keys/{id}/revoke",
 		"/management/api-clients/{id}/keys",
+		"/account/sites", "/account/sites/{shortId}",
+		"/account/site-submissions", "/account/site-submissions/{auditId}",
+		"/account/sites/{shortId}/updates", "/account/sites/{shortId}/friend-link-submissions",
+		"/account/sites/{shortId}/friend-links", "/account/sites/{shortId}/friend-links/{targetShortId}",
+		"/account/sites/{shortId}/friend-links/by-host/{targetHost}",
+		"/account/sites/{shortId}/friend-link-requests/{requestId}",
+		"/account/site-claims", "/account/site-claims/{claimId}", "/account/site-claims/{claimId}/check",
+		"/management/site-claims", "/management/site-claims/{claimId}",
+		"/management/site-claims/{claimId}/review", "/management/site-ownership/{shortId}",
 		"/management/taxonomy/tags", "/management/taxonomy/tags/{id}",
 		"/management/taxonomy/cascades",
 		"/management/taxonomy/tags/{id}/labels", "/management/taxonomy/tags/{id}/labels/{label_id}", "/management/taxonomy/tags/{id}/default-label",
@@ -135,6 +144,12 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		{method: "get", path: "/management/system-settings/models", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/auth/refresh", schemes: []string{"webToken", "refreshCookie"}},
 		{method: "post", path: "/management/api-clients/{id}/keys", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/account/sites", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/account/sites/{shortId}/updates", schemes: []string{"webToken", "accessCookie"}},
+		{method: "delete", path: "/account/sites/{shortId}/friend-links/by-host/{targetHost}", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/account/site-claims/{claimId}/check", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/management/site-claims/{claimId}/review", schemes: []string{"webToken", "accessCookie"}},
+		{method: "delete", path: "/management/site-ownership/{shortId}", schemes: []string{"webToken", "accessCookie"}},
 	}
 	for _, test := range securityCases {
 		var operation struct {
@@ -168,7 +183,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	methods := map[string]struct{}{
 		"get": {}, "head": {}, "post": {}, "put": {}, "patch": {}, "delete": {}, "options": {},
 	}
-	operationIDs := make(map[string]string, 54)
+	operationIDs := make(map[string]string, 114)
 	operationCount := 0
 	for path, pathItem := range raw.Paths {
 		for method, encoded := range pathItem {
@@ -192,8 +207,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 92 {
-		t.Fatalf("documented operation count = %d, want 92", operationCount)
+	if operationCount != 114 {
+		t.Fatalf("documented operation count = %d, want 114", operationCount)
 	}
 	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

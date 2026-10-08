@@ -36,6 +36,13 @@ func (repository *Repository) siteSnapshot(ctx context.Context, shortID, operati
 }
 
 func (repository *Repository) CreateSubmission(ctx context.Context, record submissionRecord) (string, error) {
+	if record.Provenance.UserID != "" {
+		return repository.createAccountSubmission(ctx, record)
+	}
+	return repository.insertSubmission(ctx, record)
+}
+
+func (repository *Repository) insertSubmission(ctx context.Context, record submissionRecord) (string, error) {
 	baseJSON, err := optionalSnapshotJSON(record.Action, record.Base)
 	if err != nil {
 		return "", err
@@ -48,7 +55,24 @@ func (repository *Repository) CreateSubmission(ctx context.Context, record submi
 	if err != nil {
 		return "", err
 	}
+	userID, err := parseOptionalUUID(record.Provenance.UserID)
+	if err != nil {
+		return "", err
+	}
+	sourceSiteID, err := parseOptionalUUID(record.Provenance.SourceSiteID)
+	if err != nil {
+		return "", err
+	}
+	ownershipID, err := parseOptionalUUID(record.Provenance.OwnershipID)
+	if err != nil {
+		return "", err
+	}
+	channel := record.Provenance.Channel
+	if channel == "" {
+		channel = "ANONYMOUS"
+	}
 	row, err := repository.queries.CreateSiteAudit(ctx, dbgen.CreateSiteAuditParams{
+		SubmitterUserID: userID, SourceChannel: channel, SourceSiteID: sourceSiteID, OwnershipID: ownershipID,
 		LookupSecretHash: record.LookupHash, Action: string(record.Action), SiteID: siteID,
 		BaseRevision: baseRevisionPointer(record.Action, record.Base), BaseSnapshot: baseJSON,
 		ProposedSnapshot: proposedJSON, RequestReason: record.Input.Reason,

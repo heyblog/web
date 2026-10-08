@@ -9,7 +9,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 tests/*.test.ts",
     "format": "prettier --config ./prettier.config.ts --write \"package.json\" \"*.{ts,mjs}\" \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --config ./prettier.config.ts --check \"package.json\" \"*.{ts,mjs}\" \"public/**/*.js\" \"src/**/*.{ts,js,astro,svelte,css}\" \"tests/**/*.ts\"",
     "lint": "pnpm run lint:eslint && pnpm run stylelint",

@@ -1,0 +1,48 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import type { AuditListItem } from '@/api/site-submission/site-submission.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import { auditActionLabels, auditStatusLabels } from '@/application/site-management/messages';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import PageNavigation from '@/components/site-management/PageNavigation.astro';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+const page = Math.min(
+  1000,
+  Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1),
+);
+const response = await requestAuthAPI(
+  Astro.request,
+  `/account/site-submissions?page=${page}&page_size=50`,
+);
+const payload: { items: readonly AuditListItem[] } = response.ok
+  ? await response.json()
+  : { items: [] };
+---
+
+<DashboardLayout title="我的提交" heading="我的提交" {user} currentPath={Astro.url.pathname}>
+  <AuthNotice message={response.ok ? null : '提交记录暂时无法加载，请刷新重试。'} />
+  <ul class="divide-y divide-line">
+    {payload.items.map((item) => (
+      <li>
+        <a class="grid gap-2 py-5" href={`/dashboard/submissions/${item.id}`}>
+          <div class="flex flex-wrap justify-between gap-3">
+            <strong class="text-sm">{item.site_name || '未命名站点'}</strong>
+            <span class="text-sm text-fg-muted">{auditStatusLabels[item.status]}</span>
+          </div>
+          <span class="text-sm break-all text-fg-muted">{item.site_address}</span>
+          <span class="text-xs text-fg-muted">
+            {auditActionLabels[item.action]} · {new Date(item.created_at).toLocaleString('zh-CN')}
+          </span>
+        </a>
+      </li>
+    ))}
+  </ul>
+  {response.ok && payload.items.length === 0 ? (
+    <p class="py-10 text-sm text-fg-muted">暂无提交记录。</p>
+  ) : null}
+  <PageNavigation {page} hasNext={payload.items.length === 50} />
+</DashboardLayout>

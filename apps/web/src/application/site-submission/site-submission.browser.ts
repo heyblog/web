@@ -48,6 +48,7 @@ export type ProgramDraft =
       dependencies: DependencyDraft[];
     };
 export interface EditableSubmission {
+  accessScope: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
   siteShortId: string;
   name: string;
   url: string;
@@ -65,6 +66,7 @@ export interface EditableSubmission {
 
 export function emptySubmission(): EditableSubmission {
   return {
+    accessScope: 'ALL',
     siteShortId: '',
     name: '',
     url: 'https://',
@@ -161,6 +163,7 @@ export function buildSubmissionPayload(
 ): SubmissionPayload {
   const { components, dependencies } = architecture(form.program);
   const site: SiteInput = {
+    access_scope: form.accessScope,
     name: form.name.trim(),
     url: form.url.trim(),
     summary: form.summary.trim(),

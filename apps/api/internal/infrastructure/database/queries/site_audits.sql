@@ -9,8 +9,12 @@ INSERT INTO directory.site_audits (
     request_reason,
     submitter_name,
     submitter_email,
-    notify_by_email
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    notify_by_email,
+    submitter_user_id, source_channel, source_site_id, ownership_id
+) VALUES (sqlc.arg(lookup_secret_hash), sqlc.arg(action), sqlc.narg(site_id), sqlc.narg(base_revision),
+    sqlc.narg(base_snapshot), sqlc.arg(proposed_snapshot), sqlc.arg(request_reason), sqlc.narg(submitter_name),
+    sqlc.narg(submitter_email), sqlc.arg(notify_by_email), sqlc.narg(submitter_user_id),
+    COALESCE(NULLIF(sqlc.arg(source_channel)::text, ''), 'ANONYMOUS'), sqlc.narg(source_site_id), sqlc.narg(ownership_id))
 RETURNING *;
 
 -- name: GetSiteAuditByLookupHash :one
@@ -31,6 +35,7 @@ SELECT *
 
 -- name: ListSiteAuditsForManagement :many
 SELECT id, action, status, site_id, submitter_name, submitter_email,
+       submitter_user_id, source_channel, source_site_id,
        proposed_snapshot,
        reviewed_by, reviewed_at, created_at, updated_at
   FROM directory.site_audits

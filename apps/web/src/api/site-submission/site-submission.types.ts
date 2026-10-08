@@ -63,6 +63,7 @@ export interface ComponentInput {
   readonly is_open_source: boolean | null;
 }
 export interface SiteInput {
+  readonly access_scope?: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
   readonly name: string;
   readonly url: string;
   readonly summary: string;
@@ -147,6 +148,9 @@ export interface DiffViews {
   readonly conflicts: readonly DiffItem[];
 }
 export interface AuditDetail {
+  readonly source_channel?: string;
+  readonly submitter_user_id?: string;
+  readonly source_site_id?: string;
   readonly id: string;
   readonly action: AuditAction;
   readonly status: AuditStatus;
@@ -171,6 +175,9 @@ export interface AuditDetail {
   readonly diff: DiffViews;
 }
 export interface AuditListItem {
+  readonly source_channel?: string;
+  readonly submitter_user_id?: string;
+  readonly source_site_id?: string;
   readonly id: string;
   readonly action: AuditAction;
   readonly status: AuditStatus;

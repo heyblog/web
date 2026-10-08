@@ -417,8 +417,8 @@ func (q *Queries) ReserveTaxonomySlug(ctx context.Context, arg ReserveTaxonomySl
 	return err
 }
 
-const setSiteClassificationLabels = `-- name: SetSiteClassificationLabels :exec
-UPDATE directory.sites SET primary_label_id=$2,secondary_label_id=$3 WHERE id=$1
+const setSiteClassificationLabels = `-- name: SetSiteClassificationLabels :one
+UPDATE directory.sites SET primary_label_id=$2,secondary_label_id=$3 WHERE id=$1 RETURNING revision
 `
 
 type SetSiteClassificationLabelsParams struct {
@@ -427,9 +427,11 @@ type SetSiteClassificationLabelsParams struct {
 	SecondaryLabelID pgtype.UUID
 }
 
-func (q *Queries) SetSiteClassificationLabels(ctx context.Context, arg SetSiteClassificationLabelsParams) error {
-	_, err := q.db.Exec(ctx, setSiteClassificationLabels, arg.ID, arg.PrimaryLabelID, arg.SecondaryLabelID)
-	return err
+func (q *Queries) SetSiteClassificationLabels(ctx context.Context, arg SetSiteClassificationLabelsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, setSiteClassificationLabels, arg.ID, arg.PrimaryLabelID, arg.SecondaryLabelID)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
 }
 
 const taxonomySlugOwner = `-- name: TaxonomySlugOwner :many

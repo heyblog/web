@@ -90,6 +90,28 @@ type ContentAnnouncementRevision struct {
 	ChangedAt pgtype.Timestamptz
 }
 
+// Deferred owner friend links applied atomically when the target site is approved.
+type DirectoryOwnerFriendLinkRequest struct {
+	// UUIDv7 friend request identifier.
+	ID pgtype.UUID
+	// Existing CREATE audit for the requested target.
+	AuditID pgtype.UUID
+	// Site recommending the target.
+	SourceSiteID pgtype.UUID
+	// Recommending account; null after deletion.
+	UserID pgtype.UUID
+	// Ownership generation required when the link is applied.
+	OwnershipID pgtype.UUID
+	// Request lifecycle: PENDING, APPLIED, CANCELLED, or REJECTED.
+	Status string
+	// Request submission time.
+	CreatedAt pgtype.Timestamptz
+	// Last lifecycle update time.
+	UpdatedAt pgtype.Timestamptz
+	// Whether the recommending account wants an audit decision email.
+	NotifyByEmail bool
+}
+
 // Canonical site identity, address, routing identifiers, and directory lifecycle.
 type DirectorySite struct {
 	// UUIDv7 internal site primary key.
@@ -174,6 +196,14 @@ type DirectorySiteAudit struct {
 	CreatedAt pgtype.Timestamptz
 	// Last audit state update time maintained by trigger.
 	UpdatedAt pgtype.Timestamptz
+	// Authenticated submitting account; null for anonymous submissions or deleted accounts.
+	SubmitterUserID pgtype.UUID
+	// Server-assigned submission provenance channel.
+	SourceChannel string
+	// Authenticated owner source site for updates and friend recommendations.
+	SourceSiteID pgtype.UUID
+	// Immutable ownership generation captured when the owner submitted the request.
+	OwnershipID pgtype.UUID
 }
 
 // Zero or more candidate feeds with one default whenever enabled feeds exist.
@@ -240,6 +270,26 @@ type DirectorySiteOrigin struct {
 	FirstDiscoveredAt pgtype.Timestamptz
 	// Source-specific provenance metadata validated by the API.
 	Metadata []byte
+}
+
+// One currently effective owner per registered site.
+type DirectorySiteOwnership struct {
+	// Ownership generation identifier; replacement invalidates pending edits.
+	ID pgtype.UUID
+	// Uniquely owned registered site.
+	SiteID pgtype.UUID
+	// Active owner; deletion releases ownership.
+	UserID pgtype.UUID
+	// Exact verified canonical site address.
+	Address string
+	// Proof establishing the current address, null for administrative assignment.
+	VerifiedClaimID pgtype.UUID
+	// Monotonic revision within an ownership generation.
+	Revision int64
+	// Start of this ownership generation.
+	CreatedAt pgtype.Timestamptz
+	// Latest verified address change.
+	UpdatedAt pgtype.Timestamptz
 }
 
 // Single-valued sitemap and friend-link-page resource locations.

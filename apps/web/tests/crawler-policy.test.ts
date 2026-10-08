@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { llmsText, robotsText } from '../src/shared/crawlers.ts';
-import { crawlerDisallowPatterns } from '../src/shared/indexing.ts';
+import { crawlerDisallowPatterns, isIndexablePath } from '../src/shared/indexing.ts';
 
 test('search agents retain all private exclusions while training agents deny all paths', () => {
   const groups = robotsText().split('\n\n');
@@ -54,6 +54,11 @@ test('random-page rules exclude query/slash variants without blocking go-prefixe
     '/site/go/?preview=true',
     '/login?next=/dashboard',
     '/management/tags',
+    '/dashboard/sites',
+    '/dashboard/sites/new',
+    '/dashboard/claims?short_id=123456789',
+    '/dashboard/submissions/123456789',
+    '/dashboard/security',
   ])
     assert.equal(blocked(path), true, path);
   for (const path of [
@@ -62,6 +67,19 @@ test('random-page rules exclude query/slash variants without blocking go-prefixe
     '/site',
     '/site?page=2',
     '/og/site/gopherABC.png',
+    '/dashboard-public',
   ])
     assert.equal(blocked(path), false, path);
+});
+
+test('dashboard routes are private throughout the user workbench', () => {
+  for (const path of [
+    '/dashboard',
+    '/dashboard/sites/new',
+    '/dashboard/claims',
+    '/dashboard/submissions/123',
+    '/dashboard/security',
+  ])
+    assert.equal(isIndexablePath(path), false, path);
+  assert.equal(isIndexablePath('/dashboard-public'), true);
 });

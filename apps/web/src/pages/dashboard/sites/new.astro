@@ -1,0 +1,18 @@
+---
+import { readSessionUser } from '@/application/auth/auth.server';
+import SiteSubmissionForm from '@/components/site-submission/SiteSubmissionForm.svelte';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+---
+
+<DashboardLayout title="提交新站点" heading="提交新站点" {user} currentPath={Astro.url.pathname}>
+  <SiteSubmissionForm
+    client:load
+    action="CREATE"
+    accountEndpoint="site-submissions"
+    accountContact={{ name: user.display_name, email: user.email }}
+  />
+</DashboardLayout>

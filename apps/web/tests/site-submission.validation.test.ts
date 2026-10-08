@@ -52,6 +52,19 @@ test('requires paired contact details when email notifications are enabled', () 
   assert.equal(validateSubmissionStep('CREATE', form, 3).valid, false);
 });
 
+test('account notifications use the session email without editable contact fields', () => {
+  const form = emptySubmission();
+  form.notifyByEmail = true;
+  assert.equal(
+    validateSubmissionStep('CREATE', form, 3, { email: 'account@example.test' }).valid,
+    true,
+  );
+  assert.deepEqual(validateSubmissionStep('CREATE', form, 3, { email: null }), {
+    valid: false,
+    message: '账号尚未绑定邮箱，暂时无法接收审核邮件。',
+  });
+});
+
 test('reports malformed feed addresses without throwing', () => {
   const form = emptySubmission();
   form.url = 'https://example.test';

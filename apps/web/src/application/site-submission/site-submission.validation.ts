@@ -7,6 +7,11 @@ export interface StepValidation {
   readonly message: string;
 }
 
+export interface AccountSubmissionContact {
+  readonly name: string;
+  readonly email: string | null;
+}
+
 export interface AuxiliaryURLValidation {
   readonly feedMessages: Readonly<Record<string, string>>;
   readonly sitemapMessage: string;
@@ -141,6 +146,7 @@ export function validateSubmissionStep(
   action: AuditAction,
   form: EditableSubmission,
   step: number,
+  accountContact?: Pick<AccountSubmissionContact, 'email'>,
 ): StepValidation {
   if (step === 0) {
     if (action !== 'CREATE' && !isSiteShortID(form.siteShortId))
@@ -201,6 +207,11 @@ export function validateSubmissionStep(
   const isFinalStep = step === submissionStepCount(action) - 1;
   if (isFinalStep && action !== 'CREATE' && !form.reason.trim())
     return { valid: false, message: '请填写申请原因。' };
+  if (accountContact) {
+    if (isFinalStep && form.notifyByEmail && !accountContact.email)
+      return { valid: false, message: '账号尚未绑定邮箱，暂时无法接收审核邮件。' };
+    return { valid: true, message: '' };
+  }
   const hasContactName = form.contactName.trim().length > 0;
   const hasContactEmail = form.contactEmail.trim().length > 0;
   if (isFinalStep && hasContactName !== hasContactEmail)

@@ -20,6 +20,7 @@ import (
 	"heyblog-api/internal/features/exampleapi"
 	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/features/siteaudit"
+	"heyblog-api/internal/features/sitemanagement"
 	"heyblog-api/internal/features/sitestats"
 	"heyblog-api/internal/features/sluggeneration"
 	"heyblog-api/internal/features/taxonomy"
@@ -227,6 +228,11 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		},
 	})
 	if err := siteaudit.RegisterRoutes(router.API, auditService, options.WebToken, dependencies.RedisClient()); err != nil {
+		return nil, err
+	}
+	siteaudit.RegisterAccountRoutes(router.API, siteaudit.NewAccountService(siteaudit.NewRepository(dependencies.DatabasePool()), auditService), options.WebToken, dependencies.RedisClient())
+	claimService := sitemanagement.NewService(sitemanagement.NewRepository(dependencies.DatabasePool()), authService, sitemanagement.NewNetworkVerifier())
+	if err := sitemanagement.RegisterRoutes(router.API, claimService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err
 	}
 	return router, nil

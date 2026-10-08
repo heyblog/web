@@ -1,0 +1,68 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import type { Snapshot } from '@/api/site-submission/site-submission.types';
+import { readSessionUser } from '@/application/auth/auth.server';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import FriendManager from '@/components/site-management/FriendManager.svelte';
+import SiteSubmissionForm from '@/components/site-submission/SiteSubmissionForm.svelte';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = await readSessionUser(Astro.request);
+if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+const shortId = Astro.params.shortId ?? '';
+const response = await requestAuthAPI(Astro.request, `/account/sites/${shortId}`);
+if (response.status === 403 || response.status === 404) return Astro.redirect('/dashboard/sites');
+const site: Snapshot | null = response.ok ? await response.json() : null;
+---
+
+<DashboardLayout
+  title={site?.name ?? '站点详情'}
+  heading={site?.name ?? '站点详情'}
+  {user}
+  currentPath={Astro.url.pathname}
+>
+  <AuthNotice message={site ? null : '站点资料暂时无法加载，请刷新重试。'} />
+  {site ? (
+    <>
+      <p class="mb-6 text-sm break-all text-fg-muted">
+        {site.scheme}://{site.normalized_host}
+        {site.base_path}
+      </p>
+      <nav class="mb-8 flex flex-wrap gap-5 border-b border-line pb-4" aria-label="站点操作">
+        <a class="text-sm text-tint-fg" href="#information">
+          基础信息
+        </a>
+        <a class="text-sm text-tint-fg" href="#friends">
+          友链
+        </a>
+        <a class="text-sm text-tint-fg" href={`/dashboard/claims?short_id=${shortId}`}>
+          验证新地址
+        </a>
+      </nav>
+      {site.visibility === 'REMOVED' ? (
+        <p class="text-sm text-fg-muted">站点已移除，当前仅可查看。</p>
+      ) : (
+        <>
+          <section class="mb-12" id="information">
+            <h2 class="mb-6 text-xl font-semibold">基础信息</h2>
+            <SiteSubmissionForm
+              client:load
+              action="UPDATE"
+              initialShortId={shortId}
+              accountEndpoint={`sites/${shortId}/updates`}
+              accountContact={{ name: user.display_name, email: user.email }}
+            />
+          </section>
+          <div class="border-t border-line pt-8" id="friends">
+            <FriendManager
+              client:load
+              {shortId}
+              accountContact={{ name: user.display_name, email: user.email }}
+            />
+          </div>
+        </>
+      )}
+    </>
+  ) : null}
+</DashboardLayout>

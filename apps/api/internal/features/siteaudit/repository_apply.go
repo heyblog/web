@@ -58,7 +58,8 @@ func (transaction *auditTransaction) applySnapshot(
 		if labelErr != nil {
 			return pgtype.UUID{}, 0, labelErr
 		}
-		if labelErr = queries.SetSiteClassificationLabels(ctx, dbgen.SetSiteClassificationLabelsParams{ID: siteID, PrimaryLabelID: primary, SecondaryLabelID: secondary}); labelErr != nil {
+		row.Revision, labelErr = queries.SetSiteClassificationLabels(ctx, dbgen.SetSiteClassificationLabelsParams{ID: siteID, PrimaryLabelID: primary, SecondaryLabelID: secondary})
+		if labelErr != nil {
 			return pgtype.UUID{}, 0, labelErr
 		}
 	}
@@ -68,7 +69,7 @@ func (transaction *auditTransaction) applySnapshot(
 			return pgtype.UUID{}, 0, err
 		}
 	}
-	if action == ActionCreate {
+	if action == ActionCreate && transaction.locked.SourceChannel == "ANONYMOUS" {
 		if err := addSubmissionOrigin(ctx, queries, siteID); err != nil {
 			return pgtype.UUID{}, 0, err
 		}

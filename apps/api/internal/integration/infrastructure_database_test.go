@@ -118,8 +118,8 @@ func verifyDatabaseCatalog(ctx context.Context, t *testing.T, connection *pgx.Co
 	`, []string{"identity", "directory", "content"}).Scan(&tableCount); err != nil {
 		t.Fatalf("query business tables: %v", err)
 	}
-	if tableCount != 34 {
-		t.Fatalf("business table count = %d, want 34", tableCount)
+	if tableCount != 38 {
+		t.Fatalf("business table count = %d, want 38", tableCount)
 	}
 
 	var graphExists bool
