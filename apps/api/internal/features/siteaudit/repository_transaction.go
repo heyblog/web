@@ -102,7 +102,11 @@ func (transaction *auditTransaction) Approve(ctx context.Context, record decisio
 	if err != nil {
 		return Audit{}, fmt.Errorf("approve site audit: %w", err)
 	}
-	return auditFromRow(updated)
+	audit, err := auditFromRow(updated)
+	if err != nil {
+		return Audit{}, err
+	}
+	return projectAuditTaxonomy(ctx, transaction.queries, audit, true)
 }
 
 func (transaction *auditTransaction) Reject(ctx context.Context, record decisionRecord) (Audit, error) {
@@ -114,5 +118,9 @@ func (transaction *auditTransaction) Reject(ctx context.Context, record decision
 	if err != nil {
 		return Audit{}, fmt.Errorf("reject site audit: %w", err)
 	}
-	return auditFromRow(updated)
+	audit, err := auditFromRow(updated)
+	if err != nil {
+		return Audit{}, err
+	}
+	return projectAuditTaxonomy(ctx, transaction.queries, audit, true)
 }

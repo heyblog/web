@@ -15,8 +15,8 @@ export const profile: SiteProfile = {
   joinedAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-02T00:00:00Z',
   classification: {
-    level1: { name: '技术', slug: 'tech', description: '' },
-    level2: { name: '软件开发', slug: 'software', description: '' },
+    level1: { name: '技术', description: '' },
+    level2: { name: '软件开发', description: '' },
   },
   tertiaryTags: [],
   warnings: [],

@@ -77,7 +77,7 @@
 </script>
 
 <section bind:this={section} class="grid gap-5" aria-busy={pending}>
-  <p class="text-sm text-fg-muted">合并后，原标签的引用与历史链接将指向保留的标签。</p>
+  <p class="text-sm text-fg-muted">合并后，原标签的引用将指向保留的标签。</p>
   {#if confirmApply && preview}
     <h3 class="text-base font-semibold" tabindex="-1">确认应用这次迁移？</h3>
     <p class="text-sm">
@@ -104,11 +104,10 @@
         onchange={() => invalidate()}
       >
         <option value="">请选择</option>{#each mergeTargets as item (item.id)}<option
-            value={item.id}>{item.name} · {item.slug}</option
+            value={item.id}>{item.name}</option
           >{/each}
       </select></label
     >
-    <p class="text-xs text-fg-muted">来源标签的引用及旧 slug 将指向目标标签。</p>
     <button
       class={preview && !preview.blockers.length ? outlineClass : primaryClass}
       type="button"
@@ -127,18 +126,6 @@
                 {path.scope === 'SITE' ? '站点' : '文章'}：{path.label}
               </li>{/each}
           </ul>{/if}
-        {#if preview.retained_labels.length}<details class="text-sm">
-            <summary class="min-h-11 cursor-pointer"
-              >保留的引用名称（{preview.retained_labels.length}）</summary
-            >
-            <ul class="max-h-48 overflow-y-auto text-xs text-fg-muted">
-              {#each preview.retained_labels as label (`${label.scope}:${label.object_id}:${label.tag_id}`)}<li
-                >
-                  {label.scope === 'SITE' ? '站点' : '文章'}
-                  {label.object_id.slice(-8)}：{label.name}
-                </li>{/each}
-            </ul>
-          </details>{/if}
         {#if preview.blockers.length}
           <p class="text-sm">完善迁移目标后，请重新预览完整影响。</p>
           <ul class="grid list-disc gap-2 pl-5 text-sm text-warning-fg">

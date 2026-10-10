@@ -37,7 +37,6 @@ type Config struct {
 	HTTP                 HTTPConfig
 	Health               HealthConfig
 	Auth                 AuthConfig
-	AI                   AIConfig
 }
 
 type ServerConfig struct {
@@ -109,7 +108,6 @@ type fileConfig struct {
 	HTTP     fileHTTPConfig     `yaml:"http"`
 	Health   fileHealthConfig   `yaml:"health"`
 	Auth     fileAuthConfig     `yaml:"auth"`
-	AI       fileAIConfig       `yaml:"ai"`
 }
 
 type fileServerConfig struct {

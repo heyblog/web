@@ -9,11 +9,12 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/gin-gonic/gin v1.12.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/openai/openai-go/v3 v3.71.1
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/sergeymakinen/go-ico v1.0.0
+	github.com/stretchr/testify v1.12.1
 	github.com/swaggest/swgui v1.8.9
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.44.0
@@ -50,7 +51,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -79,7 +79,6 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/cel-go v0.29.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -130,12 +129,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/sqlc-dev/doubleclick v1.0.0 // indirect
 	github.com/sqlc-dev/sqlc v1.31.1 // indirect
-	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
-	github.com/tidwall/gjson v1.19.0 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

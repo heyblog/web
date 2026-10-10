@@ -16,7 +16,7 @@ func verifyBackupRestoreRollback(t *testing.T, target auditMigrationFixture, ser
 	if err := target.admin.QueryRow(ctx, "SELECT directory.backup_seed_fingerprint()").Scan(&before); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := target.admin.Exec(ctx, `CREATE FUNCTION public.reject_backup_setting() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic restore failure'; END $$; CREATE TRIGGER reject_backup_setting BEFORE INSERT ON content.system_ai_settings FOR EACH ROW EXECUTE FUNCTION public.reject_backup_setting()`); err != nil {
+	if _, err := target.admin.Exec(ctx, `CREATE FUNCTION public.reject_backup_setting() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic restore failure'; END $$; CREATE TRIGGER reject_backup_setting BEFORE INSERT ON content.announcement_revisions FOR EACH ROW EXECUTE FUNCTION public.reject_backup_setting()`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.Restore(ctx, file, actor, checksum); err == nil {
@@ -36,7 +36,7 @@ func verifyBackupRestoreRollback(t *testing.T, target auditMigrationFixture, ser
 	if users != 1 || sites != 0 || clients != 0 {
 		t.Fatal("failed restore retained partial data")
 	}
-	if _, err := target.admin.Exec(ctx, `DROP TRIGGER reject_backup_setting ON content.system_ai_settings; DROP FUNCTION public.reject_backup_setting()`); err != nil {
+	if _, err := target.admin.Exec(ctx, `DROP TRIGGER reject_backup_setting ON content.announcement_revisions; DROP FUNCTION public.reject_backup_setting()`); err != nil {
 		t.Fatal(err)
 	}
 }

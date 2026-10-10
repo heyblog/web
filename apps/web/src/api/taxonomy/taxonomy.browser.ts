@@ -1,12 +1,4 @@
-import { parseModels, parseSettings } from './system-settings.types.ts';
-import {
-  isRecord,
-  parsePreview,
-  parseSlug,
-  parseTaxonomy,
-  type SlugInput,
-  type TaxonomyChange,
-} from './taxonomy.types.ts';
+import { isRecord, parsePreview, parseTaxonomy, type TaxonomyChange } from './taxonomy.types.ts';
 
 export type ManagementResult<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly code: string };
@@ -29,8 +21,8 @@ export async function requestManagement<T>(
           : { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(25_000)])
-        : AbortSignal.timeout(25_000),
+        ? AbortSignal.any([signal, AbortSignal.timeout(10_000)])
+        : AbortSignal.timeout(10_000),
     });
     const payload: unknown = await response.json();
     if (!response.ok)
@@ -66,43 +58,5 @@ export const applyChange = (body: TaxonomyChange, fingerprint: string) =>
     ...body,
     fingerprint,
   });
-export const generateSlug = (body: SlugInput) =>
-  requestManagement('/management/tags/slug-generation', 'POST', parseSlug, body);
-export const readSettings = () =>
-  requestManagement('/management/system-settings/data', 'GET', parseSettings);
-export const readModels = () =>
-  requestManagement('/management/system-settings/models', 'GET', parseModels);
-export const saveSettings = (modelID: string, revision: string) =>
-  requestManagement('/management/system-settings/data', 'PUT', parseSettings, {
-    model_id: modelID,
-    expected_revision: revision,
-  });
-
 export const createCascade = (body: Readonly<Record<string, unknown>>) =>
   requestManagement('/management/tags/data/cascades', 'POST', parseTaxonomy, body);
-
-export const saveLabel = (
-  tagID: string,
-  labelID: string,
-  body: Readonly<Record<string, unknown>>,
-) =>
-  requestManagement(
-    `/management/tags/data/${encodeURIComponent(tagID)}/labels${labelID ? `/${encodeURIComponent(labelID)}` : ''}`,
-    labelID ? 'PUT' : 'POST',
-    parseTaxonomy,
-    body,
-  );
-export const deleteLabel = (tagID: string, labelID: string, revision: string) =>
-  requestManagement(
-    `/management/tags/data/${encodeURIComponent(tagID)}/labels/${encodeURIComponent(labelID)}`,
-    'DELETE',
-    parseTaxonomy,
-    { expected_revision: revision },
-  );
-export const setDefaultLabel = (tagID: string, labelID: string, revision: string) =>
-  requestManagement(
-    `/management/tags/data/${encodeURIComponent(tagID)}/default-label`,
-    'POST',
-    parseTaxonomy,
-    { label_id: labelID, expected_revision: revision },
-  );

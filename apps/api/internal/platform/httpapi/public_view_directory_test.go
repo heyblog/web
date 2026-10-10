@@ -65,3 +65,17 @@ func TestParseDirectoryQueryRejectsUnknownAndInvalidParameters(t *testing.T) {
 		}
 	}
 }
+
+func TestDirectoryTagFiltersUseDisplayNamesAndDeduplicateCase(t *testing.T) {
+	query, err := parseDirectoryQuery(url.Values{"level1": {"技术"}, "level2": {"Personal Writing"}, "tertiary": {"ExamPle", "example", "Example", "JS", "JavaScript"}}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query.Level1 != "技术" || query.Level2 != "Personal Writing" || len(query.TertiaryTags) != 3 {
+		t.Fatalf("name filters: %#v", query)
+	}
+	_, err = parseDirectoryQuery(url.Values{"tertiary_label_id": {"old-label"}}, time.Now())
+	if err == nil {
+		t.Fatal("retired label selector accepted")
+	}
+}

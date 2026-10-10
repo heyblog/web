@@ -5,37 +5,44 @@ import { buildSiteDirectorySearchParams } from '../src/api/sites/site-directory.
 import {
   directoryOptionSelected,
   matchingDirectoryOptions,
+  selectedDirectoryOption,
 } from '../src/application/site-directory/site-directory.labels.ts';
 import { parseSiteDirectorySearchParams } from '../src/application/site-directory/site-directory.shared.ts';
 
-const zh = '019f033c-2111-7000-9000-000000000001';
-const en = '019f033c-2111-7000-9000-000000000002';
 const options = [
-  { value: 'algorithm', label_id: zh, label: '算法', normalCount: 2, abnormalCount: 0 },
-  { value: 'algorithm', label_id: en, label: 'algorithm', normalCount: 2, abnormalCount: 0 },
-  { value: 'life', label: '生活', normalCount: 1, abnormalCount: 0 },
+  { value: 'JavaScript', label: 'JavaScript', normalCount: 2, abnormalCount: 0 },
+  { value: 'JS', label: 'JS', normalCount: 2, abnormalCount: 0 },
+  { value: '中文 + / 标签', label: '中文 + / 标签', normalCount: 1, abnormalCount: 0 },
 ];
 
-test('either name expands the group while selection uses a single presentation label', () => {
-  assert.deepEqual(
-    matchingDirectoryOptions(options, '算法').map((option) => option.label_id),
-    [zh, en],
-  );
-  assert.equal(directoryOptionSelected(options, options[0], ['algorithm'], [en]), false);
-  assert.equal(directoryOptionSelected(options, options[1], ['algorithm'], [en]), true);
-  assert.equal(directoryOptionSelected(options, options[0], ['algorithm']), true);
-  assert.equal(directoryOptionSelected(options, options[1], ['algorithm']), false);
+test('name search and selection ignore case without merging distinct names', () => {
+  assert.deepEqual(matchingDirectoryOptions(options, ' javascript '), [options[0]]);
+  assert.equal(directoryOptionSelected(options, options[0], ['JAVASCRIPT']), true);
+  assert.equal(directoryOptionSelected(options, options[1], ['JavaScript']), false);
+  assert.equal(selectedDirectoryOption(options, ' JAVASCRIPT '), options[0]);
 });
 
-test('presentation IDs round trip separately from canonical slug filters', () => {
-  const params = new URLSearchParams(
-    `level1=algorithm&level1_label_id=${zh}&level2=algorithm&level2_label_id=${en}&tertiary=algorithm&tertiary=algorithm&tertiary_label_id=${en}&tertiary_label_id=invalid`,
-  );
+test('directory names round trip complete Unicode and punctuation with case-insensitive deduplication', () => {
+  const params = new URLSearchParams({ level1: '中文 + / 标签', level2: '字'.repeat(120) });
+  for (const name of ['JavaScript', ' JAVASCRIPT ', 'JS', '中文 + / 标签'])
+    params.append('tertiary', name);
+  params.append('warning', 'Warning');
+  params.append('warning', 'warning');
+  params.append('level1_label_id', 'retired');
   const query = parseSiteDirectorySearchParams(params);
-  assert.deepEqual(query.tertiary, ['algorithm']);
-  assert.deepEqual(query.tertiary_label_ids, [en]);
-  const restored = parseSiteDirectorySearchParams(buildSiteDirectorySearchParams(query));
-  assert.equal(restored.level1_label_id, zh);
-  assert.equal(restored.level2_label_id, en);
-  assert.deepEqual(restored.tertiary_label_ids, [en]);
+  assert.deepEqual(query.tertiary, ['JavaScript', 'JS', '中文 + / 标签']);
+  assert.deepEqual(query.warning, ['Warning']);
+  const serialized = buildSiteDirectorySearchParams(query);
+  assert.equal(serialized.has('level1_label_id'), false);
+  assert.deepEqual(parseSiteDirectorySearchParams(serialized), query);
+  assert.equal(query.level2.length, 120);
+});
+
+test('directory rejects oversized names and orphaned secondary classifications', () => {
+  const query = parseSiteDirectorySearchParams(
+    new URLSearchParams({ level1: '字'.repeat(121), level2: 'child', tertiary: '字'.repeat(121) }),
+  );
+  assert.equal(query.level1, '');
+  assert.equal(query.level2, '');
+  assert.deepEqual(query.tertiary, []);
 });

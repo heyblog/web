@@ -16,7 +16,7 @@ const (
 	directoryMaximumPage        = 100_000
 	directoryMaximumQueryLength = 100
 	directoryMaximumFilters     = 20
-	directoryMaximumFilterValue = 100
+	directoryMaximumFilterValue = 120
 	directoryMaximumSeedLength  = 96
 )
 
@@ -24,10 +24,8 @@ var (
 	directoryAllowedParameters = map[string]struct{}{
 		"page": {}, "q": {}, "level1": {}, "level2": {}, "tertiary": {}, "warning": {},
 		"technology": {}, "access": {}, "feed": {}, "status": {}, "sort": {},
-		"order": {}, "seed": {}, "level1_label_id": {}, "level2_label_id": {}, "tertiary_label_id": {},
+		"order": {}, "seed": {},
 	}
-	directoryUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-	directorySlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	directorySeedPattern = regexp.MustCompile(`^[A-Za-z0-9:_-]+$`)
 )
 
@@ -68,39 +66,22 @@ func parseDirectoryQuery(values url.Values, now time.Time) (publicview.Directory
 		}
 	}
 
-	query.Level1, err = readDirectorySlug(values, "level1")
+	query.Level1, err = readDirectoryTagName(values, "level1")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
 	}
-	query.Level2, err = readDirectorySlug(values, "level2")
+	query.Level2, err = readDirectoryTagName(values, "level2")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
 	}
 	if query.Level2 != "" && query.Level1 == "" {
 		return publicview.DirectoryQuery{}, invalidDirectoryQuery("level2", "requires level1")
 	}
-	query.TertiaryTags, err = readDirectorySlugs(values, "tertiary")
+	query.TertiaryTags, err = readDirectoryTagNames(values, "tertiary")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
 	}
-	query.Level1LabelID, _, err = readDirectorySingle(values, "level1_label_id")
-	if err != nil {
-		return publicview.DirectoryQuery{}, err
-	}
-	query.Level2LabelID, _, err = readDirectorySingle(values, "level2_label_id")
-	if err != nil {
-		return publicview.DirectoryQuery{}, err
-	}
-	query.TertiaryLabelIDs, err = readDirectoryFilterValues(values, "tertiary_label_id")
-	if err != nil {
-		return publicview.DirectoryQuery{}, err
-	}
-	for _, id := range append([]string{query.Level1LabelID, query.Level2LabelID}, query.TertiaryLabelIDs...) {
-		if id != "" && !directoryUUIDPattern.MatchString(id) {
-			return publicview.DirectoryQuery{}, invalidDirectoryQuery("label_id", "contains an invalid value")
-		}
-	}
-	query.Warnings, err = readDirectorySlugs(values, "warning")
+	query.Warnings, err = readDirectoryTagNames(values, "warning")
 	if err != nil {
 		return publicview.DirectoryQuery{}, err
 	}
@@ -118,13 +99,13 @@ func parseDirectoryQuery(values url.Values, now time.Time) (publicview.Directory
 	return query, nil
 }
 
-func readDirectorySlug(values url.Values, name string) (string, error) {
+func readDirectoryTagName(values url.Values, name string) (string, error) {
 	value, exists, err := readDirectorySingle(values, name)
 	if err != nil || !exists {
 		return "", err
 	}
 	value = strings.TrimSpace(value)
-	if !directorySlugPattern.MatchString(value) {
+	if value == "" || utf8.RuneCountInString(value) > 120 {
 		return "", invalidDirectoryQuery(name, "contains an invalid value")
 	}
 	return value, nil
@@ -141,13 +122,13 @@ func readDirectorySingle(values url.Values, name string) (string, bool, error) {
 	return items[0], true, nil
 }
 
-func readDirectorySlugs(values url.Values, name string) ([]string, error) {
+func readDirectoryTagNames(values url.Values, name string) ([]string, error) {
 	items, err := readDirectoryFilterValues(values, name)
 	if err != nil {
 		return nil, err
 	}
 	for _, item := range items {
-		if !directorySlugPattern.MatchString(item) {
+		if item == "" || utf8.RuneCountInString(item) > 120 {
 			return nil, invalidDirectoryQuery(name, "contains an invalid value")
 		}
 	}
@@ -177,10 +158,14 @@ func readDirectoryFilterValues(values url.Values, name string) ([]string, error)
 		if item == "" || utf8.RuneCountInString(item) > directoryMaximumFilterValue {
 			return nil, invalidDirectoryQuery(name, "contains an invalid value")
 		}
-		if _, exists := seen[item]; exists {
+		key := item
+		if name == "tertiary" || name == "warning" {
+			key = strings.ToLower(item)
+		}
+		if _, exists := seen[key]; exists {
 			continue
 		}
-		seen[item] = struct{}{}
+		seen[key] = struct{}{}
 		items = append(items, item)
 	}
 	return items, nil

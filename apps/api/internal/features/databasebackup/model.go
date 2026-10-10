@@ -25,16 +25,15 @@ var tableNames = []string{
 	"identity.users", "identity.oauth_identities", "identity.email_verification_codes",
 	"identity.password_reset_tokens", "identity.user_management_permissions",
 	"identity.api_clients", "identity.api_client_scopes", "identity.api_keys",
-	"directory.tags", "directory.tag_labels", "directory.tag_cascades",
-	"directory.tag_identity_aliases", "directory.tag_slug_aliases", "directory.tag_assignment_archive",
+	"directory.tags", "directory.tag_cascades",
+	"directory.tag_identity_aliases", "directory.tag_assignment_archive",
 	"directory.software_components", "directory.software_component_dependencies", "directory.site_sources",
 	"directory.sites", "directory.site_feeds", "directory.site_icons", "directory.site_resources",
 	"directory.site_software_components", "directory.site_origins", "directory.site_tags",
 	"directory.site_claims", "directory.site_ownerships", "directory.site_ownership_events",
-	"directory.site_audits", "directory.owner_friend_link_requests", "directory.slug_generation_cache", "directory.slug_generation_jobs",
+	"directory.site_audits", "directory.owner_friend_link_requests",
 	"directory.site_metrics", "directory.site_metric_events",
 	"content.articles", "content.article_tags", "content.announcements", "content.announcement_revisions",
-	"content.system_ai_settings",
 }
 
 type Header struct {

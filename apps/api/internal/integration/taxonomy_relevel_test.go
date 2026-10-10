@@ -27,13 +27,13 @@ func TestTaxonomyPathChangesAndPreviewConcurrency(t *testing.T) {
 	if fallback.PrimaryID != fallback.SecondaryID {
 		t.Fatal("fallback must be a self relation")
 	}
-	catalog, err = service.Create(ctx, taxonomy.CreateInput{Name: "path-test", Slug: "path-test", ExpectedRevision: catalog.Revision})
+	catalog, err = service.Create(ctx, taxonomy.CreateInput{Name: "path-test", ExpectedRevision: catalog.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var id string
 	for _, tag := range catalog.Tags {
-		if tag.Slug == "path-test" {
+		if tag.Name == "path-test" {
 			id = tag.ID
 		}
 	}
@@ -77,13 +77,13 @@ func TestTaxonomyPathChangesAndPreviewConcurrency(t *testing.T) {
 	if err != nil || len(preview.Blockers) != 1 || preview.Blockers[0] != "fallback_protected" {
 		t.Fatal("fallback was mutable", err, preview)
 	}
-	catalog, err = service.Create(ctx, taxonomy.CreateInput{Name: "deletable", Slug: "deletable", ExpectedRevision: catalog.Revision})
+	catalog, err = service.Create(ctx, taxonomy.CreateInput{Name: "deletable", ExpectedRevision: catalog.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var disposable string
 	for _, tag := range catalog.Tags {
-		if tag.Slug == "deletable" {
+		if tag.Name == "deletable" {
 			disposable = tag.ID
 		}
 	}

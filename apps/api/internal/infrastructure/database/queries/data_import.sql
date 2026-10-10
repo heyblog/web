@@ -10,7 +10,7 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_feeds
     UNION ALL SELECT 1 FROM directory.site_resources
     UNION ALL SELECT 1 FROM directory.site_icons
-    UNION ALL SELECT 1 FROM directory.tags t WHERE NOT EXISTS (SELECT 1 FROM directory.tag_identity_aliases a WHERE a.tag_id=t.id AND a.system_key IS NOT NULL)
+    UNION ALL SELECT 1 FROM directory.tags t WHERE NOT EXISTS (SELECT 1 FROM directory.tag_identity_aliases a WHERE a.alias_kind='TAG' AND a.tag_id=t.id AND a.system_key IS NOT NULL)
     UNION ALL SELECT 1 FROM directory.site_tags
     -- The private-program placeholder is shipped by migrations and does not
     -- represent imported directory content.
@@ -94,16 +94,16 @@ INSERT INTO directory.site_resources (
     sqlc.arg(url_key)
 );
 
--- name: InsertTag :exec
-INSERT INTO directory.tag_dictionary(id,name,normalized_name,slug,description,is_enabled)
-SELECT sqlc.arg(id)::uuid,sqlc.arg(name)::text,sqlc.arg(normalized_name)::text,sqlc.arg(slug)::text,sqlc.arg(description)::text,sqlc.arg(is_enabled)::boolean
-WHERE NOT EXISTS(SELECT 1 FROM directory.tag_labels WHERE normalized_name=sqlc.arg(normalized_name)::text);
+-- name: InsertImportedTag :exec
+INSERT INTO directory.tags(id,name,description,is_enabled)
+VALUES(sqlc.arg(id)::uuid,sqlc.arg(name)::text,sqlc.arg(description)::text,sqlc.arg(is_enabled)::boolean)
+ON CONFLICT(normalized_name) DO NOTHING;
 
 -- name: InsertImportedTagAlias :exec
-INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot)
-SELECT sqlc.arg(alias_id)::uuid,t.tag_id,jsonb_build_object('id',sqlc.arg(alias_id)::uuid,'name',sqlc.arg(name)::text)
-FROM directory.tag_labels t WHERE t.normalized_name=sqlc.arg(normalized_name)
-ON CONFLICT(alias_id) DO NOTHING;
+INSERT INTO directory.tag_identity_aliases(alias_kind,alias_id,tag_id,snapshot)
+SELECT 'TAG',sqlc.arg(alias_id)::uuid,t.id,jsonb_build_object('id',sqlc.arg(alias_id)::uuid,'name',sqlc.arg(name)::text)
+FROM directory.tags t WHERE t.normalized_name=lower(btrim(sqlc.arg(normalized_name)::text))
+ON CONFLICT(alias_kind,alias_id) DO NOTHING;
 
 -- name: InsertSiteTag :exec
 INSERT INTO directory.site_tags (

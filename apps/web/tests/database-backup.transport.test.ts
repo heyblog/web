@@ -25,7 +25,24 @@ test('inspection parsing rejects missing datasets, duplicate datasets and incons
     { ...inspectionFixture, issues: [{ code: 'target_not_empty' }] },
     { ...inspectionFixture, graph: { vertices: -1, edges: 2 } },
     { ...inspectionFixture, schema_version: 1 },
+    { ...inspectionFixture, schema_version: 2 },
   ];
+  for (const name of [
+    'directory.tag_labels',
+    'directory.tag_slug_aliases',
+    'directory.slug_generation_cache',
+    'directory.slug_generation_jobs',
+    'content.system_ai_settings',
+  ]) {
+    assert.equal(
+      parseBackupInspection({
+        ...inspectionFixture,
+        datasets: [...inspectionFixture.datasets, { name, count: 0 }],
+      }),
+      null,
+    );
+  }
+  assert.equal(inspectionFixture.datasets.length, 33);
   // When / Then
   assert.deepEqual(parseBackupInspection(inspectionFixture), inspectionFixture);
   for (const input of cases) assert.equal(parseBackupInspection(input), null);

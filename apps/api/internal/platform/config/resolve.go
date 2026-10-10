@@ -51,11 +51,6 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 		return Config{}, err
 	}
 
-	aiConfiguration, err := resolveAIConfig(values.AI, getenv)
-	if err != nil {
-		return Config{}, err
-	}
-
 	configuration := Config{
 		Mode:                 values.Mode,
 		MigrationDatabaseURL: migrationURL,
@@ -77,7 +72,6 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 			WriteTimeout: time.Duration(values.Redis.WriteTimeout),
 		},
 		Mail: mailConfiguration,
-		AI:   aiConfiguration,
 		Logging: LoggingConfig{
 			Level:         strings.ToLower(strings.TrimSpace(values.Logging.Level)),
 			ConsoleFormat: consoleFormat,

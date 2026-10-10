@@ -11,13 +11,17 @@ import (
 )
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (Catalog, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" || len([]rune(input.Name)) > 120 {
+		return Catalog{}, invalid("invalid_tag_name")
+	}
 	var result Catalog
 	err := s.transaction(ctx, func(tx pgx.Tx, g graph) error {
 		if err := checkRevision(g, input.ExpectedRevision); err != nil {
 			return err
 		}
 		for _, tag := range g.Tags {
-			if matchesLabel(tag, input.Name) {
+			if matchesName(tag, input.Name) {
 				if tag.Enabled {
 					return invalid("duplicate_tag_name")
 				}
@@ -34,10 +38,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Catalog, error
 			}
 		}
 		q := dbgen.New(tx)
-		if err := checkSlug(ctx, q, input.Slug, ""); err != nil {
-			return err
-		}
-		_, err := q.CreateManagedTag(ctx, dbgen.CreateManagedTagParams{Name: strings.TrimSpace(input.Name), Slug: input.Slug, Description: strings.TrimSpace(input.Description)})
+		_, err := q.CreateManagedTag(ctx, dbgen.CreateManagedTagParams{Name: strings.TrimSpace(input.Name), Description: strings.TrimSpace(input.Description)})
 		if err != nil {
 			return err
 		}
@@ -48,6 +49,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Catalog, error
 	return result, err
 }
 func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Catalog, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" || len([]rune(input.Name)) > 120 {
+		return Catalog{}, invalid("invalid_tag_name")
+	}
 	var result Catalog
 	err := s.transaction(ctx, func(tx pgx.Tx, g graph) error {
 		if err := checkRevision(g, input.ExpectedRevision); err != nil {
@@ -61,38 +66,22 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Cat
 			return invalid("fallback_protected")
 		}
 		for _, other := range g.Tags {
-			if other.ID != id && matchesLabel(other, input.Name) {
-				return invalid("duplicate_tag_name")
-			}
-		}
-		for _, l := range tag.Labels {
-			if l.ID != tag.DefaultLabelID && strings.EqualFold(strings.TrimSpace(l.Name), strings.TrimSpace(input.Name)) {
+			if other.ID != id && matchesName(other, input.Name) {
 				return invalid("duplicate_tag_name")
 			}
 		}
 		q := dbgen.New(tx)
-		if err := checkSlug(ctx, q, input.Slug, id); err != nil {
-			return err
-		}
 		uuid, err := parseID(id)
 		if err != nil {
 			return err
 		}
-		if tag.Slug != input.Slug {
-			if err := q.ReserveTaxonomySlug(ctx, dbgen.ReserveTaxonomySlugParams{Slug: tag.Slug, TagID: uuid}); err != nil {
-				return err
-			}
-		}
-		if err := q.UpdateManagedTag(ctx, dbgen.UpdateManagedTagParams{ID: uuid, Name: strings.TrimSpace(input.Name), Slug: input.Slug, Description: strings.TrimSpace(input.Description), IsEnabled: input.Enabled}); err != nil {
+		if err := q.UpdateManagedTag(ctx, dbgen.UpdateManagedTagParams{ID: uuid, Name: strings.TrimSpace(input.Name), Description: strings.TrimSpace(input.Description), IsEnabled: input.Enabled}); err != nil {
 			return err
 		}
 		if !input.Enabled {
 			if _, err = tx.Exec(ctx, `UPDATE directory.tag_cascades SET is_enabled=false WHERE level1_tag_id=$1 OR level2_tag_id=$1`, uuid); err != nil {
 				return err
 			}
-		}
-		if err := invalidateSlugPreviews(ctx, tx, []string{id}); err != nil {
-			return err
 		}
 		fresh, err := readGraph(ctx, tx)
 		result = fresh.Catalog
@@ -145,24 +134,7 @@ func (s *Service) Delete(ctx context.Context, id string, input DeleteInput) (Cat
 func invalid(code string) error {
 	return apperror.New(apperror.KindValidation, code, "the requested taxonomy change is invalid")
 }
-func checkSlug(ctx context.Context, q *dbgen.Queries, slug, id string) error {
-	rows, err := q.TaxonomySlugOwner(ctx, slug)
-	if err != nil {
-		return err
-	}
-	for _, owner := range rows {
-		if idText(owner) != id {
-			return apperror.New(apperror.KindConflict, "slug_conflict", "the slug is already reserved")
-		}
-	}
-	return nil
-}
-
-func matchesLabel(t Tag, name string) bool {
-	for _, l := range t.Labels {
-		if strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(l.Name)) {
-			return true
-		}
-	}
-	return strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(t.Name))
+func matchesName(t Tag, name string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	return normalized == strings.ToLower(t.Name)
 }

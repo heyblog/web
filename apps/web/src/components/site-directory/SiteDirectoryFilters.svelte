@@ -18,18 +18,8 @@
   type Props = {
     readonly options: SiteDirectoryOptions;
     readonly query: SiteDirectoryQuery;
-    readonly onToggle: (
-      name: SiteDirectoryFilterName,
-      value: string,
-      selected: boolean,
-      labelID?: string,
-    ) => void;
-    readonly onClassificationChange: (
-      level1: string,
-      level2: string,
-      level1LabelID?: string,
-      level2LabelID?: string,
-    ) => void;
+    readonly onToggle: (name: SiteDirectoryFilterName, value: string, selected: boolean) => void;
+    readonly onClassificationChange: (level1: string, level2: string) => void;
     readonly onFeedChange: (feed: SiteDirectoryFeed) => void;
   };
 
@@ -43,9 +33,7 @@
   let tertiarySearch = $state('');
   const selectedClassification = $derived(
     options.classifications.find(
-      (option) =>
-        option ===
-        selectedDirectoryOption(options.classifications, query.level1, query.level1_label_id),
+      (option) => option === selectedDirectoryOption(options.classifications, query.level1),
     ),
   );
   const tertiaryOptions = $derived(matchingDirectoryOptions(options.tertiaryTags, tertiarySearch));
@@ -64,34 +52,15 @@
   selected: readonly string[],
 )}
   <div class="grid max-h-56 min-w-0 auto-rows-max gap-1 overflow-y-auto">
-    {#each choices as option (option.label_id ?? option.value)}
+    {#each choices as option (option.value)}
       <label class={optionClass}>
         <input
           class={inputClass}
           type="checkbox"
-          checked={name === 'tertiary'
-            ? directoryOptionSelected(
-                options.tertiaryTags,
-                option,
-                selected,
-                query.tertiary_label_ids,
-              )
-            : selected.includes(option.value)}
-          disabled={name === 'tertiary' &&
-            selected.includes(option.value) &&
-            !directoryOptionSelected(
-              options.tertiaryTags,
-              option,
-              selected,
-              query.tertiary_label_ids,
-            )}
-          onchange={(event) =>
-            onToggle(name, option.value, event.currentTarget.checked, option.label_id)}
+          checked={directoryOptionSelected(choices, option, selected)}
+          onchange={(event) => onToggle(name, option.value, event.currentTarget.checked)}
         />
         <span class="min-w-0 flex-1 wrap-anywhere">{option.label}</span>
-        {#if name === 'tertiary' && selected.includes(option.value) && !directoryOptionSelected(options.tertiaryTags, option, selected, query.tertiary_label_ids)}<span
-            class="text-xs text-fg-muted">已选择同义名称</span
-          >{/if}
         <span class="shrink-0 font-mono text-xs text-fg-muted">{optionCount(option)}</span>
       </label>
     {:else}
@@ -114,29 +83,17 @@
       />
       <span>不限</span>
     </label>
-    {#each choices as option (option.label_id ?? option.value)}
+    {#each choices as option (option.value)}
       <label class={optionClass}>
         <input
           class={inputClass}
           type="radio"
           name={`${id}-${level}`}
-          checked={selectedDirectoryOption(
-            choices,
-            query[level],
-            level === 'level1' ? query.level1_label_id : query.level2_label_id,
-          ) === option}
-          disabled={query[level] === option.value &&
-            selectedDirectoryOption(
-              choices,
-              query[level],
-              level === 'level1' ? query.level1_label_id : query.level2_label_id,
-            ) !== option}
+          checked={selectedDirectoryOption(choices, query[level]) === option}
           onchange={() =>
             onClassificationChange(
               level === 'level1' ? option.value : query.level1,
               level === 'level2' ? option.value : '',
-              level === 'level1' ? option.label_id : query.level1_label_id,
-              level === 'level2' ? option.label_id : '',
             )}
         />
         <span class="min-w-0 flex-1 wrap-anywhere">{option.label}</span>

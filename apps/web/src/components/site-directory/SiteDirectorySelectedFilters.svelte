@@ -35,9 +35,11 @@
   ]);
   const labels = $derived(
     new Map([
-      ...options.warnings.map((option) => [`warning:${option.value}`, option.label] as const),
+      ...options.warnings.map(
+        (option) => [`warning:${option.value.toLowerCase()}`, option.label] as const,
+      ),
       ...options.technologies.map(
-        (option) => [`technology:${option.value}`, option.label] as const,
+        (option) => [`technology:${option.value.toLowerCase()}`, option.label] as const,
       ),
     ]),
   );
@@ -49,8 +51,7 @@
         name: 'classification',
         value: 'level1',
         label:
-          selectedDirectoryOption(options.classifications, query.level1, query.level1_label_id)
-            ?.label ?? query.level1,
+          selectedDirectoryOption(options.classifications, query.level1)?.label ?? query.level1,
       });
     }
     if (query.level2) {
@@ -61,10 +62,9 @@
         label:
           selectedDirectoryOption(
             options.classifications
-              .filter((option) => option.value === query.level1)
+              .filter((option) => option.value.toLowerCase() === query.level1.toLowerCase())
               .flatMap((option) => option.children),
             query.level2,
-            query.level2_label_id,
           )?.label ?? query.level2,
       });
     }
@@ -86,15 +86,10 @@
               : name === 'tertiary'
                 ? (options.tertiaryTags.find(
                     (option) =>
-                      option.value === value &&
-                      directoryOptionSelected(
-                        options.tertiaryTags,
-                        option,
-                        query.tertiary,
-                        query.tertiary_label_ids,
-                      ),
+                      option.value.toLowerCase() === value.toLowerCase() &&
+                      directoryOptionSelected(options.tertiaryTags, option, query.tertiary),
                   )?.label ?? value)
-                : (labels.get(`${name}:${value}`) ?? value),
+                : (labels.get(`${name}:${value.toLowerCase()}`) ?? value),
         });
       }
     }

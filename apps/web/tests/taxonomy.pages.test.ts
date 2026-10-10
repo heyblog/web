@@ -34,10 +34,9 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
           tags: [
             {
               id: tagID,
-              default_label_id: tagID,
-              labels: [{ id: tagID, tag_id: tagID, name: '中文标签', is_enabled: true }],
+
               name: '中文标签',
-              slug: 'chinese-tag',
+
               description: '',
               roles: ['TERTIARY'],
               is_enabled: true,
@@ -48,10 +47,6 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
           cascades: [],
           revision: 'a'.repeat(64),
         }),
-      );
-    else if (request.url === '/management/system-settings')
-      response.end(
-        JSON.stringify({ model_id: 'deepseek/deepseek-flash', revision: '0', configured: false }),
       );
     else {
       response.statusCode = 404;
@@ -88,12 +83,8 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
     const html = await tags.text();
     assert.match(html, /中文标签/u);
     assert.match(html, /新建标签/u);
-    assert.match(html, /chinese-tag/u);
+    assert.doesNotMatch(html, /slug|system-settings/u);
     assert.doesNotMatch(html, /test-web-service-token|tokenhub\.tencentmaas|API_TOKENHUB_API_KEY/u);
-    const settings = await get('/management/system-settings');
-    assert.equal(settings.status, 200);
-    assert.equal(settings.headers.get('Cache-Control'), 'private, no-store');
-    assert.match(await settings.text(), /DeepSeek-V4\.1-Flash/u);
     assert.equal(
       (await get('/management/tags', false)).headers.get('Location'),
       '/login?next=%2Fmanagement%2Ftags',
@@ -102,7 +93,6 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
     assert.equal((await get('/management/tags')).headers.get('Location'), '/forbidden');
     permissions = ['taxonomy.manage'];
     assert.equal((await get('/management/tags')).status, 200);
-    assert.equal((await get('/management/system-settings')).headers.get('Location'), '/forbidden');
   } finally {
     await server?.stop();
     if (api.listening)

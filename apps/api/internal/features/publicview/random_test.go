@@ -24,7 +24,7 @@ func TestRandomSiteMapsSelectedCardIncludingWarnings(t *testing.T) {
 			return row, nil
 		},
 		batchTags: []dbgen.ListPublicSiteTagsBySiteIDsRow{
-			{SiteID: row.ID, Role: "WARNING", Name: "访问提示", Slug: "access-notice"},
+			{SiteID: row.ID, Role: "WARNING", Name: "访问提示"},
 		},
 	})
 

@@ -32,44 +32,6 @@ test('maps URL purpose conflicts to actionable form guidance', async () => {
   );
 });
 
-test('gives recovery guidance for review slug collisions and unavailable names', async () => {
-  for (const [code, expected] of [
-    [
-      'slug_needs_confirmation',
-      '新标签的 slug 与已有标签冲突。相同含义请在标签管理中添加同义名称或合并标签；不同含义请填写独立 slug 后重新审核。',
-    ],
-    ['invalid_tag_label', '所选标签名称已不可用，请刷新后重新选择。'],
-  ]) {
-    assert.equal(
-      await problemDetail(
-        Response.json({ code, detail: 'internal database failure' }, { status: 409 }),
-      ),
-      expected,
-    );
-  }
-});
-
-test('shows validated review collision candidates without raw diagnostics', async () => {
-  const message = await problemDetail(
-    Response.json(
-      {
-        code: 'slug_needs_confirmation',
-        detail: 'internal host failure',
-        invalid_params: [
-          { name: 'tags.算法 algorithm.slug', reason: 'algorithm' },
-          { name: 'conflicts.019f033c-2111-7000-9000-000000000001', reason: '算法 (algorithm)' },
-          { name: 'database', reason: 'internal host failure' },
-          { name: 'tags.invalid.slug', reason: 'invalid candidate!' },
-        ],
-      },
-      { status: 409 },
-    ),
-  );
-  assert.match(message, /候选 slug：algorithm/);
-  assert.match(message, /冲突标签：算法 \(algorithm\)/);
-  assert.doesNotMatch(message, /internal|invalid candidate/);
-});
-
 test('routes every audit action to its dedicated same-origin endpoint', () => {
   assert.equal(submissionEndpoint('CREATE', ''), '/api/site-submissions/create');
   assert.equal(

@@ -71,7 +71,7 @@ func loadProfile(
 		profile.IconHash = &encoded
 	}
 	for _, tag := range tags {
-		topic := Topic{Name: tag.Name, Slug: tag.Slug, Description: tag.Description}
+		topic := Topic{Name: tag.Name, Description: tag.Description}
 		switch tag.Role {
 		case "PRIMARY":
 			if profile.Classification == nil {
@@ -87,7 +87,7 @@ func loadProfile(
 			profile.TertiaryTags = append(profile.TertiaryTags, topic)
 		case "WARNING":
 			profile.Warnings = append(profile.Warnings, Warning{
-				Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
+				Name: tag.Name, Description: tag.Description,
 			})
 		default:
 			return SiteProfile{}, internalError(errors.New("tag has unsupported role"), "map public site tags")

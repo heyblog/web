@@ -37,3 +37,19 @@ func baseRevisionPointer(action Action, snapshot Snapshot) *int64 {
 	value := snapshot.Revision
 	return &value
 }
+
+// Old selected-name identifiers are read only from persisted snapshots. New
+// request and response contracts never contain label identifiers or slugs.
+func (tag *TagSnapshot) UnmarshalJSON(data []byte) error {
+	type current TagSnapshot
+	var stored struct {
+		current
+		LabelID string `json:"label_id"`
+	}
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return err
+	}
+	*tag = TagSnapshot(stored.current)
+	tag.historicalLabelID = stored.LabelID
+	return nil
+}

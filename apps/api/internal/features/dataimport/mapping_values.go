@@ -12,7 +12,6 @@ import (
 
 var (
 	uuidV7Pattern  = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	slugPattern    = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	shortIDPattern = regexp.MustCompile(`^[0-9A-Za-z]{9}$`)
 )
 
@@ -66,15 +65,8 @@ func addTag(plan *Plan, tags map[string]TagRow, siteID string, legacy LegacyTag,
 		return fmt.Errorf("tag name is empty")
 	}
 	normalizedName := strings.ToLower(name)
-	slug := "legacy-" + strings.ToLower(legacy.ID)
-	if legacy.MachineKey != nil {
-		candidate := strings.ToLower(strings.TrimSpace(*legacy.MachineKey))
-		if slugPattern.MatchString(candidate) {
-			slug = candidate
-		}
-	}
 	description := valueOrEmpty(legacy.Description)
-	row := TagRow{ID: legacy.ID, Name: name, NormalizedName: normalizedName, Slug: slug, Description: description, IsEnabled: legacy.IsEnabled}
+	row := TagRow{ID: legacy.ID, Name: name, NormalizedName: normalizedName, Description: description, IsEnabled: legacy.IsEnabled}
 	if existing, exists := tags[legacy.ID]; exists && existing != row {
 		return fmt.Errorf("tag %s has inconsistent definitions", legacy.ID)
 	}

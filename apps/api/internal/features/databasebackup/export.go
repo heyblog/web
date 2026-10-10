@@ -70,7 +70,7 @@ func (service *Service) Export(ctx context.Context) (_ *os.File, resultErr error
 	buffer := bufio.NewWriter(file)
 	writer := &jsonWriter{writer: buffer}
 	writer.write("{\n\"metadata\":")
-	writer.value(Header{Format: Format, Version: 1, SchemaVersion: 2, GeneratedAt: time.Now().UTC(), SourceRevision: buildRevision(), ExcludedSystemAdminID: admin})
+	writer.value(Header{Format: Format, Version: 1, SchemaVersion: 3, GeneratedAt: time.Now().UTC(), SourceRevision: buildRevision(), ExcludedSystemAdminID: admin})
 	writer.write(",\n\"tables\":{")
 	manifest := make([]Manifest, 0, len(tableNames)+2)
 	for index, name := range tableNames {

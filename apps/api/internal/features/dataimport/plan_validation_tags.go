@@ -9,7 +9,6 @@ import (
 func validatePlanTags(plan Plan, siteIDs map[string]SiteRow) error {
 	tagIDs := make(map[string]struct{}, len(plan.Tags))
 	tagNames := make(map[string]struct{}, len(plan.Tags))
-	tagSlugs := make(map[string]struct{}, len(plan.Tags))
 	for _, row := range plan.Tags {
 		if _, exists := tagIDs[row.ID]; exists {
 			return fmt.Errorf("duplicate tag id %q", row.ID)
@@ -17,15 +16,11 @@ func validatePlanTags(plan Plan, siteIDs map[string]SiteRow) error {
 		if _, exists := tagNames[row.NormalizedName]; exists {
 			return fmt.Errorf("duplicate normalized tag name %q", row.NormalizedName)
 		}
-		if _, exists := tagSlugs[row.Slug]; exists {
-			return fmt.Errorf("duplicate tag slug %q", row.Slug)
-		}
-		if strings.TrimSpace(row.Name) == "" || row.NormalizedName == "" || !slugPattern.MatchString(row.Slug) {
+		if strings.TrimSpace(row.Name) == "" || row.NormalizedName == "" {
 			return fmt.Errorf("tag %q contains invalid identity data", row.ID)
 		}
 		tagIDs[row.ID] = struct{}{}
 		tagNames[row.NormalizedName] = struct{}{}
-		tagSlugs[row.Slug] = struct{}{}
 	}
 	siteTagKeys := make(map[string]struct{}, len(plan.SiteTags))
 	positions := make(map[string]map[int16]struct{})

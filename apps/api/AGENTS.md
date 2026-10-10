@@ -22,7 +22,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
 - `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `announcement`, `siteaudit`,
-  `dataimport`, `databasebackup`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, `sluggeneration`, and `exampleapi`. Preserve their feature boundaries and colocated
+  `dataimport`, `databasebackup`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, and `exampleapi`. Preserve their feature boundaries and colocated
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
   `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
@@ -42,7 +42,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   Check audit status and draft revision before decoding locked snapshots; notify only after commit.
 - `apps/api/internal/domain` owns framework-independent domain values and invariants.
 - `apps/api/internal/infrastructure` groups external-resource implementations: `database`, `cache`,
-  `mail`, `tokenhub`, and `siteicon`. `database` owns migrations, sqlc sources/generated queries, and pool access.
+  `mail` and `siteicon`. `database` owns migrations, sqlc sources/generated queries, and pool access.
 - `apps/api/internal/integration` owns cross-feature tests with real isolated infrastructure.
 - `features`, `platform`, and `infrastructure` are directory namespaces, not aggregate Go packages.
   Bootstrap composes their concrete implementations; domain code stays independent of them.
@@ -101,7 +101,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   use site-review authorization, with self-review forbidden. Never persist raw verification tokens,
   fetch private network addresses, or expose another submitter's contact through a shared target.
 - Random reads select VISIBLE sites, including warned sites, using confirmed classification
-  names and synonyms rather than slugs. Validate before selection, retain a normal null result when no candidate
+  names with case-insensitive matching. Validate before selection, retain a normal null result when no candidate
   exists, and keep preview Web-only. Preserve operation-specific errors/cache policy rather than
   mapping every database failure to unavailable; see
   `apps/api/internal/features/publicview/errors.go` and
@@ -117,30 +117,15 @@ and focused tests referenced below, not additional package-level AGENTS files.
 
 ## Configuration and External Services
 
-- `features/taxonomy` owns semantic tag concepts with globally unique confirmed names in
-  `directory.tag_labels`, one enabled default name per concept, and chosen label IDs on object
-  assignments. `directory.tag_dictionary` projects default names and atomically writes concept
-  creation/default renames through a migration-owned view trigger. Admin label changes use taxonomy
-  permission and revision checks; referenced or default names cannot be physically deleted. It owns shared SITE/ARTICLE path changes,
-  preview fingerprints, and historical ID/system-key/slug aliases. Roles belong to paths and object
-  associations; a path may use the same tag in both roles. Audit, import, and management writes share
-  the taxonomy transaction advisory lock. Existing disabled references remain readable. Migration 19
-  is forward-only: restore a pre-upgrade backup to undo dictionary consolidation.
-- `features/sluggeneration` owns authorized slug generation and global model settings. Only SYS_ADMIN
-  changes the model. `infrastructure/tokenhub` uses the official OpenAI Go SDK's Chat Completions with
-  retries and thinking disabled; provider URLs and policy come from `config/default.yaml#ai`.
-  `API_TOKENHUB_API_KEY` is an optional API-only environment secret. Never persist it or expose it to Web.
-  Redis enforces request limits, paid daily budgets, concurrency, and generation deduplication; failures
-  fail closed. Test with injected clients or isolated infrastructure, never live provider credentials.
-  Durable batch previews live in `directory.slug_generation_jobs`; bootstrap owns the worker and
-  stops it before closing shared pools. Workers recheck actor permissions and persist dispatch
-  state before provider I/O. Rate/concurrency waits resume automatically; daily-budget pauses require
-  an explicit resume. YAML `ai.batch` bounds request size, task size, and output tokens. Audit
-  preparation generates at most twenty new tag slugs in two provider calls outside transactions,
-  with a 35s total deadline and final revision/canonical checks inside the write transaction.
-  Migration 21 retains the main-branch site metrics schema; label migration 22 follows it.
-  Migrations 19, 20, and 22 refuse destructive downgrade; restore a pre-upgrade backup for production
-  rollback. Legacy migrations retain isolated rollback coverage.
+- `features/taxonomy` owns tags with one display name per identifier. `directory.tags` enforces
+  globally unique `lower(btrim(name))` values; casing is retained for display. Different names
+  remain independent tags. Roles belong to paths and object associations; a path may use the same
+  tag in both roles. Audit, import, and management writes share the taxonomy transaction advisory
+  lock. Existing disabled references remain readable. Migration 28 splits former labels into
+  independent tags, preserves selected names on assignments, and retains typed TAG/LABEL aliases
+  for immutable historical snapshots. New requests and responses use tag IDs and names only.
+  Tag slug generation, AI configuration, and synonym management are removed. Migration 28 is
+  forward-only; restore a pre-upgrade backup with the corresponding older application for rollback.
 
 - `apps/api/internal/platform/config` alone discovers YAML/environment inputs and exports typed runtime
   configuration. Inject it into other packages. Secrets and service bindings stay in environment
@@ -165,9 +150,9 @@ and focused tests referenced below, not additional package-level AGENTS files.
   `/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
   and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
   these routes. Private temporary files are streamed and removed after each request.
-- Backup protocol version 1, schema version 2 covers all 38 identity/directory/content tables and complete AGE
-  logical vertices and edges. SQL migration 26 freezes the schema inventory; schema evolution
-  requires an explicit backup compatibility change. Binary columns use Base64 and bigint columns
+- Backup protocol version 1, schema version 3 covers all 33 identity/directory/content tables and complete AGE
+  logical vertices and edges. SQL migration 28 updates the frozen schema inventory; schema evolution
+  requires an explicit backup compatibility change. Only schema-version-3 backups are accepted. Binary columns use Base64 and bigint columns
   use decimal strings. Never decode row JSON through floating-point numbers.
 - Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
   and maps structured actor references to the retained target administrator. It accepts only

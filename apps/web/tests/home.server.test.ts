@@ -76,12 +76,12 @@ test('home rejects the retired single-announcement shape and unsafe carousel act
 
 test('orders blog card tags by warning, classification, and tertiary tags', () => {
   const tags = createBlogCardTags({
-    warnings: [{ name: '访问较慢', slug: 'slow-access', description: '部分网络访问较慢。' }],
+    warnings: [{ name: '访问较慢', description: '部分网络访问较慢。' }],
     classification: {
-      level1: { name: '技术', slug: 'technology' },
-      level2: { name: '写作', slug: 'writing' },
+      level1: { name: '技术' },
+      level2: { name: '写作' },
     },
-    tertiaryTags: [{ name: '开源', slug: 'open-source' }],
+    tertiaryTags: [{ name: '开源' }],
   });
 
   assert.deepEqual(
@@ -96,9 +96,9 @@ test('orders blog card tags by warning, classification, and tertiary tags', () =
 
 test('uses the uncategorized tag after warnings when classification is absent', () => {
   const tags = createBlogCardTags({
-    warnings: [{ name: '仅英文', slug: 'english-only', description: '' }],
+    warnings: [{ name: '仅英文', description: '' }],
     classification: null,
-    tertiaryTags: [{ name: '随笔', slug: 'essay' }],
+    tertiaryTags: [{ name: '随笔' }],
   });
 
   assert.deepEqual(

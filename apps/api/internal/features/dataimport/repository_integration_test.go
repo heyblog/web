@@ -209,7 +209,7 @@ func bootstrapImportTestRoles(ctx context.Context, t *testing.T, connection *pgx
 		ALTER ROLE migrator SET session_preload_libraries = 'age';
 		ALTER ROLE api_runtime SET session_preload_libraries = 'age';
 		REVOKE ALL ON DATABASE heyblog FROM PUBLIC;
-		GRANT CONNECT, CREATE ON DATABASE heyblog TO migrator;
+		GRANT CONNECT, CREATE, TEMPORARY ON DATABASE heyblog TO migrator;
 		GRANT CONNECT ON DATABASE heyblog TO api_runtime;
 		GRANT USAGE ON SCHEMA ag_catalog TO migrator;
 		CREATE SCHEMA migration AUTHORIZATION migrator;

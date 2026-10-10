@@ -80,13 +80,13 @@ export function createBlogCardTags(
 ): BlogCardTag[] {
   return [
     ...site.warnings.map((warning) => ({
-      key: `warning:${warning.slug}`,
+      key: `warning:${warning.name}`,
       label: warning.name,
       tone: 'warning' as const,
     })),
     site.classification
       ? {
-          key: `classification:${site.classification.level1.slug}:${site.classification.level2.slug}`,
+          key: `classification:${site.classification.level1.name}:${site.classification.level2.name}`,
           label: `${site.classification.level1.name} - ${site.classification.level2.name}`,
           tone: 'primary' as const,
         }
@@ -96,7 +96,7 @@ export function createBlogCardTags(
           tone: 'secondary' as const,
         },
     ...site.tertiaryTags.map((topic) => ({
-      key: `tertiary:${topic.slug}`,
+      key: `tertiary:${topic.name}`,
       label: topic.name,
       tone: 'secondary' as const,
     })),

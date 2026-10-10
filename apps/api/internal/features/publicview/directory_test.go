@@ -41,8 +41,8 @@ func TestDirectoryClampsPageAndBuildsCurrentSiteCards(t *testing.T) {
 			return []dbgen.DirectorySite{row}, nil
 		},
 		batchTags: []dbgen.ListPublicSiteTagsBySiteIDsRow{
-			{SiteID: row.ID, Role: "PRIMARY", Name: "技术", Slug: "technology"},
-			{SiteID: row.ID, Role: "WARNING", Name: "访问较慢", Slug: "slow-access"},
+			{SiteID: row.ID, Role: "PRIMARY", Name: "技术"},
+			{SiteID: row.ID, Role: "WARNING", Name: "访问较慢"},
 		},
 		batchFeeds: []dbgen.DirectorySiteFeed{{
 			SiteID: row.ID, Name: "默认订阅", LocationType: "RELATIVE", UrlRef: &feedRef,
@@ -74,12 +74,12 @@ func TestDirectoryOptionsSeparateTagRolesAndTechnologies(t *testing.T) {
 
 	service := newTestService(queryStub{
 		directoryCascades: []dbgen.ListPublicSiteTagCascadesRow{{
-			Level1Name: "技术", Level1Slug: "technology", Level2Name: "写作", Level2Slug: "writing",
+			Level1Name: "技术", Level2Name: "写作",
 		}},
 		directoryTags: []dbgen.ListDirectoryTagOptionsRow{
-			{Name: "技术", Slug: "technology", Role: "PRIMARY", NormalCount: 8, AbnormalCount: 1},
-			{Name: "写作", Slug: "writing", Role: "SECONDARY", NormalCount: 5},
-			{Name: "访问较慢", Slug: "slow-access", Role: "WARNING", NormalCount: 2},
+			{Name: "技术", Role: "PRIMARY", NormalCount: 8, AbnormalCount: 1},
+			{Name: "写作", Role: "SECONDARY", NormalCount: 5},
+			{Name: "访问较慢", Role: "WARNING", NormalCount: 2},
 		},
 		directoryTechnologies: []dbgen.ListDirectoryTechnologyOptionsRow{{
 			Name: "Astro", NormalizedName: "astro", NormalCount: 3, AbnormalCount: 1,

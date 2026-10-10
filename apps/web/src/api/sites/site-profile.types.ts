@@ -2,7 +2,6 @@ import { type SiteCardBase } from './site-card.types.ts';
 
 export interface SiteTopic {
   name: string;
-  slug: string;
   description: string;
 }
 
@@ -13,7 +12,6 @@ export interface SiteClassification {
 
 export interface SiteWarning {
   name: string;
-  slug: string;
   description: string;
 }
 

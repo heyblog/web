@@ -80,42 +80,26 @@ test('auth API gives the GitHub callback a longer timeout', async () => {
     await requestAuthAPI(new Request('https://web.example.test/auth/login'), '/auth/login');
     assert.equal(requestedTimeout, 10_000);
 
-    await requestAuthAPI(
-      new Request('https://web.example.test/management/tags/slug-generation'),
-      '/management/taxonomy/slug-generation',
-    );
-    assert.equal(requestedTimeout, 20_000);
     for (const action of ['review', 'review-draft']) {
       await requestAuthAPI(
         new Request(`https://web.example.test/management/site-audits/audit/${action}`),
         `/management/site-audits/audit/${action}`,
         { method: 'POST', body: {} },
       );
-      assert.equal(requestedTimeout, 40_000);
+      assert.equal(requestedTimeout, 10_000);
     }
-    await requestAuthAPI(
-      new Request('https://web.example.test/management/system-settings/models'),
-      '/management/system-settings/models',
-    );
-    assert.equal(requestedTimeout, 20_000);
-    await requestAuthAPI(
-      new Request('https://web.example.test/management/system-settings/data'),
-      '/management/system-settings',
-      { method: 'PUT', body: { model_id: 'deepseek/deepseek-flash', expected_revision: '1' } },
-    );
-    assert.equal(requestedTimeout, 20_000);
   } finally {
     globalThis.fetch = originalFetch;
     AbortSignal.timeout = originalTimeout;
   }
 });
 
-test('auth transport forwards generation throttling headers without exposing upstream diagnostics', async () => {
+test('auth transport forwards management throttling headers without exposing upstream diagnostics', async () => {
   Object.assign(process.env, authEnvironment);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     Response.json(
-      { code: 'slug_rate_limited' },
+      { code: 'rate_limited' },
       {
         status: 429,
         headers: {
@@ -127,8 +111,8 @@ test('auth transport forwards generation throttling headers without exposing ups
     );
   try {
     const response = await requestAuthAPI(
-      new Request('https://web.example.test/management/tags/slug-generation'),
-      '/management/taxonomy/slug-generation',
+      new Request('https://web.example.test/management/tags/data'),
+      '/management/taxonomy/tags',
     );
     assert.equal(response.status, 429);
     assert.equal(response.headers.get('Retry-After'), '60');

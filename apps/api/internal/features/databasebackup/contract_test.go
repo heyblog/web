@@ -23,7 +23,7 @@ func fixtureDocument(t *testing.T) []byte {
 	for _, name := range []string{"graph.vertices", "graph.edges"} {
 		manifest = append(manifest, Manifest{Dataset: Dataset{Name: name}, SHA256: hex.EncodeToString(empty[:])})
 	}
-	data, err := json.Marshal(map[string]any{"metadata": Header{Format: Format, Version: 1, SchemaVersion: 2, GeneratedAt: time.Now(), ExcludedSystemAdminID: "00000000-0000-0000-0000-000000000001"}, "tables": tables, "graph": map[string]any{"vertices": []any{}, "edges": []any{}}, "manifest": manifest})
+	data, err := json.Marshal(map[string]any{"metadata": Header{Format: Format, Version: 1, SchemaVersion: 3, GeneratedAt: time.Now(), ExcludedSystemAdminID: "00000000-0000-0000-0000-000000000001"}, "tables": tables, "graph": map[string]any{"vertices": []any{}, "edges": []any{}}, "manifest": manifest})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,8 @@ func TestDocumentRejectsMissingUnknownAndTamperedDatasets(t *testing.T) {
 		{"missing", ",\"identity.users\":[]", ""},
 		{"unknown", "\"identity.users\":[]", "\"identity.unknown\":[]"},
 		{"tampered", "\"identity.users\":[]", "\"identity.users\":[{\"id\":\"changed\"}]"},
-		{"version", "\"schema_version\":2", "\"schema_version\":1"},
+		{"version", "\"schema_version\":3", "\"schema_version\":1"},
+		{"prior schema", "\"schema_version\":3", "\"schema_version\":2"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			data := strings.Replace(string(valid), test.replace, test.with, 1)

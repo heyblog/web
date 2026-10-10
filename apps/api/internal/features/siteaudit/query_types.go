@@ -44,14 +44,11 @@ type SubmissionOptions struct {
 }
 
 type Option struct {
-	LabelID  string   `json:"label_id"`
-	Slug     string   `json:"slug"`
-	Synonyms []string `json:"synonyms"`
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Level    int      `json:"level,omitempty"`
-	ParentID string   `json:"parent_id,omitempty"`
-	IsCustom bool     `json:"is_custom,omitempty"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Level    int    `json:"level,omitempty"`
+	ParentID string `json:"parent_id,omitempty"`
+	IsCustom bool   `json:"is_custom,omitempty"`
 }
 
 type CascadeOption struct {

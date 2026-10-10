@@ -59,9 +59,8 @@ func insertProfiles(ctx context.Context, queries *dbgen.Queries, plan Plan) erro
 
 func insertClassification(ctx context.Context, queries *dbgen.Queries, plan Plan) error {
 	for _, row := range plan.Tags {
-		if err := queries.InsertTag(ctx, dbgen.InsertTagParams{
-			ID: mustUUID(row.ID), Name: row.Name, NormalizedName: row.NormalizedName,
-			Slug: row.Slug, Description: row.Description, IsEnabled: row.IsEnabled,
+		if err := queries.InsertImportedTag(ctx, dbgen.InsertImportedTagParams{
+			ID: mustUUID(row.ID), Name: row.Name, Description: row.Description, IsEnabled: row.IsEnabled,
 		}); err != nil {
 			return fmt.Errorf("insert tags: %w", err)
 		}

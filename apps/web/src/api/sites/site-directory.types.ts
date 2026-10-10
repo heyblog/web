@@ -11,9 +11,6 @@ export type SiteDirectoryQuery = {
   readonly page: number;
   readonly q: string;
   readonly level1: string;
-  readonly level1_label_id?: string;
-  readonly level2_label_id?: string;
-  readonly tertiary_label_ids?: readonly string[];
   readonly level2: string;
   readonly tertiary: readonly string[];
   readonly warning: readonly string[];
@@ -42,8 +39,6 @@ export type SiteDirectoryView = {
 
 export type SiteDirectoryOption = {
   readonly id?: string;
-  readonly label_id?: string;
-  readonly synonyms?: readonly string[];
   readonly value: string;
   readonly label: string;
   readonly normalCount: number;

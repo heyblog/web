@@ -10,9 +10,6 @@ export type FeedFormat = (typeof feedFormats)[number];
 export interface Option {
   readonly id: string;
   readonly name: string;
-  readonly label_id?: string;
-  readonly slug?: string;
-  readonly synonyms?: readonly string[];
   readonly level?: 1 | 2 | 3;
   readonly parent_id?: string | null;
   readonly role?: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'WARNING';
@@ -46,9 +43,7 @@ export interface ResourceInput {
 }
 export interface TagInput {
   readonly id: string;
-  readonly label_id?: string;
   readonly suggested_name: string;
-  readonly slug: string;
   readonly description: string;
   readonly role: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
   readonly level?: 1 | 2 | 3;

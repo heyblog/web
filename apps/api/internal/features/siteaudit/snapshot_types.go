@@ -14,15 +14,15 @@ type ResourceSnapshot struct {
 }
 
 type TagSnapshot struct {
-	LabelID       string `json:"label_id,omitempty"`
-	ID            string `json:"id,omitempty"`
-	Name          string `json:"name,omitempty"`
-	SuggestedName string `json:"suggested_name,omitempty"`
-	Slug          string `json:"slug,omitempty"`
-	Description   string `json:"description,omitempty"`
-	Role          string `json:"role"`
-	Level         int    `json:"level,omitempty"`
-	ParentID      string `json:"parent_id,omitempty"`
+	historicalLabelID string
+	unresolved        bool
+	ID                string `json:"id,omitempty"`
+	Name              string `json:"name,omitempty"`
+	SuggestedName     string `json:"suggested_name,omitempty"`
+	Description       string `json:"description,omitempty"`
+	Role              string `json:"role"`
+	Level             int    `json:"level,omitempty"`
+	ParentID          string `json:"parent_id,omitempty"`
 }
 
 type CascadeSnapshot struct {

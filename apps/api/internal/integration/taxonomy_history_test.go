@@ -23,7 +23,7 @@ func verifyTaxonomyAuditReferences(ctx context.Context, t *testing.T, f auditMig
 	// Renaming an existing classifier must never rewrite submission JSON.
 	for _, tag := range catalog.Tags {
 		if slices.Contains(tag.Roles, "PRIMARY") && tag.Enabled {
-			_, err = service.Update(ctx, tag.ID, taxonomy.UpdateInput{Name: tag.Name + " renamed", Slug: tag.Slug, Enabled: true, ExpectedRevision: catalog.Revision})
+			_, err = service.Update(ctx, tag.ID, taxonomy.UpdateInput{Name: tag.Name + " renamed", Enabled: true, ExpectedRevision: catalog.Revision})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -84,7 +84,7 @@ func attachSiteCardTags(
 		if !exists {
 			return internalError(errors.New("tag references an unexpected site"), "map site card tags")
 		}
-		topic := HomeSiteTopic{Name: tag.Name, Slug: tag.Slug}
+		topic := HomeSiteTopic{Name: tag.Name}
 		switch tag.Role {
 		case "PRIMARY":
 			if batch.cards[index].Classification == nil {
@@ -100,7 +100,7 @@ func attachSiteCardTags(
 			batch.cards[index].TertiaryTags = append(batch.cards[index].TertiaryTags, topic)
 		case "WARNING":
 			batch.cards[index].Warnings = append(batch.cards[index].Warnings, Warning{
-				Name: tag.Name, Slug: tag.Slug, Description: tag.Description,
+				Name: tag.Name, Description: tag.Description,
 			})
 		default:
 			return internalError(errors.New("tag has unsupported role"), "map site card tags")

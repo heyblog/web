@@ -68,7 +68,7 @@ test('strictly parses names and separates preview from selection parameters', ()
     'preview=',
     'recommend=true',
     'level1=技%00术',
-    `level1=${'长'.repeat(101)}`,
+    `level1=${'长'.repeat(121)}`,
   ]) {
     assert.equal(parseSiteGoQuery(new URLSearchParams(search)).kind, 'invalid', search);
   }
@@ -90,11 +90,11 @@ test('strictly parses names and separates preview from selection parameters', ()
 const loadConfig = () => ({ apiBaseUrl: 'http://api.internal:10201', apiWebToken: 'test-token' });
 const classifications = [
   {
-    value: 'tech',
+    value: '技术',
     label: '技术',
     normalCount: 1,
     abnormalCount: 0,
-    children: [{ value: 'writing', label: '写作', normalCount: 1, abnormalCount: 0 }],
+    children: [{ value: '写作', label: '写作', normalCount: 1, abnormalCount: 0 }],
   },
 ];
 
@@ -189,4 +189,41 @@ test('optional metadata failure does not discard normal selections; outages rema
   });
   assert.equal(page.status, 503);
   assert.doesNotMatch(page.message, /private/u);
+});
+
+test('random filters preserve 120 Unicode characters and match names case-insensitively', async () => {
+  const name = '文'.repeat(120);
+  assert.equal(parseSiteGoQuery(new URLSearchParams({ level1: name })).kind, 'valid');
+  const page = await loadSiteGoPage(
+    new URL('https://www.heyblog.net/site/go?level1=javascript&level2=中文+%2B+标签&preview=true'),
+    undefined,
+    {
+      loadConfig,
+      fetch: async (input) =>
+        Response.json(
+          new URL(String(input)).pathname === '/sites/options'
+            ? {
+                classifications: [
+                  {
+                    value: 'JavaScript',
+                    label: 'JavaScript',
+                    normalCount: 1,
+                    abnormalCount: 0,
+                    children: [
+                      {
+                        value: '中文 + 标签',
+                        label: '中文 + 标签',
+                        normalCount: 1,
+                        abnormalCount: 0,
+                      },
+                    ],
+                  },
+                ],
+              }
+            : { site: null },
+        ),
+    },
+  );
+  assert.equal(page.level1, 'JavaScript');
+  assert.equal(page.level2, '中文 + 标签');
 });

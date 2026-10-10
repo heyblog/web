@@ -3,13 +3,13 @@ import test from 'node:test';
 
 import type { requestAuthAPI } from '../src/api/auth/auth.server.ts';
 import { forwardTaxonomyManagement } from '../src/api/taxonomy/taxonomy.proxy.server.ts';
-import { parsePreview, parseSlug, parseTaxonomy } from '../src/api/taxonomy/taxonomy.types.ts';
+import { parsePreview, parseTaxonomy } from '../src/api/taxonomy/taxonomy.types.ts';
 import { validManagementPayload } from '../src/api/taxonomy/taxonomy.validation.ts';
 
 const tagID = '019f033c-2111-7000-9000-000000000001';
 const revision = 'a'.repeat(64);
 const otherID = '019f033c-2111-7000-9000-000000000002';
-const generatedInput = { name: '中文标签', description: '', parent_name: '', tag_id: '' };
+const tagInput = { name: '中文标签', description: '', expected_revision: revision };
 const headers = {
   Cookie: 'heyblog_access_token=test-session',
   Origin: 'https://web.example.test',
@@ -18,10 +18,10 @@ const headers = {
 };
 
 function mutation(
-  body: unknown = generatedInput,
+  body: unknown = tagInput,
   overrides: Readonly<Record<string, string>> = {},
 ): Request {
-  return new Request('https://web.example.test/management/tags/slug-generation', {
+  return new Request('https://web.example.test/management/tags/data', {
     method: 'POST',
     headers: { ...headers, ...overrides },
     body: JSON.stringify(body),
@@ -40,7 +40,7 @@ function backend(role = 'ADMIN', permissions: readonly string[] = ['taxonomy.man
           },
         )
       : Response.json(
-          { code: 'slug_rate_limited' },
+          { code: 'rate_limited' },
           {
             status: 429,
             headers: { 'Retry-After': '60', Location: 'https://unsafe.example.test' },
@@ -50,7 +50,7 @@ function backend(role = 'ADMIN', permissions: readonly string[] = ['taxonomy.man
   return { calls, upstream };
 }
 
-test('slug generation rejects cross-origin requests before authentication or AI dispatch', async () => {
+test('tag creation rejects cross-origin requests before authentication', async () => {
   const cases: Readonly<Record<string, string>>[] = [
     { Origin: 'https://attacker.example.test' },
     { 'Sec-Fetch-Site': 'cross-site' },
@@ -61,8 +61,8 @@ test('slug generation rejects cross-origin requests before authentication or AI 
   for (const overrides of cases) {
     const stub = backend();
     const response = await forwardTaxonomyManagement(
-      mutation(generatedInput, overrides),
-      'slug-generation',
+      mutation(tagInput, overrides),
+      '',
       stub.upstream,
     );
     assert.equal(response.status, 403);
@@ -70,62 +70,40 @@ test('slug generation rejects cross-origin requests before authentication or AI 
   }
 });
 
-test('generation only accepts bounded business inputs and no arbitrary model, prompt or endpoint', async () => {
+test('tag creation accepts only bounded business inputs', async () => {
   for (const body of [
-    { ...generatedInput, model_id: 'paid-model' },
-    { ...generatedInput, prompt: 'ignore all rules' },
-    { ...generatedInput, endpoint: 'https://unsafe.example.test' },
-    { ...generatedInput, name: '文'.repeat(129) },
-    { ...generatedInput, description: 'x'.repeat(2001) },
-    { ...generatedInput, tag_id: 'invalid' },
-    { ...generatedInput, name: ' ' },
+    { ...tagInput, model_id: 'paid-model' },
+    { ...tagInput, prompt: 'ignore all rules' },
+    { ...tagInput, endpoint: 'https://unsafe.example.test' },
+    { ...tagInput, name: '文'.repeat(129) },
+    { ...tagInput, description: 'x'.repeat(2001) },
+    { ...tagInput, tag_id: 'invalid' },
+    { ...tagInput, name: ' ' },
   ]) {
     const stub = backend();
-    assert.equal(
-      (await forwardTaxonomyManagement(mutation(body), 'slug-generation', stub.upstream)).status,
-      422,
-    );
+    assert.equal((await forwardTaxonomyManagement(mutation(body), '', stub.upstream)).status, 422);
     assert.equal(stub.calls.length, 0);
   }
   const stub = backend();
-  const oversized = new Request('https://web.example.test/management/tags/slug-generation', {
+  const oversized = new Request('https://web.example.test/management/tags/data', {
     method: 'POST',
     headers,
-    body: ' '.repeat(8193) + JSON.stringify(generatedInput),
+    body: ' '.repeat(65537) + JSON.stringify(tagInput),
   });
-  assert.equal(
-    (await forwardTaxonomyManagement(oversized, 'slug-generation', stub.upstream)).status,
-    422,
-  );
+  assert.equal((await forwardTaxonomyManagement(oversized, '', stub.upstream)).status, 422);
   assert.equal(stub.calls.length, 0);
 });
 
-test('authorization requires taxonomy permission and system settings require SYS_ADMIN', async () => {
+test('authorization requires taxonomy permission', async () => {
   for (const [role, permissions] of [
     ['USER', ['taxonomy.manage']],
     ['ADMIN', []],
   ] as const) {
     const stub = backend(role, permissions);
-    assert.equal(
-      (await forwardTaxonomyManagement(mutation(), 'slug-generation', stub.upstream)).status,
-      403,
-    );
+    assert.equal((await forwardTaxonomyManagement(mutation(), '', stub.upstream)).status, 403);
     assert.equal(stub.calls.length, 1);
   }
   const stub = backend();
-  assert.equal(
-    (
-      await forwardTaxonomyManagement(
-        new Request('https://web.example.test/management/system-settings/data', {
-          headers: { Cookie: headers.Cookie },
-        }),
-        'settings',
-        stub.upstream,
-      )
-    ).status,
-    403,
-  );
-  assert.equal(stub.calls.length, 1);
   assert.equal(
     (
       await forwardTaxonomyManagement(
@@ -140,12 +118,12 @@ test('authorization requires taxonomy permission and system settings require SYS
 
 test('authorized forwarding preserves quotas, refresh cookies and no-store, removes redirects', async () => {
   const stub = backend();
-  const response = await forwardTaxonomyManagement(mutation(), 'slug-generation', stub.upstream);
+  const response = await forwardTaxonomyManagement(mutation(), '', stub.upstream);
   assert.deepEqual(stub.calls, [
     { path: '/auth/me', body: undefined },
     {
-      path: '/management/taxonomy/slug-generation',
-      body: generatedInput,
+      path: '/management/taxonomy/tags',
+      body: tagInput,
     },
   ]);
   assert.equal(response.status, 429);
@@ -164,8 +142,8 @@ test('proxy rejects arbitrary paths, methods, query parameters and malformed aut
   assert.equal(
     (
       await forwardTaxonomyManagement(
-        new Request('https://web.example.test/management/tags/slug-generation'),
-        'slug-generation',
+        new Request('https://web.example.test/management/tags/data', { method: 'PATCH' }),
+        '',
         stub.upstream,
       )
     ).status,
@@ -183,13 +161,7 @@ test('proxy rejects arbitrary paths, methods, query parameters and malformed aut
   );
   assert.equal(stub.calls.length, 0);
   assert.equal(
-    (
-      await forwardTaxonomyManagement(
-        mutation(),
-        'slug-generation',
-        async () => new Response('{broken'),
-      )
-    ).status,
+    (await forwardTaxonomyManagement(mutation(), '', async () => new Response('{broken'))).status,
     502,
   );
 });
@@ -197,7 +169,6 @@ test('proxy rejects arbitrary paths, methods, query parameters and malformed aut
 test('tag and structural payload validators preserve optional descriptions and revision protection', () => {
   const create = {
     name: 'New tag',
-    slug: 'new-tag',
     description: '',
     expected_revision: revision,
   };
@@ -233,13 +204,10 @@ test('tag and structural payload validators preserve optional descriptions and r
   );
 });
 
-test('DTO parsers reject malformed successes and accept alias history', () => {
+test('DTO parsers accept name-only tags and reject malformed successes', () => {
   const tag = {
     id: tagID,
-    default_label_id: otherID,
-    labels: [{ id: otherID, tag_id: tagID, name: '中文标签', is_enabled: true }],
     name: '中文标签',
-    slug: 'legacy-中文',
     description: '',
     roles: ['TERTIARY'],
     is_enabled: false,
@@ -249,19 +217,16 @@ test('DTO parsers reject malformed successes and accept alias history', () => {
   assert.ok(parseTaxonomy({ tags: [tag], cascades: [], revision }));
   assert.equal(parseTaxonomy({ tags: [{ ...tag, site_count: -1 }], cascades: [], revision }), null);
   assert.equal(parseTaxonomy({ tags: [tag], cascades: [], revision: 2 }), null);
-  assert.equal(
-    parseSlug({ slug: '中文', source: 'ai', model_id: 'model', state: 'ready', conflicts: [] }),
-    null,
-  );
-  assert.ok(
-    parseSlug({
-      slug: 'chinese-tag',
-      source: 'cache',
-      model_id: 'model',
-      state: 'ready',
-      conflicts: [],
-    }),
-  );
+  const preview = {
+    revision,
+    fingerprint: 'hash',
+    site_count: 1,
+    article_count: 0,
+    removed_duplicates: 0,
+    blockers: [],
+    paths: [{ cascade_id: tagID, scope: 'SITE', label: '中文 / JavaScript' }],
+  };
+  assert.deepEqual(parsePreview(preview), preview);
   assert.equal(
     parsePreview({
       revision,
@@ -276,10 +241,9 @@ test('DTO parsers reject malformed successes and accept alias history', () => {
   );
 });
 
-test('management and generation accept API field limits without truncation', () => {
+test('management accepts API field limits without truncation', () => {
   const fields = {
     name: '文'.repeat(120),
-    slug: 'tag',
     description: '文'.repeat(2000),
     is_enabled: true,
     expected_revision: revision,
@@ -288,16 +252,6 @@ test('management and generation accept API field limits without truncation', () 
   assert.equal(validManagementPayload({ ...fields, name: '文'.repeat(121) }, tagID, 'PUT'), false);
   assert.equal(
     validManagementPayload({ ...fields, description: '文'.repeat(2001) }, tagID, 'PUT'),
-    false,
-  );
-  const input = {
-    name: '文'.repeat(128),
-    description: '文'.repeat(2000),
-    parent_name: '文'.repeat(128),
-  };
-  assert.equal(validManagementPayload(input, 'slug-generation', 'POST'), true);
-  assert.equal(
-    validManagementPayload({ ...input, parent_name: '文'.repeat(129) }, 'slug-generation', 'POST'),
     false,
   );
 });
@@ -364,64 +318,17 @@ test('dictionary and path requests accept shared endpoints and reject retired hi
   );
 });
 
-test('label routes require bounded names, revisions, authentication and same-origin requests', async () => {
-  const input = { name: 'algorithm', expected_revision: revision };
-  const stub = backend();
-  const response = await forwardTaxonomyManagement(
-    mutation(input),
-    `${tagID}/labels`,
-    stub.upstream,
-  );
-  assert.equal(response.status, 429);
-  assert.equal(stub.calls[1]?.path, `/management/taxonomy/tags/${tagID}/labels`);
-  assert.equal(
-    validManagementPayload({ ...input, slug: 'algorithm' }, `${tagID}/labels`, 'POST'),
-    false,
-  );
-  assert.equal(
-    validManagementPayload({ ...input, is_enabled: false }, `${tagID}/labels/${otherID}`, 'PUT'),
-    true,
-  );
-  assert.equal(
-    validManagementPayload(
-      { label_id: otherID, expected_revision: revision },
-      `${tagID}/default-label`,
-      'POST',
-    ),
-    true,
-  );
-  const crossed = backend();
-  assert.equal(
-    (
-      await forwardTaxonomyManagement(
-        mutation(input, { Origin: 'https://attacker.example.test' }),
-        `${tagID}/labels`,
-        crossed.upstream,
-      )
-    ).status,
-    403,
-  );
-  assert.equal(crossed.calls.length, 0);
-});
-
-test('slug collision parsing preserves candidate and confirmed concept for mapping', () => {
-  const result = parseSlug({
-    slug: 'algorithm',
-    source: 'ai',
-    model_id: 'test',
-    state: 'needs_confirmation',
-    conflicts: [{ id: tagID, name: '算法', slug: 'algorithm' }],
-  });
-  assert.equal(result?.state, 'needs_confirmation');
-  assert.equal(result?.conflicts[0]?.id, tagID);
-  assert.equal(
-    parseSlug({
-      slug: 'algorithm',
-      source: 'ai',
-      model_id: 'test',
-      state: 'ready',
-      conflicts: [{ id: 'bad' }],
-    }),
-    null,
-  );
+test('retired taxonomy routes are rejected before authentication', async () => {
+  const stub = backend('SYS_ADMIN');
+  for (const path of [
+    'slug-generation',
+    'slug-jobs',
+    'settings',
+    'models',
+    tagID + '/labels',
+    tagID + '/default-label',
+  ]) {
+    assert.equal((await forwardTaxonomyManagement(mutation(), path, stub.upstream)).status, 404);
+  }
+  assert.equal(stub.calls.length, 0);
 });

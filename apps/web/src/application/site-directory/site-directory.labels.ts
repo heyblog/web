@@ -2,41 +2,23 @@ import type { SiteDirectoryOption } from '../../api/sites/site-directory.types.t
 
 export function selectedDirectoryOption(
   options: readonly SiteDirectoryOption[],
-  slug: string,
-  labelID?: string,
+  name: string,
 ): SiteDirectoryOption | undefined {
-  return (
-    options.find((option) => option.value === slug && option.label_id === labelID) ??
-    options.find((option) => option.value === slug)
-  );
+  return options.find((option) => option.value.trim().toLowerCase() === name.trim().toLowerCase());
 }
 
 export function directoryOptionSelected(
   options: readonly SiteDirectoryOption[],
   option: SiteDirectoryOption,
-  slugs: readonly string[],
-  labelIDs: readonly string[] = [],
+  names: readonly string[],
 ): boolean {
-  if (!slugs.includes(option.value)) return false;
-  const chosenID = labelIDs.find((id) =>
-    options.some((candidate) => candidate.value === option.value && candidate.label_id === id),
-  );
-  return selectedDirectoryOption(options, option.value, chosenID) === option;
+  return names.some((name) => selectedDirectoryOption(options, name) === option);
 }
 
 export function matchingDirectoryOptions(
   options: readonly SiteDirectoryOption[],
   query: string,
 ): readonly SiteDirectoryOption[] {
-  const term = query.trim().toLocaleLowerCase();
-  const matching = new Set(
-    options
-      .filter((option) =>
-        [option.label, ...(option.synonyms ?? [])].some((label) =>
-          label.toLocaleLowerCase().includes(term),
-        ),
-      )
-      .map((option) => option.value),
-  );
-  return options.filter((option) => matching.has(option.value));
+  const term = query.trim().toLowerCase();
+  return options.filter((option) => option.label.toLowerCase().includes(term));
 }

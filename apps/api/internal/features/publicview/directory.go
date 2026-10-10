@@ -35,22 +35,19 @@ const (
 )
 
 type DirectoryQuery struct {
-	Level1LabelID    string          `json:"level1_label_id"`
-	Level2LabelID    string          `json:"level2_label_id"`
-	TertiaryLabelIDs []string        `json:"tertiary_label_ids"`
-	Page             int32           `json:"page"`
-	Query            string          `json:"q"`
-	Level1           string          `json:"level1"`
-	Level2           string          `json:"level2"`
-	TertiaryTags     []string        `json:"tertiary"`
-	Warnings         []string        `json:"warning"`
-	Technologies     []string        `json:"technology"`
-	AccessScopes     []string        `json:"access"`
-	Feed             DirectoryFeed   `json:"feed"`
-	Status           DirectoryStatus `json:"status"`
-	Sort             DirectorySort   `json:"sort"`
-	Order            DirectoryOrder  `json:"order"`
-	Seed             string          `json:"seed"`
+	Page         int32           `json:"page"`
+	Query        string          `json:"q"`
+	Level1       string          `json:"level1"`
+	Level2       string          `json:"level2"`
+	TertiaryTags []string        `json:"tertiary"`
+	Warnings     []string        `json:"warning"`
+	Technologies []string        `json:"technology"`
+	AccessScopes []string        `json:"access"`
+	Feed         DirectoryFeed   `json:"feed"`
+	Status       DirectoryStatus `json:"status"`
+	Sort         DirectorySort   `json:"sort"`
+	Order        DirectoryOrder  `json:"order"`
+	Seed         string          `json:"seed"`
 }
 
 type DirectoryView struct {
@@ -70,10 +67,10 @@ type DirectoryPagination struct {
 type directoryDatabaseParameters struct {
 	SiteVisibility   string
 	QueryText        string
-	Level1TagSlug    string
-	Level2TagSlug    string
-	TertiaryTagSlugs []string
-	WarningSlugs     []string
+	Level1TagName    string
+	Level2TagName    string
+	TertiaryTagNames []string
+	WarningNames     []string
 	TechnologyNames  []string
 	AccessScopes     []string
 	FeedMode         string
@@ -96,11 +93,6 @@ func DefaultDirectoryQuery(now time.Time) DirectoryQuery {
 }
 
 func (service *Service) Directory(ctx context.Context, query DirectoryQuery) (DirectoryView, error) {
-	var err error
-	query, err = resolveDirectoryLabels(ctx, service.directory, query)
-	if err != nil {
-		return DirectoryView{}, err
-	}
 	countParameters := query.countParameters()
 	counts, err := service.directory.CountDirectorySitesByStatus(ctx, countParameters)
 	if err != nil {
@@ -145,8 +137,8 @@ func (service *Service) Directory(ctx context.Context, query DirectoryQuery) (Di
 
 func (query DirectoryQuery) countParameters() dbgen.CountDirectorySitesByStatusParams {
 	return dbgen.CountDirectorySitesByStatusParams{
-		QueryText: query.Query, Level1TagSlug: query.Level1,
-		Level2TagSlug: query.Level2, TertiaryTagSlugs: query.TertiaryTags, WarningSlugs: query.Warnings,
+		QueryText: query.Query, Level1TagName: query.Level1,
+		Level2TagName: query.Level2, TertiaryTagNames: query.TertiaryTags, WarningNames: query.Warnings,
 		TechnologyNames: query.Technologies, AccessScopes: query.AccessScopes, FeedMode: string(query.Feed),
 	}
 }
@@ -158,8 +150,8 @@ func (query DirectoryQuery) databaseParameters(totalItems int64, visibility stri
 		page = totalPages
 	}
 	return directoryDatabaseParameters{
-		SiteVisibility: visibility, QueryText: query.Query, Level1TagSlug: query.Level1,
-		Level2TagSlug: query.Level2, TertiaryTagSlugs: query.TertiaryTags, WarningSlugs: query.Warnings,
+		SiteVisibility: visibility, QueryText: query.Query, Level1TagName: query.Level1,
+		Level2TagName: query.Level2, TertiaryTagNames: query.TertiaryTags, WarningNames: query.Warnings,
 		TechnologyNames: query.Technologies, AccessScopes: query.AccessScopes, FeedMode: string(query.Feed),
 		SortMode: string(query.Sort), Seed: query.Seed,
 		SortOrder: string(query.Order), Offset: (page - 1) * directoryPageSize,
@@ -170,9 +162,9 @@ func (query DirectoryQuery) databaseParameters(totalItems int64, visibility stri
 func (parameters directoryDatabaseParameters) listParameters() dbgen.ListDirectorySitesParams {
 	return dbgen.ListDirectorySitesParams{
 		SiteVisibility: parameters.SiteVisibility, QueryText: parameters.QueryText,
-		Level1TagSlug: parameters.Level1TagSlug, Level2TagSlug: parameters.Level2TagSlug,
-		TertiaryTagSlugs: parameters.TertiaryTagSlugs,
-		WarningSlugs:     parameters.WarningSlugs, TechnologyNames: parameters.TechnologyNames,
+		Level1TagName: parameters.Level1TagName, Level2TagName: parameters.Level2TagName,
+		TertiaryTagNames: parameters.TertiaryTagNames,
+		WarningNames:     parameters.WarningNames, TechnologyNames: parameters.TechnologyNames,
 		AccessScopes: parameters.AccessScopes, FeedMode: parameters.FeedMode,
 		SortMode: parameters.SortMode, Seed: parameters.Seed, SortOrder: parameters.SortOrder,
 		PageOffset: parameters.Offset, PageLimit: parameters.Limit,

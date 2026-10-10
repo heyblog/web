@@ -21,8 +21,8 @@ func TestManagementRoutesEnforceBothGuards(t *testing.T) {
 	for _, route := range []struct{ method, path, body string }{
 		{"GET", "/tags", ""},
 		{"POST", "/cascades", `{"scope":"SITE","primary_id":"id","secondary_id":"id","taxonomy_key":"test/self","expected_revision":"version"}`},
-		{"POST", "/tags", `{"name":"New","slug":"new","description":"","expected_revision":"version"}`},
-		{"PUT", "/tags/id", `{"name":"New","slug":"new","description":"","is_enabled":true,"expected_revision":"version"}`},
+		{"POST", "/tags", `{"name":"New","description":"","expected_revision":"version"}`},
+		{"PUT", "/tags/id", `{"name":"New","description":"","is_enabled":true,"expected_revision":"version"}`},
 		{"DELETE", "/tags/id", `{"expected_revision":"version"}`},
 		{"POST", "/changes/preview", `{"kind":"merge","source_id":"id","expected_revision":"version"}`},
 		{"POST", "/changes/apply", `{"kind":"merge","source_id":"id","expected_revision":"version"}`},

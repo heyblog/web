@@ -144,10 +144,6 @@ type DirectorySite struct {
 	UpdatedAt pgtype.Timestamptz
 	// Required SITE taxonomy path.
 	TagCascadeID pgtype.UUID
-	// Chosen display name; must belong to the associated semantic concept.
-	PrimaryLabelID pgtype.UUID
-	// Chosen display name; must belong to the associated semantic concept.
-	SecondaryLabelID pgtype.UUID
 }
 
 // Anonymous site lifecycle requests with immutable aggregate evidence and reviewed outcomes.
@@ -368,38 +364,6 @@ type DirectorySiteTag struct {
 	CreatedAt pgtype.Timestamptz
 	// Ordered tertiary slot from 1 through 20; warnings are unordered.
 	Position *int16
-	// Chosen display name; must belong to the associated semantic concept.
-	LabelID pgtype.UUID
-}
-
-// Durable authorized slug previews; applying selected items changes dictionary slugs atomically.
-type DirectorySlugGenerationJob struct {
-	// UUIDv7 task identifier.
-	ID pgtype.UUID
-	// Initiating actor, cleared on account deletion; workers recheck current authorization.
-	OwnerID pgtype.UUID
-	// Digest of the trusted initiating client IP used for shared request limits.
-	IdentityIpHash string
-	// Frozen server-selected provider model.
-	ModelID string
-	// Generation and application lifecycle state.
-	Status string
-	// Optimistic concurrency version of task previews and controls.
-	Revision int64
-	// Typed internal snapshots including tag revision, generated candidates, and per-item results.
-	Items []byte
-	// Stable safe reason code for a paused job.
-	PauseCode string
-	// Earliest retry time reported by the shared budget guard.
-	ResumeAfter pgtype.Timestamptz
-	// Worker fencing token; never returned through HTTP.
-	LeaseToken string
-	// Worker lease expiration; dispatched items are not automatically retried after expiration.
-	LeaseUntil pgtype.Timestamptz
-	// Task creation time.
-	CreatedAt pgtype.Timestamptz
-	// Most recent task transition time.
-	UpdatedAt pgtype.Timestamptz
 }
 
 // Unified catalog for site programs and technology components.
@@ -438,6 +402,24 @@ type DirectorySoftwareComponentDependency struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+// Unique names; classification roles belong to paths and assignments.
+type DirectoryTag struct {
+	// UUIDv7 global tag dictionary primary key.
+	ID pgtype.UUID
+	// Public tag description.
+	Description string
+	// Whether the canonical tag may be assigned or displayed.
+	IsEnabled bool
+	// Tag creation time.
+	CreatedAt pgtype.Timestamptz
+	// Last tag metadata or merge update time maintained by trigger.
+	UpdatedAt pgtype.Timestamptz
+	// Human-readable tag name.
+	Name string
+	// Unique lowercase trimmed tag name generated from name.
+	NormalizedName string
+}
+
 // Scoped classification paths; the same dictionary tag may occupy both roles.
 type DirectoryTagCascade struct {
 	// UUIDv7 shared taxonomy path primary key.
@@ -450,8 +432,8 @@ type DirectoryTagCascade struct {
 	Level1TagID pgtype.UUID
 	// Tag occupying the secondary classification role.
 	Level2TagID pgtype.UUID
-	// Stable SQLite taxonomy order used by clients and tie-breaking.
-	SortOrder int16
+	// Unique positive order within scope; expanded paths append after existing paths.
+	SortOrder int32
 	// Whether new assignments may select this fixed path.
 	IsEnabled bool
 	// Taxonomy path creation time.
@@ -460,28 +442,6 @@ type DirectoryTagCascade struct {
 	UpdatedAt pgtype.Timestamptz
 	// Replacement path retained for historical audit references.
 	MergedIntoID pgtype.UUID
-}
-
-// Default-name projection of semantic concepts for dictionary reads and atomic creation.
-type DirectoryTagDictionary struct {
-	// Default-name dictionary projection: id.
-	ID pgtype.UUID
-	// Default-name dictionary projection: name.
-	Name string
-	// Default-name dictionary projection: normalized_name.
-	NormalizedName string
-	// Default-name dictionary projection: slug.
-	Slug string
-	// Default-name dictionary projection: description.
-	Description string
-	// Default-name dictionary projection: is_enabled.
-	IsEnabled bool
-	// Default-name dictionary projection: created_at.
-	CreatedAt pgtype.Timestamptz
-	// Default-name dictionary projection: updated_at.
-	UpdatedAt pgtype.Timestamptz
-	// Default-name dictionary projection: default_label_id.
-	DefaultLabelID pgtype.UUID
 }
 
 // Historical tag IDs and import keys resolving directly to current dictionary identities.
@@ -496,24 +456,8 @@ type DirectoryTagIdentityAlias struct {
 	Snapshot []byte
 	// Identity archival time.
 	ArchivedAt pgtype.Timestamptz
-}
-
-// Admin-confirmed names and synonyms for semantic tag concepts.
-type DirectoryTagLabel struct {
-	// Stable identifier of a confirmed display name.
-	ID pgtype.UUID
-	// Semantic concept owning this name.
-	TagID pgtype.UUID
-	// Chosen human-readable display name.
-	Name string
-	// Globally unique lowercase trimmed name.
-	NormalizedName string
-	// Whether this name can be selected for new assignments.
-	IsEnabled bool
-	// Name creation time.
-	CreatedAt pgtype.Timestamptz
-	// Most recent name change time.
-	UpdatedAt pgtype.Timestamptz
+	// Historical identity namespace: TAG or LABEL; only TAG may have a system key.
+	AliasKind string
 }
 
 // Machine clients that own scoped internal or external API credentials.
