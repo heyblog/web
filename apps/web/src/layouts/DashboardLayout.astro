@@ -1,6 +1,5 @@
 ---
 import type { SessionUser } from '@/api/auth/auth.types';
-import { managementNavigation } from '@/application/management/navigation';
 
 import ManagementLayout from './ManagementLayout.astro';
 
@@ -11,14 +10,7 @@ interface Props {
   currentPath: string;
 }
 const { title, heading, user, currentPath } = Astro.props;
-const navigation = [
-  { label: '工作台', href: '/dashboard' },
-  { label: '我的站点', href: '/dashboard/sites' },
-  { label: '认证申请', href: '/dashboard/claims' },
-  { label: '我的提交', href: '/dashboard/submissions' },
-  { label: '账号安全', href: '/dashboard/security' },
-  ...managementNavigation(user),
-];
+const navigation = [{ label: '账号安全', href: '/dashboard/security' }];
 ---
 
 <ManagementLayout
