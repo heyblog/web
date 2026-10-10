@@ -5,7 +5,7 @@ import type { HomeSiteCard, HomeSiteTopic } from '../sites/site-card.types.ts';
 import type { HomeView } from './home.types.ts';
 
 function isTopic(value: unknown): value is HomeSiteTopic {
-  return isRecord(value) && typeof value.name === 'string' && typeof value.slug === 'string';
+  return isRecord(value) && typeof value.name === 'string';
 }
 
 function isSite(value: unknown): value is HomeSiteCard {

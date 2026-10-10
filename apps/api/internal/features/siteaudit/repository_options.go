@@ -12,7 +12,7 @@ func (repository *Repository) Options(ctx context.Context) (SubmissionOptions, e
 	if err != nil {
 		return SubmissionOptions{}, fmt.Errorf("list submission tag cascades: %w", err)
 	}
-	tags, err := repository.queries.ListEnabledTagLabels(ctx)
+	tags, err := repository.queries.ListEnabledTags(ctx)
 	if err != nil {
 		return SubmissionOptions{}, fmt.Errorf("list submission tag options: %w", err)
 	}
@@ -28,70 +28,31 @@ func (repository *Repository) Options(ctx context.Context) (SubmissionOptions, e
 		Tags: make([]Option, 0, len(tags)+len(cascades)*2), Cascades: make([]CascadeOption, 0, len(cascades)), Components: make([]ComponentOption, 0, len(components)),
 		ProgramDependencies: make([]ProgramDependencyOption, 0, len(dependencies)),
 	}
-	labelsByTag := map[string][]Option{}
-	for _, label := range tags {
-		id, idErr := uuidString(label.TagID)
-		if idErr != nil {
-			return SubmissionOptions{}, idErr
-		}
-		labelID, idErr := uuidString(label.ID)
-		if idErr != nil {
-			return SubmissionOptions{}, idErr
-		}
-		labelsByTag[id] = append(labelsByTag[id], Option{ID: id, LabelID: labelID, Name: label.Name, Slug: label.Slug, Level: 3})
-	}
-	for id, labels := range labelsByTag {
-		names := make([]string, 0, len(labels))
-		for _, label := range labels {
-			names = append(names, label.Name)
-		}
-		for i := range labels {
-			labels[i].Synonyms = names
-		}
-		labelsByTag[id] = labels
-	}
 	seen := map[string]bool{}
 	for _, cascade := range cascades {
-		cascadeID, idErr := uuidString(cascade.ID)
-		if idErr != nil {
-			return SubmissionOptions{}, idErr
+		cascadeID, err := uuidString(cascade.ID)
+		if err != nil {
+			return SubmissionOptions{}, err
 		}
-		level1ID, _ := uuidString(cascade.Level1ID)
-		level2ID, _ := uuidString(cascade.Level2ID)
-		var level1, level2 Option
-		for _, label := range labelsByTag[level1ID] {
-			label.Level = 1
-			if label.Name == cascade.Level1Name {
-				level1 = label
-			}
-			key := "1:" + label.LabelID
-			if !seen[key] {
-				options.Tags = append(options.Tags, label)
-				seen[key] = true
-			}
-		}
-		for _, label := range labelsByTag[level2ID] {
-			label.Level, label.ParentID = 2, level1ID
-			if label.Name == cascade.Level2Name {
-				level2 = label
-			}
-			key := "2:" + level1ID + ":" + label.LabelID
-			if !seen[key] {
-				options.Tags = append(options.Tags, label)
-				seen[key] = true
-			}
-		}
-		options.Cascades = append(options.Cascades, CascadeOption{ID: cascadeID, TaxonomyKey: cascade.TaxonomyKey, Level1: level1, Level2: level2})
-	}
-	for _, label := range tags {
-		id, _ := uuidString(label.TagID)
-		for _, option := range labelsByTag[id] {
-			key := "3:" + option.LabelID
+		primaryID, _ := uuidString(cascade.Level1ID)
+		secondaryID, _ := uuidString(cascade.Level2ID)
+		primary := Option{ID: primaryID, Name: cascade.Level1Name, Level: 1}
+		secondary := Option{ID: secondaryID, Name: cascade.Level2Name, Level: 2, ParentID: primaryID}
+		for _, option := range []Option{primary, secondary} {
+			key := fmt.Sprint(option.Level) + ":" + option.ParentID + ":" + option.ID
 			if !seen[key] {
 				options.Tags = append(options.Tags, option)
 				seen[key] = true
 			}
 		}
+		options.Cascades = append(options.Cascades, CascadeOption{ID: cascadeID, TaxonomyKey: cascade.TaxonomyKey, Level1: primary, Level2: secondary})
+	}
+	for _, tag := range tags {
+		id, err := uuidString(tag.ID)
+		if err != nil {
+			return SubmissionOptions{}, err
+		}
+		options.Tags = append(options.Tags, Option{ID: id, Name: tag.Name, Level: 3})
 	}
 
 	for _, component := range components {

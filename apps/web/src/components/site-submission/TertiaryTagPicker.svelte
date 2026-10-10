@@ -27,13 +27,13 @@
   let picker: HTMLElement;
   const selected = $derived(form.tags.filter((tag) => tag.role === 'TERTIARY'));
   const filtered = $derived(matchingTagOptions(query, tertiaryTagOptions(options, form.tags)));
-  const normalizedQuery = $derived(query.trim().toLocaleLowerCase());
+  const normalizedQuery = $derived(query.trim().toLowerCase());
   const canSuggest = $derived(
     selected.length < 20 &&
       normalizedQuery.length > 0 &&
-      query.trim().length <= 100 &&
-      !options.some((option) => option.name.trim().toLocaleLowerCase() === normalizedQuery) &&
-      !form.tags.some((tag) => tag.name.trim().toLocaleLowerCase() === normalizedQuery),
+      Array.from(query.trim()).length <= 120 &&
+      !options.some((option) => option.name.trim().toLowerCase() === normalizedQuery) &&
+      !form.tags.some((tag) => tag.name.trim().toLowerCase() === normalizedQuery),
   );
 
   const optionCount = $derived(filtered.length + Number(canSuggest));
@@ -133,7 +133,7 @@
       aria-autocomplete="list"
       aria-activedescendant={open ? activeOptionID : undefined}
       autocomplete="off"
-      maxlength="100"
+      maxlength="240"
       placeholder="搜索或输入新标签"
       onfocus={() => (open = true)}
       oninput={() => {

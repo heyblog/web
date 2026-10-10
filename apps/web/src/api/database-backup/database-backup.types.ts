@@ -27,20 +27,15 @@ export const backupDatasetNames = [
   'directory.site_origins',
   'directory.site_audits',
   'directory.tag_cascades',
-  'directory.tag_slug_aliases',
   'directory.tag_identity_aliases',
   'directory.tag_assignment_archive',
-  'directory.tag_labels',
   'directory.tags',
-  'directory.slug_generation_cache',
-  'directory.slug_generation_jobs',
   'directory.site_metrics',
   'directory.site_metric_events',
   'content.announcements',
   'content.announcement_revisions',
   'content.articles',
   'content.article_tags',
-  'content.system_ai_settings',
 ] as const;
 export type BackupDatasetName = (typeof backupDatasetNames)[number];
 export interface BackupDataset {
@@ -58,7 +53,7 @@ export interface BackupIssue {
 export interface BackupInspection {
   readonly sha256: string;
   readonly version: 1;
-  readonly schema_version: 2;
+  readonly schema_version: 3;
   readonly generated_at: string;
   readonly excluded_system_admin_id: string;
   readonly retained_system_admin_id: string;
@@ -135,7 +130,7 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
     !isRecord(value) ||
     !isHash(value.sha256) ||
     value.version !== 1 ||
-    value.schema_version !== 2 ||
+    value.schema_version !== 3 ||
     typeof value.generated_at !== 'string' ||
     !Number.isFinite(Date.parse(value.generated_at)) ||
     !isUUID(value.excluded_system_admin_id) ||
@@ -157,7 +152,7 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
   return {
     sha256: value.sha256,
     version: 1,
-    schema_version: 2,
+    schema_version: 3,
     generated_at: value.generated_at,
     excluded_system_admin_id: value.excluded_system_admin_id,
     retained_system_admin_id: value.retained_system_admin_id,

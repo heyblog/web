@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -15,14 +14,11 @@ import (
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
-var validSlug = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-
 type tagQueries interface {
-	tagLabelQueries
-	ListManagedTags(context.Context) ([]dbgen.DirectoryTagDictionary, error)
-	GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTagDictionary, error)
+	ListManagedTags(context.Context) ([]dbgen.DirectoryTag, error)
+	GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTag, error)
 	EnableCanonicalTag(context.Context, pgtype.UUID) error
-	CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTagDictionary, error)
+	CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTag, error)
 }
 
 type componentQueries interface {
@@ -37,6 +33,19 @@ func resolveTaxonomy(ctx context.Context, queries *dbgen.Queries, reviewer auth.
 	if err != nil {
 		return Snapshot{}, err
 	}
+	if snapshot.TagCascadeID != "" {
+		id, parseErr := parseUUID(snapshot.TagCascadeID)
+		if parseErr != nil {
+			return Snapshot{}, parseErr
+		}
+		cascade, readErr := queries.GetCanonicalCascade(ctx, id)
+		if readErr != nil {
+			return Snapshot{}, readErr
+		}
+		if !cascade.IsEnabled && snapshot.TagCascadeID != current.TagCascadeID {
+			return Snapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "the selected classification is no longer available")
+		}
+	}
 	for index, tag := range snapshot.Tags {
 		if tag.ID != "" {
 			id, parseErr := parseUUID(tag.ID)
@@ -47,8 +56,8 @@ func resolveTaxonomy(ctx context.Context, queries *dbgen.Queries, reviewer auth.
 			if readErr != nil {
 				return Snapshot{}, readErr
 			}
-			if _, labelErr := canonicalTagLabel(ctx, queries, tag, canonical, snapshotHasTagLabel(current, tag)); labelErr != nil {
-				return Snapshot{}, labelErr
+			if _, tagErr := canonicalTag(tag, canonical, snapshotHasTag(current, tag.ID)); tagErr != nil {
+				return Snapshot{}, tagErr
 			}
 		}
 		resolved, err := resolveTag(ctx, queries, reviewer, tag)
@@ -121,7 +130,7 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 		}
 		for _, row := range rows {
 			if row.ID == id {
-				return canonicalTagLabel(ctx, queries, tag, row, true)
+				return canonicalTag(tag, row, true)
 			}
 		}
 		return TagSnapshot{}, newServiceError("invalid_tag", http.StatusUnprocessableEntity, "a selected tag is no longer available")
@@ -138,32 +147,18 @@ func resolveTag(ctx context.Context, queries tagQueries, reviewer auth.User, tag
 			}
 			existing.IsEnabled = true
 		}
-		return canonicalTagLabel(ctx, queries, tag, existing, false)
+		return canonicalTag(tag, existing, false)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return TagSnapshot{}, fmt.Errorf("find tag by normalized name: %w", err)
 	}
 	if !canManageTaxonomy(reviewer) {
 		return TagSnapshot{}, newServiceError("taxonomy_permission_required", http.StatusForbidden, "taxonomy management permission is required to approve new tags")
 	}
-	if !validSlug.MatchString(tag.Slug) {
-		return TagSnapshot{}, newServiceError("taxonomy_metadata_required", http.StatusUnprocessableEntity, "new tags require a valid slug")
-	}
-	if ownerQueries, ok := queries.(interface {
-		TaxonomySlugOwner(context.Context, string) ([]pgtype.UUID, error)
-	}); ok {
-		owners, err := ownerQueries.TaxonomySlugOwner(ctx, tag.Slug)
-		if err != nil {
-			return TagSnapshot{}, err
-		}
-		if len(owners) > 0 {
-			return TagSnapshot{}, newServiceError("slug_conflict", http.StatusConflict, "the slug is already reserved")
-		}
-	}
-	created, err := queries.CreateTag(ctx, dbgen.CreateTagParams{Name: name, NormalizedName: normalized, Slug: tag.Slug, Description: strings.TrimSpace(tag.Description)})
+	created, err := queries.CreateTag(ctx, dbgen.CreateTagParams{Name: name, Description: strings.TrimSpace(tag.Description)})
 	if err != nil {
 		return TagSnapshot{}, fmt.Errorf("create reviewed tag: %w", err)
 	}
-	return canonicalTagLabel(ctx, queries, tag, created, false)
+	return canonicalTag(tag, created, false)
 }
 
 func resolveComponent(ctx context.Context, queries componentQueries, reviewer auth.User, component ComponentSnapshot) (ComponentSnapshot, error) {
@@ -194,7 +189,7 @@ func resolveComponent(ctx context.Context, queries componentQueries, reviewer au
 	if component.HomepageURL == "" && component.RepositoryURL == "" || component.IsOpenSource == nil {
 		return ComponentSnapshot{}, newServiceError("taxonomy_metadata_required", http.StatusUnprocessableEntity, "new software components require a homepage or repository URL")
 	}
-	created, err := queries.CreateSoftwareComponent(ctx, dbgen.CreateSoftwareComponentParams{Name: name, NormalizedName: normalized, Description: "", HomepageUrl: stringPointer(component.HomepageURL), RepositoryUrl: stringPointer(component.RepositoryURL), IsOpenSource: *component.IsOpenSource})
+	created, err := queries.CreateSoftwareComponent(ctx, dbgen.CreateSoftwareComponentParams{Name: name, Description: "", HomepageUrl: stringPointer(component.HomepageURL), RepositoryUrl: stringPointer(component.RepositoryURL), IsOpenSource: *component.IsOpenSource})
 	if err != nil {
 		return ComponentSnapshot{}, fmt.Errorf("create reviewed software component: %w", err)
 	}

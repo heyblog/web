@@ -1,23 +1,14 @@
 package taxonomy
 
-type Label struct {
-	ID      string `json:"id"`
-	TagID   string `json:"tag_id"`
-	Name    string `json:"name"`
-	Enabled bool   `json:"is_enabled"`
-}
 type Tag struct {
-	DefaultLabelID string   `json:"default_label_id"`
-	Labels         []Label  `json:"labels"`
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	Slug           string   `json:"slug"`
-	Description    string   `json:"description"`
-	Enabled        bool     `json:"is_enabled"`
-	SiteCount      int      `json:"site_count"`
-	ArticleCount   int      `json:"article_count"`
-	Roles          []string `json:"roles"`
-	SystemKey      string   `json:"-"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Enabled      bool     `json:"is_enabled"`
+	SiteCount    int      `json:"site_count"`
+	ArticleCount int      `json:"article_count"`
+	Roles        []string `json:"roles"`
+	SystemKey    string   `json:"-"`
 }
 
 type Cascade struct {
@@ -38,14 +29,12 @@ type Catalog struct {
 
 type CreateInput struct {
 	Name             string `json:"name" minLength:"1" maxLength:"120"`
-	Slug             string `json:"slug" minLength:"1" maxLength:"160" pattern:"^[a-z0-9]+(-[a-z0-9]+)*$"`
 	Description      string `json:"description" maxLength:"2000"`
 	ExpectedRevision string `json:"expected_revision" minLength:"1"`
 }
 
 type UpdateInput struct {
 	Name             string `json:"name" minLength:"1" maxLength:"120"`
-	Slug             string `json:"slug" minLength:"1" maxLength:"160" pattern:"^[a-z0-9]+(-[a-z0-9]+)*$"`
 	Description      string `json:"description" maxLength:"2000"`
 	Enabled          bool   `json:"is_enabled"`
 	ExpectedRevision string `json:"expected_revision" minLength:"1"`
@@ -72,18 +61,16 @@ type PathImpact struct {
 }
 
 type Preview struct {
-	RetainedLabels    []RetainedLabel `json:"retained_labels"`
-	Revision          string          `json:"revision"`
-	Fingerprint       string          `json:"fingerprint"`
-	SiteCount         int             `json:"site_count"`
-	ArticleCount      int             `json:"article_count"`
-	RemovedDuplicates int             `json:"removed_duplicates"`
-	Blockers          []string        `json:"blockers"`
-	Paths             []PathImpact    `json:"paths"`
+	Revision          string       `json:"revision"`
+	Fingerprint       string       `json:"fingerprint"`
+	SiteCount         int          `json:"site_count"`
+	ArticleCount      int          `json:"article_count"`
+	RemovedDuplicates int          `json:"removed_duplicates"`
+	Blockers          []string     `json:"blockers"`
+	Paths             []PathImpact `json:"paths"`
 }
 
 type assignment struct {
-	LabelID   string
 	TagID     string
 	Role      string
 	Source    string
@@ -93,13 +80,11 @@ type assignment struct {
 }
 
 type object struct {
-	PrimaryLabelID   string
-	SecondaryLabelID string
-	ID               string
-	Scope            string
-	CascadeID        string
-	Version          string
-	Tags             []assignment
+	ID        string
+	Scope     string
+	CascadeID string
+	Version   string
+	Tags      []assignment
 }
 
 type graph struct {
@@ -120,21 +105,4 @@ type CreateCascadeInput struct {
 	SecondaryID      string `json:"secondary_id"`
 	Key              string `json:"taxonomy_key" maxLength:"160" pattern:"^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$"`
 	ExpectedRevision string `json:"expected_revision" minLength:"1"`
-}
-
-type LabelInput struct {
-	Name             string `json:"name" minLength:"1" maxLength:"120"`
-	Enabled          bool   `json:"is_enabled" default:"true"`
-	ExpectedRevision string `json:"expected_revision" minLength:"1"`
-}
-type DefaultLabelInput struct {
-	LabelID          string `json:"label_id"`
-	ExpectedRevision string `json:"expected_revision" minLength:"1"`
-}
-type RetainedLabel struct {
-	ObjectID string `json:"object_id"`
-	Scope    string `json:"scope"`
-	TagID    string `json:"tag_id"`
-	LabelID  string `json:"label_id"`
-	Name     string `json:"name"`
 }

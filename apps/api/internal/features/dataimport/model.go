@@ -59,7 +59,6 @@ type TagRow struct {
 	ID             string
 	Name           string
 	NormalizedName string
-	Slug           string
 	Description    string
 	IsEnabled      bool
 }

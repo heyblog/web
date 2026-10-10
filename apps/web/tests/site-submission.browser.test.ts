@@ -59,8 +59,8 @@ test('builds a structured custom-program submission payload', () => {
   const payload = buildSubmissionPayload(form, 'UPDATE');
 
   assert.deepEqual(payload.site.tags, [
-    { id: 'tag-primary', suggested_name: '', slug: '', description: '', role: 'PRIMARY' },
-    { id: 'tag-secondary', suggested_name: '', slug: '', description: '', role: 'SECONDARY' },
+    { id: 'tag-primary', suggested_name: '', description: '', role: 'PRIMARY' },
+    { id: 'tag-secondary', suggested_name: '', description: '', role: 'SECONDARY' },
   ]);
   assert.deepEqual(payload.site.components, [
     {

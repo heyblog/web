@@ -26,14 +26,14 @@ func TestTaxonomyManagement(t *testing.T) {
 	create := func(name string, level int16, parent string) taxonomy.Tag {
 		t.Helper()
 		var err error
-		catalog, err = service.Create(ctx, taxonomy.CreateInput{Name: name, Slug: name, ExpectedRevision: catalog.Revision})
+		catalog, err = service.Create(ctx, taxonomy.CreateInput{Name: name, ExpectedRevision: catalog.Revision})
 		if err != nil {
 			t.Fatalf("create %s: %+v", name, err)
 		}
 		if level == 2 {
 			var id string
 			for _, tag := range catalog.Tags {
-				if tag.Slug == name {
+				if tag.Name == name {
 					id = tag.ID
 				}
 			}
@@ -46,7 +46,7 @@ func TestTaxonomyManagement(t *testing.T) {
 		}
 
 		for _, tag := range catalog.Tags {
-			if tag.Slug == name {
+			if tag.Name == name {
 				return tag
 			}
 		}
@@ -127,15 +127,11 @@ func TestTaxonomyManagement(t *testing.T) {
 		t.Fatalf("old path alias %s %v", alias, err)
 	}
 	oldRevision := catalog.Revision
-	catalog, err = service.Update(ctx, canonical.ID, taxonomy.UpdateInput{Name: "Renamed", Slug: "renamed-slug", Enabled: true, ExpectedRevision: catalog.Revision})
+	catalog, err = service.Update(ctx, canonical.ID, taxonomy.UpdateInput{Name: "Renamed", Enabled: true, ExpectedRevision: catalog.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var slug string
-	if err := f.pool.QueryRow(ctx, `SELECT directory.canonical_tag_slug($1)`, tertiary.Slug).Scan(&slug); err != nil || slug != "renamed-slug" {
-		t.Fatalf("merge plus rename alias %s %v", slug, err)
-	}
-	if _, err := service.Update(ctx, canonical.ID, taxonomy.UpdateInput{Name: "Stale", Slug: "stale", Enabled: true, ExpectedRevision: oldRevision}); err == nil {
+	if _, err := service.Update(ctx, canonical.ID, taxonomy.UpdateInput{Name: "Stale", Enabled: true, ExpectedRevision: oldRevision}); err == nil {
 		t.Fatal("stale mutation succeeded")
 	}
 	var importedPathKey string
@@ -158,7 +154,7 @@ func TestTaxonomyManagement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	catalog, err = service.Update(ctx, target.ID, taxonomy.UpdateInput{Name: target.Name, Slug: target.Slug, Enabled: false, ExpectedRevision: catalog.Revision})
+	catalog, err = service.Update(ctx, target.ID, taxonomy.UpdateInput{Name: target.Name, Enabled: false, ExpectedRevision: catalog.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,8 +173,8 @@ func TestTaxonomyManagement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tag := range []taxonomy.Tag{second, {ID: canonical.ID, Name: "Renamed", Slug: "renamed-slug"}, warning} {
-		catalog, err = service.Update(ctx, tag.ID, taxonomy.UpdateInput{Name: tag.Name, Slug: tag.Slug, Enabled: false, ExpectedRevision: catalog.Revision})
+	for _, tag := range []taxonomy.Tag{second, {ID: canonical.ID, Name: "Renamed"}, warning} {
+		catalog, err = service.Update(ctx, tag.ID, taxonomy.UpdateInput{Name: tag.Name, Enabled: false, ExpectedRevision: catalog.Revision})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -197,16 +193,16 @@ func TestTaxonomyManagement(t *testing.T) {
 		t.Fatalf("disabled batched tags: %#v %v", batched, err)
 	}
 	options, err := queries.ListDirectoryTagOptions(ctx)
-	if err != nil || len(options) != 6 {
+	if err != nil || len(options) != 4 {
 		t.Fatalf("disabled filter options: %#v %v", options, err)
 	}
-	counts, err := queries.CountDirectorySitesByStatus(ctx, dbgen.CountDirectorySitesByStatusParams{Level1TagSlug: second.Slug, Level2TagSlug: child.Slug, TertiaryTagSlugs: []string{tertiary.Slug, "renamed-slug"}, WarningSlugs: []string{warning.Slug}, TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any"})
+	counts, err := queries.CountDirectorySitesByStatus(ctx, dbgen.CountDirectorySitesByStatusParams{Level1TagName: second.Name, Level2TagName: target.Name, TertiaryTagNames: []string{"Renamed", "RENAMED"}, WarningNames: []string{warning.Name}, TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any"})
 	if err != nil || counts.NormalCount != 1 {
-		t.Fatalf("disabled old slug count: %#v %v", counts, err)
+		t.Fatalf("disabled name count: %#v %v", counts, err)
 	}
-	sites, err := queries.ListDirectorySites(ctx, dbgen.ListDirectorySitesParams{SiteVisibility: "VISIBLE", Level1TagSlug: second.Slug, Level2TagSlug: child.Slug, TertiaryTagSlugs: []string{tertiary.Slug, "renamed-slug"}, WarningSlugs: []string{warning.Slug}, TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any", SortMode: "name", SortOrder: "asc", PageLimit: 20})
+	sites, err := queries.ListDirectorySites(ctx, dbgen.ListDirectorySitesParams{SiteVisibility: "VISIBLE", Level1TagName: second.Name, Level2TagName: target.Name, TertiaryTagNames: []string{"Renamed", "RENAMED"}, WarningNames: []string{warning.Name}, TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any", SortMode: "name", SortOrder: "asc", PageLimit: 20})
 	if err != nil || len(sites) != 1 || sites[0].ID != siteUUID {
-		t.Fatalf("disabled old slug list: %#v %v", sites, err)
+		t.Fatalf("disabled name list: %#v %v", sites, err)
 	}
 	random, err := queries.PickRandomVisibleSite(ctx, dbgen.PickRandomVisibleSiteParams{Level1TagName: second.Name, Level2TagName: target.Name})
 	if err != nil || random.ID != siteUUID {
@@ -218,7 +214,7 @@ func TestTaxonomyManagement(t *testing.T) {
 	}
 	found := false
 	for _, c := range readable {
-		found = found || c.Level2Slug == target.Slug
+		found = found || c.Level2Name == target.Name
 	}
 	if !found {
 		t.Fatal("disabled classification missing from public options")
@@ -228,7 +224,7 @@ func TestTaxonomyManagement(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range selectable {
-		if c.Level2Slug == target.Slug {
+		if c.Level2Name == target.Name {
 			t.Fatal("disabled classification allowed as a new selection")
 		}
 	}
@@ -237,7 +233,7 @@ func TestTaxonomyManagement(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tag := range enabledTags {
-		if tag.Slug == "renamed-slug" || tag.Slug == warning.Slug {
+		if tag.Name == "Renamed" || tag.Name == warning.Name {
 			t.Fatal("disabled tag allowed as a new selection")
 		}
 	}

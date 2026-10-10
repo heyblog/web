@@ -69,7 +69,6 @@ type HomeQueries interface {
 }
 
 type DirectoryQueries interface {
-	ResolveDirectoryLabel(context.Context, dbgen.ResolveDirectoryLabelParams) (dbgen.ResolveDirectoryLabelRow, error)
 	CardQueries
 	CountDirectorySitesByStatus(
 		context.Context,

@@ -17,7 +17,7 @@ SELECT NOT EXISTS (
     UNION ALL SELECT 1 FROM directory.site_feeds
     UNION ALL SELECT 1 FROM directory.site_resources
     UNION ALL SELECT 1 FROM directory.site_icons
-    UNION ALL SELECT 1 FROM directory.tags t WHERE NOT EXISTS (SELECT 1 FROM directory.tag_identity_aliases a WHERE a.tag_id=t.id AND a.system_key IS NOT NULL)
+    UNION ALL SELECT 1 FROM directory.tags t WHERE NOT EXISTS (SELECT 1 FROM directory.tag_identity_aliases a WHERE a.alias_kind='TAG' AND a.tag_id=t.id AND a.system_key IS NOT NULL)
     UNION ALL SELECT 1 FROM directory.site_tags
     -- The private-program placeholder is shipped by migrations and does not
     -- represent imported directory content.
@@ -118,11 +118,34 @@ func (q *Queries) InsertFriendLinks(ctx context.Context, links []byte) error {
 	return err
 }
 
+const insertImportedTag = `-- name: InsertImportedTag :exec
+INSERT INTO directory.tags(id,name,description,is_enabled)
+VALUES($1::uuid,$2::text,$3::text,$4::boolean)
+ON CONFLICT(normalized_name) DO NOTHING
+`
+
+type InsertImportedTagParams struct {
+	ID          pgtype.UUID
+	Name        string
+	Description string
+	IsEnabled   bool
+}
+
+func (q *Queries) InsertImportedTag(ctx context.Context, arg InsertImportedTagParams) error {
+	_, err := q.db.Exec(ctx, insertImportedTag,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.IsEnabled,
+	)
+	return err
+}
+
 const insertImportedTagAlias = `-- name: InsertImportedTagAlias :exec
-INSERT INTO directory.tag_identity_aliases(alias_id,tag_id,snapshot)
-SELECT $1::uuid,t.tag_id,jsonb_build_object('id',$1::uuid,'name',$2::text)
-FROM directory.tag_labels t WHERE t.normalized_name=$3
-ON CONFLICT(alias_id) DO NOTHING
+INSERT INTO directory.tag_identity_aliases(alias_kind,alias_id,tag_id,snapshot)
+SELECT 'TAG',$1::uuid,t.id,jsonb_build_object('id',$1::uuid,'name',$2::text)
+FROM directory.tags t WHERE t.normalized_name=lower(btrim($3::text))
+ON CONFLICT(alias_kind,alias_id) DO NOTHING
 `
 
 type InsertImportedTagAliasParams struct {
@@ -434,33 +457,6 @@ func (q *Queries) InsertSource(ctx context.Context, arg InsertSourceParams) (pgt
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
-}
-
-const insertTag = `-- name: InsertTag :exec
-INSERT INTO directory.tag_dictionary(id,name,normalized_name,slug,description,is_enabled)
-SELECT $1::uuid,$2::text,$3::text,$4::text,$5::text,$6::boolean
-WHERE NOT EXISTS(SELECT 1 FROM directory.tag_labels WHERE normalized_name=$3::text)
-`
-
-type InsertTagParams struct {
-	ID             pgtype.UUID
-	Name           string
-	NormalizedName string
-	Slug           string
-	Description    string
-	IsEnabled      bool
-}
-
-func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) error {
-	_, err := q.db.Exec(ctx, insertTag,
-		arg.ID,
-		arg.Name,
-		arg.NormalizedName,
-		arg.Slug,
-		arg.Description,
-		arg.IsEnabled,
-	)
-	return err
 }
 
 const tryAcquireImportLock = `-- name: TryAcquireImportLock :one

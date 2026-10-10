@@ -268,8 +268,8 @@ func TestBuildPlanMapsDirectoryRelationsAndRetriesShortIDCollision(t *testing.T)
 	if len(plan.Resources) != 2 || plan.Resources[0].Kind != "LINK_PAGE" || plan.Resources[1].Kind != "SITEMAP" {
 		t.Fatalf("resources = %#v, want deterministic link-page and sitemap rows", plan.Resources)
 	}
-	if len(plan.Tags) != 2 || plan.Tags[1].Slug != "legacy-"+testTagIDSub {
-		t.Fatalf("tags = %#v, want machine-key and deterministic legacy slug", plan.Tags)
+	if len(plan.Tags) != 2 || plan.Tags[1].ID != testTagIDSub || plan.Tags[0].Name != "技术" || plan.Tags[1].Name != "开源" {
+		t.Fatalf("tags = %#v, want preserved tag identities and names", plan.Tags)
 	}
 	if len(plan.SiteTags) != 2 || plan.SiteTags[0].Role != "PRIMARY" || plan.SiteTags[1].Role != "SECONDARY" {
 		t.Fatalf("site tags = %#v, want imported primary and secondary roles", plan.SiteTags)

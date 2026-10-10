@@ -23,7 +23,7 @@ export function parseSiteGoQuery(parameters: URLSearchParams): SiteGoQueryResult
     const value = parameters.get(name)?.trim();
     if (
       value !== undefined &&
-      (!value || [...value].length > 100 || /[\p{Cc}\p{Cs}\uFFFD]/u.test(value))
+      (!value || [...value].length > 120 || /[\p{Cc}\p{Cs}\uFFFD]/u.test(value))
     ) {
       return invalid('random_invalid_parameter');
     }
@@ -53,7 +53,7 @@ const parameterMessages: Readonly<Record<string, string>> = {
   random_duplicate_parameter: '同一个参数只能填写一次，请删除重复的参数。',
   random_unknown_parameter: '链接包含不支持的参数。可使用 level1、level2 和 preview。',
   random_invalid_preview: '预览模式请使用 preview=true；自动跳转请移除 preview 参数。',
-  random_invalid_parameter: '分类名称不能为空，且不能超过 100 个字符。不限分类时请移除对应参数。',
+  random_invalid_parameter: '分类名称不能为空，且不能超过 120 个字符。不限分类时请移除对应参数。',
   random_missing_level1: '指定二级分类时，请同时填写对应的一级分类。',
   random_unknown_level1: '一级分类不存在或已停用，请从当前分类中重新选择。',
   random_unknown_level2: '二级分类不存在或已停用，请从当前分类中重新选择。',

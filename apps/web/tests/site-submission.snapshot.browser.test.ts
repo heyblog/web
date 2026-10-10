@@ -41,7 +41,7 @@ test('applies a complete aggregate snapshot to editable state', () => {
           id: 'tag-primary',
           name: '中文博客',
           suggested_name: '',
-          slug: 'chinese-blog',
+
           description: '',
           role: 'PRIMARY',
         },
@@ -93,7 +93,7 @@ test('restores a custom program and its dependencies from an audit snapshot', ()
           id: 'tag-primary',
           name: '中文博客',
           suggested_name: '',
-          slug: 'chinese-blog',
+
           description: '',
           role: 'PRIMARY',
         },
@@ -163,7 +163,7 @@ test('restores editable taxonomy metadata while excluding warning tags', () => {
           id: 'computer',
           name: '计算机',
           suggested_name: '',
-          slug: 'computer',
+
           description: '',
           role: 'PRIMARY',
           level: 1,
@@ -173,7 +173,7 @@ test('restores editable taxonomy metadata while excluding warning tags', () => {
           id: 'warning',
           name: '待复核',
           suggested_name: '',
-          slug: 'warning',
+
           description: '',
           role: 'WARNING',
           level: 3,
@@ -183,7 +183,7 @@ test('restores editable taxonomy metadata while excluding warning tags', () => {
           id: '',
           name: '',
           suggested_name: '编译器',
-          slug: 'compiler',
+
           description: '编译器相关内容',
           role: 'TERTIARY',
           level: 3,
@@ -193,7 +193,7 @@ test('restores editable taxonomy metadata while excluding warning tags', () => {
           id: '',
           name: '',
           suggested_name: '网络研究',
-          slug: '',
+
           description: '',
           role: 'TERTIARY',
           level: 3,
@@ -221,7 +221,7 @@ test('restores editable taxonomy metadata while excluding warning tags', () => {
       level: 3,
       parent_id: null,
       suggestedName: '编译器',
-      slug: 'compiler',
+
       description: '编译器相关内容',
     },
   );

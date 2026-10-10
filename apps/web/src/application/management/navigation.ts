@@ -56,11 +56,6 @@ export function managementNavigation(
       description: '导出和恢复完整业务数据',
     });
     items.push({
-      label: '系统设置',
-      href: '/management/system-settings',
-      description: '设置 Slug 生成模型',
-    });
-    items.push({
       label: 'API 调用凭证',
       href: '/management/api-keys',
       description: '签发、轮换与撤销服务凭证',

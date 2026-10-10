@@ -24,19 +24,10 @@ export function parseSiteDirectorySearchParams(parameters: URLSearchParams): Sit
   return {
     page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
     q: (parameters.get('q') ?? '').trim().slice(0, 100),
-    level1: parameters.get('level1')?.trim() ?? '',
-    level1_label_id: parameters.has('level1')
-      ? validLabelID(parameters.get('level1_label_id'))
-      : '',
-    level2_label_id: parameters.has('level2')
-      ? validLabelID(parameters.get('level2_label_id'))
-      : '',
-    tertiary_label_ids: uniqueValues(parameters.getAll('tertiary_label_id')).filter((id) =>
-      validLabelID(id),
-    ),
-    level2: parameters.has('level1') ? (parameters.get('level2')?.trim() ?? '') : '',
-    tertiary: uniqueValues(parameters.getAll('tertiary')),
-    warning: uniqueValues(parameters.getAll('warning')),
+    level1: validName(parameters.get('level1')),
+    level2: validName(parameters.get('level1')) ? validName(parameters.get('level2')) : '',
+    tertiary: uniqueNames(parameters.getAll('tertiary')),
+    warning: uniqueNames(parameters.getAll('warning')),
     technology: uniqueValues(parameters.getAll('technology')),
     access: uniqueValues(parameters.getAll('access')).filter(isDirectoryAccess),
     feed: isDirectoryFeed(feedValue) ? feedValue : 'any',
@@ -79,9 +70,20 @@ function isDirectoryAccess(value: string): value is SiteDirectoryAccess {
   return value === 'ALL' || value === 'CN_ONLY' || value === 'GLOBAL_ONLY';
 }
 
-function validLabelID(value: string | null): string {
-  return value !== null &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-    ? value
-    : '';
+function validName(value: string | null): string {
+  const name = value?.trim() ?? '';
+  return Array.from(name).length <= 120 ? name : '';
+}
+
+function uniqueNames(values: readonly string[]): readonly string[] {
+  const seen = new Set<string>();
+  return values
+    .map(validName)
+    .filter((name) => {
+      const key = name.toLowerCase();
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 20);
 }

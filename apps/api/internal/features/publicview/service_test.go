@@ -33,9 +33,9 @@ func TestHomeLoadsFreshRandomCardsWithPublicResources(t *testing.T) {
 		},
 		announcementErr: pgx.ErrNoRows,
 		batchTags: []dbgen.ListPublicSiteTagsBySiteIDsRow{
-			{SiteID: first.ID, Role: "PRIMARY", Name: "技术", Slug: "technology"},
-			{SiteID: first.ID, Role: "SECONDARY", Name: "生活", Slug: "life"},
-			{SiteID: first.ID, Role: "WARNING", Name: "访问提示", Slug: "access-notice", Description: "部分地区可能较慢"},
+			{SiteID: first.ID, Role: "PRIMARY", Name: "技术"},
+			{SiteID: first.ID, Role: "SECONDARY", Name: "生活"},
+			{SiteID: first.ID, Role: "WARNING", Name: "访问提示", Description: "部分地区可能较慢"},
 		},
 		batchFeeds: []dbgen.DirectorySiteFeed{{
 			SiteID: first.ID, Name: "主订阅", LocationType: "RELATIVE", UrlRef: &feedRef, Format: "ATOM", IsEnabled: true, IsDefault: true,
@@ -307,8 +307,8 @@ func TestSiteProfileMapsOnlyPublicReadModel(t *testing.T) {
 			Kind: "SITEMAP", LocationType: "EXTERNAL", ExternalUrl: &resourceURL,
 		}},
 		tags: []dbgen.ListPublicSiteTagsRow{
-			{Role: "PRIMARY", Name: "技术", Slug: "technology", Description: "技术写作"},
-			{Role: "WARNING", Name: "访问提示", Slug: "access-notice", Description: "部分地区可能较慢"},
+			{Role: "PRIMARY", Name: "技术", Description: "技术写作"},
+			{Role: "WARNING", Name: "访问提示", Description: "部分地区可能较慢"},
 		},
 		technologies: []dbgen.ListPublicSiteSoftwareComponentsRow{{
 			Role: "FRAMEWORK", Name: "Astro", HomepageUrl: &homepage, RepositoryUrl: &repository, IsOpenSource: true,
@@ -594,8 +594,4 @@ func (stub queryStub) ListPublicSiteSoftwareComponents(
 	pgtype.UUID,
 ) ([]dbgen.ListPublicSiteSoftwareComponentsRow, error) {
 	return stub.technologies, stub.technologiesErr
-}
-
-func (stub queryStub) ResolveDirectoryLabel(_ context.Context, in dbgen.ResolveDirectoryLabelParams) (dbgen.ResolveDirectoryLabelRow, error) {
-	return dbgen.ResolveDirectoryLabelRow{Slug: in.Slug}, nil
 }

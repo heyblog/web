@@ -35,7 +35,7 @@
     <div class="mt-5 border-t border-line pt-5">
       <h3 class="text-sm font-medium">访问提示</h3>
       <ul class="mt-2 flex flex-wrap gap-2">
-        {#each site.warnings as warning (warning.slug)}
+        {#each site.warnings as warning (warning.name)}
           <li class="rounded-sm bg-warning-bg px-2 py-1 text-xs font-medium text-warning-fg">
             {warning.name}
           </li>

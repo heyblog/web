@@ -25,9 +25,13 @@ export async function loadSiteGoPage(
   ]);
   const classifications = options.kind === 'success' ? options.data.classifications : [];
   const requested = parsed.kind === 'valid' ? parsed.query : { level1: '', level2: '' };
-  const parent = classifications.find((item) => item.label === requested.level1);
+  const parent = classifications.find(
+    (item) => item.label.toLowerCase() === requested.level1.toLowerCase(),
+  );
   const level1 = parent?.label ?? '';
-  const level2 = parent?.children.find((item) => item.label === requested.level2)?.label ?? '';
+  const level2 =
+    parent?.children.find((item) => item.label.toLowerCase() === requested.level2.toLowerCase())
+      ?.label ?? '';
   const invalid = selection.kind === 'bad-request';
   const unavailable =
     !invalid && (selection.kind !== 'success' || (preview && options.kind !== 'success'));

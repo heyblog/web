@@ -60,7 +60,8 @@ layer and browser-module boundaries.
   safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
   Purpose-built POST forwarding streams attachments and multipart files without parsing backup data
   in Web. Keep Cookie/Web-token authorization, same-origin metadata, private no-store, 512 MiB file
-  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Inspection contains
+  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Only backup version 1 /
+  schema version 3 with 33 datasets is supported. Inspection contains
   counts and administrator mapping only. Never retry restoration automatically; an uncertain result
   requires fresh inspection. Browser state holds selected files only until navigation.
 
@@ -71,24 +72,12 @@ layer and browser-module boundaries.
   outbound resolution. PublicLayout observes qualified displays with document-local deduplication;
   no persistent browser identity is used. Random manual navigation stops the automatic timer.
 
-- Tag concepts share one slug across admin-confirmed names. Selections carry concept `id` and
-  optional `label_id`, preserving chosen names on content. Selector rows use label IDs, search expands
-  confirmed synonym groups, and duplicate concepts cannot be chosen as tertiary tags. Directory URL
-  label parameters restore presentation only; canonical slug filters determine results.
-- Tag dictionaries use global tag identity; classification roles belong to paths and selections, so
-  PRIMARY and SECONDARY may share an ID. Batch slug jobs retain editable previews in component memory,
-  recover persisted tasks through the API, and cancel polling on unmount. Candidate edits and applies
-  use task revisions; only selected successful items are submitted. Conflicting candidates remain
-  `needs_confirmation` until an administrator maps synonyms or supplies an independent slug.
-- Tag management and system settings use the purpose-built authenticated boundary in
-  `src/api/taxonomy`. Payload validators reject arbitrary prompts, models, and endpoints; mutations
-  require matching Origin and same-origin fetch metadata. Only SYS_ADMIN changes global AI settings.
-  Provider credentials stay entirely in the API. Generation and model requests have a 25s browser
-  deadline and 20s Web deadline; throttling headers survive forwarding. User-facing failures map
-  stable codes through `src/application/taxonomy`, never raw upstream diagnostics.
-  Review and review-draft forwarding allows 40s for backend automatic slug preparation. Batch
-  candidate inputs are limited to 128 characters and become editable after generation completes;
-  browser polling and its timers stop when the component unmounts.
+- Tags have one name, unique after trimming and case folding, with no semantic synonym merging.
+  Selections carry tag IDs and names; directory level1/level2/tertiary/warning URL values are
+  complete names (up to 120 characters), matched and deduplicated case-insensitively.
+  Tag management retains manual merge and classification path management through the authenticated
+  taxonomy boundary. Mutations require matching Origin and same-origin fetch metadata.
+  User-facing failures map stable codes through application/taxonomy, never raw diagnostics.
 
 - Astro owns filesystem routing, SSR, prerendering, middleware, and island placement. Keep server
   output and the Node standalone adapter coherent with build and deployment tasks.

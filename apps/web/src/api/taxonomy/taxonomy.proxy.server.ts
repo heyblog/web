@@ -1,6 +1,5 @@
 import { requestAuthAPI } from '../auth/auth.server.ts';
 
-import { slugJobMethods, validSlugJobPayload } from './slug-jobs.validation.ts';
 import { isRecord, isUUID } from './taxonomy.types.ts';
 import { validManagementPayload } from './taxonomy.validation.ts';
 
@@ -49,35 +48,9 @@ export async function forwardTaxonomyManagement(
   path = '',
   upstream: typeof requestAuthAPI = requestAuthAPI,
 ): Promise<Response> {
-  const system = path === 'settings' || path === 'models';
-  const job = path === 'slug-jobs' || path.startsWith('slug-jobs/');
-  const actions =
-    path === 'changes/preview' ||
-    path === 'changes/apply' ||
-    path === 'slug-generation' ||
-    path === 'cascades';
-  const parts = path.split('/');
-  const labelRoute =
-    isUUID(parts[0]) &&
-    ((parts.length === 2 && (parts[1] === 'labels' || parts[1] === 'default-label')) ||
-      (parts.length === 3 && parts[1] === 'labels' && isUUID(parts[2])));
-  const allowed = labelRoute
-    ? parts.length === 2
-      ? ['POST']
-      : ['PUT', 'DELETE']
-    : job
-      ? slugJobMethods(path)
-      : path === ''
-        ? ['GET', 'POST']
-        : path === 'settings'
-          ? ['GET', 'PUT']
-          : path === 'models'
-            ? ['GET']
-            : actions
-              ? ['POST']
-              : isUUID(path)
-                ? ['PUT', 'DELETE']
-                : [];
+  const actions = path === 'changes/preview' || path === 'changes/apply' || path === 'cascades';
+  const allowed =
+    path === '' ? ['GET', 'POST'] : actions ? ['POST'] : isUUID(path) ? ['PUT', 'DELETE'] : [];
   if (allowed.length === 0) return problem(404, 'not_found');
   if (!allowed.includes(request.method)) return problem(405, 'method_not_allowed');
   const incomingURL = new URL(request.url);
@@ -94,12 +67,8 @@ export async function forwardTaxonomyManagement(
       'application/json'
     )
       return problem(415, 'unsupported_media_type');
-    const value = await readBody(request, path === 'slug-generation' ? 8192 : job ? 131072 : 65536);
-    if (
-      !(job
-        ? validSlugJobPayload(value, path)
-        : validManagementPayload(value, path, request.method))
-    )
+    const value = await readBody(request, 65536);
+    if (!validManagementPayload(value, path, request.method))
       return problem(422, 'validation_failed');
     if (!isRecord(value)) return problem(422, 'validation_failed');
     body = value;
@@ -123,24 +92,16 @@ export async function forwardTaxonomyManagement(
   }
   if (!isRecord(actor) || !isRecord(actor.user)) return problem(502, 'bad_gateway');
   const user = actor.user;
-  if (
-    system
-      ? user.role !== 'SYS_ADMIN'
-      : !(
-          user.role === 'SYS_ADMIN' ||
-          (user.role === 'ADMIN' &&
-            Array.isArray(user.permissions) &&
-            user.permissions.includes('taxonomy.manage'))
-        )
-  )
+  if (!(
+    user.role === 'SYS_ADMIN' ||
+    (user.role === 'ADMIN' &&
+      Array.isArray(user.permissions) &&
+      user.permissions.includes('taxonomy.manage'))
+  ))
     return problem(403, 'forbidden');
-  const target: `/${string}` = system
-    ? `/management/system-settings${path === 'models' ? '/models' : ''}`
-    : path === 'slug-generation'
-      ? '/management/taxonomy/slug-generation'
-      : actions || job
-        ? `/management/taxonomy/${path}`
-        : `/management/taxonomy/tags${path ? `/${path}` : ''}`;
+  const target: `/${string}` = actions
+    ? `/management/taxonomy/${path}`
+    : `/management/taxonomy/tags${path ? `/${path}` : ''}`;
   const method = request.method;
   if (
     method !== 'GET' &&

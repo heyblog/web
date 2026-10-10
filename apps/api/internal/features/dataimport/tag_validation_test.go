@@ -16,8 +16,7 @@ func TestValidatePlanAcceptsWarningSiteTag(t *testing.T) {
 	}
 	warningID := "0196d7f7-1000-7000-8000-000000000099"
 	plan.Tags = append(plan.Tags, TagRow{
-		ID: warningID, Name: "Content warning", NormalizedName: "content warning",
-		Slug: "content-warning", IsEnabled: true,
+		ID: warningID, Name: "Content warning", NormalizedName: "content warning", IsEnabled: true,
 	})
 	plan.SiteTags = append(plan.SiteTags, SiteTagRow{
 		SiteID: plan.Sites[0].ID, TagID: warningID, Role: "WARNING", Note: "Sensitive topic",

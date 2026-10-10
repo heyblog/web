@@ -26,12 +26,7 @@
       approvalSnapshot.program_dependencies.some((component) => !component.id) ||
       approvalSnapshot.tags.some((tag) => !tag.id),
   );
-  let hasIncompleteTagMetadata = $derived(
-    approvalSnapshot.tags.some(
-      (tag) => !tag.id && tag.slug !== '' && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tag.slug),
-    ),
-  );
-  let approveBlocked = $derived((hasNewTaxonomy && !canManageTaxonomy) || hasIncompleteTagMetadata);
+  let approveBlocked = $derived(hasNewTaxonomy && !canManageTaxonomy);
 
   function requestAction(action: PendingAction): void {
     error = '';
@@ -103,9 +98,7 @@
       class="rounded-sm border border-warning-border bg-warning-bg p-3 text-sm text-warning-fg"
       role="status"
     >
-      {hasIncompleteTagMetadata
-        ? '新增标签填写的 slug 格式无效，请修改或留空自动生成。'
-        : '申请包含新标签、程序或技术。请改为已有目录项，或由拥有分类维护权限的审核者批准。'}
+      申请包含新标签、程序或技术。请改为已有目录项，或由拥有分类维护权限的审核者批准。
     </p>{/if}
 
   {#if canCorrect}<div class="grid gap-2">

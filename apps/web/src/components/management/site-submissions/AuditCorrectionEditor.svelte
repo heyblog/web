@@ -27,8 +27,7 @@
   const initialDetail = untrack(() => detail);
   let form = $state(emptySubmission());
   let pending = $state(false);
-  let generating = $state(false);
-  $effect(() => protectReviewRequest(() => pending || generating));
+  $effect(() => protectReviewRequest(() => pending));
   let error = $state('');
 
   applySnapshot(
@@ -38,7 +37,7 @@
   );
 
   async function save(): Promise<void> {
-    if (pending || generating) return;
+    if (pending) return;
     for (let step = 0; step < 3; step += 1) {
       const result = validateSubmissionStep(detail.action, form, step);
       if (!result.valid) {
@@ -62,7 +61,7 @@
   }
 </script>
 
-<fieldset class="grid min-w-0 gap-6" disabled={pending} aria-busy={pending || generating}>
+<fieldset class="grid min-w-0 gap-6" disabled={pending} aria-busy={pending}>
   <section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
     <header class="border-b border-line pb-4">
       <p class="text-xs font-medium text-tint-fg">批准前修正</p>
@@ -94,13 +93,7 @@
   </section>
 
   <section class="grid min-w-0 gap-6 rounded-md border border-line bg-surface p-5 sm:p-6">
-    <TagPicker
-      bind:form
-      options={options.tags}
-      {canManageTaxonomy}
-      disabled={pending}
-      onbusy={(busy) => (generating = busy)}
-    />
+    <TagPicker bind:form options={options.tags} {canManageTaxonomy} disabled={pending} />
     <div class="border-t border-line pt-6">
       <ProgramPicker
         bind:form
@@ -117,15 +110,15 @@
     <a
       class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 font-medium hover:bg-subtle"
       href={returnPath}
-      aria-disabled={pending || generating}
+      aria-disabled={pending}
       onclick={(event) => {
-        if (pending || generating) event.preventDefault();
+        if (pending) event.preventDefault();
       }}>取消</a
     >
     <button
       class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
       type="button"
-      disabled={pending || generating}
+      disabled={pending}
       onclick={save}>{pending ? '保存中…' : '保存修正并返回'}</button
     >
   </div>

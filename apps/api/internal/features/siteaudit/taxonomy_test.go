@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"heyblog-api/internal/features/auth"
@@ -11,23 +12,26 @@ import (
 )
 
 type existingTagQueries struct {
-	tag dbgen.DirectoryTagDictionary
+	tag dbgen.DirectoryTag
 }
 
 type existingComponentQueries struct {
 	component dbgen.DirectorySoftwareComponent
 }
 
-func (queries existingTagQueries) ListManagedTags(context.Context) ([]dbgen.DirectoryTagDictionary, error) {
-	return []dbgen.DirectoryTagDictionary{queries.tag}, nil
+func (queries existingTagQueries) ListManagedTags(context.Context) ([]dbgen.DirectoryTag, error) {
+	return []dbgen.DirectoryTag{queries.tag}, nil
 }
 
-func (queries existingTagQueries) GetTagByNormalizedName(context.Context, string) (dbgen.DirectoryTagDictionary, error) {
+func (queries existingTagQueries) GetTagByNormalizedName(_ context.Context, name string) (dbgen.DirectoryTag, error) {
+	if name != queries.tag.NormalizedName {
+		return dbgen.DirectoryTag{}, pgx.ErrNoRows
+	}
 	return queries.tag, nil
 }
 
-func (existingTagQueries) CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTagDictionary, error) {
-	return dbgen.DirectoryTagDictionary{}, nil
+func (existingTagQueries) CreateTag(context.Context, dbgen.CreateTagParams) (dbgen.DirectoryTag, error) {
+	return dbgen.DirectoryTag{}, nil
 }
 
 func (queries existingComponentQueries) GetSoftwareComponentByID(context.Context, pgtype.UUID) (dbgen.DirectorySoftwareComponent, error) {
@@ -50,9 +54,9 @@ func TestResolveTagMapsSuggestionToExistingEntryWithoutTaxonomyPermission(t *tes
 
 	resolved, err := resolveTag(
 		context.Background(),
-		existingTagQueries{tag: dbgen.DirectoryTagDictionary{ID: existingID, Name: "Astro", NormalizedName: "astro", IsEnabled: true}},
+		existingTagQueries{tag: dbgen.DirectoryTag{ID: existingID, Name: "Astro", NormalizedName: "astro", IsEnabled: true}},
 		reviewer,
-		TagSnapshot{SuggestedName: "Astro", Role: "TERTIARY", Level: 3},
+		TagSnapshot{SuggestedName: "  aStRo  ", Role: "TERTIARY", Level: 3},
 	)
 
 	if err != nil {
@@ -77,7 +81,7 @@ func TestResolveTagRejectsCustomNonTertiaryTag(t *testing.T) {
 		context.Background(),
 		existingTagQueries{},
 		auth.User{Role: auth.RoleSysAdmin},
-		TagSnapshot{SuggestedName: "分类", Slug: "classification", Description: "说明", Role: "PRIMARY", Level: 1},
+		TagSnapshot{SuggestedName: "分类", Description: "说明", Role: "PRIMARY", Level: 1},
 	)
 
 	if err == nil {
@@ -132,10 +136,3 @@ func TestTertiaryAssignmentAcceptsIntrinsicClassificationLevel(t *testing.T) {
 }
 
 func (existingTagQueries) EnableCanonicalTag(context.Context, pgtype.UUID) error { return nil }
-
-func (queries existingTagQueries) GetTagLabel(_ context.Context, id pgtype.UUID) (dbgen.DirectoryTagLabel, error) {
-	return dbgen.DirectoryTagLabel{ID: id, TagID: queries.tag.ID, Name: queries.tag.Name, IsEnabled: queries.tag.IsEnabled}, nil
-}
-func (queries existingTagQueries) GetTagLabelByNormalizedName(context.Context, string) (dbgen.DirectoryTagLabel, error) {
-	return dbgen.DirectoryTagLabel{ID: queries.tag.DefaultLabelID, TagID: queries.tag.ID, Name: queries.tag.Name, IsEnabled: queries.tag.IsEnabled}, nil
-}

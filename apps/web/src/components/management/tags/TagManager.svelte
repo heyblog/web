@@ -6,7 +6,6 @@
   import { taxonomyMessage } from '@/application/taxonomy/taxonomy.messages';
 
   import CascadeManager from './CascadeManager.svelte';
-  import SlugJobs from './SlugJobs.svelte';
   import TagEditor from './TagEditor.svelte';
   import { inputClass, outlineClass, primaryClass } from './tags.styles';
   import TaxonomyChange from './TaxonomyChange.svelte';
@@ -21,9 +20,7 @@
   let message = $state('');
   let loading = $state(false);
   let search = $state('');
-  let view = $state<'tags' | 'paths' | 'slugs'>('tags');
-  let checked = $state<string[]>([]);
-  let batchEditing = $state(false);
+  let view = $state<'tags' | 'paths'>('tags');
   let roleFilter = $state('');
   let statusFilter = $state('active');
   let selected = $state<ManagedTag | null>(null);
@@ -38,10 +35,7 @@
   let visible = $derived(
     (data?.tags ?? []).filter(
       (tag) =>
-        (!search ||
-          `${tag.labels.map((label) => label.name).join(' ')} ${tag.slug}`
-            .toLowerCase()
-            .includes(search.trim().toLowerCase())) &&
+        (!search || tag.name.toLowerCase().includes(search.trim().toLowerCase())) &&
         (!roleFilter || tag.roles.includes(roleFilter)) &&
         (statusFilter === 'all' || (statusFilter === 'active' ? tag.is_enabled : !tag.is_enabled)),
     ),
@@ -118,7 +112,7 @@
 <div class="grid min-w-0 gap-6">
   <header class="flex flex-wrap items-start justify-between gap-4">
     <div>
-      <p class="text-sm text-fg-muted">统一维护站点与文章的分类、标签和历史链接。</p>
+      <p class="text-sm text-fg-muted">统一维护站点与文章的分类和标签。</p>
       {#if data}<p class="mt-2 text-sm text-fg-muted">
           {canonical.length} 个标签 · {data.cascades.filter((item) => !item.merged_into_id).length} 条分类路径
         </p>{/if}
@@ -147,34 +141,18 @@
       <button
         class={outlineClass}
         type="button"
-        disabled={batchEditing}
         aria-pressed={view === 'tags'}
         onclick={() => (view = 'tags')}>标签字典</button
       >
       <button
         class={outlineClass}
         type="button"
-        disabled={batchEditing}
         aria-pressed={view === 'paths'}
         onclick={() => (view = 'paths')}>分类路径</button
-      >
-      <button
-        class={outlineClass}
-        type="button"
-        aria-pressed={view === 'slugs'}
-        onclick={() => (view = 'slugs')}>批量更新 slug</button
       >
     </nav>
     {#if view === 'paths'}
       <CascadeManager {data} onsaved={(value) => (data = value)} />
-    {:else if view === 'slugs'}
-      <SlugJobs
-        {checked}
-        query={search}
-        isEnabled={statusFilter === 'all' ? undefined : statusFilter === 'active'}
-        onediting={(value) => (batchEditing = value)}
-        onapplied={refresh}
-      />
     {:else}
       <div class="grid min-w-0 gap-6">
         <section class="grid min-w-0 content-start gap-4" aria-label="标签列表" aria-busy={loading}>
@@ -184,7 +162,7 @@
                 class={inputClass}
                 bind:value={search}
                 type="search"
-                placeholder="名称或 slug"
+                placeholder="标签名称"
               /></label
             >
             <label class="grid gap-1.5 text-sm"
@@ -207,13 +185,12 @@
               <caption class="sr-only">标签名称、角色、状态和引用数量</caption>
               <thead class="border-b border-line text-xs text-fg-muted"
                 ><tr
-                  ><th class="px-4 py-3 font-medium" scope="col">选择</th><th
-                    class="px-4 py-3 font-medium"
-                    scope="col">标签</th
-                  ><th class="px-4 py-3 font-medium whitespace-nowrap" scope="col">分类</th><th
-                    class="px-4 py-3 font-medium"
-                    scope="col">状态</th
-                  ><th class="px-4 py-3 font-medium whitespace-nowrap" scope="col">站点 / 文章</th
+                  ><th class="px-4 py-3 font-medium" scope="col">标签</th><th
+                    class="px-4 py-3 font-medium whitespace-nowrap"
+                    scope="col">分类</th
+                  ><th class="px-4 py-3 font-medium" scope="col">状态</th><th
+                    class="px-4 py-3 font-medium whitespace-nowrap"
+                    scope="col">站点 / 文章</th
                   ><th class="px-4 py-3 font-medium" scope="col">操作</th></tr
                 ></thead
               >
@@ -221,19 +198,8 @@
                 >{#each visible as tag (tag.id)}<tr
                     class="h-12 border-b border-line last:border-0 hover:bg-subtle"
                   >
-                    <td class="px-4 py-3"
-                      ><input
-                        type="checkbox"
-                        bind:group={checked}
-                        value={tag.id}
-                        aria-label={`选择标签 ${tag.name}`}
-                      /></td
-                    >
                     <th class="min-w-40 px-4 py-3 font-medium" scope="row"
-                      ><span class="block wrap-anywhere">{tag.name}</span><span
-                        class="mt-1 block text-xs font-normal wrap-anywhere text-fg-muted"
-                        >{tag.slug}</span
-                      ></th
+                      ><span class="block wrap-anywhere">{tag.name}</span></th
                     >
                     <td class="px-4 py-3 whitespace-nowrap"
                       >{tag.roles

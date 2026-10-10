@@ -118,29 +118,20 @@
     value: string,
     selected: boolean,
   ): readonly string[] {
-    return selected ? [...new Set([...values, value])] : values.filter((item) => item !== value);
+    const remaining = values.filter((item) => item.toLowerCase() !== value.toLowerCase());
+    return selected ? [...remaining, value] : remaining;
   }
 
   function handleFilterToggle(
     name: SiteDirectoryFilterName,
     value: string,
     selected: boolean,
-    labelID?: string,
   ): void {
     switch (name) {
       case 'tertiary':
         updateQuery(
           {
             tertiary: toggleValues(query.tertiary, value, selected),
-            tertiary_label_ids: [
-              ...(query.tertiary_label_ids ?? []).filter(
-                (id) =>
-                  !options.tertiaryTags.some(
-                    (option) => option.value === value && option.label_id === id,
-                  ),
-              ),
-              ...(selected && labelID ? [labelID] : []),
-            ],
           },
           'filter',
         );
@@ -177,12 +168,7 @@
       return;
     }
     if (name === 'classification') {
-      updateQuery(
-        value === 'level1'
-          ? { level1: '', level2: '', level1_label_id: '', level2_label_id: '' }
-          : { level2: '', level2_label_id: '' },
-        'filter',
-      );
+      updateQuery(value === 'level1' ? { level1: '', level2: '' } : { level2: '' }, 'filter');
       return;
     }
     handleFilterToggle(name, value, false);
@@ -194,9 +180,6 @@
         level1: '',
         level2: '',
         tertiary: [],
-        level1_label_id: '',
-        level2_label_id: '',
-        tertiary_label_ids: [],
         warning: [],
         technology: [],
         access: [],
@@ -231,18 +214,11 @@
     {options}
     {query}
     onToggle={handleFilterToggle}
-    onClassificationChange={(
-      level1: string,
-      level2: string,
-      level1LabelID?: string,
-      level2LabelID?: string,
-    ) =>
+    onClassificationChange={(level1: string, level2: string) =>
       updateQuery(
         {
           level1,
           level2,
-          level1_label_id: level1LabelID ?? '',
-          level2_label_id: level2LabelID ?? '',
         },
         'filter',
       )}

@@ -19,35 +19,31 @@ func verifyTagAndIconConstraints(ctx context.Context, t *testing.T, connection *
 	otherSiteID := insertSite(ctx, t, connection, "7Aa8Bb9Cc", "Invalid Tag Role", "tag-role.example.com")
 	var tertiaryTagID, warningTagID, alternateTertiaryTagID pgtype.UUID
 	for _, tag := range []struct {
-		name           string
-		normalizedName string
-		slug           string
-		destination    *pgtype.UUID
+		name        string
+		destination *pgtype.UUID
 	}{
-		{name: "Technology", normalizedName: "technology", slug: "technology", destination: &tertiaryTagID},
-		{name: "Sensitive", normalizedName: "sensitive", slug: "sensitive", destination: &warningTagID},
-		{name: "Personal", normalizedName: "personal", slug: "personal", destination: &alternateTertiaryTagID},
+		{name: "Technology", destination: &tertiaryTagID},
+		{name: "Sensitive", destination: &warningTagID},
+		{name: "Personal", destination: &alternateTertiaryTagID},
 	} {
 		if err := connection.QueryRow(ctx, `
-			INSERT INTO directory.tag_dictionary (name, normalized_name, slug)
-			VALUES ($1, $2, $3)
+			INSERT INTO directory.tags (name)
+			VALUES ($1)
 			RETURNING id
-		`, tag.name, tag.normalizedName, tag.slug).Scan(tag.destination); err != nil {
+		`, tag.name).Scan(tag.destination); err != nil {
 			t.Fatalf("insert tag %q: %v", tag.name, err)
 		}
 	}
 	if _, err := connection.Exec(ctx, `
-		INSERT INTO directory.tag_dictionary (name, normalized_name, slug)
-		VALUES (' TECHNOLOGY ', 'technology', 'different-slug')
+		INSERT INTO directory.tags (name)
+		VALUES (' TECHNOLOGY ')
 	`); err == nil {
 		t.Fatal("duplicate normalized tag name unexpectedly succeeded")
 	}
-	if _, err := connection.Exec(ctx, `
-		INSERT INTO directory.tag_dictionary (name, normalized_name, slug)
-		VALUES ('Duplicate slug', 'different name', 'technology')
-	`); err == nil {
-		t.Fatal("duplicate tag slug unexpectedly succeeded")
+	if _, err := connection.Exec(ctx, `INSERT INTO directory.tags(name) VALUES ('JavaScript'),('JS')`); err != nil {
+		t.Fatalf("independent names must coexist: %v", err)
 	}
+
 	firstPosition := int16(1)
 	for _, assignment := range []struct {
 		tagID    pgtype.UUID

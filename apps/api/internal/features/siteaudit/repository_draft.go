@@ -35,7 +35,11 @@ func (transaction *auditTransaction) SaveDraft(ctx context.Context, record draft
 	if err != nil {
 		return Audit{}, mapReviewDraftUpdateError(err, "saving")
 	}
-	return auditFromRow(updated)
+	audit, err := auditFromRow(updated)
+	if err != nil {
+		return Audit{}, err
+	}
+	return projectAuditTaxonomy(ctx, transaction.queries, audit, true)
 }
 
 func (transaction *auditTransaction) DiscardDraft(ctx context.Context, record draftRecord) (Audit, error) {
@@ -49,7 +53,11 @@ func (transaction *auditTransaction) DiscardDraft(ctx context.Context, record dr
 	if err != nil {
 		return Audit{}, mapReviewDraftUpdateError(err, "discarding")
 	}
-	return auditFromRow(updated)
+	audit, err := auditFromRow(updated)
+	if err != nil {
+		return Audit{}, err
+	}
+	return projectAuditTaxonomy(ctx, transaction.queries, audit, true)
 }
 
 func mapReviewDraftUpdateError(err error, operation string) error {

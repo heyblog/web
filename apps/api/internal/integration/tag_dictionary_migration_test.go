@@ -43,7 +43,7 @@ func TestDictionaryUpgradeFromDeployedAndDevelopment(t *testing.T) {
 			pending := f.pendingCreate(t, "dictionary-pending.example.test")
 			f.addReviewHistory(t, pending.AuditID)
 			before := f.evidenceOutsideTaxonomy(t)
-			if _, err := f.provider.Up(ctx); err != nil {
+			if _, err := f.provider.UpTo(ctx, 19); err != nil {
 				t.Fatal(err)
 			}
 			if after := f.evidenceOutsideTaxonomy(t); after != before {

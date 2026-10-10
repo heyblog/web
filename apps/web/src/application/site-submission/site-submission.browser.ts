@@ -18,13 +18,11 @@ export interface FeedDraft {
 }
 export interface SelectedTag {
   id: string;
-  label_id?: string;
   name: string;
   role: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
   level?: 1 | 2 | 3;
   parent_id?: string | null;
   suggestedName?: string;
-  slug?: string;
   description?: string;
 }
 export interface DependencyDraft {
@@ -181,9 +179,7 @@ export function buildSubmissionPayload(
     ],
     tags: form.tags.map((tag) => ({
       id: tag.suggestedName ? '' : tag.id,
-      ...(tag.label_id ? { label_id: tag.label_id } : {}),
       suggested_name: tag.suggestedName ?? '',
-      slug: tag.slug?.trim() ?? '',
       description: tag.description?.trim() ?? '',
       role: tag.role,
       ...(tag.level === undefined ? {} : { level: tag.level }),

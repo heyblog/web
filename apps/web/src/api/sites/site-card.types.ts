@@ -29,7 +29,6 @@ export type HomeSiteCard = SiteCardView;
 
 export interface HomeSiteTopic {
   name: string;
-  slug: string;
 }
 
 export interface HomeSiteClassification {
@@ -39,7 +38,6 @@ export interface HomeSiteClassification {
 
 export interface HomeSiteWarning {
   name: string;
-  slug: string;
   description: string;
 }
 

@@ -10,7 +10,7 @@ func buildPlan(current graph, input ChangeInput) (changePlan, error) {
 	for i := range next.Objects {
 		next.Objects[i].Tags = slices.Clone(current.Objects[i].Tags)
 	}
-	plan := changePlan{Preview: Preview{RetainedLabels: []RetainedLabel{}, Revision: current.Revision, Blockers: []string{}, Paths: []PathImpact{}}, Graph: next, Affected: map[string]bool{}, Merged: map[string]string{}}
+	plan := changePlan{Preview: Preview{Revision: current.Revision, Blockers: []string{}, Paths: []PathImpact{}}, Graph: next, Affected: map[string]bool{}, Merged: map[string]string{}}
 	switch input.Kind {
 	case "merge":
 		plan.merge(input)
@@ -48,15 +48,6 @@ func (p *changePlan) merge(input ChangeInput) {
 		return
 	}
 	p.Merged[source.ID] = target.ID
-	for i := range p.Graph.Tags {
-		if p.Graph.Tags[i].ID == target.ID {
-			p.Graph.Tags[i].Labels = slices.Clone(p.Graph.Tags[i].Labels)
-			for _, l := range source.Labels {
-				l.TagID = target.ID
-				p.Graph.Tags[i].Labels = append(p.Graph.Tags[i].Labels, l)
-			}
-		}
-	}
 	p.Graph.Tags = slices.DeleteFunc(p.Graph.Tags, func(t Tag) bool { return t.ID == source.ID })
 	for i, c := range p.Graph.Cascades {
 		if c.PrimaryID == source.ID {

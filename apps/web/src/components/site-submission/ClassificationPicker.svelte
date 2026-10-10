@@ -64,15 +64,7 @@
             disabled>{selectedLevel1.name}（已停用）</option
           >{/if}
         {#each level1Options as option (tagOptionKey(option))}
-          <option
-            value={tagOptionKey(option)}
-            disabled={selectedLevel1?.id === option.id &&
-              tagOptionKey(selectedLevel1) !== tagOptionKey(option)}
-            >{option.name}{selectedLevel1?.id === option.id &&
-            tagOptionKey(selectedLevel1) !== tagOptionKey(option)
-              ? '（已选择同义名称）'
-              : ''}</option
-          >
+          <option value={tagOptionKey(option)}>{option.name}</option>
         {/each}
       </select>
     </label>
@@ -90,15 +82,7 @@
             disabled>{selectedLevel2.name}（已停用）</option
           >{/if}
         {#each level2Options as option (tagOptionKey(option))}
-          <option
-            value={tagOptionKey(option)}
-            disabled={selectedLevel2?.id === option.id &&
-              tagOptionKey(selectedLevel2) !== tagOptionKey(option)}
-            >{option.name}{selectedLevel2?.id === option.id &&
-            tagOptionKey(selectedLevel2) !== tagOptionKey(option)
-              ? '（已选择同义名称）'
-              : ''}</option
-          >
+          <option value={tagOptionKey(option)}>{option.name}</option>
         {/each}
       </select>
     </label>

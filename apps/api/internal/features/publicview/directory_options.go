@@ -8,13 +8,11 @@ import (
 )
 
 type DirectoryOption struct {
-	ID            string   `json:"id,omitempty"`
-	LabelID       string   `json:"label_id,omitempty"`
-	Synonyms      []string `json:"synonyms,omitempty"`
-	Value         string   `json:"value"`
-	Label         string   `json:"label"`
-	NormalCount   int64    `json:"normalCount"`
-	AbnormalCount int64    `json:"abnormalCount"`
+	ID            string `json:"id,omitempty"`
+	Value         string `json:"value"`
+	Label         string `json:"label"`
+	NormalCount   int64  `json:"normalCount"`
+	AbnormalCount int64  `json:"abnormalCount"`
 }
 
 type DirectoryOptions struct {
@@ -49,14 +47,14 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 	counts := make(map[string]DirectoryOption, len(tags))
 	for _, tag := range tags {
 		option := DirectoryOption{
-			ID: uuidText(tag.ID), LabelID: uuidText(tag.LabelID), Synonyms: tag.Synonyms, Value: tag.Slug, Label: tag.Name,
+			ID: uuidText(tag.ID), Value: tag.Name, Label: tag.Name,
 			NormalCount: tag.NormalCount, AbnormalCount: tag.AbnormalCount,
 		}
 		switch tag.Role {
 		case "PRIMARY":
-			counts["PRIMARY:"+tag.Slug] = option
+			counts["PRIMARY:"+tag.Name] = option
 		case "SECONDARY":
-			counts["SECONDARY:"+tag.Slug] = option
+			counts["SECONDARY:"+tag.Name] = option
 		case "TERTIARY":
 			options.TertiaryTags = append(options.TertiaryTags, option)
 		case "WARNING":
@@ -70,14 +68,11 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 	}
 	classificationIndex := make(map[string]int)
 	for _, cascade := range cascades {
-		level1 := counts["PRIMARY:"+cascade.Level1Slug]
-		level1.Value, level1.Label, level1.ID, level1.LabelID, level1.Synonyms = cascade.Level1Slug, cascade.Level1Name, uuidText(cascade.Level1ID), uuidText(cascade.Level1LabelID), cascade.Level1Synonyms
-		level2 := counts["SECONDARY:"+cascade.Level2Slug]
-		level2.Value, level2.Label, level2.ID, level2.LabelID, level2.Synonyms = cascade.Level2Slug, cascade.Level2Name, uuidText(cascade.Level2ID), uuidText(cascade.Level2LabelID), cascade.Level2Synonyms
-		key := level1.LabelID
-		if key == "" {
-			key = level1.Value
-		}
+		level1 := counts["PRIMARY:"+cascade.Level1Name]
+		level1.Value, level1.Label, level1.ID = cascade.Level1Name, cascade.Level1Name, uuidText(cascade.Level1ID)
+		level2 := counts["SECONDARY:"+cascade.Level2Name]
+		level2.Value, level2.Label, level2.ID = cascade.Level2Name, cascade.Level2Name, uuidText(cascade.Level2ID)
+		key := level1.ID
 		index, exists := classificationIndex[key]
 		if !exists {
 			index = len(options.Classifications)
@@ -88,7 +83,7 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 		}
 		duplicate := false
 		for _, child := range options.Classifications[index].Children {
-			if child.LabelID != "" && child.LabelID == level2.LabelID || child.LabelID == "" && child.Value == level2.Value {
+			if child.ID == level2.ID {
 				duplicate = true
 				break
 			}

@@ -84,7 +84,7 @@ function createNavigation() {
   };
 }
 
-test('review generation and saves block departure until all work finishes', () => {
+test('review saves block departure until all work finishes', () => {
   const navigation = createNavigation();
   assert.equal(navigation.click().defaultPrevented, true);
   assert.equal(navigation.unload().defaultPrevented, true);

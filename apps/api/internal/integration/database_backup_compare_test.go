@@ -33,7 +33,7 @@ func readBackupData(t *testing.T, file *os.File) backupData {
 func compareDatabaseBackups(t *testing.T, source, target *os.File, oldAdmin, newAdmin string) {
 	t.Helper()
 	want, got := readBackupData(t, source), readBackupData(t, target)
-	if len(want.Tables) != 38 || len(got.Tables) != 38 {
+	if len(want.Tables) != 33 || len(got.Tables) != 33 {
 		t.Fatal("incomplete table inventory")
 	}
 	for table, rows := range want.Tables {

@@ -10,7 +10,7 @@ import (
 	"heyblog-api/internal/features/siteaudit"
 )
 
-func TestOwnerManagementUpgradePreservesMainDataAndLabels(t *testing.T) {
+func TestOwnerManagementUpgradePreservesMainDataAndClassification(t *testing.T) {
 	// Given a deployed main database with pending audit history and an existing friend edge.
 	f := newAuditMigrationFixture(t)
 	ctx := t.Context()
@@ -36,32 +36,6 @@ func TestOwnerManagementUpgradePreservesMainDataAndLabels(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, active)
 
-	// Then an owner can choose a multilingual label, approve it, and edit without losing it.
-	owner := newOwnerWorkflowFixture(ctx, t, f.pool)
-	input := owner.input
-	input.Site.Tags = append([]siteaudit.TagInput(nil), input.Site.Tags...)
-	input.Site.URL = "https://owner-source.example.test/"
-	input.Site.Summary = "Owner summary using an alternate classification label"
-	var labelID string
-	err = f.pool.QueryRow(ctx, `INSERT INTO directory.tag_labels(tag_id,name,is_enabled) VALUES($1::uuid,'Owner alternate label',true) RETURNING id::text`, input.Site.Tags[0].ID).Scan(&labelID)
-	require.NoError(t, err)
-	input.Site.Tags[0].LabelID = labelID
-	for _, summary := range []string{input.Site.Summary, "Owner summary updated while retaining its label"} {
-		input.Site.Summary = summary
-		before, err := owner.accounts.Site(ctx, owner.user, "Owner0001")
-		require.NoError(t, err)
-		request, err := owner.accounts.Submit(ctx, owner.user, "Owner0001", "OWNER_UPDATE", input)
-		require.NoError(t, err)
-		approved, err := owner.audits.Review(ctx, owner.reviewer, siteaudit.ReviewInput{AuditID: request.AuditID, Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: before.Revision})
-		require.NoError(t, err)
-		after, err := owner.accounts.Site(ctx, owner.user, "Owner0001")
-		require.NoError(t, err)
-		require.Equal(t, after.Revision, approved.FinalSnapshot.Revision)
-		require.Equal(t, labelID, after.Classification.Level1.LabelID)
-		require.Equal(t, "Owner alternate label", after.Classification.Level1.Name)
-		require.Equal(t, summary, after.Summary)
-	}
-
 	// Rolling back only the owner feature keeps main data and permits a clean re-upgrade.
 	_, err = f.provider.DownTo(ctx, 22)
 	require.NoError(t, err)
@@ -75,5 +49,32 @@ func TestOwnerManagementUpgradePreservesMainDataAndLabels(t *testing.T) {
 	require.True(t, active)
 	_, err = f.provider.Up(ctx)
 	require.NoError(t, err)
+	// Then an owner can retain a classification name, approve it, and edit without losing it.
+	owner := newOwnerWorkflowFixture(ctx, t, f.pool)
+	input := owner.input
+	input.Site.Tags = append([]siteaudit.TagInput(nil), input.Site.Tags...)
+	input.Site.URL = "https://owner-source.example.test/"
+	input.Site.Summary = "Owner summary using its classification name"
+	classificationID := input.Site.Tags[0].ID
+	var classificationName string
+	err = f.pool.QueryRow(ctx, `SELECT name FROM directory.tags WHERE id=$1::uuid`, classificationID).Scan(&classificationName)
+	require.NoError(t, err)
+
+	for _, summary := range []string{input.Site.Summary, "Owner summary updated while retaining its classification"} {
+		input.Site.Summary = summary
+		before, err := owner.accounts.Site(ctx, owner.user, "Owner0001")
+		require.NoError(t, err)
+		request, err := owner.accounts.Submit(ctx, owner.user, "Owner0001", "OWNER_UPDATE", input)
+		require.NoError(t, err)
+		approved, err := owner.audits.Review(ctx, owner.reviewer, siteaudit.ReviewInput{AuditID: request.AuditID, Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: before.Revision})
+		require.NoError(t, err)
+		after, err := owner.accounts.Site(ctx, owner.user, "Owner0001")
+		require.NoError(t, err)
+		require.Equal(t, after.Revision, approved.FinalSnapshot.Revision)
+		require.Equal(t, classificationID, after.Classification.Level1.ID)
+		require.Equal(t, classificationName, after.Classification.Level1.Name)
+		require.Equal(t, summary, after.Summary)
+	}
+
 	verifyDatabaseCatalog(ctx, t, f.admin)
 }

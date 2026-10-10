@@ -14,7 +14,7 @@ import {
   tertiaryTagOptions,
 } from '../src/application/site-submission/site-submission.tags.browser.ts';
 
-test('deduplicates labels while retaining selected concepts for disabled-choice feedback', () => {
+test('deduplicates names while retaining selected tags for disabled-choice feedback', () => {
   const form = emptySubmission();
   selectClassificationTag(form, { id: 'computer', name: '计算机', level: 1 });
   selectTertiaryTag(form, { id: 'selected', name: '已选', level: 3 });
@@ -87,7 +87,6 @@ test('serializes fixed and custom tertiary tags at level three', () => {
 
   const customDraft = form.tags.find((tag) => tag.suggestedName === '编译器');
   assert.ok(customDraft);
-  customDraft.slug = 'compiler';
   customDraft.description = '编译器相关内容';
   const payload = buildSubmissionPayload(form, 'CREATE');
 
@@ -181,25 +180,29 @@ test('tertiary exclusion only concerns the selected object classification', () =
   );
 });
 
-test('confirmed synonyms share identity, expand search and preserve the chosen label', () => {
+test('tag names match case-insensitively without semantic expansion', () => {
   const options = [
-    { id: 'algorithm', label_id: 'zh', name: '算法', level: 3 as const },
-    { id: 'algorithm', label_id: 'en', name: 'algorithm', level: 3 as const },
-    { id: 'life', label_id: 'other', name: '生活', level: 3 as const },
+    { id: 'javascript', name: 'JavaScript', level: 3 as const },
+    { id: 'js', name: 'JS', level: 3 as const },
+    { id: 'chinese', name: '中文 + 标签', level: 3 as const },
   ];
   const form = emptySubmission();
   assert.deepEqual(
-    matchingTagOptions('算法', options).map((option) => option.label_id),
-    ['zh', 'en'],
+    matchingTagOptions('javascript', options).map((option) => option.id),
+    ['javascript'],
   );
   selectTertiaryTag(form, options[0]);
-  assert.equal(tagSelectionReason(options[1], form.tags), '已选择“算法”');
+  selectTertiaryTag(form, { id: 'duplicate', name: ' JAVASCRIPT ', level: 3 });
+  assert.ok(tagSelectionReason({ id: 'duplicate', name: ' JAVASCRIPT ', level: 3 }, form.tags));
   selectTertiaryTag(form, options[1]);
-  assert.equal(form.tags.length, 1);
-  assert.equal(buildSubmissionPayload(form).site.tags[0]?.label_id, 'zh');
-  removeTag(form, 'algorithm');
-  assert.equal(tagSelectionReason(options[1], form.tags), '');
-  selectTertiaryTag(form, options[1]);
-  assert.equal(form.tags[0]?.name, 'algorithm');
-  assert.equal(buildSubmissionPayload(form).site.tags[0]?.label_id, 'en');
+  assert.deepEqual(
+    form.tags.map((tag) => tag.name),
+    ['JavaScript', 'JS'],
+  );
+  const tags = buildSubmissionPayload(form, 'CREATE').site.tags;
+  assert.equal(tags.length, 2);
+  assert.equal(
+    tags.some((tag) => 'slug' in tag || 'label_id' in tag),
+    false,
+  );
 });

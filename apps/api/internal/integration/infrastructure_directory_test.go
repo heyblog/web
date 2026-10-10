@@ -9,6 +9,7 @@ import (
 	"fmt"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -31,8 +32,8 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	}
 
 	filters := dbgen.CountDirectorySitesByStatusParams{
-		QueryText: "directory fixture", Level1TagSlug: "", Level2TagSlug: "", TertiaryTagSlugs: []string{},
-		WarningSlugs: []string{}, TechnologyNames: []string{}, AccessScopes: []string{"ALL"},
+		QueryText: "directory fixture", TertiaryTagNames: []string{},
+		WarningNames: []string{}, TechnologyNames: []string{}, AccessScopes: []string{"ALL"},
 		FeedMode: "without",
 	}
 	counts, err := queries.CountDirectorySitesByStatus(ctx, filters)
@@ -45,9 +46,9 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 
 	base := dbgen.ListDirectorySitesParams{
 		SiteVisibility: "VISIBLE", QueryText: filters.QueryText,
-		Level1TagSlug: filters.Level1TagSlug, Level2TagSlug: filters.Level2TagSlug,
-		TertiaryTagSlugs: filters.TertiaryTagSlugs,
-		WarningSlugs:     filters.WarningSlugs, TechnologyNames: filters.TechnologyNames,
+		Level1TagName: filters.Level1TagName, Level2TagName: filters.Level2TagName,
+		TertiaryTagNames: filters.TertiaryTagNames,
+		WarningNames:     filters.WarningNames, TechnologyNames: filters.TechnologyNames,
 		AccessScopes: filters.AccessScopes, FeedMode: filters.FeedMode,
 		SortMode: "random", Seed: "site-directory:integration", SortOrder: "desc", PageLimit: 24,
 	}
@@ -89,15 +90,13 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	firstCascade := cascades[0]
 	secondCascade := cascades[1]
 	tertiaryOne, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Directory Tertiary One", NormalizedName: "directory tertiary one",
-		Slug: "directory-tertiary-one", Description: "integration fixture",
+		Name: "Directory Tertiary One", Description: "integration fixture",
 	})
 	if err != nil {
 		t.Fatalf("create first directory tertiary tag: %v", err)
 	}
 	tertiaryTwo, err := queries.CreateTag(ctx, dbgen.CreateTagParams{
-		Name: "Directory Tertiary Two", NormalizedName: "directory tertiary two",
-		Slug: "directory-tertiary-two", Description: "integration fixture",
+		Name: "Directory Tertiary Two", Description: "integration fixture",
 	})
 	if err != nil {
 		t.Fatalf("create second directory tertiary tag: %v", err)
@@ -113,11 +112,11 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 		t.Fatalf("remove directory role fixture: %v", err)
 	}
 	for _, siteID := range []pgtype.UUID{visibleBoth, hiddenBoth, removedBoth} {
-		if _, updateErr := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2, primary_label_id=NULL, secondary_label_id=NULL WHERE id = $1`, siteID, firstCascade.ID); updateErr != nil {
+		if _, updateErr := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2 WHERE id = $1`, siteID, firstCascade.ID); updateErr != nil {
 			t.Fatalf("assign first directory cascade: %v", updateErr)
 		}
 	}
-	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2, primary_label_id=NULL, secondary_label_id=NULL WHERE id = $1`, visiblePartial, secondCascade.ID); err != nil {
+	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id = $2 WHERE id = $1`, visiblePartial, secondCascade.ID); err != nil {
 		t.Fatalf("assign second directory cascade: %v", err)
 	}
 	assign := func(siteID, tagID pgtype.UUID, position int16) {
@@ -135,8 +134,7 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	assign(visiblePartial, tertiaryOne.ID, 1)
 
 	roleFilters := dbgen.CountDirectorySitesByStatusParams{
-		QueryText: "role fixture", Level1TagSlug: firstCascade.Level1Slug,
-		Level2TagSlug: firstCascade.Level2Slug, TertiaryTagSlugs: []string{tertiaryOne.Slug}, WarningSlugs: []string{},
+		QueryText: "role fixture", Level1TagName: firstCascade.Level1Name, Level2TagName: firstCascade.Level2Name, TertiaryTagNames: []string{tertiaryOne.Name}, WarningNames: []string{},
 		TechnologyNames: []string{}, AccessScopes: []string{}, FeedMode: "any",
 	}
 	roleCounts, err := queries.CountDirectorySitesByStatus(ctx, roleFilters)
@@ -159,7 +157,7 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	if !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("random missing classification error = %v, want no rows", err)
 	}
-	roleFilters.TertiaryTagSlugs = []string{tertiaryOne.Slug, tertiaryTwo.Slug}
+	roleFilters.TertiaryTagNames = []string{tertiaryOne.Name, tertiaryTwo.Name}
 	roleCounts, err = queries.CountDirectorySitesByStatus(ctx, roleFilters)
 	if err != nil {
 		t.Fatalf("count tertiary AND directory fixtures: %v", err)
@@ -169,9 +167,9 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	}
 	hiddenRows, err := queries.ListDirectorySites(ctx, dbgen.ListDirectorySitesParams{
 		SiteVisibility: "HIDDEN", QueryText: roleFilters.QueryText,
-		Level1TagSlug: roleFilters.Level1TagSlug, Level2TagSlug: roleFilters.Level2TagSlug,
-		TertiaryTagSlugs: roleFilters.TertiaryTagSlugs,
-		WarningSlugs:     []string{}, TechnologyNames: []string{}, AccessScopes: []string{},
+		Level1TagName: filters.Level1TagName, Level2TagName: filters.Level2TagName,
+		TertiaryTagNames: roleFilters.TertiaryTagNames,
+		WarningNames:     []string{}, TechnologyNames: []string{}, AccessScopes: []string{},
 		FeedMode: "any", SortMode: "joined", Seed: "integration", SortOrder: "desc", PageLimit: 24,
 	})
 	if err != nil {
@@ -187,7 +185,7 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	var tertiaryOption *dbgen.ListDirectoryTagOptionsRow
 	for index := range optionRows {
 		row := &optionRows[index]
-		if row.Slug == tertiaryTwo.Slug && row.Role == "TERTIARY" {
+		if row.Name == tertiaryTwo.Name && row.Role == "TERTIARY" {
 			tertiaryOption = row
 		}
 	}
@@ -370,22 +368,20 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 
 	var enabledTagID, disabledTagID, mergedTagID, canonicalTagID pgtype.UUID
 	for _, fixture := range []struct {
-		name           string
-		normalizedName string
-		slug           string
-		enabled        bool
-		id             *pgtype.UUID
+		name    string
+		enabled bool
+		id      *pgtype.UUID
 	}{
-		{name: "Public Topic", normalizedName: "public topic", slug: "public-topic", enabled: true, id: &enabledTagID},
-		{name: "Disabled Topic", normalizedName: "disabled topic", slug: "disabled-topic", enabled: false, id: &disabledTagID},
-		{name: "Merged Topic", normalizedName: "merged topic", slug: "merged-topic", enabled: true, id: &mergedTagID},
-		{name: "Canonical Topic", normalizedName: "canonical topic", slug: "canonical-topic", enabled: true, id: &canonicalTagID},
+		{name: "Public Topic", enabled: true, id: &enabledTagID},
+		{name: "Disabled Topic", enabled: false, id: &disabledTagID},
+		{name: "Merged Topic", enabled: true, id: &mergedTagID},
+		{name: "Canonical Topic", enabled: true, id: &canonicalTagID},
 	} {
 		if err := connection.QueryRow(ctx, `
-			INSERT INTO directory.tag_dictionary (name, normalized_name, slug, is_enabled)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO directory.tags (name, is_enabled)
+			VALUES ($1, $2)
 			RETURNING id
-		`, fixture.name, fixture.normalizedName, fixture.slug, fixture.enabled).Scan(fixture.id); err != nil {
+		`, fixture.name, fixture.enabled).Scan(fixture.id); err != nil {
 			t.Fatalf("insert tag fixture %q: %v", fixture.name, err)
 		}
 	}
@@ -399,7 +395,7 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	}
 	if _, err := connection.Exec(ctx, `
 		UPDATE directory.site_tags
-		SET tag_id=$2, label_id=(SELECT default_label_id FROM directory.tags WHERE id=$2)
+		SET tag_id=$2
 		WHERE tag_id=$1
 	`, mergedTagID, canonicalTagID); err != nil {
 		t.Fatalf("merge public view tag fixture: %v", err)
@@ -429,19 +425,18 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 
 	var enabledComponentID, disabledComponentID pgtype.UUID
 	for _, fixture := range []struct {
-		name           string
-		normalizedName string
-		enabled        bool
-		id             *pgtype.UUID
+		name    string
+		enabled bool
+		id      *pgtype.UUID
 	}{
-		{name: "Public Runtime", normalizedName: "public runtime", enabled: true, id: &enabledComponentID},
-		{name: "Disabled Runtime", normalizedName: "disabled runtime", enabled: false, id: &disabledComponentID},
+		{name: "Public Runtime", enabled: true, id: &enabledComponentID},
+		{name: "Disabled Runtime", enabled: false, id: &disabledComponentID},
 	} {
 		if err := connection.QueryRow(ctx, `
 			INSERT INTO directory.software_components (name, normalized_name, is_enabled)
 			VALUES ($1, $2, $3)
 			RETURNING id
-		`, fixture.name, fixture.normalizedName, fixture.enabled).Scan(fixture.id); err != nil {
+		`, fixture.name, strings.ToLower(fixture.name), fixture.enabled).Scan(fixture.id); err != nil {
 			t.Fatalf("insert software fixture %q: %v", fixture.name, err)
 		}
 	}

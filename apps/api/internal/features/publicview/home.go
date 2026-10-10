@@ -31,7 +31,6 @@ type HomeSiteCard = SiteCardView
 
 type HomeSiteTopic struct {
 	Name string `json:"name"`
-	Slug string `json:"slug"`
 }
 
 type HomeSiteFeed struct {
