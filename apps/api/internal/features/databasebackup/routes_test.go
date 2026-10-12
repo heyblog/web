@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"heyblog-api/internal/features/auth"
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
 )
@@ -59,7 +58,7 @@ func (operation *routeOperation) Restore(_ context.Context, file *os.File, actor
 
 func backupRouter(t *testing.T, operation Operations, authenticator Authenticator) *httpapi.Router {
 	t.Helper()
-	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1024, TrustedProxies: []string{}}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: "backup-test-web-token", HealthcheckToken: "health-test-token", PublicViews: publicview.New(nil, nil), BodyLimitOverrides: BodyLimitOverrides()})
+	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1024, TrustedProxies: []string{}}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: "backup-test-web-token", HealthcheckToken: "health-test-token", BodyLimitOverrides: BodyLimitOverrides()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -56,7 +56,7 @@ func (service *Service) GithubStart(ctx context.Context, next string, bind bool)
 }
 
 func (service *Service) githubCallbackURL() string {
-	return strings.TrimRight(service.config.WebBaseURL, "/") + "/auth/github/callback"
+	return strings.TrimRight(service.config.WebBaseURL, "/") + "/api/web/auth/github/callback"
 }
 
 func (service *Service) GithubCallback(ctx context.Context, request *http.Request, code, stateToken string, stateCookie string) (User, []string, string, error) {

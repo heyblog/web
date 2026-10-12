@@ -23,7 +23,7 @@ const canManageApiKeys = user.role === 'SYS_ADMIN';
         <p class="mb-2 text-sm text-fg-muted">{user.email}</p>
         <h1 class="text-3xl font-semibold">{user.display_name}</h1>
       </div>
-      <form method="post" action="/auth/logout">
+      <form method="post" action="/api/web/auth/logout">
         <button
           class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-medium hover:bg-subtle"
           type="submit"
@@ -59,7 +59,7 @@ const canManageApiKeys = user.role === 'SYS_ADMIN';
           <IconKey size={20} stroke={1.8} aria-hidden="true" />
           {user.has_password ? '修改密码' : '设置密码'}
         </h2>
-        <form class="grid gap-4" method="post" action="/auth/password">
+        <form class="grid gap-4" method="post" action="/api/web/auth/password">
           {user.has_password ? (
             <label class="grid gap-1.5 text-sm font-medium">
               当前密码
@@ -113,7 +113,7 @@ const canManageApiKeys = user.role === 'SYS_ADMIN';
           绑定后可使用 GitHub 登录；解绑前必须保留本地密码。
         </p>
         {user.has_github ? (
-          <form method="post" action="/auth/github/unbind">
+          <form method="post" action="/api/web/auth/github/unbind">
             <button
               class="min-h-11 rounded-sm border border-danger px-4 text-sm font-semibold text-danger-fg hover:bg-danger-bg"
               disabled={!user.has_password}
@@ -125,7 +125,7 @@ const canManageApiKeys = user.role === 'SYS_ADMIN';
         ) : (
           <a
             class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
-            href="/auth/github/start?intent=bind&next=%2Fdashboard%2Fsecurity"
+            href="/api/web/auth/github/start?intent=bind&next=%2Fdashboard%2Fsecurity"
             data-astro-prefetch="false"
           >
             绑定 GitHub

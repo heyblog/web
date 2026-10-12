@@ -89,36 +89,15 @@ func (fixture auditMigrationFixture) pendingCreate(t *testing.T, host string) si
 		Tags:       []siteaudit.TagSnapshot{},
 		Components: []siteaudit.ComponentSnapshot{{ID: integrationUUIDText(t, program.ID), Role: "SITE_PROGRAM"}},
 	}
-	version, err := fixture.provider.GetDBVersion(ctx)
-	if err != nil {
-		t.Fatalf("get fixture migration version: %v", err)
+	cascades, err := dbgen.New(fixture.pool).ListEnabledSiteTagCascades(ctx)
+	if err != nil || len(cascades) == 0 {
+		t.Fatalf("get audit fixture cascade: %v", err)
 	}
-	if version >= 11 {
-		var cascades []dbgen.ListEnabledSiteTagCascadesRow
-		var listErr error
-		if version >= 28 {
-			cascades, listErr = dbgen.New(fixture.pool).ListEnabledSiteTagCascades(ctx)
-		} else {
-			query := `SELECT c.id,c.taxonomy_key,c.sort_order,p.id,p.name,s.id,s.name FROM directory.tag_cascades c JOIN directory.tags p ON p.id=c.level1_tag_id JOIN directory.tags s ON s.id=c.level2_tag_id WHERE c.scope='SITE' AND c.is_enabled AND p.is_enabled AND s.is_enabled ORDER BY c.sort_order,c.id`
-			if version >= 22 {
-				query = `SELECT c.id,c.taxonomy_key,c.sort_order,p.id,pl.name,s.id,sl.name FROM directory.tag_cascades c JOIN directory.tags p ON p.id=c.level1_tag_id JOIN directory.tag_labels pl ON pl.id=p.default_label_id JOIN directory.tags s ON s.id=c.level2_tag_id JOIN directory.tag_labels sl ON sl.id=s.default_label_id WHERE c.scope='SITE' AND c.is_enabled AND p.is_enabled AND s.is_enabled ORDER BY c.sort_order,c.id`
-			}
-			rows, queryErr := fixture.pool.Query(ctx, query)
-			if queryErr != nil {
-				listErr = queryErr
-			} else {
-				cascades, listErr = pgx.CollectRows(rows, pgx.RowToStructByPos[dbgen.ListEnabledSiteTagCascadesRow])
-			}
-		}
-		if listErr != nil || len(cascades) == 0 {
-			t.Fatalf("get audit fixture cascade: %v", listErr)
-		}
-		cascade := cascades[0]
-		snapshot.TagCascadeID = integrationUUIDText(t, cascade.ID)
-		snapshot.Tags = []siteaudit.TagSnapshot{
-			{ID: integrationUUIDText(t, cascade.Level1ID), Role: "PRIMARY", Level: 1},
-			{ID: integrationUUIDText(t, cascade.Level2ID), Role: "SECONDARY", Level: 2, ParentID: integrationUUIDText(t, cascade.Level1ID)},
-		}
+	cascade := cascades[0]
+	snapshot.TagCascadeID = integrationUUIDText(t, cascade.ID)
+	snapshot.Tags = []siteaudit.TagSnapshot{
+		{ID: integrationUUIDText(t, cascade.Level1ID), Role: "PRIMARY", Level: 1},
+		{ID: integrationUUIDText(t, cascade.Level2ID), Role: "SECONDARY", Level: 2, ParentID: integrationUUIDText(t, cascade.Level1ID)},
 	}
 	encoded, err := json.Marshal(snapshot)
 	if err != nil {

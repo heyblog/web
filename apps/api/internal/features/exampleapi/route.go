@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	Path           = "/v1/example"
+	Path           = "/api/external/v1/example"
 	AllowedMethods = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
 )
 

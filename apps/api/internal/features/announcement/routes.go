@@ -40,7 +40,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 	operation := func(id, method, path string) huma.Operation {
 		return huma.Operation{OperationID: id, Method: method, Path: path, Tags: []string{"announcement management"}, Security: []map[string][]string{{"webToken": {}, "accessCookie": {}}}, Middlewares: huma.Middlewares{httpapi.HumaWebAuthorization(webToken)}, Errors: []int{401, 403, 404, 409, 422, 500}}
 	}
-	httpapi.Register(api, operation("list-managed-announcements", http.MethodGet, "/management/announcements"), func(ctx context.Context, input *ListQuery) (*output[List], error) {
+	httpapi.Register(api, operation("list-managed-announcements", http.MethodGet, "/api/web/management/announcements"), func(ctx context.Context, input *ListQuery) (*output[List], error) {
 		if _, err := service.authorize(ctx, httpapi.Request(ctx)); err != nil {
 			return nil, err
 		}
@@ -50,7 +50,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		}
 		return &output[List]{CacheControl: "private, no-store", Body: view}, nil
 	})
-	createOperation := operation("create-announcement", http.MethodPost, "/management/announcements")
+	createOperation := operation("create-announcement", http.MethodPost, "/api/web/management/announcements")
 	createOperation.DefaultStatus = http.StatusCreated
 	httpapi.Register(api, createOperation, func(ctx context.Context, input *createInput) (*output[detailBody], error) {
 		user, err := service.authorize(ctx, httpapi.Request(ctx))
@@ -66,7 +66,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		}
 		return &output[detailBody]{CacheControl: "private, no-store", Body: detailBody{view}}, nil
 	})
-	httpapi.Register(api, operation("get-managed-announcement", http.MethodGet, "/management/announcements/{id}"), func(ctx context.Context, input *idInput) (*output[detailBody], error) {
+	httpapi.Register(api, operation("get-managed-announcement", http.MethodGet, "/api/web/management/announcements/{id}"), func(ctx context.Context, input *idInput) (*output[detailBody], error) {
 		if _, err := service.authorize(ctx, httpapi.Request(ctx)); err != nil {
 			return nil, err
 		}
@@ -76,7 +76,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		}
 		return &output[detailBody]{CacheControl: "private, no-store", Body: detailBody{view}}, nil
 	})
-	httpapi.Register(api, operation("get-announcement-revisions", http.MethodGet, "/management/announcements/{id}/revisions"), func(ctx context.Context, input *idInput) (*output[revisionsBody], error) {
+	httpapi.Register(api, operation("get-announcement-revisions", http.MethodGet, "/api/web/management/announcements/{id}/revisions"), func(ctx context.Context, input *idInput) (*output[revisionsBody], error) {
 		if _, err := service.authorize(ctx, httpapi.Request(ctx)); err != nil {
 			return nil, err
 		}
@@ -86,10 +86,10 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		}
 		return &output[revisionsBody]{CacheControl: "private, no-store", Body: revisionsBody{view}}, nil
 	})
-	httpapi.Register(api, operation("edit-announcement", http.MethodPut, "/management/announcements/{id}"), editHandler(service))
-	httpapi.Register(api, operation("publish-announcement", http.MethodPost, "/management/announcements/{id}/publish"), publishHandler(service))
-	httpapi.Register(api, operation("archive-announcement", http.MethodPost, "/management/announcements/{id}/archive"), archiveHandler(service))
-	deleteOperation := operation("delete-announcement", http.MethodDelete, "/management/announcements/{id}")
+	httpapi.Register(api, operation("edit-announcement", http.MethodPut, "/api/web/management/announcements/{id}"), editHandler(service))
+	httpapi.Register(api, operation("publish-announcement", http.MethodPost, "/api/web/management/announcements/{id}/publish"), publishHandler(service))
+	httpapi.Register(api, operation("archive-announcement", http.MethodPost, "/api/web/management/announcements/{id}/archive"), archiveHandler(service))
+	deleteOperation := operation("delete-announcement", http.MethodDelete, "/api/web/management/announcements/{id}")
 	deleteOperation.DefaultStatus = http.StatusNoContent
 	httpapi.Register(api, deleteOperation, deleteHandler(service))
 	return nil

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"sync"
 
 	"heyblog-api/internal/features/auth"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
@@ -20,8 +21,10 @@ type Authenticator interface {
 }
 
 type Service struct {
-	pool *pgxpool.Pool
-	auth Authenticator
+	pool      *pgxpool.Pool
+	auth      Authenticator
+	catalogMu sync.Mutex
+	catalog   *cachedCatalog
 }
 
 func NewService(pool *pgxpool.Pool, authService Authenticator) *Service {
@@ -62,11 +65,6 @@ func (s *Service) transaction(ctx context.Context, fn func(pgx.Tx, graph) error)
 		return databaseError(err)
 	}
 	return databaseError(tx.Commit(ctx))
-}
-func (s *Service) List(ctx context.Context) (Catalog, error) {
-	var result Catalog
-	err := s.transaction(ctx, func(_ pgx.Tx, g graph) error { result = g.Catalog; return nil })
-	return result, err
 }
 func (s *Service) Preview(ctx context.Context, input ChangeInput) (Preview, error) {
 	var result Preview

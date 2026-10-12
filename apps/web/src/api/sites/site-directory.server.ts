@@ -16,7 +16,7 @@ export function loadSiteDirectory(
   request?: Request,
 ): Promise<ApiJsonResult<SiteDirectoryView>> {
   const parameters = buildSiteDirectorySearchParams(query);
-  return fetchApiJson<SiteDirectoryView>(`/sites?${parameters.toString()}`, {
+  return fetchApiJson<SiteDirectoryView>(`/api/web/public/sites?${parameters.toString()}`, {
     request,
     signal: request?.signal,
   });
@@ -26,7 +26,7 @@ export function loadSiteDirectoryOptions(
   request?: Request,
   dependencies: ApiJsonDependencies = {},
 ): Promise<ApiJsonResult<SiteDirectoryOptions>> {
-  return fetchApiJson<SiteDirectoryOptions>('/sites/options', {
+  return fetchApiJson<SiteDirectoryOptions>('/api/web/public/sites/options', {
     ...dependencies,
     request,
     signal: request?.signal,

@@ -9,6 +9,7 @@ html {
   min-height: 100%;
   background: var(--sem-canvas);
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -54,4 +55,9 @@ svg {
   html {
     scroll-behavior: auto;
   }
+}
+
+/* Native modals own the top layer and keep the page underneath stationary. */
+html:has(dialog:modal) {
+  overflow: hidden;
 }

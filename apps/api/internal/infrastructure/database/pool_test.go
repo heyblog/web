@@ -36,6 +36,9 @@ func TestPoolConfigAppliesRuntimePolicy(t *testing.T) {
 	if _, configuredAtStartup := got.ConnConfig.RuntimeParams["search_path"]; configuredAtStartup {
 		t.Fatal("search_path configured as a startup parameter, want connection hook configuration")
 	}
+	if got.ConnConfig.RuntimeParams["jit"] != "off" {
+		t.Fatal("runtime OLTP connections must disable JIT compilation")
+	}
 	if got.AfterConnect == nil {
 		t.Fatal("AfterConnect = nil, want runtime search path hook")
 	}

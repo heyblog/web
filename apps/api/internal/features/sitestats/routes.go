@@ -40,7 +40,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		return ratelimit.Policy{Name: name, Capacity: 240, RefillTokens: 240, RefillInterval: time.Minute}
 	}
 	httpapi.Register(api, huma.Operation{
-		OperationID: "resolve-site-outbound", Method: http.MethodPost, Path: "/sites/id/{shortId}/outbound", Summary: "Resolve a site homepage and optionally record navigation",
+		OperationID: "resolve-site-outbound", Method: http.MethodPost, Path: "/api/web/public/sites/id/{shortId}/outbound", Summary: "Resolve a site homepage and optionally record navigation",
 		Tags: []string{"site metrics"}, Security: []map[string][]string{{"webToken": {}}}, Middlewares: huma.Middlewares{guard},
 		MaxBodyBytes: 1024, Errors: []int{400, 401, 404, 503},
 	}, func(ctx context.Context, input *outboundInput) (*outboundOutput, error) {
@@ -67,7 +67,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		return output, nil
 	})
 	httpapi.Register(api, huma.Operation{
-		OperationID: "record-site-impressions", Method: http.MethodPost, Path: "/site-metrics/impressions", Summary: "Record qualified site impressions",
+		OperationID: "record-site-impressions", Method: http.MethodPost, Path: "/api/web/public/site-metrics/impressions", Summary: "Record qualified site impressions",
 		Tags: []string{"site metrics"}, Security: []map[string][]string{{"webToken": {}}},
 		Middlewares:  huma.Middlewares{guard, httpapi.HumaRateLimit(limiter, policy("site-impressions"))},
 		MaxBodyBytes: 32_000, DefaultStatus: http.StatusNoContent, Errors: []int{400, 401, 413, 422, 429, 503},

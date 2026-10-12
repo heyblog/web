@@ -11,7 +11,7 @@ Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = await readSessionUser(Astro.request);
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
 const shortId = Astro.params.shortId ?? '';
-const response = await requestAuthAPI(Astro.request, `/account/sites/${shortId}`);
+const response = await requestAuthAPI(Astro.request, `/api/web/account/sites/${shortId}`);
 if (response.status === 403 || response.status === 404) return Astro.redirect('/dashboard/sites');
 const site: Snapshot | null = response.ok ? await response.json() : null;
 ---

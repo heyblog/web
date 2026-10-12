@@ -98,7 +98,10 @@ for (const scenario of navigationScenarios) {
       loadConfig,
       fetch: async (input, init) => {
         calls++;
-        assert.equal(String(input), 'http://api.test:10201/sites/id/A1b2C3d4E/outbound');
+        assert.equal(
+          String(input),
+          'http://api.test:10201/api/web/public/sites/id/A1b2C3d4E/outbound',
+        );
         assert.equal(init?.method, 'POST');
         assert.equal(init?.redirect, 'error');
         const body: unknown = JSON.parse(String(init?.body));
@@ -150,7 +153,7 @@ test('outbound rejects arbitrary destinations and hides upstream diagnostics', a
 test('impression forwarding preserves identity and throttling without exposing diagnostics', async () => {
   // Given
   const event = { eventId: '12345678-1234-4234-9234-123456789012', shortId: 'A1b2C3d4E' };
-  const request = new Request('http://localhost:19101/api/site-metrics/impressions', {
+  const request = new Request('http://localhost:19101/api/web/public/site-metrics/impressions', {
     method: 'POST',
     headers: {
       Referer: 'http://localhost:19101/site',
@@ -163,7 +166,7 @@ test('impression forwarding preserves identity and throttling without exposing d
   const response = await handleImpressions(request, {
     loadConfig,
     fetch: async (input, init) => {
-      assert.equal(String(input), 'http://api.test:10201/site-metrics/impressions');
+      assert.equal(String(input), 'http://api.test:10201/api/web/public/site-metrics/impressions');
       assert.deepEqual(JSON.parse(String(init?.body)), { events: [event] });
       const headers = new Headers(init?.headers);
       assert.equal(headers.get('X-HeyBlog-Web-Token'), 'test-token');
@@ -200,7 +203,7 @@ for (const scenario of [
 ]) {
   test(`invalid impression request is rejected with ${scenario.status} before forwarding`, async () => {
     // Given
-    const request = new Request('https://www.heyblog.net/api/site-metrics/impressions', {
+    const request = new Request('https://www.heyblog.net/api/web/public/site-metrics/impressions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

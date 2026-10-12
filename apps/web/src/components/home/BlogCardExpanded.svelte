@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
 
   import type { HomeSiteCard } from '@/api/sites/site-card.types';
@@ -38,6 +38,19 @@
   let activeAnimation: Animation | null = null;
   let dialogResizeObserver: ResizeObserver | null = null;
   let sequence = 0;
+  let frame: number | undefined;
+  let resizeFrame: number | undefined;
+  let disposed = false;
+
+  onDestroy(() => {
+    disposed = true;
+    sequence += 1;
+    if (frame !== undefined) cancelAnimationFrame(frame);
+    if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+    dialogResizeObserver?.disconnect();
+    stopActiveAnimation();
+    if (dialog?.open) dialog.close();
+  });
   let sourceRect: BlogCardSourceRect | null = null;
   const titleId = $derived(`expanded-card-title-${site.shortId}`);
   const descriptionId = $derived(`expanded-card-description-${site.shortId}`);
@@ -77,38 +90,36 @@
     if (currentSequence !== sequence || !open || !dialog.open || !sourceRect) return;
 
     phase = 'opening';
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (currentSequence !== sequence || !open || !dialog.open || !sourceRect) return;
-        dialog.focus({ preventScroll: true });
-        contentExpanded = true;
-        contentTruncated = false;
-        if (prefersReducedMotion.current) {
-          phase = 'open';
-          return;
-        }
+    frame = requestAnimationFrame(() => {
+      if (currentSequence !== sequence || !open || !dialog.open || !sourceRect) return;
+      dialog.focus({ preventScroll: true });
+      contentExpanded = true;
+      contentTruncated = false;
+      if (prefersReducedMotion.current) {
+        phase = 'open';
+        return;
+      }
 
-        dialog.style.willChange = 'transform, opacity';
-        const animation = dialog.animate(
-          [
-            { transform: sourceTransform(dialog, sourceRect), opacity: 0.92 },
-            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-          ],
-          {
-            duration: readMotionDuration(dialog, '--motion-base', 250),
-            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-            fill: 'both',
-          },
-        );
-        activeAnimation = animation;
-        animation.onfinish = () => {
-          if (activeAnimation !== animation) return;
-          animation.cancel();
-          activeAnimation = null;
-          dialog.style.removeProperty('will-change');
-          phase = 'open';
-        };
-      });
+      dialog.style.willChange = 'transform, opacity';
+      const animation = dialog.animate(
+        [
+          { transform: sourceTransform(dialog, sourceRect), opacity: 0.92 },
+          { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        ],
+        {
+          duration: readMotionDuration(dialog, '--motion-base', 250),
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          fill: 'both',
+        },
+      );
+      activeAnimation = animation;
+      animation.onfinish = () => {
+        if (activeAnimation !== animation) return;
+        animation.cancel();
+        activeAnimation = null;
+        dialog.style.removeProperty('will-change');
+        phase = 'open';
+      };
     });
   }
 
@@ -120,6 +131,10 @@
   function requestClose() {
     if (!dialog.open || phase === 'closing') return;
     sequence += 1;
+    if (frame !== undefined) cancelAnimationFrame(frame);
+    const currentStyle = getComputedStyle(dialog);
+    const transform = currentStyle.transform;
+    const opacity = currentStyle.opacity;
     stopActiveAnimation();
     phase = 'closing';
     contentExpanded = false;
@@ -132,7 +147,7 @@
     dialog.style.willChange = 'transform, opacity';
     const animation = dialog.animate(
       [
-        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform, opacity },
         { transform: sourceTransform(dialog, sourceRect), opacity: 0 },
       ],
       {
@@ -178,22 +193,31 @@
   }
 
   function handleResize() {
-    if (!dialog.open || phase === 'measuring' || phase === 'closing') return;
-    sourceRect = captureSourceRect(sourceElement);
-    if (!sourceRect) return;
-    applyDialogLayout(dialog, sourceRect);
+    if (resizeFrame !== undefined) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = undefined;
+      if (disposed || !dialog.open || phase === 'measuring' || phase === 'closing') return;
+      sourceRect = captureSourceRect(sourceElement);
+      if (sourceRect) applyDialogLayout(dialog, sourceRect);
+    });
   }
 
   function handleClosed() {
+    if (disposed) return;
     dialogResizeObserver?.disconnect();
     dialogResizeObserver = null;
+    if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+    resizeFrame = undefined;
     phase = 'closed';
     contentExpanded = false;
     contentTruncated = true;
     dialog.style.removeProperty('will-change');
+    const opener = openerElement;
     onClose();
-    queueMicrotask(() => {
-      if (openerElement?.isConnected) openerElement.focus({ preventScroll: true });
+    void tick().then(() => {
+      if (opener?.isConnected && !document.querySelector('dialog:modal')) {
+        opener.focus({ preventScroll: true });
+      }
     });
   }
 

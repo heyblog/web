@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// ImportTaxonomy preserves dictionary management and resolves historical source identities.
+// ImportTaxonomy resolves source identities against current tags and classification paths.
 func (repository *Repository) ImportTaxonomy(ctx context.Context, bundle TagTaxonomyBundle) (Counts, error) {
 	if repository.pool == nil {
 		return Counts{}, errors.Join(ErrDependencyUnavailable, errors.New("database pool is unavailable"))

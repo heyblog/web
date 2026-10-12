@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"heyblog-api/internal/features/apikey"
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
 )
@@ -188,7 +187,6 @@ func newExampleTestRouter(t *testing.T, authenticator apikey.Authenticator) *htt
 		HTTP:             config.HTTPConfig{MaxBodyBytes: 1024, TrustedProxies: []string{}, CORS: config.CORSConfig{}},
 		HealthcheckToken: "test-healthcheck-token-0123456789abcdef",
 		WebToken:         "test-web-service-token-0123456789abcdef",
-		PublicViews:      publicview.New(nil, nil),
 	})
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)

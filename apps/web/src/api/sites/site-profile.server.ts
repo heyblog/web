@@ -13,7 +13,7 @@ export function loadSiteByIdentifier(
   if (!shortIdPattern.test(identifier) && !uuidPattern.test(identifier)) {
     return Promise.resolve({ kind: 'not-found' });
   }
-  return fetchApiJson<SiteProfile>(`/sites/id/${encodeURIComponent(identifier)}`, {
+  return fetchApiJson<SiteProfile>(`/api/web/public/sites/id/${encodeURIComponent(identifier)}`, {
     request,
     signal: request?.signal,
   });
@@ -25,10 +25,13 @@ export function loadSiteMetadataByIdentifier(
 ): Promise<ApiJsonResult<SiteProfile>> {
   if (!shortIdPattern.test(identifier) && !uuidPattern.test(identifier))
     return Promise.resolve({ kind: 'not-found' });
-  return fetchApiJson<SiteProfile>(`/sites/id/${encodeURIComponent(identifier)}/metadata`, {
-    request,
-    signal: request?.signal,
-  });
+  return fetchApiJson<SiteProfile>(
+    `/api/web/public/sites/id/${encodeURIComponent(identifier)}/metadata`,
+    {
+      request,
+      signal: request?.signal,
+    },
+  );
 }
 
 export function loadSiteByCustomID(
@@ -38,7 +41,7 @@ export function loadSiteByCustomID(
   if (!customIdPattern.test(customID)) {
     return Promise.resolve({ kind: 'not-found' });
   }
-  return fetchApiJson<SiteProfile>(`/sites/custom/${encodeURIComponent(customID)}`, {
+  return fetchApiJson<SiteProfile>(`/api/web/public/sites/custom/${encodeURIComponent(customID)}`, {
     request,
     signal: request?.signal,
   });

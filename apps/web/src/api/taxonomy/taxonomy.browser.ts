@@ -39,24 +39,30 @@ export async function requestManagement<T>(
   }
 }
 
-export const readTaxonomy = () => requestManagement('/management/tags/data', 'GET', parseTaxonomy);
+export const readTaxonomy = () =>
+  requestManagement('/api/web/management/tags/data', 'GET', parseTaxonomy);
 export const saveTag = (id: string, body: Readonly<Record<string, unknown>>) =>
   requestManagement(
-    `/management/tags/data${id ? `/${encodeURIComponent(id)}` : ''}`,
+    `/api/web/management/tags/data${id ? `/${encodeURIComponent(id)}` : ''}`,
     id ? 'PUT' : 'POST',
     parseTaxonomy,
     body,
   );
 export const deleteTag = (id: string, revision: string) =>
-  requestManagement(`/management/tags/data/${encodeURIComponent(id)}`, 'DELETE', parseTaxonomy, {
-    expected_revision: revision,
-  });
+  requestManagement(
+    `/api/web/management/tags/data/${encodeURIComponent(id)}`,
+    'DELETE',
+    parseTaxonomy,
+    {
+      expected_revision: revision,
+    },
+  );
 export const previewChange = (body: TaxonomyChange) =>
-  requestManagement('/management/tags/data/changes/preview', 'POST', parsePreview, body);
+  requestManagement('/api/web/management/tags/data/changes/preview', 'POST', parsePreview, body);
 export const applyChange = (body: TaxonomyChange, fingerprint: string) =>
-  requestManagement('/management/tags/data/changes/apply', 'POST', parseTaxonomy, {
+  requestManagement('/api/web/management/tags/data/changes/apply', 'POST', parseTaxonomy, {
     ...body,
     fingerprint,
   });
 export const createCascade = (body: Readonly<Record<string, unknown>>) =>
-  requestManagement('/management/tags/data/cascades', 'POST', parseTaxonomy, body);
+  requestManagement('/api/web/management/tags/data/cascades', 'POST', parseTaxonomy, body);

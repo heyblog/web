@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"heyblog-api/internal/features/apikey"
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
 )
@@ -226,7 +225,6 @@ func newImportTestRouter(t *testing.T, operation ImportOperation) *httpapi.Route
 		Logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
 		HealthcheckToken:   "test-healthcheck-token-0123456789abcdef",
 		WebToken:           "test-web-service-token-0123456789abcdef",
-		PublicViews:        importTestPublicViews{},
 		BodyLimitOverrides: BodyLimitOverrides(),
 	})
 	if err != nil {
@@ -285,52 +283,6 @@ type recordingOperation struct {
 	bundles Bundles
 	counts  Counts
 	err     error
-}
-
-type importTestPublicViews struct{}
-
-func (importTestPublicViews) Sitemap(context.Context, publicview.SitemapQuery) (publicview.SitemapPage, error) {
-	return publicview.SitemapPage{Items: []publicview.SitemapItem{}}, nil
-}
-
-func (importTestPublicViews) Home(context.Context) (publicview.Home, error) {
-	return publicview.Home{}, nil
-}
-
-func (importTestPublicViews) Banner(context.Context) (*publicview.Announcement, error) {
-	return nil, nil
-}
-func (importTestPublicViews) AnnouncementArchive(context.Context, int32, int32) (publicview.AnnouncementArchive, error) {
-	return publicview.AnnouncementArchive{Announcements: []publicview.Announcement{}, Page: 1, PageSize: 20}, nil
-}
-func (importTestPublicViews) AnnouncementByID(context.Context, string) (*publicview.Announcement, error) {
-	return nil, errors.New("announcement not found")
-}
-
-func (importTestPublicViews) Directory(
-	context.Context,
-	publicview.DirectoryQuery,
-) (publicview.DirectoryView, error) {
-	return publicview.DirectoryView{}, nil
-}
-
-func (importTestPublicViews) DirectoryOptions(context.Context) (publicview.DirectoryOptions, error) {
-	return publicview.DirectoryOptions{}, nil
-}
-
-func (importTestPublicViews) RandomSite(context.Context, publicview.RandomSiteQuery) (publicview.RandomSiteView, error) {
-	return publicview.RandomSiteView{}, nil
-}
-
-func (importTestPublicViews) SiteByIdentifier(
-	context.Context,
-	publicview.SiteIdentifier,
-) (publicview.SiteProfile, error) {
-	return publicview.SiteProfile{}, nil
-}
-
-func (importTestPublicViews) SiteByCustomID(context.Context, string) (publicview.SiteProfile, error) {
-	return publicview.SiteProfile{}, nil
 }
 
 func (operation *recordingOperation) Import(_ context.Context, bundles Bundles) (Counts, error) {

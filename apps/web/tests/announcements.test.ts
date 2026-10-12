@@ -216,7 +216,7 @@ test('valid deletion forwards once with version and strips unsafe headers', asyn
     async (incoming, path, init) => {
       calls++;
       assert.equal(incoming, request);
-      assert.equal(path, `/management/announcements/${id}`);
+      assert.equal(path, `/api/web/management/announcements/${id}`);
       assert.equal(init?.method, 'DELETE');
       assert.deepEqual(init?.body, { rowVersion: '2' });
       return new Response(null, { status: 204, headers: { Location: 'https://internal.test/' } });

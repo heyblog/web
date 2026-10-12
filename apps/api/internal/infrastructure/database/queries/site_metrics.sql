@@ -40,3 +40,28 @@ SELECT site.short_id,
 -- name: GetSiteOutboundTarget :one
 SELECT scheme, normalized_host, base_path FROM directory.sites
  WHERE short_id = $1 AND visibility IN ('VISIBLE', 'HIDDEN');
+
+-- name: RecordSiteResponseMetrics :many
+WITH recorded AS (
+    INSERT INTO directory.site_metrics (site_id, response_count)
+    SELECT site.id, 1 FROM directory.sites AS site
+     WHERE site.short_id = ANY(sqlc.arg(short_ids)::text[])
+     ORDER BY site.id
+    ON CONFLICT (site_id) DO UPDATE SET
+        response_count = directory.site_metrics.response_count + 1
+    RETURNING site_id, click_count, impression_count, response_count, query_count
+)
+SELECT site.short_id, recorded.click_count, recorded.impression_count,
+       recorded.response_count, recorded.query_count
+  FROM recorded JOIN directory.sites AS site ON site.id = recorded.site_id;
+
+-- name: IncrementGraphMetrics :exec
+INSERT INTO directory.site_metrics (site_id, query_count, response_count)
+SELECT site.id, event.increment, event.increment
+  FROM (SELECT unnest(sqlc.arg(short_ids)::text[]) AS short_id,
+               unnest(sqlc.arg(increments)::bigint[]) AS increment) AS event
+  JOIN directory.sites AS site ON site.short_id = event.short_id
+ ORDER BY site.id
+ON CONFLICT (site_id) DO UPDATE SET
+    query_count = directory.site_metrics.query_count + EXCLUDED.query_count,
+    response_count = directory.site_metrics.response_count + EXCLUDED.response_count;

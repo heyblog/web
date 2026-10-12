@@ -44,7 +44,7 @@ export async function forwardDatabaseBackup(
     return failure(415, 'unsupported_media_type');
   const configuration = dependencies?.configuration ?? loadWebServerConfig();
   const authenticate = dependencies?.authenticate ?? requestAuthAPI;
-  const session = await authenticate(request, '/auth/me');
+  const session = await authenticate(request, '/api/web/auth/me');
   if (!session.ok)
     return failure(
       session.status === 401 || session.status === 403 ? session.status : 503,
@@ -102,7 +102,7 @@ export async function forwardDatabaseBackup(
   let upstream: Response;
   try {
     upstream = await (dependencies?.fetcher ?? fetch)(
-      new URL(`/management/database-backup/${action}`, configuration.apiBaseUrl),
+      new URL(`/api/web/management/database-backup/${action}`, configuration.apiBaseUrl),
       init,
     );
   } catch (error) {

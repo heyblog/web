@@ -259,13 +259,7 @@
       </div>
     {/if}
 
-    {#key view}
-      <SiteDirectoryResults
-        {view}
-        {pending}
-        onPageChange={(page) => updateQuery({ page }, 'page')}
-      />
-    {/key}
+    <SiteDirectoryResults {view} {pending} onPageChange={(page) => updateQuery({ page }, 'page')} />
   </div>
 </div>
 

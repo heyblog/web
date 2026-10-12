@@ -129,5 +129,6 @@ type Queries interface {
 }
 
 type GraphQueries interface {
+	GetPublicGraphRevision(context.Context) (int64, error)
 	GetPublicFriendGraph(context.Context, pgtype.UUID) ([]byte, error)
 }

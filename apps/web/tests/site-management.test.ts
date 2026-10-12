@@ -45,7 +45,7 @@ test('account forwarding permits only purpose-built methods and paths', () => {
 });
 test('mutations reject cross-origin, malformed and oversized requests before forwarding', async () => {
   const request = (headers: HeadersInit, body = '{}') =>
-    new Request('https://web.test/api/account/site-claims', { method: 'POST', headers, body });
+    new Request('https://web.test/api/web/account/site-claims', { method: 'POST', headers, body });
   assert.equal(
     (
       await forwardSiteManagement(
@@ -118,12 +118,12 @@ test('authenticated forwarding keeps cookies, cancellation, no-store and strips 
   };
   try {
     const response = await forwardSiteManagement(
-      new Request('https://web.test/api/account/sites?page=2&extra=secret', {
+      new Request('https://web.test/api/web/account/sites?page=2&extra=secret', {
         headers: { Cookie: 'session=current' },
       }),
       'sites',
     );
-    assert.equal(upstream?.url, 'http://api.internal:10201/account/sites?page=2');
+    assert.equal(upstream?.url, 'http://api.internal:10201/api/web/account/sites?page=2');
     assert.equal(upstream?.headers.get('Cookie'), 'session=current');
     assert.equal(
       upstream?.headers.get('X-HeyBlog-Web-Token'),

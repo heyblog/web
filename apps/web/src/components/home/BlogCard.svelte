@@ -72,13 +72,15 @@
     </div>
   </article>
 
-  <BlogCardExpanded
-    {site}
-    open={expanded}
-    {onClose}
-    {plannedFields}
-    sourceElement={cardElement}
-    {openerElement}
-    {dialogId}
-  />
+  {#if expanded}
+    <BlogCardExpanded
+      {site}
+      open={expanded}
+      {onClose}
+      {plannedFields}
+      sourceElement={cardElement}
+      {openerElement}
+      {dialogId}
+    />
+  {/if}
 </div>

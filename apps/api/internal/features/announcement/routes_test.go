@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"heyblog-api/internal/features/auth"
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
 )
@@ -34,18 +33,18 @@ func TestManagementRoutesEnforceRoleAndPermission(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, route := range []struct{ method, path, body string }{
-		{http.MethodGet, "/management/announcements", ""},
-		{http.MethodPost, "/management/announcements", string(created)},
-		{http.MethodGet, "/management/announcements/invalid", ""},
-		{http.MethodPut, "/management/announcements/invalid", string(edited)},
-		{http.MethodDelete, "/management/announcements/invalid", `{"rowVersion":"1"}`},
-		{http.MethodPost, "/management/announcements/invalid/publish", `{"rowVersion":"1","startsAt":null,"endsAt":null}`},
-		{http.MethodPost, "/management/announcements/invalid/archive", `{"rowVersion":"1"}`},
-		{http.MethodGet, "/management/announcements/invalid/revisions", ""},
+		{http.MethodGet, "/api/web/management/announcements", ""},
+		{http.MethodPost, "/api/web/management/announcements", string(created)},
+		{http.MethodGet, "/api/web/management/announcements/invalid", ""},
+		{http.MethodPut, "/api/web/management/announcements/invalid", string(edited)},
+		{http.MethodDelete, "/api/web/management/announcements/invalid", `{"rowVersion":"1"}`},
+		{http.MethodPost, "/api/web/management/announcements/invalid/publish", `{"rowVersion":"1","startsAt":null,"endsAt":null}`},
+		{http.MethodPost, "/api/web/management/announcements/invalid/archive", `{"rowVersion":"1"}`},
+		{http.MethodGet, "/api/web/management/announcements/invalid/revisions", ""},
 	} {
 		t.Run(route.method+route.path, func(t *testing.T) {
 			// Given an administrator without announcement management permission.
-			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -69,7 +68,7 @@ func TestManagementRoutesEnforceRoleAndPermission(t *testing.T) {
 
 func TestManagementRoutesRequireWebToken(t *testing.T) {
 	// Given a route with an authenticated system administrator.
-	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "health-test", HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +77,7 @@ func TestManagementRoutesRequireWebToken(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	// When the Web-token guard receives no token.
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/management/announcements", nil))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/web/management/announcements", nil))
 	// Then the caller is rejected before user or database access.
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d", response.Code)

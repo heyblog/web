@@ -29,10 +29,10 @@ test('submission reads preserve dedicated URLs, cancellation, and the untouched 
   assert.equal(await requestSubmissionSearch('中文 & 标签', signal), response);
 
   assert.deepEqual(requests, [
-    { url: '/api/site-submissions/options', init: undefined },
-    { url: '/api/site-submissions/A%2FB/resolve', init: undefined },
+    { url: '/api/web/submissions/options', init: undefined },
+    { url: '/api/web/submissions/A%2FB/resolve', init: undefined },
     {
-      url: '/api/site-submissions/sites?q=%E4%B8%AD%E6%96%87%20%26%20%E6%A0%87%E7%AD%BE',
+      url: '/api/web/submissions/sites?q=%E4%B8%AD%E6%96%87%20%26%20%E6%A0%87%E7%AD%BE',
       init: { signal },
     },
   ]);
@@ -60,7 +60,7 @@ test('audit mutations preserve methods, payloads, and one request per operation'
 
   assert.deepEqual(requests, [
     {
-      url: '/api/site-submissions/query',
+      url: '/api/web/submissions/query',
       init: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ test('audit mutations preserve methods, payloads, and one request per operation'
       },
     },
     {
-      url: '/management/site-submissions/audit-fixture/review',
+      url: '/api/web/management/site-submissions/audit-fixture/review',
       init: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,7 +76,7 @@ test('audit mutations preserve methods, payloads, and one request per operation'
       },
     },
     {
-      url: '/management/site-submissions/audit-fixture/review-draft',
+      url: '/api/web/management/site-submissions/audit-fixture/review-draft',
       init: {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +84,7 @@ test('audit mutations preserve methods, payloads, and one request per operation'
       },
     },
     {
-      url: '/management/site-submissions/audit-fixture/review-draft',
+      url: '/api/web/management/site-submissions/audit-fixture/review-draft',
       init: {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -104,7 +104,7 @@ test('submission transport receives the mapped payload without reading editable 
       signal,
       fetch: async (input, init) => {
         requests += 1;
-        assert.equal(input, '/api/site-submissions/create');
+        assert.equal(input, '/api/web/submissions/create');
         assert.deepEqual(init, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

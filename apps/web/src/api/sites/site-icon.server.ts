@@ -55,7 +55,10 @@ export async function loadSiteIcon(
     const headers = new Headers({ Accept: 'image/png', [apiWebTokenHeader]: config.apiWebToken });
     forwardClientAddress(request, headers);
     const response = await (dependencies.fetch ?? fetch)(
-      new URL(`/sites/id/${encodeURIComponent(profile.shortId)}/icon`, config.apiBaseUrl),
+      new URL(
+        `/api/web/public/sites/id/${encodeURIComponent(profile.shortId)}/icon`,
+        config.apiBaseUrl,
+      ),
       {
         headers,
         redirect: 'error',

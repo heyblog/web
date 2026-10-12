@@ -16,7 +16,7 @@ const environment = {
   API_WEB_TOKEN: 'test-web-service-token-0123456789abcdef',
 };
 const request = (body: string, json = true) =>
-  new Request('https://web.example.test/management/users/target/permissions', {
+  new Request('https://web.example.test/api/web/management/users/target/permissions', {
     method: 'POST',
     body: new URLSearchParams(body),
     headers: { Cookie: 'session=test', ...(json ? { Accept: 'application/json' } : {}) },
@@ -58,7 +58,10 @@ test('mutations preserve PATCH payloads, cookies, JSON errors and traditional re
     assert.equal(result.status, 200);
     assert.deepEqual(await result.json(), { user: managedUser });
     assert.equal(upstream?.method, 'PATCH');
-    assert.equal(upstream?.url, 'http://api.internal:10201/management/users/target/permissions');
+    assert.equal(
+      upstream?.url,
+      'http://api.internal:10201/api/web/management/users/target/permissions',
+    );
     assert.equal(upstream?.headers.get('Cookie'), 'session=test');
     assert.equal(upstream?.headers.get('X-HeyBlog-Web-Token'), environment.API_WEB_TOKEN);
     assert.deepEqual(await upstream?.json(), { permissions: ['site.manage'] });
@@ -112,7 +115,7 @@ test('mutations preserve PATCH payloads, cookies, JSON errors and traditional re
 test('page loading distinguishes unauthorized from unavailable and validates actor and list', async () => {
   Object.assign(process.env, environment);
   const previous = globalThis.fetch;
-  const pageRequest = new Request('https://web.example.test/management/users?q=editor', {
+  const pageRequest = new Request('https://web.example.test/api/web/management/users?q=editor', {
     headers: { Cookie: 'session=test' },
   });
   try {
@@ -124,7 +127,7 @@ test('page loading distinguishes unauthorized from unavailable and validates act
     assert.equal((await loadUsersPage(pageRequest)).kind, 'error');
     globalThis.fetch = async (url) =>
       Response.json(
-        String(url).endsWith('/auth/me') ? { user: systemActor } : { users: [managedUser] },
+        String(url).endsWith('/api/web/auth/me') ? { user: systemActor } : { users: [managedUser] },
       );
     const ready = await loadUsersPage(pageRequest);
     assert.equal(ready.kind, 'ready');

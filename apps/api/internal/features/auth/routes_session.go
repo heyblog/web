@@ -30,7 +30,7 @@ func registerSessionRoutes(api huma.API, service *Service, limiter mailRateLimit
 		})
 	}
 
-	registerOperation := operation("register-user", http.MethodPost, "/auth/register", "Register a user")
+	registerOperation := operation("register-user", http.MethodPost, "/api/web/auth/register", "Register a user")
 	registerOperation.DefaultStatus = http.StatusAccepted
 	httpapi.Register(api, registerOperation, func(ctx context.Context, input *bodyInput[registerRequest]) (*acceptedOutput, error) {
 		if err := enforceMailRequest(ctx, limiter, input.Body.Email); err != nil {
@@ -42,7 +42,7 @@ func registerSessionRoutes(api huma.API, service *Service, limiter mailRateLimit
 		return &acceptedOutput{Body: acceptedResponseBody{Status: "verification_required"}}, nil
 	})
 
-	httpapi.Register(api, operation("login-user", http.MethodPost, "/auth/login", "Log in"), func(ctx context.Context, input *bodyInput[loginRequest]) (*userOutput, error) {
+	httpapi.Register(api, operation("login-user", http.MethodPost, "/api/web/auth/login", "Log in"), func(ctx context.Context, input *bodyInput[loginRequest]) (*userOutput, error) {
 		user, cookies, err := service.Login(ctx, input.Body.Identifier, input.Body.Password)
 		if err != nil {
 			return nil, mapError(err)
@@ -54,7 +54,7 @@ func registerSessionRoutes(api huma.API, service *Service, limiter mailRateLimit
 		}, nil
 	})
 
-	currentOperation := operation("get-current-user", http.MethodGet, "/auth/me", "Get the current user")
+	currentOperation := operation("get-current-user", http.MethodGet, "/api/web/auth/me", "Get the current user")
 	currentOperation.Security = []map[string][]string{{"webToken": {}, "accessCookie": {}}}
 	httpapi.Register(api, currentOperation, func(ctx context.Context, _ *emptyInput) (*userOutput, error) {
 		user, err := service.Current(ctx, httpapi.Request(ctx))
@@ -64,7 +64,7 @@ func registerSessionRoutes(api huma.API, service *Service, limiter mailRateLimit
 		return &userOutput{Body: userResponseBody{User: user}}, nil
 	})
 
-	refreshOperation := operation("refresh-session", http.MethodPost, "/auth/refresh", "Refresh the session")
+	refreshOperation := operation("refresh-session", http.MethodPost, "/api/web/auth/refresh", "Refresh the session")
 	refreshOperation.Security = []map[string][]string{{"webToken": {}, "refreshCookie": {}}}
 	httpapi.Register(api, refreshOperation, func(ctx context.Context, _ *emptyInput) (*userOutput, error) {
 		user, cookies, err := service.Refresh(ctx, httpapi.Request(ctx))
@@ -78,7 +78,7 @@ func registerSessionRoutes(api huma.API, service *Service, limiter mailRateLimit
 		}, nil
 	})
 
-	logoutOperation := operation("logout-user", http.MethodPost, "/auth/logout", "Log out")
+	logoutOperation := operation("logout-user", http.MethodPost, "/api/web/auth/logout", "Log out")
 	logoutOperation.DefaultStatus = http.StatusNoContent
 	httpapi.Register(api, logoutOperation, func(ctx context.Context, _ *emptyInput) (*noContentOutput, error) {
 		if err := service.Logout(ctx, httpapi.Request(ctx)); err != nil {
@@ -112,7 +112,7 @@ func registerNoContentBodyRoute(
 		})
 	}
 
-	verifyOperation := operation("verify-email", http.MethodPost, "/auth/verify-email", "Verify an email address")
+	verifyOperation := operation("verify-email", http.MethodPost, "/api/web/auth/verify-email", "Verify an email address")
 	verifyOperation.DefaultStatus = http.StatusNoContent
 	httpapi.Register(api, verifyOperation, func(ctx context.Context, input *bodyInput[verifyRequest]) (*noContentOutput, error) {
 		if err := service.VerifyEmail(ctx, input.Body.Email, input.Body.Code); err != nil {
@@ -121,20 +121,20 @@ func registerNoContentBodyRoute(
 		return &noContentOutput{Status: http.StatusNoContent}, nil
 	})
 
-	register("resend-email-verification", "/auth/verify-email/resend", "Resend email verification", func(ctx context.Context, input emailRequest) error {
+	register("resend-email-verification", "/api/web/auth/verify-email/resend", "Resend email verification", func(ctx context.Context, input emailRequest) error {
 		if err := enforceMailRequest(ctx, limiter, input.Email); err != nil {
 			return err
 		}
 		return mapOptionalError(service.ResendVerification(ctx, input.Email))
 	})
-	register("request-password-reset", "/auth/password/forgot", "Request a password reset", func(ctx context.Context, input emailRequest) error {
+	register("request-password-reset", "/api/web/auth/password/forgot", "Request a password reset", func(ctx context.Context, input emailRequest) error {
 		if err := enforceMailRequest(ctx, limiter, input.Email); err != nil {
 			return err
 		}
 		return mapOptionalError(service.ForgotPassword(ctx, input.Email))
 	})
 
-	resetOperation := operation("reset-password", http.MethodPost, "/auth/password/reset", "Reset a password")
+	resetOperation := operation("reset-password", http.MethodPost, "/api/web/auth/password/reset", "Reset a password")
 	resetOperation.DefaultStatus = http.StatusNoContent
 	httpapi.Register(api, resetOperation, func(ctx context.Context, input *bodyInput[resetRequest]) (*noContentOutput, error) {
 		if err := service.ResetPassword(ctx, input.Body.Token, input.Body.Password); err != nil {
@@ -143,7 +143,7 @@ func registerNoContentBodyRoute(
 		return &noContentOutput{Status: http.StatusNoContent}, nil
 	})
 
-	setPasswordOperation := operation("set-password", http.MethodPost, "/auth/password", "Set or change the password")
+	setPasswordOperation := operation("set-password", http.MethodPost, "/api/web/auth/password", "Set or change the password")
 	setPasswordOperation.Security = []map[string][]string{{"webToken": {}, "accessCookie": {}}}
 	httpapi.Register(api, setPasswordOperation, func(ctx context.Context, input *bodyInput[setPasswordRequest]) (*userOutput, error) {
 		user, cookies, err := service.SetPassword(ctx, httpapi.Request(ctx), input.Body.CurrentPassword, input.Body.NextPassword)

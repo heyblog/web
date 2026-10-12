@@ -33,18 +33,18 @@ test('maps URL purpose conflicts to actionable form guidance', async () => {
 });
 
 test('routes every audit action to its dedicated same-origin endpoint', () => {
-  assert.equal(submissionEndpoint('CREATE', ''), '/api/site-submissions/create');
+  assert.equal(submissionEndpoint('CREATE', ''), '/api/web/submissions/create');
   assert.equal(
     submissionEndpoint('UPDATE', existingShortID),
-    '/api/site-submissions/A1b2C3d4E/update',
+    '/api/web/submissions/A1b2C3d4E/update',
   );
   assert.equal(
     submissionEndpoint('DELETE', existingShortID),
-    '/api/site-submissions/A1b2C3d4E/delete',
+    '/api/web/submissions/A1b2C3d4E/delete',
   );
   assert.equal(
     submissionEndpoint('RESTORE', existingShortID),
-    '/api/site-submissions/A1b2C3d4E/restore',
+    '/api/web/submissions/A1b2C3d4E/restore',
   );
 });
 
@@ -67,7 +67,7 @@ test('checks exact site availability through the same-origin boundary', async ()
 
   assert.equal(
     requestedURL,
-    '/api/site-submissions/availability?url=https%3A%2F%2Fexisting.example%2Fblog',
+    '/api/web/submissions/availability?url=https%3A%2F%2Fexisting.example%2Fblog',
   );
   assert.equal(availability.available, false);
   assert.equal(availability.existing_site?.short_id, existingShortID);

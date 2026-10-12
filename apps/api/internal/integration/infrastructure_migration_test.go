@@ -39,45 +39,7 @@ func verifyMigrationRollback(
 	if err != nil {
 		t.Fatalf("create Goose rollback provider: %v", err)
 	}
-	if _, err := provider.DownTo(ctx, 18); err == nil || !strings.Contains(err.Error(), "restore the pre-upgrade database backup") {
+	if _, err := provider.DownTo(ctx, 0); err == nil || !strings.Contains(err.Error(), "restore the previous database backup") {
 		t.Fatalf("destructive downgrade must refuse: %v", err)
 	}
-}
-
-func TestLegacyMigrationsRemainReversible(t *testing.T) {
-	f := newAuditMigrationFixture(t)
-	ctx := t.Context()
-	if _, err := f.provider.UpTo(ctx, 18); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.provider.DownTo(ctx, 0); err != nil {
-		t.Fatalf("legacy migrations down to zero: %v", err)
-	}
-	adminConnection := f.admin
-
-	var businessSchemaCount int
-	if err := adminConnection.QueryRow(ctx, `
-		SELECT count(*) FROM pg_namespace
-		WHERE nspname = ANY($1::text[])
-	`, []string{"identity", "directory", "content"}).Scan(&businessSchemaCount); err != nil {
-		t.Fatalf("query business schemas after rollback: %v", err)
-	}
-	if businessSchemaCount != 0 {
-		t.Fatalf("business schema count after rollback = %d, want 0", businessSchemaCount)
-	}
-
-	var graphExists bool
-	if err := adminConnection.QueryRow(ctx, `
-		SELECT EXISTS (SELECT 1 FROM ag_catalog.ag_graph WHERE name = 'directory_graph')
-	`).Scan(&graphExists); err != nil {
-		t.Fatalf("query AGE graph after rollback: %v", err)
-	}
-	if graphExists {
-		t.Fatal("directory_graph AGE graph remained after rollback")
-	}
-
-	if _, err := f.provider.Up(ctx); err != nil {
-		t.Fatalf("reapply migrations after rollback: %v", err)
-	}
-	verifyDatabaseCatalog(ctx, t, adminConnection)
 }

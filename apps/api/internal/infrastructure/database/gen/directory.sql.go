@@ -252,11 +252,15 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
            lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
            lower($1::text)
        ) > 0
-       OR EXISTS (
-          SELECT 1 FROM directory.tags l
-          WHERE strpos(l.normalized_name,lower($1::text))>0
-          AND (EXISTS(SELECT 1 FROM directory.site_tags a WHERE a.site_id=site.id AND a.tag_id=l.id)
-               OR EXISTS(SELECT 1 FROM directory.tag_cascades c WHERE c.id=site.tag_cascade_id AND l.id IN(c.level1_tag_id,c.level2_tag_id)))
+       OR site.id IN (
+           SELECT assignment.site_id FROM directory.site_tags AS assignment
+           JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+           WHERE strpos(tag.normalized_name, lower($1::text)) > 0
+       )
+       OR site.tag_cascade_id IN (
+           SELECT cascade.id FROM directory.tag_cascades AS cascade
+           JOIN directory.tags AS tag ON tag.id IN (cascade.level1_tag_id, cascade.level2_tag_id)
+           WHERE strpos(tag.normalized_name, lower($1::text)) > 0
        )
    )
    AND ($2::text = '' OR EXISTS (
@@ -271,7 +275,7 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
        WHERE cascade.id = site.tag_cascade_id
          AND tag.normalized_name = lower(btrim($3::text))
    ))
-   AND (cardinality(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($4::text[]) value)) = 0 OR (
+   AND (coalesce(cardinality($4::text[]), 0) = 0 OR (
        SELECT count(DISTINCT tag.normalized_name)
        FROM directory.site_tags AS assignment
        JOIN directory.tags AS tag ON tag.id = assignment.tag_id
@@ -279,7 +283,7 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
          AND tag.normalized_name = ANY(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($4::text[]) value))
    ) = cardinality(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($4::text[]) value)))
    AND (
-       cardinality(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($5::text[]) value)) = 0
+       coalesce(cardinality($5::text[]), 0) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
@@ -862,11 +866,15 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
            lower(site.name || ' ' || site.normalized_host || ' ' || site.summary),
            lower($2::text)
        ) > 0
-       OR EXISTS (
-          SELECT 1 FROM directory.tags l
-          WHERE strpos(l.normalized_name,lower($2::text))>0
-          AND (EXISTS(SELECT 1 FROM directory.site_tags a WHERE a.site_id=site.id AND a.tag_id=l.id)
-               OR EXISTS(SELECT 1 FROM directory.tag_cascades c WHERE c.id=site.tag_cascade_id AND l.id IN(c.level1_tag_id,c.level2_tag_id)))
+       OR site.id IN (
+           SELECT assignment.site_id FROM directory.site_tags AS assignment
+           JOIN directory.tags AS tag ON tag.id = assignment.tag_id
+           WHERE strpos(tag.normalized_name, lower($2::text)) > 0
+       )
+       OR site.tag_cascade_id IN (
+           SELECT cascade.id FROM directory.tag_cascades AS cascade
+           JOIN directory.tags AS tag ON tag.id IN (cascade.level1_tag_id, cascade.level2_tag_id)
+           WHERE strpos(tag.normalized_name, lower($2::text)) > 0
        )
    )
    AND ($3::text = '' OR EXISTS (
@@ -881,7 +889,7 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
        WHERE cascade.id = site.tag_cascade_id
          AND tag.normalized_name = lower(btrim($4::text))
    ))
-   AND (cardinality(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($5::text[]) value)) = 0 OR (
+   AND (coalesce(cardinality($5::text[]), 0) = 0 OR (
        SELECT count(DISTINCT tag.normalized_name)
        FROM directory.site_tags AS assignment
        JOIN directory.tags AS tag ON tag.id = assignment.tag_id
@@ -889,7 +897,7 @@ SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.norm
          AND tag.normalized_name = ANY(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($5::text[]) value))
    ) = cardinality(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($5::text[]) value)))
    AND (
-       cardinality(ARRAY(SELECT DISTINCT lower(btrim(value)) FROM unnest($6::text[]) value)) = 0
+       coalesce(cardinality($6::text[]), 0) = 0
        OR EXISTS (
            SELECT 1
              FROM directory.site_tags AS assignment
@@ -1024,27 +1032,31 @@ func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySites
 
 const listDirectoryTagOptions = `-- name: ListDirectoryTagOptions :many
 WITH assignments AS (
-	SELECT site.id AS site_id, cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role
-	  FROM directory.sites AS site
-	  JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
-	UNION ALL
-	SELECT site.id, cascade.level2_tag_id, 'SECONDARY'::text
-	  FROM directory.sites AS site
-	  JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
-	UNION ALL
-	SELECT assignment.site_id, assignment.tag_id, assignment.role
-	  FROM directory.site_tags AS assignment
-	 WHERE assignment.role IN ('TERTIARY', 'WARNING')
+    SELECT cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, site.visibility
+      FROM directory.sites AS site
+      JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
+     WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+    UNION ALL
+    SELECT cascade.level2_tag_id, 'SECONDARY'::text, site.visibility
+      FROM directory.sites AS site
+      JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
+     WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+    UNION ALL
+    SELECT assignment.tag_id, assignment.role, site.visibility
+      FROM directory.site_tags AS assignment
+      JOIN directory.sites AS site ON site.id = assignment.site_id
+     WHERE assignment.role IN ('TERTIARY', 'WARNING')
+       AND site.visibility IN ('VISIBLE', 'HIDDEN')
+), counts AS (
+    -- Each branch contains at most one assignment per (site, tag, role).
+    SELECT tag_id, role,
+           count(*) FILTER (WHERE visibility = 'VISIBLE')::bigint AS normal_count,
+           count(*) FILTER (WHERE visibility = 'HIDDEN')::bigint AS abnormal_count
+      FROM assignments GROUP BY tag_id, role
 )
-SELECT tag.id,tag.name,tag.name AS value,assignment.role,
-	   count(DISTINCT assignment.site_id) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
-	   count(DISTINCT assignment.site_id) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
-  FROM assignments AS assignment
-  JOIN directory.tags AS tag ON tag.id = assignment.tag_id
-  JOIN directory.sites AS site ON site.id = assignment.site_id
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
- GROUP BY tag.id,assignment.role
- ORDER BY assignment.role, normal_count DESC, abnormal_count DESC,tag.name,tag.id
+SELECT tag.id, tag.name, tag.name AS value, counts.role, counts.normal_count, counts.abnormal_count
+  FROM counts JOIN directory.tags AS tag ON tag.id = counts.tag_id
+ ORDER BY counts.role, normal_count DESC, abnormal_count DESC, tag.name, tag.id
 `
 
 type ListDirectoryTagOptionsRow struct {

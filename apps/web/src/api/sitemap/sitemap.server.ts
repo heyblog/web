@@ -64,7 +64,7 @@ export async function loadSitemapItems(
   do {
     const parameters = new URLSearchParams({ kind });
     if (after) parameters.set('after', after);
-    const result = await fetchApiJson<unknown>(`/sitemap?${parameters.toString()}`, {
+    const result = await fetchApiJson<unknown>(`/api/web/public/sitemap?${parameters.toString()}`, {
       ...dependencies,
       signal,
     });

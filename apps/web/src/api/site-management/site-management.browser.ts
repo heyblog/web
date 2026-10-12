@@ -9,7 +9,7 @@ export async function accountRequest(
   }> = {},
 ): Promise<Response> {
   return (init.fetch ?? globalThis.fetch)(
-    `/api/${init.management ? 'site-management' : 'account'}/${path}`,
+    `/api/web/${init.management ? 'management' : 'account'}/${path}`,
     {
       method: init.method ?? 'GET',
       credentials: 'same-origin',

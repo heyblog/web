@@ -24,7 +24,7 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
   ): Promise<Response> {
     let response: Response;
     try {
-      response = await fetcher(`/management/database-backup/${action}`, {
+      response = await fetcher(`/api/web/management/database-backup/${action}`, {
         method: 'POST',
         body: form,
         credentials: 'same-origin',

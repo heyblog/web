@@ -200,9 +200,8 @@ test('tag names match case-insensitively without semantic expansion', () => {
     ['JavaScript', 'JS'],
   );
   const tags = buildSubmissionPayload(form, 'CREATE').site.tags;
-  assert.equal(tags.length, 2);
-  assert.equal(
-    tags.some((tag) => 'slug' in tag || 'label_id' in tag),
-    false,
-  );
+  assert.deepEqual(tags, [
+    { id: 'javascript', suggested_name: '', description: '', role: 'TERTIARY', level: 3 },
+    { id: 'js', suggested_name: '', description: '', role: 'TERTIARY', level: 3 },
+  ]);
 });

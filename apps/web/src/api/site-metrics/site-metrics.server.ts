@@ -70,7 +70,7 @@ export async function resolveSiteOutbound(
 > {
   const response = await postMetric(
     request,
-    `/sites/id/${encodeURIComponent(shortId)}/outbound`,
+    `/api/web/public/sites/id/${encodeURIComponent(shortId)}/outbound`,
     { eventId },
     dependencies,
   );
@@ -133,7 +133,12 @@ export async function handleImpressions(
   }
   const events = parseImpressions(value);
   if (!events) return metricProblem(400);
-  const upstream = await postMetric(request, '/site-metrics/impressions', { events }, dependencies);
+  const upstream = await postMetric(
+    request,
+    '/api/web/public/site-metrics/impressions',
+    { events },
+    dependencies,
+  );
   const headers = new Headers({ 'Cache-Control': 'no-store' });
   for (const name of ['Retry-After', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset']) {
     const value = upstream.headers.get(name);

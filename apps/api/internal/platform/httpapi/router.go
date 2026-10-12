@@ -10,7 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/platform/apperror"
 	"heyblog-api/internal/platform/config"
 )
@@ -22,7 +21,6 @@ type Options struct {
 	Health             *Health
 	HealthcheckToken   string
 	WebToken           string
-	PublicViews        publicview.Reader
 	BodyLimitOverrides map[Route]int64
 }
 
@@ -44,9 +42,6 @@ func NewRouter(options Options) (*Router, error) {
 	}
 	if options.WebToken == "" {
 		return nil, fmt.Errorf("web token is required")
-	}
-	if options.PublicViews == nil {
-		return nil, fmt.Errorf("public view reader is required")
 	}
 	logger := options.Logger
 	if logger == nil {
@@ -83,7 +78,7 @@ func NewRouter(options Options) (*Router, error) {
 	Register(router.API, huma.Operation{
 		OperationID: "ping",
 		Method:      http.MethodGet,
-		Path:        "/ping",
+		Path:        "/api/web/public/ping",
 		Summary:     "Ping the API",
 		Tags:        []string{"system"},
 		Errors:      []int{http.StatusUnauthorized},
@@ -94,7 +89,6 @@ func NewRouter(options Options) (*Router, error) {
 		output.Body.Message = "pong"
 		return output, nil
 	})
-	registerPublicViewRoutes(router.API, options.WebToken, options.PublicViews)
 
 	type healthInput struct{}
 	type healthOutput struct {

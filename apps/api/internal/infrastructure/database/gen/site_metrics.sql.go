@@ -74,6 +74,28 @@ func (q *Queries) GetSiteOutboundTarget(ctx context.Context, shortID string) (Ge
 	return i, err
 }
 
+const incrementGraphMetrics = `-- name: IncrementGraphMetrics :exec
+INSERT INTO directory.site_metrics (site_id, query_count, response_count)
+SELECT site.id, event.increment, event.increment
+  FROM (SELECT unnest($1::text[]) AS short_id,
+               unnest($2::bigint[]) AS increment) AS event
+  JOIN directory.sites AS site ON site.short_id = event.short_id
+ ORDER BY site.id
+ON CONFLICT (site_id) DO UPDATE SET
+    query_count = directory.site_metrics.query_count + EXCLUDED.query_count,
+    response_count = directory.site_metrics.response_count + EXCLUDED.response_count
+`
+
+type IncrementGraphMetricsParams struct {
+	ShortIds   []string
+	Increments []int64
+}
+
+func (q *Queries) IncrementGraphMetrics(ctx context.Context, arg IncrementGraphMetricsParams) error {
+	_, err := q.db.Exec(ctx, incrementGraphMetrics, arg.ShortIds, arg.Increments)
+	return err
+}
+
 const incrementSiteDisplayMetrics = `-- name: IncrementSiteDisplayMetrics :exec
 INSERT INTO directory.site_metrics (site_id, query_count, response_count)
 SELECT site.id, $1::bigint, $2::bigint
@@ -125,4 +147,53 @@ type RecordSiteMetricEventsParams struct {
 func (q *Queries) RecordSiteMetricEvents(ctx context.Context, arg RecordSiteMetricEventsParams) error {
 	_, err := q.db.Exec(ctx, recordSiteMetricEvents, arg.Kind, arg.EventIds, arg.ShortIds)
 	return err
+}
+
+const recordSiteResponseMetrics = `-- name: RecordSiteResponseMetrics :many
+WITH recorded AS (
+    INSERT INTO directory.site_metrics (site_id, response_count)
+    SELECT site.id, 1 FROM directory.sites AS site
+     WHERE site.short_id = ANY($1::text[])
+     ORDER BY site.id
+    ON CONFLICT (site_id) DO UPDATE SET
+        response_count = directory.site_metrics.response_count + 1
+    RETURNING site_id, click_count, impression_count, response_count, query_count
+)
+SELECT site.short_id, recorded.click_count, recorded.impression_count,
+       recorded.response_count, recorded.query_count
+  FROM recorded JOIN directory.sites AS site ON site.id = recorded.site_id
+`
+
+type RecordSiteResponseMetricsRow struct {
+	ShortID         string
+	ClickCount      int64
+	ImpressionCount int64
+	ResponseCount   int64
+	QueryCount      int64
+}
+
+func (q *Queries) RecordSiteResponseMetrics(ctx context.Context, shortIds []string) ([]RecordSiteResponseMetricsRow, error) {
+	rows, err := q.db.Query(ctx, recordSiteResponseMetrics, shortIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RecordSiteResponseMetricsRow{}
+	for rows.Next() {
+		var i RecordSiteResponseMetricsRow
+		if err := rows.Scan(
+			&i.ShortID,
+			&i.ClickCount,
+			&i.ImpressionCount,
+			&i.ResponseCount,
+			&i.QueryCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -42,7 +42,7 @@ func TestRegisterRoutes_when_ServiceAvailable(t *testing.T) {
 	err := RegisterRoutes(api, &Service{}, "test-token", nil)
 	// Then all promised methods are available.
 	require.NoError(t, err)
-	expected := map[string]bool{"POST /account/site-claims": false, "GET /account/site-claims": false, "POST /account/site-claims/:claimId/check": false, "DELETE /account/site-claims/:claimId": false, "GET /management/site-claims": false, "GET /management/site-claims/:claimId": false, "POST /management/site-claims/:claimId/review": false, "DELETE /management/site-ownership/:shortId": false, "PUT /management/site-ownership/:shortId": false}
+	expected := map[string]bool{"POST /api/web/account/site-claims": false, "GET /api/web/account/site-claims": false, "POST /api/web/account/site-claims/:claimId/check": false, "DELETE /api/web/account/site-claims/:claimId": false, "GET /api/web/management/site-claims": false, "GET /api/web/management/site-claims/:claimId": false, "POST /api/web/management/site-claims/:claimId/review": false, "DELETE /api/web/management/site-ownership/:shortId": false, "PUT /api/web/management/site-ownership/:shortId": false}
 	for _, route := range router.Routes() {
 		key := route.Method + " " + route.Path
 		if _, ok := expected[key]; ok {

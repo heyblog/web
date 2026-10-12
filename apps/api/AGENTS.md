@@ -26,14 +26,14 @@ and focused tests referenced below, not additional package-level AGENTS files.
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
   `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
-  endpoint adapters, Problem Details, and the existing public-view HTTP adapters.
-- `apps/api/internal/features/publicview` assembles read-side DTOs. Its `Queries` interface is a
+  endpoint adapters and Problem Details. Business route registration belongs to the owning feature.
+- `apps/api/internal/features/publicview` owns public-view HTTP routes and assembles read-side DTOs. Its `Queries` interface is a
   composition-time contract; helpers receive only their consumer-specific query interfaces.
   Retain the `New` composition entry point and sqlc query types without pure-forwarding stores.
 - `features/sitestats` owns independent cumulative counters and atomic click/impression idempotency.
   Publicview receives its recorder explicitly: primary display queries record retrievals before DTO
   assembly; successful views record responses. Auxiliary, management, import and outbound-target
-  reads are excluded. Image generation uses the non-counted /sites/id/{identifier}/metadata read. Never update directory.sites to record metrics. Outbound resolution remains
+  reads are excluded. Image generation uses the non-counted /api/web/public/sites/id/{identifier}/metadata read. Never update directory.sites to record metrics. Outbound resolution remains
   usable when metric writes or click limits fail; removed sites remain unavailable.
 - `apps/api/internal/features/siteaudit` keeps permission, revision, merge, and decision flow in
   services. `Store` returns business types; `AuditTransaction` binds business operations to one
@@ -51,6 +51,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
   an actual ownership need.
 
 ## HTTP and Authorization
+
+- Route families are `/api/web/{public,auth,submissions,account,management}`,
+  `/api/external/v1` and `/api/internal/v1`. Public-view handlers live in `features/publicview`;
+  bootstrap explicitly registers every feature. Health and development OpenAPI stay separate.
+  No legacy route aliases are retained. Nginx exposes only the exact machine operations.
 
 - Define endpoint audience, method/path, request/response DTOs, status codes, permissions, rate
   limits, cancellation, and timeouts together. Keep existing contracts unchanged in refactors.
@@ -105,15 +110,15 @@ and focused tests referenced below, not additional package-level AGENTS files.
   exists, and keep preview Web-only. Preserve operation-specific errors/cache policy rather than
   mapping every database failure to unavailable; see
   `apps/api/internal/features/publicview/errors.go` and
-  `apps/api/internal/platform/httpapi/public_view_random_test.go`.
-- Sitemap reads at `/sitemap` retain the Web-token guard and public-view rate policy. Accept only
+  `apps/api/internal/features/publicview/routes_random_test.go`.
+- Sitemap reads at `/api/web/public/sitemap` retain the Web-token guard and public-view rate policy. Accept only
   `kind=sites|announcements` and an optional UUID cursor `after`; paginate by ascending UUID with
   at most 1,000 items. Include VISIBLE sites and the same announcements as public detail, including
   expired announcements and archives created after their start. API owns visibility and real
   publication/update timestamps; Web owns canonical URLs, XML, sharding, and caching. Sources:
   `apps/api/internal/features/publicview/sitemap.go`,
   `apps/api/internal/infrastructure/database/queries/sitemap.sql`, and
-  `apps/api/internal/platform/httpapi/public_view_sitemap.go`.
+  `apps/api/internal/features/publicview/routes_sitemap.go`.
 
 ## Configuration and External Services
 
@@ -121,11 +126,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
   globally unique `lower(btrim(name))` values; casing is retained for display. Different names
   remain independent tags. Roles belong to paths and object associations; a path may use the same
   tag in both roles. Audit, import, and management writes share the taxonomy transaction advisory
-  lock. Existing disabled references remain readable. Migration 28 splits former labels into
-  independent tags, preserves selected names on assignments, and retains typed TAG/LABEL aliases
+  lock. Existing disabled references remain readable. The fresh-install baseline defines independent names and retains typed TAG/LABEL aliases
   for immutable historical snapshots. New requests and responses use tag IDs and names only.
-  Tag slug generation, AI configuration, and synonym management are removed. Migration 28 is
-  forward-only; restore a pre-upgrade backup with the corresponding older application for rollback.
+  The consolidated baseline is forward-only. Existing unmarked databases must be exported with
+  the previous application and restored into a fresh database; retain the original database and
+  application for rollback.
 
 - `apps/api/internal/platform/config` alone discovers YAML/environment inputs and exports typed runtime
   configuration. Inject it into other packages. Secrets and service bindings stay in environment
@@ -142,22 +147,21 @@ and focused tests referenced below, not additional package-level AGENTS files.
   and expose only the profile hash, not bytes. Formats/limits are defined in
   `apps/api/internal/infrastructure/siteicon/normalize.go` and `apps/api/internal/infrastructure/siteicon/ico.go`.
   Preserve cached reads, digest ETags, no-store and safe failure mapping in
-  `apps/api/internal/platform/httpapi/public_view_icon_test.go`.
+  `apps/api/internal/features/publicview/routes_icon_test.go`.
 
 ## Data Access and Lifecycle
 
 - `features/databasebackup` owns versioned full-database JSON transfer at
-  `/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
+  `/api/web/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
   and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
   these routes. Private temporary files are streamed and removed after each request.
 - Backup protocol version 1, schema version 3 covers all 33 identity/directory/content tables and complete AGE
-  logical vertices and edges. SQL migration 28 updates the frozen schema inventory; schema evolution
+  logical vertices and edges. The baseline freezes the schema inventory; schema evolution
   requires an explicit backup compatibility change. Only schema-version-3 backups are accepted. Binary columns use Base64 and bigint columns
   use decimal strings. Never decode row JSON through floating-point numbers.
 - Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
   and maps structured actor references to the retained target administrator. It accepts only
-  untouched initialization seeds plus that administrator's authentication records. Migrations
-  26/27 own narrow SECURITY DEFINER entry points and a protected transaction-local guard; runtime
+  untouched initialization seeds plus that administrator's authentication records. Migration 13 owns narrow SECURITY DEFINER entry points and a protected transaction-local guard; runtime
   never receives direct graph privileges or unrestricted restore privileges. Migrator requires
   database TEMPORARY permission for transaction-local guards. Graph and all table writes are
   locked, verified and committed atomically; ordinary database constraints remain active.
@@ -169,8 +173,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
   VISIBLE and have no resources, taxonomy, or components. Its all-status edge reader is a
   runtime-granted database function; do not reconcile through visibility-filtered public reads.
 
+- The migration session lock checks `migration.baseline` before changing Goose history. Only a fresh database or the marked current baseline may initialize or resume. The clean-seeds baseline uses versions 1–14; databases initialized with previous numbering or seeds require export and restore into a fresh database. Migration 14 installs cross-feature foreign keys and logical initialization seeds after their dependencies exist.
+- Fresh seeds contain 71 tags, 142 classification paths and 81 TAG import identities with only `id` and `name` in their snapshots. LABEL mappings are created only for real historical data, not synthesized on initialization. Preserve import system keys, merged-tag UUID resolution and historical LABEL lookup. Schema-version-3 backups retain their original historical JSON, including obsolete fields; the clean seed contract does not restrict restored snapshots.
 - Apply Goose migrations before opening runtime PostgreSQL/Redis connections. Initialize one
-  application pool, inject it, and close it during graceful shutdown; never create per-request or
+  application pool, inject it, and close it during graceful shutdown; runtime connections disable
+  PostgreSQL JIT to avoid compilation stalls on parameterized OLTP queries; never create per-request or
   per-feature pools.
 - Keep SQL behind data-access boundaries, not handlers or application orchestration. The owning
   operation defines the complete write transaction and failure/rollback lifecycle.
@@ -178,6 +185,16 @@ and focused tests referenced below, not additional package-level AGENTS files.
   change sources and use the declared generation/vet/diff tasks when a schema change is requested.
 - Keep each cache's initialization, invalidation, and shutdown lifecycle explicit. Other modules
   must not bypass the API's data ownership.
+- Global graph snapshots and encoded JSON are cached by the committed revision in
+  `runtime_cache.public_graph_revision`. Site/SQL graph triggers and the Cypher mutation/restore
+  wrappers invalidate atomically (AGE bypasses ordinary triggers); failed refreshes never serve stale snapshots. This derived
+  schema is excluded from the 33 business backup tables and starts fresh on rebuild.
+- Taxonomy list catalogs are cached by `runtime_cache.taxonomy_revision`; source-table triggers invalidate all catalog/revision inputs in the writing transaction. Preview and mutations still load the full graph under the existing taxonomy advisory lock. Cached lists retain that lock and return independent DTO slices.
+- Graph displays combine query/response increments into synchronous weighted batches. One coordinator
+  serializes batches, each with a one-second database deadline and at most eight disjoint partition writes; accepted calls wait for persistence
+  even after cancellation. Bootstrap drains the recorder before closing its pool. Ordinary metric
+  write failures remain best-effort and do not prevent public reads. Counter-table fillfactor and
+  autovacuum settings support repeated HOT updates without changing profile timestamps.
 - Bootstrap separates cluster administration, non-superuser migrator ownership and explicit
   api_runtime grants. AGE installation/preloading, roles and migration schema are prerequisites;
   Goose migrations must not require superuser or role-management privileges. Sources:
@@ -186,18 +203,18 @@ and focused tests referenced below, not additional package-level AGENTS files.
   links use authoritative directory_graph through typed directory wrappers; triggers synchronize
   SiteRef. Do not add relational mirrors, Go dual writes or deleted legacy schemas. Graph sources:
   `apps/api/internal/infrastructure/database/migrations/sql/00005_directory_graph.sql` and
-  `apps/api/internal/infrastructure/database/migrations/sql/00008_directory_registered_friend_links.sql`.
+  `apps/api/internal/infrastructure/database/migrations/sql/00014_initialization.sql`.
 - Document every migration-owned schema, table, column, function and trigger with matching
   PostgreSQL comments. Document AGE properties at their typed wrapper functions.
 - Preserve account deletion scheduling/cancellation, terminal anonymization, OAuth removal and
   authentication-version monotonicity in `apps/api/internal/infrastructure/database/migrations/sql/00003_identity.sql`
-  and `apps/api/internal/infrastructure/database/migrations/sql/00009_authentication.sql`. Preserve site visibility
+  and `apps/api/internal/infrastructure/database/migrations/sql/00007_authentication.sql`. Preserve site visibility
   lifecycle, address/base-path and component/tag cycle invariants in
   `apps/api/internal/infrastructure/database/migrations/sql/00004_directory.sql` and
   `apps/api/internal/domain/site/address.go`; do not replace visibility transitions with hard deletion.
 - Announcement publication windows, allowed transitions, revision history, actor deletion and
   draft-only physical deletion remain database-enforced in
-  `apps/api/internal/infrastructure/database/migrations/sql/00007_content_announcements.sql`.
+  `apps/api/internal/infrastructure/database/migrations/sql/00006_content_announcements.sql`.
 - Internal imports retain the INTERNAL/data_import.write guard, bounded input/deadline, strict
   JSON/duplicate-key rejection, validation/error ordering, mapping order and random-ID calls.
   Blogs plus graph import requires one transaction, advisory lock, empty-directory and lock-capacity

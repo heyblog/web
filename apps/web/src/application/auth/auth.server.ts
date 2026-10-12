@@ -3,7 +3,7 @@ import type { SessionUser } from '../../api/auth/auth.types.ts';
 
 export async function readSessionUser(request: Request): Promise<SessionUser | null> {
   if (!request.headers.get('cookie')) return null;
-  const response = await requestAuthAPI(request, '/auth/me');
+  const response = await requestAuthAPI(request, '/api/web/auth/me');
   if (response.status === 401) return null;
   if (!response.ok) throw new Error('failed to resolve session user');
   const payload = (await response.json()) as { readonly user: SessionUser };

@@ -11,15 +11,18 @@ export async function saveAuthorization(
   else change.permissions.forEach((permission) => body.append('permissions', permission));
   let response: Response;
   try {
-    response = await fetcher(`/management/users/${encodeURIComponent(userId)}/${change.kind}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      body,
-      credentials: 'same-origin',
-      cache: 'no-store',
-      redirect: 'error',
-      signal: AbortSignal.timeout(15_000),
-    });
+    response = await fetcher(
+      `/api/web/management/users/${encodeURIComponent(userId)}/${change.kind}`,
+      {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body,
+        credentials: 'same-origin',
+        cache: 'no-store',
+        redirect: 'error',
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     return { ok: false, code: 'network_error', status: 0 };

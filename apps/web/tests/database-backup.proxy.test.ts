@@ -13,7 +13,7 @@ const headers = {
   'Content-Type': 'multipart/form-data; boundary=synthetic',
 };
 function request(overrides: Readonly<Record<string, string>> = {}) {
-  return new Request('https://web.example.test/management/database-backup/inspect', {
+  return new Request('https://web.example.test/api/web/management/database-backup/inspect', {
     method: 'POST',
     headers: { ...headers, ...overrides },
     body: '--synthetic\r\n--synthetic--',
@@ -79,7 +79,7 @@ test('multipart backup data is streamed unchanged with private authorization and
     fetcher: async (input, init) => {
       assert.equal(
         String(input),
-        'https://internal.example.test/management/database-backup/inspect',
+        'https://internal.example.test/api/web/management/database-backup/inspect',
       );
       assert.equal(
         new Headers(init?.headers).get('X-HeyBlog-Web-Token'),
@@ -105,11 +105,14 @@ test('multipart backup data is streamed unchanged with private authorization and
 
 test('export streams the file as an attachment without buffering or allowing upstream filenames', async () => {
   // Given
-  const incoming = new Request('https://web.example.test/management/database-backup/export', {
-    method: 'POST',
-    headers,
-    body: 'unexpected ignored form',
-  });
+  const incoming = new Request(
+    'https://web.example.test/api/web/management/database-backup/export',
+    {
+      method: 'POST',
+      headers,
+      body: 'unexpected ignored form',
+    },
+  );
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new TextEncoder().encode('{"synthetic":true}'));

@@ -176,7 +176,7 @@ func TestHomeMapsLeadingAnnouncementActions(t *testing.T) {
 
 	label := "查看说明"
 	path := "/about"
-	externalURL := "https://example.com/announcements/current"
+	externalURL := "https://example.com/api/web/public/announcements/current"
 	tests := []struct {
 		name       string
 		actionType content.ActionType

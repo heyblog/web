@@ -12,6 +12,11 @@ func newTestService(queries Queries) *Service { return New(queries, nil) }
 
 type recordingMetrics struct{ queries, responses []string }
 
+func (metrics *recordingMetrics) RecordGraph(_ context.Context, ids []string) {
+	metrics.queries = append(metrics.queries, ids...)
+	metrics.responses = append(metrics.responses, ids...)
+}
+
 func (metrics *recordingMetrics) RecordQuery(_ context.Context, ids []string) {
 	metrics.queries = append(metrics.queries, ids...)
 }

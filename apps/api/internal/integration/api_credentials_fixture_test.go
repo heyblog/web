@@ -24,7 +24,6 @@ import (
 	"heyblog-api/internal/features/apikey"
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/features/exampleapi"
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/infrastructure/cache"
 	"heyblog-api/internal/infrastructure/database"
 	"heyblog-api/internal/infrastructure/mail"
@@ -123,7 +122,7 @@ func newCredentialFixture(t *testing.T) credentialFixture {
 	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment,
 		HTTP:   config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: credentialWebToken,
-		HealthcheckToken: "credential-integration-health-token", PublicViews: publicview.New(nil, nil),
+		HealthcheckToken: "credential-integration-health-token",
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -16,8 +16,8 @@ const allowed =
 if (!allowed) return Astro.redirect('/forbidden');
 const auditID = Astro.params.auditId ?? '';
 const [detailResponse, optionsResponse] = await Promise.all([
-  requestAuthAPI(Astro.request, `/management/site-audits/${auditID}`),
-  requestAuthAPI(Astro.request, '/site-submissions/options'),
+  requestAuthAPI(Astro.request, `/api/web/management/site-audits/${auditID}`),
+  requestAuthAPI(Astro.request, '/api/web/submissions/options'),
 ]);
 if (detailResponse.status === 404) return Astro.redirect('/management/site-submissions');
 if (!detailResponse.ok || !optionsResponse.ok) return Astro.redirect('/forbidden');

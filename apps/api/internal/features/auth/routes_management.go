@@ -30,7 +30,7 @@ func registerManagementRoutes(api huma.API, service *Service, build authOperatio
 		})
 	}
 
-	httpapi.Register(api, operation("list-managed-users", http.MethodGet, "/management/users", "List managed users"), func(ctx context.Context, _ *emptyInput) (*usersOutput, error) {
+	httpapi.Register(api, operation("list-managed-users", http.MethodGet, "/api/web/management/users", "List managed users"), func(ctx context.Context, _ *emptyInput) (*usersOutput, error) {
 		actor, err := service.Current(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, mapError(err)
@@ -42,7 +42,7 @@ func registerManagementRoutes(api huma.API, service *Service, build authOperatio
 		return &usersOutput{Body: usersResponseBody{Users: users}}, nil
 	})
 
-	httpapi.Register(api, operation("update-user-role", http.MethodPatch, "/management/users/{id}/role", "Update a user's role"), func(ctx context.Context, input *userPathInput[roleRequest]) (*userOutput, error) {
+	httpapi.Register(api, operation("update-user-role", http.MethodPatch, "/api/web/management/users/{id}/role", "Update a user's role"), func(ctx context.Context, input *userPathInput[roleRequest]) (*userOutput, error) {
 		actor, err := service.Current(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, mapError(err)
@@ -54,7 +54,7 @@ func registerManagementRoutes(api huma.API, service *Service, build authOperatio
 		return &userOutput{Body: userResponseBody{User: user}}, nil
 	})
 
-	httpapi.Register(api, operation("update-user-permissions", http.MethodPatch, "/management/users/{id}/permissions", "Update a user's permissions"), func(ctx context.Context, input *userPathInput[permissionsRequest]) (*userOutput, error) {
+	httpapi.Register(api, operation("update-user-permissions", http.MethodPatch, "/api/web/management/users/{id}/permissions", "Update a user's permissions"), func(ctx context.Context, input *userPathInput[permissionsRequest]) (*userOutput, error) {
 		actor, err := service.Current(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, mapError(err)

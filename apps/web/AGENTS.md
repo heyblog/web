@@ -56,6 +56,10 @@ layer and browser-module boundaries.
 
 ## Rendering and Same-Origin Safety
 
+- Browser/API endpoints live under `/api/web/{public,auth,submissions,account,management}`;
+  HTML page URLs remain separate. Auth callbacks use `/api/web/auth/github/callback`.
+  Each adapter retains its business-specific method/path allowlist; no unrestricted proxy.
+
 - Database backup transport lives in `src/api/database-backup`; file selection, confirmation and
   safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
   Purpose-built POST forwarding streams attachments and multipart files without parsing backup data
@@ -92,7 +96,7 @@ layer and browser-module boundaries.
   to every route.
 - Browser backend calls enter through purpose-built same-origin routes. Do not expose the internal
   API origin or secrets through `PUBLIC_*` values or add an unrestricted proxy.
-- Friend-link graphs use `/api/site-graph` and `/api/site-graph/{identifier}`. Graph DTOs belong to
+- Friend-link graphs use `/api/web/public/site-graph` and `/api/web/public/site-graph/{identifier}`. Graph DTOs belong to
   `src/api/sites`; selection, layout Worker, pathfinding, and renderer lifecycle belong to
   `src/application/site-graph`. Three.js renders the global graph; d3-force-3d and graphology
   run layout and shortest paths in the Worker. Details lazy-load the one-hop SVG graph.
@@ -109,7 +113,7 @@ layer and browser-module boundaries.
   the Go API remains the authorization authority.
 - `/dashboard` owns the user workbench, with separate sites, claims, submissions, and security
   routes. `apps/web/src/api/site-management` owns account/claim DTOs and the bounded, authenticated
-  route whitelist for `/api/account` and `/api/site-management`; never widen it to arbitrary paths.
+  route whitelist for `/api/web/account` and `/api/web/management`; never widen it to arbitrary paths.
 - Preserve accepted HTTP methods, URLs, statuses, Cookie/Set-Cookie handling, cancellation,
   timeouts, redirects, request counts, and failure mappings. Consult the API layer rules and
   route's focused tests before changing forwarding behavior.
@@ -119,6 +123,9 @@ layer and browser-module boundaries.
 - Use existing Tailwind CSS v4 utilities and Aria tokens. Do not use `@apply` or add semantic
   component selectors solely to reference a third-party snippet. Prefer canonical utilities and
   custom-property shorthand; use arbitrary values only when needed.
+- Native modal dialogs share the global `html:has(dialog:modal)` scroll lock. Do not mix this
+  with component-owned body overflow writes. Directory results retain cards by site identity;
+  expanded card dialogs mount on demand and cancel animation/resize work on destruction.
 - Reusable class strings use a `Class` or `Classes` suffix. ESLint owns Tailwind correctness and
   class order; Prettier owns layout. Web composes Astro/Svelte tooling and Stylelint over the
   framework-neutral `packages/node/configs` exports.
@@ -158,4 +165,4 @@ hydration directives, text, assets, and motion; compare affected browser states 
 cannot prove equivalence. Check the route's rendering/cache choice, same-origin forwarding,
 browser import graph, and relevant feature tests before completion.
 
-OG image generation reads `/sites/id/{identifier}/metadata` so image requests do not increment public display metrics.
+OG image generation reads `/api/web/public/sites/id/{identifier}/metadata` so image requests do not increment public display metrics.

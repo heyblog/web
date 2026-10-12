@@ -21,7 +21,10 @@ test('loads only cached API icon bytes and forwards no browser credentials', asy
   const result = await loadSiteIcon(withIcon, request, {
     loadConfig,
     fetch: async (input, init) => {
-      assert.equal(String(input), 'https://api.example.test/sites/id/38FycC0ow/icon');
+      assert.equal(
+        String(input),
+        'https://api.example.test/api/web/public/sites/id/38FycC0ow/icon',
+      );
       const sent = new Headers(init?.headers);
       assert.equal(sent.get('X-HeyBlog-Web-Token'), 'test-token');
       assert.equal(sent.get('Cookie'), null);

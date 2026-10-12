@@ -12,6 +12,12 @@
 
   let { view, pending, onPageChange }: Props = $props();
   let expandedSiteId = $state<string | null>(null);
+
+  $effect(() => {
+    if (expandedSiteId && !view.items.some((site) => site.shortId === expandedSiteId)) {
+      expandedSiteId = null;
+    }
+  });
 </script>
 
 <div

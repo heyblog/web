@@ -74,7 +74,7 @@ export async function forwardTaxonomyManagement(
     body = value;
   }
   if (!request.headers.get('cookie')) return problem(401, 'unauthorized');
-  const session = await upstream(request, '/auth/me');
+  const session = await upstream(request, '/api/web/auth/me');
   if (!session.ok)
     return problem(
       session.status === 401 || session.status === 403 ? session.status : 503,
@@ -100,8 +100,8 @@ export async function forwardTaxonomyManagement(
   ))
     return problem(403, 'forbidden');
   const target: `/${string}` = actions
-    ? `/management/taxonomy/${path}`
-    : `/management/taxonomy/tags${path ? `/${path}` : ''}`;
+    ? `/api/web/management/taxonomy/${path}`
+    : `/api/web/management/taxonomy/tags${path ? `/${path}` : ''}`;
   const method = request.method;
   if (
     method !== 'GET' &&

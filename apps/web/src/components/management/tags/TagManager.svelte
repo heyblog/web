@@ -41,15 +41,6 @@
     ),
   );
 
-  $effect(() => {
-    if (!opened) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  });
-
   async function refresh(): Promise<void> {
     if (loading || opened) return;
     loading = true;
@@ -93,7 +84,10 @@
     if (target === 'close') {
       dialog.close();
       opened = false;
-      trigger?.focus();
+      await tick();
+      if (trigger?.isConnected && !document.querySelector('dialog:modal')) {
+        trigger.focus({ preventScroll: true });
+      }
     } else {
       panel = target;
       await focusStep();

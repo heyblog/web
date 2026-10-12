@@ -29,7 +29,7 @@ test('copy reports success, denial and unsupported clipboard without throwing', 
 test('browser preview uses same-origin random endpoint with no-store and cancellation', async () => {
   const signal = new AbortController().signal;
   const selection = await previewRandomSite('技术', '', signal, async (input, init) => {
-    assert.equal(String(input), '/api/site-random?level1=%E6%8A%80%E6%9C%AF');
+    assert.equal(String(input), '/api/web/public/site-random?level1=%E6%8A%80%E6%9C%AF');
     assert.equal(init?.cache, 'no-store');
     assert.equal(init?.signal, signal);
     return Response.json({ site: null });
@@ -66,7 +66,7 @@ test('random proxy rejects cross-site and unsupported fields, preserves API erro
   const policy = {
     audience: 'web-only',
     method: 'GET',
-    upstreamPath: '/sites/random',
+    upstreamPath: '/api/web/public/sites/random',
     queryParameters: ['level1', 'level2'],
     responseHeaders: ['content-type'],
   } as const;
@@ -80,7 +80,7 @@ test('random proxy rejects cross-site and unsupported fields, preserves API erro
     fetch: async (input: string | URL | Request) => {
       assert.equal(
         String(input),
-        'http://api.internal:10201/sites/random?level1=%E6%8A%80%E6%9C%AF&level1=%E7%94%9F%E6%B4%BB',
+        'http://api.internal:10201/api/web/public/sites/random?level1=%E6%8A%80%E6%9C%AF&level1=%E7%94%9F%E6%B4%BB',
       );
       return Response.json({ code: 'random_duplicate_parameter' }, { status: 400 });
     },
@@ -88,7 +88,7 @@ test('random proxy rejects cross-site and unsupported fields, preserves API erro
   assert.equal(
     (
       await handleApiRequest(
-        new Request('https://www.heyblog.net/api/site-random'),
+        new Request('https://www.heyblog.net/api/web/public/site-random'),
         policy,
         dependencies,
       )
@@ -98,7 +98,7 @@ test('random proxy rejects cross-site and unsupported fields, preserves API erro
   assert.equal(
     (
       await handleApiRequest(
-        new Request('https://www.heyblog.net/api/site-random?preview=true', { headers }),
+        new Request('https://www.heyblog.net/api/web/public/site-random?preview=true', { headers }),
         policy,
         dependencies,
       )
@@ -106,7 +106,9 @@ test('random proxy rejects cross-site and unsupported fields, preserves API erro
     400,
   );
   const response = await handleApiRequest(
-    new Request('https://www.heyblog.net/api/site-random?level1=技术&level1=生活', { headers }),
+    new Request('https://www.heyblog.net/api/web/public/site-random?level1=技术&level1=生活', {
+      headers,
+    }),
     policy,
     dependencies,
   );

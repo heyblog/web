@@ -60,7 +60,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		}
 		return huma.Operation{OperationID: id, Method: method, Path: path, Summary: id, Tags: []string{"site management"}, Errors: []int{400, 401, 403, 404, 409, 422, 429, 503}, Security: []map[string][]string{{"webToken": {}, "accessCookie": {}}}, Middlewares: huma.Middlewares{httpapi.HumaWebAuthorization(webToken), httpapi.HumaRateLimit(limiter, policy)}}
 	}
-	httpapi.Register(api, operation("create-site-claim", http.MethodPost, "/account/site-claims"), func(ctx context.Context, input *createRequest) (*output[CreateResult], error) {
+	httpapi.Register(api, operation("create-site-claim", http.MethodPost, "/api/web/account/site-claims"), func(ctx context.Context, input *createRequest) (*output[CreateResult], error) {
 		user, err := service.Current(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, routeError(err)
@@ -72,18 +72,18 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		return response(result), nil
 	})
 	for _, management := range []bool{false, true} {
-		path := "/account/site-claims"
+		path := "/api/web/account/site-claims"
 		id := "account-site-claims"
 		if management {
-			path = "/management/site-claims"
+			path = "/api/web/management/site-claims"
 			id = "management-site-claims"
 		}
 		httpapi.Register(api, operation("list-"+id, http.MethodGet, path), listHandler(service, management))
 		httpapi.Register(api, operation("get-"+id, http.MethodGet, path+"/{claimId}"), detailHandler(service, management))
 	}
-	httpapi.Register(api, operation("check-site-claim", http.MethodPost, "/account/site-claims/{claimId}/check"), claimActionHandler(service, false))
-	httpapi.Register(api, operation("cancel-site-claim", http.MethodDelete, "/account/site-claims/{claimId}"), claimActionHandler(service, true))
-	httpapi.Register(api, operation("review-site-claim", http.MethodPost, "/management/site-claims/{claimId}/review"), func(ctx context.Context, input *reviewRequest) (*output[Claim], error) {
+	httpapi.Register(api, operation("check-site-claim", http.MethodPost, "/api/web/account/site-claims/{claimId}/check"), claimActionHandler(service, false))
+	httpapi.Register(api, operation("cancel-site-claim", http.MethodDelete, "/api/web/account/site-claims/{claimId}"), claimActionHandler(service, true))
+	httpapi.Register(api, operation("review-site-claim", http.MethodPost, "/api/web/management/site-claims/{claimId}/review"), func(ctx context.Context, input *reviewRequest) (*output[Claim], error) {
 		user, err := service.Reviewer(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, routeError(err)
@@ -94,8 +94,8 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		}
 		return response(result), nil
 	})
-	httpapi.Register(api, operation("revoke-site-ownership", http.MethodDelete, "/management/site-ownership/{shortId}"), ownerHandler(service, true))
-	httpapi.Register(api, operation("reassign-site-ownership", http.MethodPut, "/management/site-ownership/{shortId}"), ownerHandler(service, false))
+	httpapi.Register(api, operation("revoke-site-ownership", http.MethodDelete, "/api/web/management/site-ownership/{shortId}"), ownerHandler(service, true))
+	httpapi.Register(api, operation("reassign-site-ownership", http.MethodPut, "/api/web/management/site-ownership/{shortId}"), ownerHandler(service, false))
 	return nil
 }
 func listHandler(s *Service, management bool) func(context.Context, *listRequest) (*output[claimList], error) {

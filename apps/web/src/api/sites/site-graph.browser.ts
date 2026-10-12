@@ -78,7 +78,9 @@ export async function requestSiteGraph(
   identifier: string | undefined,
   signal: AbortSignal,
 ): Promise<SiteGraph> {
-  const path = identifier ? `/api/site-graph/${encodeURIComponent(identifier)}` : '/api/site-graph';
+  const path = identifier
+    ? `/api/web/public/site-graph/${encodeURIComponent(identifier)}`
+    : '/api/web/public/site-graph';
   const response = await fetch(path, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
     cache: 'no-store',

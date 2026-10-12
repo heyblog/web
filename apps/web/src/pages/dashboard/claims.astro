@@ -16,7 +16,7 @@ const page = Math.min(
 );
 const response = await requestAuthAPI(
   Astro.request,
-  `/account/site-claims?page=${page}&page_size=50`,
+  `/api/web/account/site-claims?page=${page}&page_size=50`,
 );
 const claims = response.ok ? parseClaims(await response.json()) : [];
 ---

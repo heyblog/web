@@ -12,7 +12,7 @@ const user = await readSessionUser(Astro.request);
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
 const response = await requestAuthAPI(
   Astro.request,
-  `/account/site-submissions/${Astro.params.auditId ?? ''}`,
+  `/api/web/account/site-submissions/${Astro.params.auditId ?? ''}`,
 );
 if (response.status === 404 || response.status === 403)
   return Astro.redirect('/dashboard/submissions');

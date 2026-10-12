@@ -98,7 +98,7 @@ export async function forwardSiteManagement(
   const suffix = allowedQuery.size ? `?${allowedQuery}` : '';
   const upstream = await requestAuthAPI(
     request,
-    `/${management ? 'management' : 'account'}/${path}${suffix}`,
+    `/api/web/${management ? 'management' : 'account'}/${path}${suffix}`,
     {
       method:
         request.method === 'GET'

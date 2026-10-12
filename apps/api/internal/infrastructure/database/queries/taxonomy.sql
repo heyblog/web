@@ -36,8 +36,9 @@ WHERE c.scope='SITE' AND c.merged_into_id IS NULL ORDER BY c.sort_order,c.id;
 -- name: EnableCanonicalTag :exec
 UPDATE directory.tags SET is_enabled=true WHERE id=$1;
 
--- name: ListTagIdentityAliases :many
-SELECT * FROM directory.tag_identity_aliases ORDER BY alias_kind,alias_id;
+-- name: ListProtectedTagIDs :many
+SELECT tag_id FROM directory.tag_identity_aliases
+WHERE alias_kind='TAG' AND system_key='other';
 
 -- name: GetHistoricalTagLabel :one
 SELECT t.* FROM directory.tags t JOIN directory.tag_identity_aliases a ON a.tag_id=t.id

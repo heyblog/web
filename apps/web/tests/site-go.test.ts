@@ -41,7 +41,10 @@ test('loads each random selection through the private API boundary', async () =>
   });
 
   assert.deepEqual(result, { kind: 'success', data: { site: null } });
-  assert.equal(requestURL, 'http://api.internal:10201/sites/random?level1=%E6%8A%80%E6%9C%AF');
+  assert.equal(
+    requestURL,
+    'http://api.internal:10201/api/web/public/sites/random?level1=%E6%8A%80%E6%9C%AF',
+  );
   assert.equal(token, 'test-token');
 });
 
@@ -109,7 +112,7 @@ test('preview reaches only the dedicated selection endpoint with Chinese names',
         const url = new URL(String(input));
         urls.push(url);
         return Response.json(
-          url.pathname === '/sites/options' ? { classifications } : { site: null },
+          url.pathname === '/api/web/public/sites/options' ? { classifications } : { site: null },
         );
       },
     },
@@ -117,9 +120,12 @@ test('preview reaches only the dedicated selection endpoint with Chinese names',
   assert.equal(page.status, 200);
   assert.equal(page.preview, true);
   assert.equal(page.level1, '技术');
-  assert.deepEqual(urls.map((url) => url.pathname).sort(), ['/sites/options', '/sites/random']);
+  assert.deepEqual(urls.map((url) => url.pathname).sort(), [
+    '/api/web/public/sites/options',
+    '/api/web/public/sites/random',
+  ]);
   assert.equal(
-    urls.find((url) => url.pathname === '/sites/random')?.search,
+    urls.find((url) => url.pathname === '/api/web/public/sites/random')?.search,
     '?level1=%E6%8A%80%E6%9C%AF',
   );
 });
@@ -131,7 +137,7 @@ test('invalid page parameters prevent selection and preserve preview recovery', 
     {
       loadConfig,
       fetch: async (input) => {
-        assert.equal(new URL(String(input)).pathname, '/sites/options');
+        assert.equal(new URL(String(input)).pathname, '/api/web/public/sites/options');
         return Response.json({ classifications });
       },
     },
@@ -148,7 +154,7 @@ test('semantic errors use safe codes and take precedence over metadata outages',
     {
       loadConfig,
       fetch: async (input) =>
-        new URL(String(input)).pathname === '/sites/random'
+        new URL(String(input)).pathname === '/api/web/public/sites/random'
           ? Response.json(
               { code: 'random_classification_mismatch', detail: 'private diagnostic' },
               { status: 400 },
@@ -172,7 +178,7 @@ test('optional metadata failure does not discard normal selections; outages rema
       {
         loadConfig,
         fetch: async (input) =>
-          new URL(String(input)).pathname === '/sites/options'
+          new URL(String(input)).pathname === '/api/web/public/sites/options'
             ? new Response(null, { status: 503 })
             : Response.json({ site: fixture }),
       },
@@ -201,7 +207,7 @@ test('random filters preserve 120 Unicode characters and match names case-insens
       loadConfig,
       fetch: async (input) =>
         Response.json(
-          new URL(String(input)).pathname === '/sites/options'
+          new URL(String(input)).pathname === '/api/web/public/sites/options'
             ? {
                 classifications: [
                   {

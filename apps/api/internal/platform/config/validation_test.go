@@ -35,7 +35,7 @@ func TestLoadRejectsWebOriginWithPath(t *testing.T) {
 func TestLoadRejectsDeprecatedGithubCallbackURL(t *testing.T) {
 	t.Parallel()
 
-	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101\n  github:\n    callback_url: http://127.0.0.1:10101/auth/github/callback\n")
+	paths := writeConfigPair(t, testDefaultYAML, "mode: development\nauth:\n  web_base_url: http://127.0.0.1:10101\n  github:\n    callback_url: http://127.0.0.1:10101/api/web/auth/github/callback\n")
 	if _, err := load(paths, serviceEnvironment); err == nil || !strings.Contains(err.Error(), "callback_url") {
 		t.Fatalf("load() error = %v, want deprecated callback field error", err)
 	}

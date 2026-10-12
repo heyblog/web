@@ -199,30 +199,24 @@ func (q *Queries) ListManagedTags(ctx context.Context) ([]DirectoryTag, error) {
 	return items, nil
 }
 
-const listTagIdentityAliases = `-- name: ListTagIdentityAliases :many
-SELECT alias_id, tag_id, system_key, snapshot, archived_at, alias_kind FROM directory.tag_identity_aliases ORDER BY alias_kind,alias_id
+const listProtectedTagIDs = `-- name: ListProtectedTagIDs :many
+SELECT tag_id FROM directory.tag_identity_aliases
+WHERE alias_kind='TAG' AND system_key='other'
 `
 
-func (q *Queries) ListTagIdentityAliases(ctx context.Context) ([]DirectoryTagIdentityAlias, error) {
-	rows, err := q.db.Query(ctx, listTagIdentityAliases)
+func (q *Queries) ListProtectedTagIDs(ctx context.Context) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listProtectedTagIDs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []DirectoryTagIdentityAlias{}
+	items := []pgtype.UUID{}
 	for rows.Next() {
-		var i DirectoryTagIdentityAlias
-		if err := rows.Scan(
-			&i.AliasID,
-			&i.TagID,
-			&i.SystemKey,
-			&i.Snapshot,
-			&i.ArchivedAt,
-			&i.AliasKind,
-		); err != nil {
+		var tag_id pgtype.UUID
+		if err := rows.Scan(&tag_id); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, tag_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

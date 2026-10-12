@@ -56,7 +56,7 @@ func TestGithubStateCookieNameIsScopedToState(t *testing.T) {
 }
 
 func TestReadGithubStateCookiePrefersMatchingStateCookie(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/auth/github/callback?state=first-state", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/web/auth/github/callback?state=first-state", nil)
 	request.Header.Set("Cookie", githubStateCookieName("first-state")+"=first-state; "+githubStateCookieName("second-state")+"=second-state")
 
 	value, legacy := readGithubStateCookie(request, "first-state")
@@ -67,7 +67,7 @@ func TestReadGithubStateCookiePrefersMatchingStateCookie(t *testing.T) {
 }
 
 func TestReadGithubStateCookieFallsBackToLegacyCookie(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/auth/github/callback?state=state", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/web/auth/github/callback?state=state", nil)
 	request.Header.Set("Cookie", legacyGithubStateCookieName+"=state")
 
 	value, legacy := readGithubStateCookie(request, "state")

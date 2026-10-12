@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Path            = "/management/database-backup"
+	Path            = "/api/web/management/database-backup"
 	FileLimit int64 = 512 << 20
 	BodyLimit       = FileLimit + 1<<20
 	Timeout         = 30 * time.Minute

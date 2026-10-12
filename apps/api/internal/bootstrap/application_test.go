@@ -107,9 +107,7 @@ func TestRunForcesServerCloseBeforeDependenciesOnShutdownFailure(t *testing.T) {
 			health = options.Health
 			healthcheckToken = options.HealthcheckToken
 			webToken = options.WebToken
-			if options.PublicViews != wantViews {
-				t.Fatalf("public views = %p, want %p", options.PublicViews, wantViews)
-			}
+
 			if runtime.DatabasePool() != wantPool {
 				t.Fatalf("database pool = %p, want %p", runtime.DatabasePool(), wantPool)
 			}

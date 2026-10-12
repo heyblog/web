@@ -404,7 +404,7 @@ type DirectorySoftwareComponentDependency struct {
 
 // Unique names; classification roles belong to paths and assignments.
 type DirectoryTag struct {
-	// UUIDv7 global tag dictionary primary key.
+	// UUIDv7 global tag primary key.
 	ID pgtype.UUID
 	// Public tag description.
 	Description string
@@ -420,7 +420,7 @@ type DirectoryTag struct {
 	NormalizedName string
 }
 
-// Scoped classification paths; the same dictionary tag may occupy both roles.
+// Scoped classification paths; the same tag may occupy both roles.
 type DirectoryTagCascade struct {
 	// UUIDv7 shared taxonomy path primary key.
 	ID pgtype.UUID
@@ -434,7 +434,7 @@ type DirectoryTagCascade struct {
 	Level2TagID pgtype.UUID
 	// Unique positive order within scope; expanded paths append after existing paths.
 	SortOrder int32
-	// Whether new assignments may select this fixed path.
+	// Whether new assignments may select this classification path.
 	IsEnabled bool
 	// Taxonomy path creation time.
 	CreatedAt pgtype.Timestamptz
@@ -442,22 +442,6 @@ type DirectoryTagCascade struct {
 	UpdatedAt pgtype.Timestamptz
 	// Replacement path retained for historical audit references.
 	MergedIntoID pgtype.UUID
-}
-
-// Historical tag IDs and import keys resolving directly to current dictionary identities.
-type DirectoryTagIdentityAlias struct {
-	// Historical tag identifier, including retained seed identifiers.
-	AliasID pgtype.UUID
-	// Current dictionary owner.
-	TagID pgtype.UUID
-	// Historical stable import identity.
-	SystemKey *string
-	// Original dictionary row before canonicalization.
-	Snapshot []byte
-	// Identity archival time.
-	ArchivedAt pgtype.Timestamptz
-	// Historical identity namespace: TAG or LABEL; only TAG may have a system key.
-	AliasKind string
 }
 
 // Machine clients that own scoped internal or external API credentials.

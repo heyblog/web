@@ -3,7 +3,9 @@
 package integration_test
 
 import (
+	"errors"
 	"heyblog-api/internal/features/taxonomy"
+	"heyblog-api/internal/platform/apperror"
 	"testing"
 )
 
@@ -37,6 +39,26 @@ func TestTaxonomyPathChangesAndPreviewConcurrency(t *testing.T) {
 			id = tag.ID
 		}
 	}
+	t.Run("fallback tag cannot be disabled", func(t *testing.T) {
+		_, err := service.Update(ctx, fallback.PrimaryID, taxonomy.UpdateInput{Name: "其他", Enabled: false, ExpectedRevision: catalog.Revision})
+		var appErr *apperror.Error
+		if !errors.As(err, &appErr) || appErr.Code() != "fallback_protected" {
+			t.Fatalf("disable fallback: %v", err)
+		}
+	})
+	t.Run("fallback tag cannot be deleted", func(t *testing.T) {
+		_, err := service.Delete(ctx, fallback.PrimaryID, taxonomy.DeleteInput{ExpectedRevision: catalog.Revision})
+		var appErr *apperror.Error
+		if !errors.As(err, &appErr) || appErr.Code() != "tag_in_use" {
+			t.Fatalf("delete fallback: %v", err)
+		}
+	})
+	t.Run("fallback tag cannot be merged away", func(t *testing.T) {
+		preview, err := service.Preview(ctx, taxonomy.ChangeInput{Kind: "merge", SourceID: fallback.PrimaryID, TargetID: id, ExpectedRevision: catalog.Revision})
+		if err != nil || len(preview.Blockers) != 1 || preview.Blockers[0] != "fallback_protected" {
+			t.Fatalf("merge fallback: %+v %v", preview, err)
+		}
+	})
 	catalog, err = service.CreateCascade(ctx, taxonomy.CreateCascadeInput{Scope: "SITE", PrimaryID: id, SecondaryID: id, Key: "test/self", ExpectedRevision: catalog.Revision})
 	if err != nil {
 		t.Fatal(err)

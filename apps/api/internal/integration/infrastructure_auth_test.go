@@ -102,7 +102,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	if err != nil {
 		t.Fatalf("login verified user: %v", err)
 	}
-	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/me", nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/me", nil)
 	request.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: tokens[0]})
 	request.AddCookie(&http.Cookie{Name: "heyblog_refresh_token", Value: tokens[1]})
 	if current, err := service.Current(ctx, request); err != nil || current.ID != user.ID {
@@ -115,7 +115,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	if _, _, err := service.Refresh(ctx, request); err == nil {
 		t.Fatal("refresh token was accepted after rotation")
 	}
-	logoutRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/auth/logout", nil)
+	logoutRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/api/web/auth/logout", nil)
 	logoutRequest.AddCookie(&http.Cookie{Name: "heyblog_refresh_token", Value: rotated[1]})
 	if err := service.Logout(ctx, logoutRequest); err != nil {
 		t.Fatalf("logout session: %v", err)
@@ -155,7 +155,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	if err != nil {
 		t.Fatalf("start second GitHub login: %v", err)
 	}
-	firstGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/github/callback", nil)
+	firstGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/github/callback", nil)
 	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_github_state_" + firstStateToken, Value: firstStateToken})
 	githubUser, githubTokens, _, err := service.GithubCallback(ctx, firstGithubRequest, "oauth-code", firstStateToken, firstStateToken)
 	if err != nil {
@@ -164,12 +164,12 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	if !githubUser.EmailVerified {
 		t.Fatal("new GitHub user email was not marked verified")
 	}
-	secondGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/auth/github/callback", nil)
+	secondGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/github/callback", nil)
 	secondGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_github_state_" + secondStateToken, Value: secondStateToken})
 	if _, _, _, err := service.GithubCallback(ctx, secondGithubRequest, "oauth-code", secondStateToken, secondStateToken); err != nil {
 		t.Fatalf("complete second GitHub login: %v", err)
 	}
-	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/auth/password", nil)
+	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/api/web/auth/password", nil)
 	setPasswordRequest.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: githubTokens[0]})
 	if _, _, err := service.SetPassword(ctx, setPasswordRequest, "", "github-local-password"); err != nil {
 		t.Fatalf("set GitHub user password: %v", err)

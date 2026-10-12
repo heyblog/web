@@ -31,14 +31,14 @@ func registerGithubRoutes(api huma.API, service *Service, build authOperationBui
 		})
 	}
 
-	startOperation := operation("start-github-auth", http.MethodGet, "/auth/github/start", "Start GitHub authentication")
+	startOperation := operation("start-github-auth", http.MethodGet, "/api/web/auth/github/start", "Start GitHub authentication")
 	startOperation.DefaultStatus = http.StatusFound
 	httpapi.Register(api, startOperation, func(ctx context.Context, input *githubStartInput) (*redirectOutput, error) {
 		target, state, err := service.GithubStart(ctx, input.Next, input.Intent == "bind")
 		if err != nil {
 			return nil, mapError(err)
 		}
-		stateCookie := authCookie(service.config, githubStateCookieName(state), state, "/auth/github", 600, time.Now().Add(10*time.Minute))
+		stateCookie := authCookie(service.config, githubStateCookieName(state), state, "/api/web/auth/github", 600, time.Now().Add(10*time.Minute))
 		return &redirectOutput{
 			Status:       http.StatusFound,
 			Location:     target,
@@ -47,7 +47,7 @@ func registerGithubRoutes(api huma.API, service *Service, build authOperationBui
 		}, nil
 	})
 
-	callbackOperation := operation("complete-github-auth", http.MethodGet, "/auth/github/callback", "Complete GitHub authentication")
+	callbackOperation := operation("complete-github-auth", http.MethodGet, "/api/web/auth/github/callback", "Complete GitHub authentication")
 	callbackOperation.DefaultStatus = http.StatusFound
 	httpapi.Register(api, callbackOperation, func(ctx context.Context, input *githubCallbackInput) (*redirectOutput, error) {
 		request := httpapi.Request(ctx)
@@ -60,7 +60,7 @@ func registerGithubRoutes(api huma.API, service *Service, build authOperationBui
 			service.config,
 			githubStateCookieName(input.State),
 			"",
-			"/auth/github",
+			"/api/web/auth/github",
 			-1,
 			time.Unix(1, 0),
 		).String()}
@@ -69,7 +69,7 @@ func registerGithubRoutes(api huma.API, service *Service, build authOperationBui
 				service.config,
 				legacyGithubStateCookieName,
 				"",
-				"/auth/github",
+				"/api/web/auth/github",
 				-1,
 				time.Unix(1, 0),
 			).String())
@@ -83,7 +83,7 @@ func registerGithubRoutes(api huma.API, service *Service, build authOperationBui
 		}, nil
 	})
 
-	unbindOperation := operation("unbind-github", http.MethodPost, "/auth/github/unbind", "Unbind GitHub authentication")
+	unbindOperation := operation("unbind-github", http.MethodPost, "/api/web/auth/github/unbind", "Unbind GitHub authentication")
 	unbindOperation.Security = []map[string][]string{{"webToken": {}, "accessCookie": {}}}
 	httpapi.Register(api, unbindOperation, func(ctx context.Context, _ *emptyInput) (*userOutput, error) {
 		user, cookies, err := service.GithubUnbind(ctx, httpapi.Request(ctx))

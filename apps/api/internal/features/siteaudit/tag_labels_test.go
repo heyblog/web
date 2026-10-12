@@ -25,14 +25,13 @@ func TestDifferentNamesRemainIndependentTags(t *testing.T) {
 	require.Error(t, validateTagConcepts(tags))
 }
 
-func TestHistoricalTagLabelIsInternalOnly(t *testing.T) {
+func TestTagSnapshotReadsHistoricalIdentityAndEncodesCurrentFields(t *testing.T) {
 	var tag TagSnapshot
-	require.NoError(t, json.Unmarshal([]byte(`{"id":"original","label_id":"selected","name":"算法","slug":"algorithm","role":"TERTIARY"}`), &tag))
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"original","label_id":"selected","name":"算法","role":"TERTIARY"}`), &tag))
 	require.Equal(t, "selected", tag.historicalLabelID)
 	require.Equal(t, "original", tag.ID)
 	require.Equal(t, "算法", tag.Name)
 	encoded, err := json.Marshal(tag)
 	require.NoError(t, err)
-	require.NotContains(t, string(encoded), "label_id")
-	require.NotContains(t, string(encoded), "slug")
+	require.JSONEq(t, `{"id":"original","name":"算法","role":"TERTIARY"}`, string(encoded))
 }

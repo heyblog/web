@@ -13,7 +13,6 @@
   let dialog = $state<HTMLDialogElement>();
   let cancelButton = $state<HTMLButtonElement>();
   let confirmed = $state(false);
-  let previousOverflow: string | null = null;
   const loadingLabels = {
     inspect: '正在检查文件…',
     restore: '正在恢复数据，请勿关闭页面…',
@@ -31,18 +30,10 @@
   onDestroy(() => {
     controller.dispose();
     dialog?.close();
-    releaseScroll();
   });
-  function releaseScroll() {
-    if (previousOverflow === null) return;
-    document.body.style.overflow = previousOverflow;
-    previousOverflow = null;
-  }
   function confirmRestore() {
     if (!controller.inspection?.can_restore || controller.busy !== null) return;
     confirmed = false;
-    previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     dialog?.showModal();
     cancelButton?.focus();
   }
@@ -64,7 +55,7 @@
         下载全部业务数据、审计记录和关系。系统管理员账号不包含在文件中。
       </p>
     </div>
-    <form method="POST" action="/management/database-backup/export" data-astro-reload>
+    <form method="POST" action="/api/web/management/database-backup/export" data-astro-reload>
       <button type="submit" class={buttonClass} disabled={controller.busy !== null}
         ><IconDownload size={18} aria-hidden="true" />导出 JSON</button
       >
@@ -145,7 +136,6 @@
 
 <dialog
   bind:this={dialog}
-  onclose={releaseScroll}
   class="m-auto max-h-[calc(100dvh-2rem)] w-[min(calc(100%-2rem),30rem)] overflow-y-auto rounded-md border border-line bg-surface p-6 text-fg shadow-md backdrop:bg-overlay"
   aria-labelledby="restore-dialog-title"
   aria-describedby="restore-dialog-description"

@@ -11,7 +11,7 @@ import {
 const policy = {
   audience: 'web-only',
   method: 'GET',
-  upstreamPath: '/ping',
+  upstreamPath: '/api/web/public/ping',
   responseHeaders: ['content-type'],
 } satisfies ApiEndpointPolicy;
 
@@ -42,7 +42,7 @@ test('forwards an allowed page fetch with only declared headers', async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { message: 'pong' });
-  assert.equal(upstreamRequest?.url, 'http://api.internal:10201/ping');
+  assert.equal(upstreamRequest?.url, 'http://api.internal:10201/api/web/public/ping');
   const headers = new Headers(upstreamRequest?.init?.headers);
   assert.equal(headers.get(apiWebTokenHeader), configuration.apiWebToken);
   assert.equal(headers.get('X-Real-IP'), '203.0.113.12');
@@ -58,7 +58,7 @@ test('forwards an allowed page fetch with only declared headers', async () => {
 test('forwards only explicitly declared authentication state', async () => {
   let upstreamHeaders: Headers | undefined;
   const response = await handleApiRequest(
-    pageRequest('https://web.example.test/api/ping', {
+    pageRequest('https://web.example.test/api/web/public/ping', {
       headers: {
         Authorization: 'Bearer browser-session',
         Cookie: 'session=browser-session',
@@ -97,8 +97,8 @@ test('forwards LAN graph fetches without Fetch Metadata when the source is same-
   // Given: browsers omit Fetch Metadata on an HTTP LAN origin.
   const origin = 'http://192.168.30.148:10101';
   for (const [path, upstreamPath] of [
-    ['/api/site-graph', '/sites/graph'],
-    ['/api/site-graph/ESaHYqhGj', '/sites/id/ESaHYqhGj/graph'],
+    ['/api/web/public/site-graph', '/api/web/public/sites/graph'],
+    ['/api/web/public/site-graph/ESaHYqhGj', '/api/web/public/sites/id/ESaHYqhGj/graph'],
   ] as const) {
     let upstreamURL: string | undefined;
     const request = new Request(origin + path, {
@@ -158,16 +158,17 @@ test('rejects navigation and unverified or cross-origin fetches before calling u
   ];
 
   for (const request of [
-    new Request('https://web.example.test/api/ping', {
+    new Request('https://web.example.test/api/web/public/ping', {
       headers: {
         'Sec-Fetch-Site': 'same-origin',
         'Sec-Fetch-Mode': 'navigate',
         'Sec-Fetch-Dest': 'document',
       },
     }),
-    new Request('https://web.example.test/api/ping'),
+    new Request('https://web.example.test/api/web/public/ping'),
     ...rejectedHeaders.map(
-      (headers) => new Request('http://192.168.30.148:10101/api/site-graph', { headers }),
+      (headers) =>
+        new Request('http://192.168.30.148:10101/api/web/public/site-graph', { headers }),
     ),
   ]) {
     const response = await handleApiRequest(request, policy, dependencies);
@@ -180,7 +181,7 @@ test('rejects navigation and unverified or cross-origin fetches before calling u
 test('rejects undeclared query fields before calling upstream', async () => {
   let fetchCalled = false;
   const response = await handleApiRequest(
-    pageRequest('https://web.example.test/api/ping?redirect=http://private.test'),
+    pageRequest('https://web.example.test/api/web/public/ping?redirect=http://private.test'),
     policy,
     {
       loadConfig: () => configuration,
@@ -198,7 +199,7 @@ test('rejects undeclared query fields before calling upstream', async () => {
 test('forwards declared query fields without changing their values', async () => {
   let upstreamURL: string | undefined;
   const response = await handleApiRequest(
-    pageRequest('https://web.example.test/api/ping?tag=first&tag=second'),
+    pageRequest('https://web.example.test/api/web/public/ping?tag=first&tag=second'),
     { ...policy, queryParameters: ['tag'] },
     {
       loadConfig: () => configuration,
@@ -210,7 +211,7 @@ test('forwards declared query fields without changing their values', async () =>
   );
 
   assert.equal(response.status, 200);
-  assert.equal(upstreamURL, 'http://api.internal:10201/ping?tag=first&tag=second');
+  assert.equal(upstreamURL, 'http://api.internal:10201/api/web/public/ping?tag=first&tag=second');
 });
 
 test('preserves upstream status and body', async () => {
@@ -259,7 +260,7 @@ test('propagates browser cancellation to the upstream request', async () => {
   const controller = new AbortController();
   let upstreamSignal: AbortSignal | undefined;
   const responsePromise = handleApiRequest(
-    pageRequest('https://web.example.test/api/ping', { signal: controller.signal }),
+    pageRequest('https://web.example.test/api/web/public/ping', { signal: controller.signal }),
     policy,
     {
       loadConfig: () => configuration,
@@ -292,7 +293,7 @@ test('public policy permits non-browser clients while retaining explicit CORS', 
   });
 
   const response = await endpoint.GET({
-    request: new Request('https://web.example.test/api/ping', {
+    request: new Request('https://web.example.test/api/web/public/ping', {
       headers: { Origin: 'https://client.example.test' },
     }),
   } as Parameters<typeof endpoint.GET>[0]);
@@ -301,7 +302,7 @@ test('public policy permits non-browser clients while retaining explicit CORS', 
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://client.example.test');
 
   const preflight = await endpoint.OPTIONS({
-    request: new Request('https://web.example.test/api/ping', {
+    request: new Request('https://web.example.test/api/web/public/ping', {
       method: 'OPTIONS',
       headers: {
         Origin: 'https://client.example.test',
@@ -332,12 +333,12 @@ test('public policy rejects undeclared origins and preflight headers', async () 
   });
 
   const disallowedOrigin = await endpoint.GET({
-    request: new Request('https://web.example.test/api/ping', {
+    request: new Request('https://web.example.test/api/web/public/ping', {
       headers: { Origin: 'https://attacker.example.test' },
     }),
   } as Parameters<typeof endpoint.GET>[0]);
   const disallowedHeader = await endpoint.OPTIONS({
-    request: new Request('https://web.example.test/api/ping', {
+    request: new Request('https://web.example.test/api/web/public/ping', {
       method: 'OPTIONS',
       headers: {
         Origin: 'https://client.example.test',
@@ -352,7 +353,10 @@ test('public policy rejects undeclared origins and preflight headers', async () 
   assert.equal(fetchCalled, false);
 });
 
-function pageRequest(url = 'https://web.example.test/api/ping', init: RequestInit = {}): Request {
+function pageRequest(
+  url = 'https://web.example.test/api/web/public/ping',
+  init: RequestInit = {},
+): Request {
   const headers = new Headers(init.headers);
   headers.set('X-Real-IP', '203.0.113.12');
   headers.set('Sec-Fetch-Site', 'same-origin');

@@ -13,7 +13,7 @@ test('issues through same-origin endpoint with credentials, no cache and explici
   const payload = { expires_at: null, never_expires: true };
   const credential = { client: credentialClient, key: credentialKey, token: 'hbk_test_only' };
   const api = createApiKeyClient(async (url, init) => {
-    assert.equal(url, `/management/api-keys/client/${credentialClient.id}/keys`);
+    assert.equal(url, `/api/web/management/api-keys/client/${credentialClient.id}/keys`);
     assert.equal(init?.credentials, 'same-origin');
     assert.equal(init?.cache, 'no-store');
     assert.equal(init?.method, 'POST');

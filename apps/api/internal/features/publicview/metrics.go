@@ -13,6 +13,7 @@ type SiteMetrics struct {
 
 type MetricsRecorder interface {
 	RecordQuery(context.Context, []string)
+	RecordGraph(context.Context, []string)
 	RecordResponse(context.Context, []string) map[string]SiteMetrics
 }
 

@@ -24,6 +24,7 @@ type Dependencies struct {
 	MailSender         mail.Sender
 	VerificationMailer *mail.VerificationMailer
 	views              publicview.Reader
+	metrics            *sitestats.Service
 
 	pingDatabase  func(context.Context) error
 	pingRedis     func(context.Context) error
@@ -95,12 +96,14 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		)
 	}
 
+	metrics := sitestats.New(pool, nil)
 	return &Dependencies{
 		Database:           pool,
 		Redis:              redisClient,
 		MailSender:         mailSender,
 		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address, configuration.Auth.VerificationTTL),
-		views:              publicview.New(dbgen.New(pool), sitestats.New(pool, nil)),
+		views:              publicview.New(dbgen.New(pool), metrics),
+		metrics:            metrics,
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},
@@ -164,6 +167,9 @@ func (dependencies *Dependencies) Verification() *mail.VerificationMailer {
 
 func (dependencies *Dependencies) Close() error {
 	dependencies.closeOnce.Do(func() {
+		if dependencies.metrics != nil {
+			dependencies.metrics.Close()
+		}
 		var closeErrors []error
 		if dependencies.closeRedis != nil {
 			if err := dependencies.closeRedis(); err != nil {

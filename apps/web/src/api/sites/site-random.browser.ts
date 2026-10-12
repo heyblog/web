@@ -7,7 +7,7 @@ export function requestRandomSite(
 ): Promise<Response> {
   const query = buildRandomSiteParameters(level1, level2).toString();
   const fetcher = options.fetch;
-  return fetcher(query ? `/api/site-random?${query}` : '/api/site-random', {
+  return fetcher(query ? `/api/web/public/site-random?${query}` : '/api/web/public/site-random', {
     signal: options.signal,
     cache: 'no-store',
     headers: { Accept: 'application/json' },

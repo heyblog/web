@@ -13,7 +13,7 @@ export async function refreshSiteDirectory(
   signal: AbortSignal,
 ): Promise<SiteDirectoryView> {
   const parameters = buildSiteDirectorySearchParams(query);
-  const response = await fetch(`/api/site-directory?${parameters.toString()}`, {
+  const response = await fetch(`/api/web/public/site-directory?${parameters.toString()}`, {
     headers: { Accept: 'application/json' },
     cache: 'no-store',
     signal,

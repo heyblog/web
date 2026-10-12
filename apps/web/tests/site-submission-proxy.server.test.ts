@@ -12,7 +12,7 @@ test('forwards a same-origin JSON mutation through the authenticated service bou
   let upstreamRequest: { url: string; init?: RequestInit } | undefined;
   const response = await forwardSiteSubmission(
     browserRequest('POST', '{}', 'application/json; charset=utf-8'),
-    '/site-submissions',
+    '/api/web/submissions',
     'POST',
     {
       loadConfig: () => configuration,
@@ -25,7 +25,7 @@ test('forwards a same-origin JSON mutation through the authenticated service bou
 
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), { audit_id: 'audit-id' });
-  assert.equal(upstreamRequest?.url, 'http://api.internal:10201/site-submissions');
+  assert.equal(upstreamRequest?.url, 'http://api.internal:10201/api/web/submissions');
   const headers = new Headers(upstreamRequest?.init?.headers);
   assert.equal(headers.get('X-HeyBlog-Web-Token'), configuration.apiWebToken);
   assert.equal(headers.get('Content-Type'), 'application/json');
@@ -48,13 +48,13 @@ test('rejects cross-origin and unsupported-media requests before upstream access
 
   const forbidden = await forwardSiteSubmission(
     crossOrigin,
-    '/site-submissions',
+    '/api/web/submissions',
     'POST',
     dependencies,
   );
   const unsupported = await forwardSiteSubmission(
     browserRequest('POST', '{}', 'text/plain'),
-    '/site-submissions',
+    '/api/web/submissions',
     'POST',
     dependencies,
   );
@@ -69,7 +69,7 @@ test('rejects oversized submission bodies before upstream access', async () => {
 
   const response = await forwardSiteSubmission(
     browserRequest('POST', 'x'.repeat(256_001), 'application/json'),
-    '/site-submissions',
+    '/api/web/submissions',
     'POST',
     {
       loadConfig: () => configuration,
@@ -93,7 +93,7 @@ function browserRequest(method: 'GET' | 'POST', body?: string, contentType?: str
     'X-Real-IP': '203.0.113.13',
   });
   if (contentType) headers.set('Content-Type', contentType);
-  return new Request('https://web.example.test/api/site-submissions/create', {
+  return new Request('https://web.example.test/api/web/submissions/create', {
     method,
     headers,
     body,

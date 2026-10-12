@@ -55,7 +55,7 @@ func TestGitHubClientExchangesCodeAndReadsVerifiedPrimaryEmail(t *testing.T) {
 	if err != nil || token != "github-token" {
 		t.Fatalf("githubAccessToken() = (%q, %v)", token, err)
 	}
-	if redirectURI != "https://web.example.test/auth/github/callback" {
+	if redirectURI != "https://web.example.test/api/web/auth/github/callback" {
 		t.Fatalf("redirect_uri = %q, want Web callback", redirectURI)
 	}
 	profile, email, err := service.githubIdentity(context.Background(), token)
@@ -66,7 +66,7 @@ func TestGitHubClientExchangesCodeAndReadsVerifiedPrimaryEmail(t *testing.T) {
 
 func TestGitHubCallbackURLUsesPublicWebOrigin(t *testing.T) {
 	service := &Service{config: Config{WebBaseURL: "https://web.example.test"}}
-	if got := service.githubCallbackURL(); got != "https://web.example.test/auth/github/callback" {
+	if got := service.githubCallbackURL(); got != "https://web.example.test/api/web/auth/github/callback" {
 		t.Fatalf("githubCallbackURL() = %q, want Web callback", got)
 	}
 }

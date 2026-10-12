@@ -21,3 +21,14 @@ func (q *Queries) GetPublicFriendGraph(ctx context.Context, centerID pgtype.UUID
 	err := row.Scan(&graph)
 	return graph, err
 }
+
+const getPublicGraphRevision = `-- name: GetPublicGraphRevision :one
+SELECT revision FROM runtime_cache.public_graph_revision WHERE singleton
+`
+
+func (q *Queries) GetPublicGraphRevision(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getPublicGraphRevision)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
+}

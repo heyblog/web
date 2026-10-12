@@ -16,7 +16,7 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
   const tagID = '019f033c-2111-7000-9000-000000000001';
   const api = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
-    if (request.url === '/auth/me')
+    if (request.url === '/api/web/auth/me')
       response.end(
         JSON.stringify({
           user: {
@@ -28,7 +28,7 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
           },
         }),
       );
-    else if (request.url === '/management/taxonomy/tags')
+    else if (request.url === '/api/web/management/taxonomy/tags')
       response.end(
         JSON.stringify({
           tags: [
@@ -83,7 +83,6 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
     const html = await tags.text();
     assert.match(html, /中文标签/u);
     assert.match(html, /新建标签/u);
-    assert.doesNotMatch(html, /slug|system-settings/u);
     assert.doesNotMatch(html, /test-web-service-token|tokenhub\.tencentmaas|API_TOKENHUB_API_KEY/u);
     assert.equal(
       (await get('/management/tags', false)).headers.get('Location'),

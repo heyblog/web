@@ -21,5 +21,8 @@ END;
 $$;
 -- +goose StatementEnd
 
+
 -- +goose Down
-SELECT 1;
+-- +goose StatementBegin
+DO $$ BEGIN RAISE EXCEPTION 'The consolidated baseline is forward-only; restore the previous database backup.'; END $$;
+-- +goose StatementEnd

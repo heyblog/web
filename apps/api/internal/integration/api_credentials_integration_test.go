@@ -95,7 +95,7 @@ func TestAPICredentials(t *testing.T) {
 		if _, err := fixture.service.UpdateClient(t.Context(), apikey.UpdateClientRecord{ID: credential.Client.ID, Name: credential.Client.Name, Scopes: credential.Client.Scopes, Enabled: false}); err != nil {
 			t.Fatal(err)
 		}
-		response := fixture.request(http.MethodPost, "/management/api-clients/"+credential.Client.ID+"/keys", `{"never_expires":true}`)
+		response := fixture.request(http.MethodPost, "/api/web/management/api-clients/"+credential.Client.ID+"/keys", `{"never_expires":true}`)
 		if response.Code != 409 || !strings.Contains(response.Body.String(), `"api_client_disabled"`) {
 			t.Fatalf("disabled issuance status %d", response.Code)
 		}
@@ -106,7 +106,7 @@ func TestAPICredentials(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, body := range []string{`{"never_expires":true}`, `{"never_expires":false}`, `{"expires_at":"2099-01-01T00:00:00Z","never_expires":false}`} {
-			response := fixture.request(http.MethodPost, "/management/api-clients/"+credential.Client.ID+"/keys", body)
+			response := fixture.request(http.MethodPost, "/api/web/management/api-clients/"+credential.Client.ID+"/keys", body)
 			if response.Code != 422 {
 				t.Fatalf("invalid expiration status %d", response.Code)
 			}
@@ -119,7 +119,7 @@ func testIssueLifecycle(t *testing.T, fixture credentialFixture) {
 	t.Helper()
 	// Given an existing external caller.
 	credential := fixture.create(t, apikey.AudienceExternal)
-	path := "/management/api-clients/" + credential.Client.ID
+	path := "/api/web/management/api-clients/" + credential.Client.ID
 	response := fixture.request(http.MethodPost, path+"/keys", `{"never_expires":true}`)
 	if response.Code != 409 || !strings.Contains(response.Body.String(), `"api_client_has_active_key"`) {
 		t.Fatalf("active issuance status %d", response.Code)
@@ -133,7 +133,7 @@ func testIssueLifecycle(t *testing.T, fixture credentialFixture) {
 	if rotated.Key.RotatedFrom == nil || *rotated.Key.RotatedFrom != credential.Key.ID {
 		t.Fatal("rotation history missing")
 	}
-	if response := fixture.request(http.MethodPost, "/management/api-keys/"+rotated.Key.ID+"/revoke", ""); response.Code != 204 {
+	if response := fixture.request(http.MethodPost, "/api/web/management/api-keys/"+rotated.Key.ID+"/revoke", ""); response.Code != 204 {
 		t.Fatalf("revoke status %d", response.Code)
 	}
 	issuedResponse := fixture.request(http.MethodPost, path+"/keys", `{"never_expires":true}`)
@@ -201,7 +201,7 @@ func testConcurrentIssuance(t *testing.T, fixture credentialFixture) {
 func testIssuanceAuthorization(t *testing.T, fixture credentialFixture) {
 	t.Helper()
 	credential := fixture.create(t, apikey.AudienceExternal)
-	path := "/management/api-clients/" + credential.Client.ID + "/keys"
+	path := "/api/web/management/api-clients/" + credential.Client.ID + "/keys"
 	for _, withWebToken := range []bool{false, true} {
 		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"never_expires":true}`))
 		request.Header.Set("Content-Type", "application/json")

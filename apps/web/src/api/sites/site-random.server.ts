@@ -15,7 +15,7 @@ export function loadRandomSite(
   request?: Request,
   dependencies: ApiJsonDependencies = {},
 ): Promise<ApiJsonResult<RandomSiteView>> {
-  return fetchApiJson<RandomSiteView>(`/sites/random${search}`, {
+  return fetchApiJson<RandomSiteView>(`/api/web/public/sites/random${search}`, {
     ...dependencies,
     request,
     signal: request?.signal,

@@ -133,7 +133,7 @@ export async function forwardAnnouncementManagement(
         ? ''
         : null;
   if (query === null) return problem(400, 'bad_request');
-  const target: `/${string}` = `/management/announcements${path ? `/${path}` : ''}${query}`;
+  const target: `/${string}` = `/api/web/management/announcements${path ? `/${path}` : ''}${query}`;
   let response: Response;
   if (method === 'GET') response = await upstream(request, target);
   else {

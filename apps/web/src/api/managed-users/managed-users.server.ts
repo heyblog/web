@@ -42,13 +42,13 @@ async function read<T>(
 }
 
 export async function readManagementActor(request: Request): Promise<ReadResult<ManagedUser>> {
-  return read(await requestAuthAPI(request, '/auth/me'), parseUserResponse);
+  return read(await requestAuthAPI(request, '/api/web/auth/me'), parseUserResponse);
 }
 
 export async function readManagedUsers(
   request: Request,
 ): Promise<ReadResult<readonly ManagedUser[]>> {
-  return read(await requestAuthAPI(request, '/management/users'), parseUsersResponse);
+  return read(await requestAuthAPI(request, '/api/web/management/users'), parseUsersResponse);
 }
 
 export async function updateManagedUser(
@@ -73,7 +73,7 @@ export async function updateManagedUser(
     return invalid;
   const response = await requestAuthAPI(
     request,
-    `/management/users/${target.id}/${target.operation}`,
+    `/api/web/management/users/${target.id}/${target.operation}`,
     {
       method: 'PATCH',
       body: target.operation === 'role' ? { role } : { permissions },

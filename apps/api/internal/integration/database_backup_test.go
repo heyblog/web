@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"heyblog-api/internal/features/databasebackup"
+	"heyblog-api/internal/features/siteaudit"
 )
 
 func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
@@ -83,6 +84,19 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = reexport.Close(); _ = os.Remove(reexport.Name()) })
 	compareDatabaseBackups(t, file, reexport, actor, retained)
+	var auditID, canonicalTagID string
+	if err := target.pool.QueryRow(t.Context(), `SELECT a.id::text,t.id::text FROM directory.site_audits a CROSS JOIN directory.tags t
+		WHERE a.lookup_secret_hash=decode(repeat('cd',32),'hex') AND t.name='计算机'`).Scan(&auditID, &canonicalTagID); err != nil {
+		t.Fatal(err)
+	}
+	audits := siteaudit.NewService(siteaudit.Dependencies{Repository: siteaudit.NewRepository(target.pool)})
+	detail, err := audits.AuditDetail(t.Context(), auditID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.ProposedSnapshot.Tags) != 1 || detail.ProposedSnapshot.Tags[0].ID != canonicalTagID || detail.ProposedSnapshot.Tags[0].Name != "Historical computer" {
+		t.Fatalf("restored historical LABEL did not resolve: %+v", detail.ProposedSnapshot.Tags)
+	}
 	keys := apikey.NewService(apikey.NewRepository(target.pool), time.Now)
 	principal, err := keys.Authenticate(t.Context(), credential.Token, apikey.AccessPolicy{Audiences: []apikey.Audience{apikey.AudienceInternal}, Scope: apikey.ScopeExampleCall})
 	if err != nil || principal.KeyID != credential.Key.ID {

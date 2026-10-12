@@ -67,10 +67,11 @@ func TestSiteIconHTTPWithDatabase(t *testing.T) {
 	queries := dbgen.New(pool)
 	service := publicview.New(queries, nil)
 	token := "site-icon-integration-web-token-123456"
-	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: token, HealthcheckToken: "site-icon-health-token-123456", PublicViews: service})
+	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: token, HealthcheckToken: "site-icon-health-token-123456"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	publicview.RegisterRoutes(router.API, token, service)
 	var source bytes.Buffer
 	if err := png.Encode(&source, image.NewNRGBA(image.Rect(0, 0, 256, 128))); err != nil {
 		t.Fatal(err)
@@ -100,7 +101,7 @@ func TestSiteIconHTTPWithDatabase(t *testing.T) {
 			}
 			// When the actual HTTP route reads each supported identifier form.
 			for _, identifier := range []string{state.id, id.String()} {
-				request := httptest.NewRequest(http.MethodGet, "/sites/id/"+identifier+"/icon", nil)
+				request := httptest.NewRequest(http.MethodGet, "/api/web/public/sites/id/"+identifier+"/icon", nil)
 				request.Header.Set(httpapi.WebTokenHeader, token)
 				response := httptest.NewRecorder()
 				router.ServeHTTP(response, request)

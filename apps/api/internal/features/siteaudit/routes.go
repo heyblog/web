@@ -58,7 +58,7 @@ func submissionOperation(id, method, path, summary string, middleware huma.Middl
 }
 
 func registerSubmissionRoutes(api huma.API, service *Service, mutation, read huma.Middlewares) {
-	createOperation := submissionOperation("create-site-submission", http.MethodPost, "/site-submissions", "Create a site submission", mutation)
+	createOperation := submissionOperation("create-site-submission", http.MethodPost, "/api/web/submissions", "Create a site submission", mutation)
 	createOperation.DefaultStatus = http.StatusCreated
 	httpapi.Register(api, createOperation, createSubmitHandler(service))
 
@@ -68,20 +68,20 @@ func registerSubmissionRoutes(api huma.API, service *Service, mutation, read hum
 		summary string
 		action  Action
 	}{
-		{id: "update-site-submission", path: "/site-submissions/{shortId}/updates", summary: "Submit a site update", action: ActionUpdate},
-		{id: "delete-site-submission", path: "/site-submissions/{shortId}/deletions", summary: "Submit a site deletion", action: ActionDelete},
-		{id: "restore-site-submission", path: "/site-submissions/{shortId}/restorations", summary: "Submit a site restoration", action: ActionRestore},
+		{id: "update-site-submission", path: "/api/web/submissions/{shortId}/updates", summary: "Submit a site update", action: ActionUpdate},
+		{id: "delete-site-submission", path: "/api/web/submissions/{shortId}/deletions", summary: "Submit a site deletion", action: ActionDelete},
+		{id: "restore-site-submission", path: "/api/web/submissions/{shortId}/restorations", summary: "Submit a site restoration", action: ActionRestore},
 	} {
 		operation := submissionOperation(route.id, http.MethodPost, route.path, route.summary, mutation)
 		operation.DefaultStatus = http.StatusCreated
 		httpapi.Register(api, operation, submitHandler(service, route.action))
 	}
 
-	httpapi.Register(api, submissionOperation("query-site-submission", http.MethodPost, "/site-submissions/query", "Query a site submission", read), queryHandler(service))
-	httpapi.Register(api, submissionOperation("get-site-submission-options", http.MethodGet, "/site-submissions/options", "Get site submission options", read), optionsHandler(service))
-	httpapi.Register(api, submissionOperation("check-site-availability", http.MethodGet, "/site-submissions/site-availability", "Check site availability", read), availabilityHandler(service))
-	httpapi.Register(api, submissionOperation("search-submission-sites", http.MethodGet, "/site-submissions/sites", "Search sites for a submission", read), searchHandler(service))
-	httpapi.Register(api, submissionOperation("resolve-submission-site", http.MethodGet, "/site-submissions/sites/{shortId}", "Resolve a site for a submission", read), resolveHandler(service))
+	httpapi.Register(api, submissionOperation("query-site-submission", http.MethodPost, "/api/web/submissions/query", "Query a site submission", read), queryHandler(service))
+	httpapi.Register(api, submissionOperation("get-site-submission-options", http.MethodGet, "/api/web/submissions/options", "Get site submission options", read), optionsHandler(service))
+	httpapi.Register(api, submissionOperation("check-site-availability", http.MethodGet, "/api/web/submissions/site-availability", "Check site availability", read), availabilityHandler(service))
+	httpapi.Register(api, submissionOperation("search-submission-sites", http.MethodGet, "/api/web/submissions/sites", "Search sites for a submission", read), searchHandler(service))
+	httpapi.Register(api, submissionOperation("resolve-submission-site", http.MethodGet, "/api/web/submissions/sites/{shortId}", "Resolve a site for a submission", read), resolveHandler(service))
 }
 
 func registerAuditManagementRoutes(api huma.API, service *Service, middleware huma.Middlewares) {
@@ -91,9 +91,9 @@ func registerAuditManagementRoutes(api huma.API, service *Service, middleware hu
 		value.Security = []map[string][]string{{"webToken": {}, "accessCookie": {}}}
 		return value
 	}
-	httpapi.Register(api, operation("list-site-audits", http.MethodGet, "/management/site-audits", "List site audits"), managementListHandler(service))
-	httpapi.Register(api, operation("get-site-audit", http.MethodGet, "/management/site-audits/{auditId}", "Get a site audit"), managementDetailHandler(service))
-	httpapi.Register(api, operation("save-site-audit-review-draft", http.MethodPut, "/management/site-audits/{auditId}/review-draft", "Save a site audit review draft"), managementSaveReviewDraftHandler(service))
-	httpapi.Register(api, operation("discard-site-audit-review-draft", http.MethodDelete, "/management/site-audits/{auditId}/review-draft", "Discard a site audit review draft"), managementDiscardReviewDraftHandler(service))
-	httpapi.Register(api, operation("review-site-audit", http.MethodPost, "/management/site-audits/{auditId}/review", "Review a site audit"), managementReviewHandler(service))
+	httpapi.Register(api, operation("list-site-audits", http.MethodGet, "/api/web/management/site-audits", "List site audits"), managementListHandler(service))
+	httpapi.Register(api, operation("get-site-audit", http.MethodGet, "/api/web/management/site-audits/{auditId}", "Get a site audit"), managementDetailHandler(service))
+	httpapi.Register(api, operation("save-site-audit-review-draft", http.MethodPut, "/api/web/management/site-audits/{auditId}/review-draft", "Save a site audit review draft"), managementSaveReviewDraftHandler(service))
+	httpapi.Register(api, operation("discard-site-audit-review-draft", http.MethodDelete, "/api/web/management/site-audits/{auditId}/review-draft", "Discard a site audit review draft"), managementDiscardReviewDraftHandler(service))
+	httpapi.Register(api, operation("review-site-audit", http.MethodPost, "/api/web/management/site-audits/{auditId}/review", "Review a site audit"), managementReviewHandler(service))
 }

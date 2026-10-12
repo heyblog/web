@@ -23,10 +23,12 @@ type TagTaxonomyInputMetadata struct {
 }
 
 type TagTaxonomyDefinition struct {
-	Source        string  `json:"source"`
-	TagID         string  `json:"tag_id"`
-	Name          string  `json:"name"`
-	Description   *string `json:"description"`
+	Source      string  `json:"source"`
+	TagID       string  `json:"tag_id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	// Version-one source metadata is accepted for compatibility. Classification
+	// is resolved through CascadeKey; these fields do not rebuild tag hierarchy.
 	TaxonomyLevel *int    `json:"taxonomy_level"`
 	ParentTagID   *string `json:"parent_tag_id"`
 	SortOrder     *int    `json:"sort_order"`

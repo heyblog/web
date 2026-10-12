@@ -11,7 +11,7 @@ const configuration = {
 
 test('fetches JSON through the authenticated Web service boundary', async () => {
   let upstreamRequest: { url: string; init?: RequestInit } | undefined;
-  const result = await fetchApiJson<{ siteCount: number }>('/home', {
+  const result = await fetchApiJson<{ siteCount: number }>('/api/web/public/home', {
     request: new Request('https://web.example.test/', {
       headers: { 'X-Real-IP': '203.0.113.11' },
     }),
@@ -23,7 +23,7 @@ test('fetches JSON through the authenticated Web service boundary', async () => 
   });
 
   assert.deepEqual(result, { kind: 'success', data: { siteCount: 12 } });
-  assert.equal(upstreamRequest?.url, 'http://api.internal:10201/home');
+  assert.equal(upstreamRequest?.url, 'http://api.internal:10201/api/web/public/home');
   assert.equal(upstreamRequest?.init?.method, 'GET');
   assert.equal(upstreamRequest?.init?.redirect, 'error');
   const headers = new Headers(upstreamRequest?.init?.headers);
@@ -42,7 +42,7 @@ test('maps accepted API statuses without exposing upstream details', async () =>
   ] as const;
 
   for (const testCase of cases) {
-    const result = await fetchApiJson('/home', {
+    const result = await fetchApiJson('/api/web/public/home', {
       loadConfig: () => configuration,
       fetch: async () => new Response('upstream detail', { status: testCase.status }),
     });
@@ -51,11 +51,11 @@ test('maps accepted API statuses without exposing upstream details', async () =>
 });
 
 test('maps invalid JSON and invalid server configuration to unavailable', async () => {
-  const invalidJSON = await fetchApiJson('/home', {
+  const invalidJSON = await fetchApiJson('/api/web/public/home', {
     loadConfig: () => configuration,
     fetch: async () => new Response('{invalid', { status: 200 }),
   });
-  const invalidConfiguration = await fetchApiJson('/home', {
+  const invalidConfiguration = await fetchApiJson('/api/web/public/home', {
     loadConfig: () => {
       throw new Error('configuration unavailable');
     },
@@ -66,7 +66,7 @@ test('maps invalid JSON and invalid server configuration to unavailable', async 
 });
 
 test('maps an API timeout to unavailable', async () => {
-  const result = await fetchApiJson('/home', {
+  const result = await fetchApiJson('/api/web/public/home', {
     loadConfig: () => configuration,
     timeoutMs: 1,
     fetch: async (_input, init) =>

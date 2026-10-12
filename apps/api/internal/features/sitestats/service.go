@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -23,15 +24,22 @@ type Event struct {
 }
 
 type Store interface {
+	IncrementGraphMetrics(context.Context, dbgen.IncrementGraphMetricsParams) error
 	IncrementSiteDisplayMetrics(context.Context, dbgen.IncrementSiteDisplayMetricsParams) error
+	RecordSiteResponseMetrics(context.Context, []string) ([]dbgen.RecordSiteResponseMetricsRow, error)
 	GetSiteMetrics(context.Context, []string) ([]dbgen.GetSiteMetricsRow, error)
 	GetSiteOutboundTarget(context.Context, string) (dbgen.GetSiteOutboundTargetRow, error)
 	RecordSiteMetricEvents(context.Context, dbgen.RecordSiteMetricEventsParams) error
 }
 
 type Service struct {
-	store  Store
-	logger *slog.Logger
+	graphMu      sync.Mutex
+	graphWorkers sync.WaitGroup
+	graphClosed  bool
+	graphPending *graphMetricBatch
+	graphWriting bool
+	store        Store
+	logger       *slog.Logger
 }
 
 func New(pool *pgxpool.Pool, logger *slog.Logger) *Service {
@@ -46,16 +54,26 @@ func (service *Service) RecordQuery(ctx context.Context, ids []string) {
 }
 
 func (service *Service) RecordResponse(ctx context.Context, ids []string) map[string]publicview.SiteMetrics {
-	service.increment(ctx, ids, 0, 1)
 	counts := make(map[string]publicview.SiteMetrics, len(ids))
 	if len(ids) == 0 {
 		return counts
 	}
 	bounded, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	rows, err := service.store.GetSiteMetrics(bounded, ids)
+	rows, err := service.store.RecordSiteResponseMetrics(bounded, ids)
 	if err != nil {
-		service.report(ctx, err, "read")
+		service.report(ctx, err, "response")
+		// A failed optional increment must not hide already persisted counters.
+		readContext, readCancel := context.WithTimeout(ctx, time.Second)
+		defer readCancel()
+		previous, readErr := service.store.GetSiteMetrics(readContext, ids)
+		if readErr != nil {
+			service.report(ctx, readErr, "read")
+			return counts
+		}
+		for _, row := range previous {
+			counts[row.ShortID] = publicview.SiteMetrics{ClickCount: row.ClickCount, ImpressionCount: row.ImpressionCount, ResponseCount: row.ResponseCount, QueryCount: row.QueryCount}
+		}
 		return counts
 	}
 	for _, row := range rows {

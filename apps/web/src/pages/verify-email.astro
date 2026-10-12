@@ -15,7 +15,7 @@ const email = Astro.url.searchParams.get('email')?.trim() ?? '';
 >
   <AuthNotice message={authErrorMessage(Astro.url.searchParams.get('error'))} />
   <AuthNotice message={authStatusMessage(Astro.url.searchParams.get('status'))} kind="success" />
-  <form class="grid gap-4" method="post" action="/auth/verify-email">
+  <form class="grid gap-4" method="post" action="/api/web/auth/verify-email">
     <label class="grid gap-1.5 text-sm font-medium">
       邮箱
       <input
@@ -47,7 +47,7 @@ const email = Astro.url.searchParams.get('email')?.trim() ?? '';
       完成验证
     </button>
   </form>
-  <form class="mt-4" method="post" action="/auth/resend-verification">
+  <form class="mt-4" method="post" action="/api/web/auth/resend-verification">
     <input type="hidden" name="email" value={email} />
     <button
       class="min-h-11 w-full rounded-sm border border-line-strong text-sm font-medium hover:bg-subtle"

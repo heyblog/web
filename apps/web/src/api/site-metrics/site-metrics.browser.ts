@@ -5,7 +5,7 @@ export async function sendImpressions(
   fetcher: typeof fetch = fetch,
 ): Promise<number> {
   try {
-    const response = await fetcher('/api/site-metrics/impressions', {
+    const response = await fetcher('/api/web/public/site-metrics/impressions', {
       method: 'POST',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -28,11 +28,11 @@ export function beaconImpressions(
 ): void {
   const body = new Blob([JSON.stringify({ events })], { type: 'application/json' });
   try {
-    if (navigator.sendBeacon('/api/site-metrics/impressions', body)) return;
+    if (navigator.sendBeacon('/api/web/public/site-metrics/impressions', body)) return;
   } catch {
     // Some browser policies reject Beacon; keepalive is the unload fallback.
   }
-  void fetcher('/api/site-metrics/impressions', {
+  void fetcher('/api/web/public/site-metrics/impressions', {
     method: 'POST',
     credentials: 'same-origin',
     cache: 'no-store',

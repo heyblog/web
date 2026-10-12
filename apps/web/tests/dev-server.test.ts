@@ -22,15 +22,15 @@ test('development keeps page scripts and QR images working after graph workers l
   const api = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
     if (
-      request.url === `/sites/id/${profile.shortId}` ||
-      request.url === `/sites/id/${profile.shortId}/metadata`
+      request.url === `/api/web/public/sites/id/${profile.shortId}` ||
+      request.url === `/api/web/public/sites/id/${profile.shortId}/metadata`
     ) {
       response.end(JSON.stringify(profile));
-    } else if (request.url === '/sites/options') {
+    } else if (request.url === '/api/web/public/sites/options') {
       response.end(
         JSON.stringify({ classifications: [], tertiaryTags: [], warnings: [], technologies: [] }),
       );
-    } else if (request.url?.startsWith('/sites?')) {
+    } else if (request.url?.startsWith('/api/web/public/sites?')) {
       const query = parseSiteDirectorySearchParams(
         new URL(request.url, 'http://api.test').searchParams,
       );
@@ -44,12 +44,12 @@ test('development keeps page scripts and QR images working after graph workers l
           statusCounts: { normal: emptyLists ? 0 : 48, abnormal: 0 },
         }),
       );
-    } else if (request.url?.startsWith('/announcements?')) {
+    } else if (request.url?.startsWith('/api/web/public/announcements?')) {
       const page = Number(new URL(request.url, 'http://api.test').searchParams.get('page'));
       response.end(
         JSON.stringify({ announcements: [], total: emptyLists ? 0 : 40, page, pageSize: 20 }),
       );
-    } else if (request.url?.startsWith('/sitemap?')) {
+    } else if (request.url?.startsWith('/api/web/public/sitemap?')) {
       response.end(
         JSON.stringify({
           items: request.url.includes('kind=sites')
@@ -58,7 +58,7 @@ test('development keeps page scripts and QR images working after graph workers l
           nextAfter: null,
         }),
       );
-    } else if (request.url === '/home') {
+    } else if (request.url === '/api/web/public/home') {
       response.end(JSON.stringify({ siteCount: 0, announcements: [], sites: [] }));
     } else {
       response.statusCode = 401;

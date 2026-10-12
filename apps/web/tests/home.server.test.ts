@@ -51,7 +51,7 @@ test('refreshes home data through the same-origin web endpoint', async () => {
     return Response.json(expected);
   });
 
-  assert.equal(requestURL, '/api/home');
+  assert.equal(requestURL, '/api/web/public/home');
   assert.equal(requestInit?.cache, 'no-store');
   assert.equal(new Headers(requestInit?.headers).get('Accept'), 'application/json');
   assert.deepEqual(result, expected);

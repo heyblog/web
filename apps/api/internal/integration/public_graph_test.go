@@ -55,6 +55,58 @@ func verifyPublicFriendGraph(ctx context.Context, t *testing.T, pool *pgxpool.Po
 			t.Fatal("isolated site missing")
 		}
 	})
+	t.Run("global cache follows commits and ignores rollbacks", func(t *testing.T) {
+		revision, err := queries.GetPublicGraphRevision(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(ctx, "UPDATE directory.sites SET name='Rolled back' WHERE id=$1", source); err != nil {
+			t.Fatal(err)
+		}
+		if err = tx.Rollback(ctx); err != nil {
+			t.Fatal(err)
+		}
+		unchanged, err := queries.GetPublicGraphRevision(ctx)
+		if err != nil || unchanged != revision {
+			t.Fatalf("rollback revision=%d want=%d err=%v", unchanged, revision, err)
+		}
+		if _, err = pool.Exec(ctx, "UPDATE directory.sites SET name='Committed graph name' WHERE id=$1", source); err != nil {
+			t.Fatal(err)
+		}
+		graph, err := service.Graph(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, node := range graph.Nodes {
+			if node.ID == "site:G1a2B3c4D" {
+				found = node.Name == "Committed graph name"
+			}
+		}
+		if !found {
+			t.Fatal("global cache retained old site name")
+		}
+		if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{PSourceSiteID: source, PTargetUrl: "https://graph-external.example.com/blog", PTargetHost: "graph-external.example.com", PStatus: "INACTIVE"}); err != nil {
+			t.Fatal(err)
+		}
+		graph, err = service.Graph(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, node := range graph.Nodes {
+			if node.Host == "graph-external.example.com" {
+				t.Fatal("global cache retained deleted edge")
+			}
+		}
+		if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{PSourceSiteID: source, PTargetUrl: "https://graph-external.example.com/blog", PTargetHost: "graph-external.example.com", PStatus: "ACTIVE"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	t.Run("external promotion updates identity and address", func(t *testing.T) {
 		insertSite(ctx, t, pool, "G4a5B6c7D", "Promoted", "graph-external.example.com")
 		graph, err := service.SiteGraphByIdentifier(ctx, publicview.SiteIdentifier{Kind: publicview.IdentifierShortID, Value: "G1a2B3c4D"})

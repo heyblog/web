@@ -8,7 +8,7 @@ export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = await readSessionUser(Astro.request);
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
-const response = await requestAuthAPI(Astro.request, '/account/sites');
+const response = await requestAuthAPI(Astro.request, '/api/web/account/sites');
 const payload: { items: readonly Snapshot[] } = response.ok ? await response.json() : { items: [] };
 ---
 

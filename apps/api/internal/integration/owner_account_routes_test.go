@@ -36,22 +36,22 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	insertSite(ctx, t, fixture.pool, "HTTPown01", "HTTP owned site", "http-owner.example.test")
 	insertSite(ctx, t, fixture.pool, "HTTPfri01", "HTTP friend", "http-friend.example.test")
 	missingToken := httptest.NewRecorder()
-	fixture.router.ServeHTTP(missingToken, httptest.NewRequest("GET", "/account/sites", nil))
+	fixture.router.ServeHTTP(missingToken, httptest.NewRequest("GET", "/api/web/account/sites", nil))
 	if missingToken.Code != 401 {
 		t.Fatalf("missing web token = %d", missingToken.Code)
 	}
-	request := httptest.NewRequest("GET", "/account/sites", nil)
+	request := httptest.NewRequest("GET", "/api/web/account/sites", nil)
 	request.Header.Set("X-HeyBlog-Web-Token", credentialWebToken)
 	missingSession := httptest.NewRecorder()
 	fixture.router.ServeHTTP(missingSession, request)
 	if missingSession.Code != 401 {
 		t.Fatalf("missing session = %d", missingSession.Code)
 	}
-	forbidden := fixture.request("PUT", "/account/sites/HTTPown01/friend-links/HTTPfri01", "")
+	forbidden := fixture.request("PUT", "/api/web/account/sites/HTTPown01/friend-links/HTTPfri01", "")
 	if forbidden.Code != http.StatusForbidden {
 		t.Fatalf("unverified edit = %d / %s", forbidden.Code, forbidden.Body.String())
 	}
-	created := fixture.request("POST", "/account/site-claims", `{"short_id":"HTTPown01","method":"META"}`)
+	created := fixture.request("POST", "/api/web/account/site-claims", `{"short_id":"HTTPown01","method":"META"}`)
 	if created.Code != http.StatusOK {
 		t.Fatalf("create certification = %d / %s", created.Code, created.Body.String())
 	}
@@ -62,27 +62,27 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if strings.Contains(created.Body.String(), "token_hash") {
 		t.Fatal("claim DTO disclosed stored digest")
 	}
-	checked := fixture.request("POST", "/account/site-claims/"+challenge.Claim.ID+"/check", "")
+	checked := fixture.request("POST", "/api/web/account/site-claims/"+challenge.Claim.ID+"/check", "")
 	if checked.Code != http.StatusOK {
 		t.Fatalf("check certification = %d / %s", checked.Code, checked.Body.String())
 	}
-	replay := fixture.request("POST", "/account/site-claims/"+challenge.Claim.ID+"/check", "")
+	replay := fixture.request("POST", "/api/web/account/site-claims/"+challenge.Claim.ID+"/check", "")
 	if replay.Code != http.StatusConflict {
 		t.Fatalf("replay check = %d / %s", replay.Code, replay.Body.String())
 	}
-	listed := fixture.request("GET", "/account/sites", "")
+	listed := fixture.request("GET", "/api/web/account/sites", "")
 	if listed.Code != 200 || !strings.Contains(listed.Body.String(), "HTTPown01") || listed.Header().Get("Cache-Control") != "private, no-store" {
 		t.Fatalf("owned site list = %d / %s", listed.Code, listed.Body.String())
 	}
-	linked := fixture.request("PUT", "/account/sites/HTTPown01/friend-links/HTTPfri01", "")
+	linked := fixture.request("PUT", "/api/web/account/sites/HTTPown01/friend-links/HTTPfri01", "")
 	if linked.Code != 200 {
 		t.Fatalf("add friend = %d / %s", linked.Code, linked.Body.String())
 	}
-	friends := fixture.request("GET", "/account/sites/HTTPown01/friend-links", "")
+	friends := fixture.request("GET", "/api/web/account/sites/HTTPown01/friend-links", "")
 	if friends.Code != 200 || !strings.Contains(friends.Body.String(), "HTTPfri01") {
 		t.Fatalf("read friend = %d / %s", friends.Code, friends.Body.String())
 	}
-	removed := fixture.request("DELETE", "/account/sites/HTTPown01/friend-links/by-host/http-friend.example.test", "")
+	removed := fixture.request("DELETE", "/api/web/account/sites/HTTPown01/friend-links/by-host/http-friend.example.test", "")
 	if removed.Code != http.StatusOK {
 		t.Fatalf("remove friend by host = %d / %s", removed.Code, removed.Body.String())
 	}
@@ -102,7 +102,7 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	submitted := fixture.request("POST", "/account/sites/HTTPown01/updates", string(body))
+	submitted := fixture.request("POST", "/api/web/account/sites/HTTPown01/updates", string(body))
 	if submitted.Code != http.StatusCreated {
 		t.Fatalf("submit owner update = %d / %s", submitted.Code, submitted.Body.String())
 	}
@@ -110,11 +110,11 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if err := json.Unmarshal(submitted.Body.Bytes(), &submission); err != nil || submission.LookupToken != "" {
 		t.Fatalf("account update result = %#v / %v", submission, err)
 	}
-	detail := fixture.request("GET", "/account/site-submissions/"+submission.AuditID, "")
+	detail := fixture.request("GET", "/api/web/account/site-submissions/"+submission.AuditID, "")
 	if detail.Code != 200 || !strings.Contains(detail.Body.String(), "OWNER_UPDATE") || !strings.Contains(detail.Body.String(), "CN_ONLY") {
 		t.Fatalf("account update detail = %d / %s", detail.Code, detail.Body.String())
 	}
-	canonical := fixture.request("GET", "/account/sites/HTTPown01", "")
+	canonical := fixture.request("GET", "/api/web/account/sites/HTTPown01", "")
 	if canonical.Code != 200 || strings.Contains(canonical.Body.String(), "Updated HTTP owner") {
 		t.Fatalf("pending edit became canonical = %d / %s", canonical.Code, canonical.Body.String())
 	}

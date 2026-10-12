@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	Path          = "/internal/v1/data-import"
+	Path          = "/api/internal/v1/data-import"
 	ImportTimeout = 90 * time.Minute
 )
 

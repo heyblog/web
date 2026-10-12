@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"heyblog-api/internal/features/publicview"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
@@ -87,12 +86,12 @@ func TestOutboundRetainsTargetWhenStatisticsFail(t *testing.T) {
 			// Given
 			store := &metricStore{writeErr: scenario.writeErr, writeDelay: scenario.writeDelay}
 			service := &Service{store: store, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
-			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "test-health", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 32_000}})
+			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "test-health", HTTP: config.HTTPConfig{MaxBodyBytes: 32_000}})
 			if err != nil {
 				t.Fatal(err)
 			}
 			RegisterRoutes(router.API, service, "test-web", metricRedis{err: scenario.redisErr, allowed: scenario.allowed, delay: scenario.redisDelay})
-			request := httptest.NewRequest(http.MethodPost, "/sites/id/A1b2C3d4E/outbound", strings.NewReader(`{"eventId":"12345678-1234-4234-9234-123456789012"}`))
+			request := httptest.NewRequest(http.MethodPost, "/api/web/public/sites/id/A1b2C3d4E/outbound", strings.NewReader(`{"eventId":"12345678-1234-4234-9234-123456789012"}`))
 			request.Header.Set("Content-Type", "application/json")
 			request.Header.Set(httpapi.WebTokenHeader, "test-web")
 			response := httptest.NewRecorder()
@@ -125,12 +124,12 @@ func TestMetricRoutesEnforceAuthenticationAndVisibility(t *testing.T) {
 				store.targetErr = pgx.ErrNoRows
 			}
 			service := &Service{store: store, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
-			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "test-health", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 32_000}})
+			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "test-web", HealthcheckToken: "test-health", HTTP: config.HTTPConfig{MaxBodyBytes: 32_000}})
 			if err != nil {
 				t.Fatal(err)
 			}
 			RegisterRoutes(router.API, service, "test-web", metricRedis{allowed: 1})
-			request := httptest.NewRequest(http.MethodPost, "/sites/id/A1b2C3d4E/outbound", strings.NewReader(`{"eventId":null}`))
+			request := httptest.NewRequest(http.MethodPost, "/api/web/public/sites/id/A1b2C3d4E/outbound", strings.NewReader(`{"eventId":null}`))
 			request.Header.Set("Content-Type", "application/json")
 			request.Header.Set(httpapi.WebTokenHeader, scenario.token)
 			response := httptest.NewRecorder()

@@ -19,7 +19,7 @@ export function createApiKeyTransport(fetcher: typeof fetch = fetch) {
   async function request(path: string, body?: object, method = 'POST'): Promise<Response> {
     let response: Response;
     try {
-      response = await fetcher(`/management/api-keys${path}`, {
+      response = await fetcher(`/api/web/management/api-keys${path}`, {
         method,
         credentials: 'same-origin',
         cache: 'no-store',

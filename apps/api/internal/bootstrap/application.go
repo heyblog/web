@@ -87,7 +87,6 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 		Health:           health,
 		HealthcheckToken: configuration.HealthcheckToken,
 		WebToken:         configuration.WebToken,
-		PublicViews:      dependencies.PublicViews(),
 	}, dependencies, configuration)
 	if err != nil {
 		return withStage("router_build", err)
@@ -174,6 +173,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	if err != nil {
 		return nil, err
 	}
+	publicview.RegisterRoutes(router.API, options.WebToken, dependencies.PublicViews())
 	keyService := apikey.NewService(apikey.NewRepository(dependencies.DatabasePool()), time.Now)
 	sitestats.RegisterRoutes(router.API, sitestats.New(dependencies.DatabasePool(), options.Logger), options.WebToken, dependencies.RedisClient())
 	exampleapi.RegisterRoutes(router.API, keyService)

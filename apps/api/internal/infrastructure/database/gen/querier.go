@@ -85,6 +85,7 @@ type Querier interface {
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
 	GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetPublicFriendGraph(ctx context.Context, centerID pgtype.UUID) ([]byte, error)
+	GetPublicGraphRevision(ctx context.Context) (int64, error)
 	GetReadableSiteTagCascade(ctx context.Context, id pgtype.UUID) (GetReadableSiteTagCascadeRow, error)
 	GetSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	GetSiteAuditByLookupHash(ctx context.Context, lookupSecretHash []byte) (DirectorySiteAudit, error)
@@ -109,6 +110,7 @@ type Querier interface {
 	HasOwnerAddressProof(ctx context.Context, arg HasOwnerAddressProofParams) (bool, error)
 	ImportLockCapacity(ctx context.Context) (int32, error)
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
+	IncrementGraphMetrics(ctx context.Context, arg IncrementGraphMetricsParams) error
 	IncrementSiteDisplayMetrics(ctx context.Context, arg IncrementSiteDisplayMetricsParams) error
 	InsertFeed(ctx context.Context, arg InsertFeedParams) error
 	InsertFriendLinks(ctx context.Context, links []byte) error
@@ -149,6 +151,7 @@ type Querier interface {
 	ListOwnerDecisionRecipients(ctx context.Context, auditID pgtype.UUID) ([]string, error)
 	ListOwnerFriendLinks(ctx context.Context, pSourceSiteID pgtype.UUID) ([]ListOwnerFriendLinksRow, error)
 	ListOwnerFriendRequests(ctx context.Context, arg ListOwnerFriendRequestsParams) ([]ListOwnerFriendRequestsRow, error)
+	ListProtectedTagIDs(ctx context.Context) ([]pgtype.UUID, error)
 	ListPublicAnnouncementArchive(ctx context.Context, arg ListPublicAnnouncementArchiveParams) ([]ContentAnnouncement, error)
 	ListPublicSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListPublicSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListPublicSiteSoftwareComponentsRow, error)
@@ -167,7 +170,6 @@ type Querier interface {
 	ListSitemapAnnouncements(ctx context.Context, afterID pgtype.UUID) ([]ListSitemapAnnouncementsRow, error)
 	ListSitemapSites(ctx context.Context, afterID pgtype.UUID) ([]ListSitemapSitesRow, error)
 	ListSoftwareComponentDependencies(ctx context.Context, componentID pgtype.UUID) ([]ListSoftwareComponentDependenciesRow, error)
-	ListTagIdentityAliases(ctx context.Context) ([]DirectoryTagIdentityAlias, error)
 	ListUserManagementPermissions(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
 	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
@@ -188,6 +190,7 @@ type Querier interface {
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
 	ReadableSiteCascades(ctx context.Context) ([]ReadableSiteCascadesRow, error)
 	RecordSiteMetricEvents(ctx context.Context, arg RecordSiteMetricEventsParams) error
+	RecordSiteResponseMetrics(ctx context.Context, shortIds []string) ([]RecordSiteResponseMetricsRow, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	RefreshSiteOwnership(ctx context.Context, arg RefreshSiteOwnershipParams) error
 	RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams) (DirectorySiteAudit, error)

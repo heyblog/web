@@ -34,7 +34,6 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		Health:             httpapi.NewHealth(dependencies, time.Second),
 		HealthcheckToken:   configuration.HealthcheckToken,
 		WebToken:           configuration.WebToken,
-		PublicViews:        dependencies.PublicViews(),
 		BodyLimitOverrides: nil,
 	}, dependencies, configuration)
 	if err != nil {
@@ -67,43 +66,43 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		t.Fatalf("decode generated OpenAPI: %v", err)
 	}
 	wantedPaths := []string{
-		"/management/database-backup/export", "/management/database-backup/inspect", "/management/database-backup/restore",
-		"/sitemap",
-		"/sites/id/{shortId}/outbound", "/site-metrics/impressions",
-		"/announcements", "/announcements/banner", "/announcements/{id}",
-		"/management/announcements", "/management/announcements/{id}",
-		"/management/announcements/{id}/publish", "/management/announcements/{id}/archive", "/management/announcements/{id}/revisions",
-		"/sites/graph", "/sites/id/{identifier}/graph",
-		"/ping", "/health/live", "/health/ready", "/home", "/sites", "/sites/options", "/sites/random",
-		"/v1/example",
-		"/sites/id/{identifier}", "/sites/id/{identifier}/icon", "/sites/id/{identifier}/metadata", "/sites/custom/{customId}",
-		"/auth/register", "/auth/login", "/auth/me", "/auth/refresh", "/auth/logout",
-		"/auth/verify-email", "/auth/verify-email/resend", "/auth/password/forgot",
-		"/auth/password/reset", "/auth/password", "/auth/github/start", "/auth/github/callback",
-		"/auth/github/unbind", "/management/users", "/management/users/{id}/role",
-		"/management/users/{id}/permissions", "/site-submissions",
-		"/site-submissions/{shortId}/updates", "/site-submissions/{shortId}/deletions",
-		"/site-submissions/{shortId}/restorations", "/site-submissions/query",
-		"/site-submissions/options", "/site-submissions/site-availability",
-		"/site-submissions/sites", "/site-submissions/sites/{shortId}",
-		"/management/site-audits", "/management/site-audits/{auditId}",
-		"/management/site-audits/{auditId}/review-draft",
-		"/management/site-audits/{auditId}/review", "/internal/v1/data-import",
-		"/management/api-clients", "/management/api-clients/{id}",
-		"/management/api-clients/{id}/rotate", "/management/api-keys/{id}/revoke",
-		"/management/api-clients/{id}/keys",
-		"/account/sites", "/account/sites/{shortId}",
-		"/account/site-submissions", "/account/site-submissions/{auditId}",
-		"/account/sites/{shortId}/updates", "/account/sites/{shortId}/friend-link-submissions",
-		"/account/sites/{shortId}/friend-links", "/account/sites/{shortId}/friend-links/{targetShortId}",
-		"/account/sites/{shortId}/friend-links/by-host/{targetHost}",
-		"/account/sites/{shortId}/friend-link-requests/{requestId}",
-		"/account/site-claims", "/account/site-claims/{claimId}", "/account/site-claims/{claimId}/check",
-		"/management/site-claims", "/management/site-claims/{claimId}",
-		"/management/site-claims/{claimId}/review", "/management/site-ownership/{shortId}",
-		"/management/taxonomy/tags", "/management/taxonomy/tags/{id}",
-		"/management/taxonomy/cascades",
-		"/management/taxonomy/changes/preview", "/management/taxonomy/changes/apply",
+		"/api/web/management/database-backup/export", "/api/web/management/database-backup/inspect", "/api/web/management/database-backup/restore",
+		"/api/web/public/sitemap",
+		"/api/web/public/sites/id/{shortId}/outbound", "/api/web/public/site-metrics/impressions",
+		"/api/web/public/announcements", "/api/web/public/announcements/banner", "/api/web/public/announcements/{id}",
+		"/api/web/management/announcements", "/api/web/management/announcements/{id}",
+		"/api/web/management/announcements/{id}/publish", "/api/web/management/announcements/{id}/archive", "/api/web/management/announcements/{id}/revisions",
+		"/api/web/public/sites/graph", "/api/web/public/sites/id/{identifier}/graph",
+		"/api/web/public/ping", "/health/live", "/health/ready", "/api/web/public/home", "/api/web/public/sites", "/api/web/public/sites/options", "/api/web/public/sites/random",
+		"/api/external/v1/example",
+		"/api/web/public/sites/id/{identifier}", "/api/web/public/sites/id/{identifier}/icon", "/api/web/public/sites/id/{identifier}/metadata", "/api/web/public/sites/custom/{customId}",
+		"/api/web/auth/register", "/api/web/auth/login", "/api/web/auth/me", "/api/web/auth/refresh", "/api/web/auth/logout",
+		"/api/web/auth/verify-email", "/api/web/auth/verify-email/resend", "/api/web/auth/password/forgot",
+		"/api/web/auth/password/reset", "/api/web/auth/password", "/api/web/auth/github/start", "/api/web/auth/github/callback",
+		"/api/web/auth/github/unbind", "/api/web/management/users", "/api/web/management/users/{id}/role",
+		"/api/web/management/users/{id}/permissions", "/api/web/submissions",
+		"/api/web/submissions/{shortId}/updates", "/api/web/submissions/{shortId}/deletions",
+		"/api/web/submissions/{shortId}/restorations", "/api/web/submissions/query",
+		"/api/web/submissions/options", "/api/web/submissions/site-availability",
+		"/api/web/submissions/sites", "/api/web/submissions/sites/{shortId}",
+		"/api/web/management/site-audits", "/api/web/management/site-audits/{auditId}",
+		"/api/web/management/site-audits/{auditId}/review-draft",
+		"/api/web/management/site-audits/{auditId}/review", "/api/internal/v1/data-import",
+		"/api/web/management/api-clients", "/api/web/management/api-clients/{id}",
+		"/api/web/management/api-clients/{id}/rotate", "/api/web/management/api-keys/{id}/revoke",
+		"/api/web/management/api-clients/{id}/keys",
+		"/api/web/account/sites", "/api/web/account/sites/{shortId}",
+		"/api/web/account/site-submissions", "/api/web/account/site-submissions/{auditId}",
+		"/api/web/account/sites/{shortId}/updates", "/api/web/account/sites/{shortId}/friend-link-submissions",
+		"/api/web/account/sites/{shortId}/friend-links", "/api/web/account/sites/{shortId}/friend-links/{targetShortId}",
+		"/api/web/account/sites/{shortId}/friend-links/by-host/{targetHost}",
+		"/api/web/account/sites/{shortId}/friend-link-requests/{requestId}",
+		"/api/web/account/site-claims", "/api/web/account/site-claims/{claimId}", "/api/web/account/site-claims/{claimId}/check",
+		"/api/web/management/site-claims", "/api/web/management/site-claims/{claimId}",
+		"/api/web/management/site-claims/{claimId}/review", "/api/web/management/site-ownership/{shortId}",
+		"/api/web/management/taxonomy/tags", "/api/web/management/taxonomy/tags/{id}",
+		"/api/web/management/taxonomy/cascades",
+		"/api/web/management/taxonomy/changes/preview", "/api/web/management/taxonomy/changes/apply",
 	}
 	if len(raw.Paths) != len(wantedPaths) {
 		t.Fatalf("documented path count = %d, want %d", len(raw.Paths), len(wantedPaths))
@@ -111,6 +110,15 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	for _, path := range wantedPaths {
 		if _, exists := raw.Paths[path]; !exists {
 			t.Errorf("generated OpenAPI is missing %s", path)
+		}
+	}
+	for _, oldPath := range []string{"/ping", "/home", "/sites", "/auth/me", "/site-submissions/options", "/account/sites", "/management/users", "/v1/example", "/internal/v1/data-import"} {
+		for _, method := range []string{http.MethodGet, http.MethodPost} {
+			legacy := httptest.NewRecorder()
+			handler.ServeHTTP(legacy, httptest.NewRequest(method, oldPath, nil))
+			if legacy.Code != http.StatusNotFound {
+				t.Errorf("legacy %s %s status = %d, want 404", method, oldPath, legacy.Code)
+			}
 		}
 	}
 	for _, name := range []string{"webToken", "healthBearer", "apiBearer", "accessCookie", "refreshCookie"} {
@@ -123,23 +131,23 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		path    string
 		schemes []string
 	}{
-		{method: "get", path: "/sitemap", schemes: []string{"webToken"}},
-		{method: "get", path: "/management/announcements", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/management/announcements/{id}/publish", schemes: []string{"webToken", "accessCookie"}},
-		{method: "get", path: "/management/site-audits", schemes: []string{"webToken", "accessCookie"}},
-		{method: "get", path: "/management/site-audits/{auditId}", schemes: []string{"webToken", "accessCookie"}},
-		{method: "put", path: "/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
-		{method: "delete", path: "/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/management/site-audits/{auditId}/review", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/management/taxonomy/changes/apply", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/auth/refresh", schemes: []string{"webToken", "refreshCookie"}},
-		{method: "post", path: "/management/api-clients/{id}/keys", schemes: []string{"webToken", "accessCookie"}},
-		{method: "get", path: "/account/sites", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/account/sites/{shortId}/updates", schemes: []string{"webToken", "accessCookie"}},
-		{method: "delete", path: "/account/sites/{shortId}/friend-links/by-host/{targetHost}", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/account/site-claims/{claimId}/check", schemes: []string{"webToken", "accessCookie"}},
-		{method: "post", path: "/management/site-claims/{claimId}/review", schemes: []string{"webToken", "accessCookie"}},
-		{method: "delete", path: "/management/site-ownership/{shortId}", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/api/web/public/sitemap", schemes: []string{"webToken"}},
+		{method: "get", path: "/api/web/management/announcements", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/management/announcements/{id}/publish", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/api/web/management/site-audits", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/api/web/management/site-audits/{auditId}", schemes: []string{"webToken", "accessCookie"}},
+		{method: "put", path: "/api/web/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
+		{method: "delete", path: "/api/web/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/management/site-audits/{auditId}/review", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/management/taxonomy/changes/apply", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/auth/refresh", schemes: []string{"webToken", "refreshCookie"}},
+		{method: "post", path: "/api/web/management/api-clients/{id}/keys", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/api/web/account/sites", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/account/sites/{shortId}/updates", schemes: []string{"webToken", "accessCookie"}},
+		{method: "delete", path: "/api/web/account/sites/{shortId}/friend-links/by-host/{targetHost}", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/account/site-claims/{claimId}/check", schemes: []string{"webToken", "accessCookie"}},
+		{method: "post", path: "/api/web/management/site-claims/{claimId}/review", schemes: []string{"webToken", "accessCookie"}},
+		{method: "delete", path: "/api/web/management/site-ownership/{shortId}", schemes: []string{"webToken", "accessCookie"}},
 	}
 	for _, test := range securityCases {
 		var operation struct {
@@ -163,7 +171,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		var operation struct {
 			Security []map[string][]string `json:"security"`
 		}
-		if err := json.Unmarshal(raw.Paths["/v1/example"][method], &operation); err != nil {
+		if err := json.Unmarshal(raw.Paths["/api/external/v1/example"][method], &operation); err != nil {
 			t.Fatalf("decode %s /v1/example security: %v", method, err)
 		}
 		if len(operation.Security) != 1 || !slices.Equal(operation.Security[0]["apiBearer"], []string{"example.call"}) {
@@ -200,7 +208,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	if operationCount != 103 {
 		t.Fatalf("documented operation count = %d, want 103", operationCount)
 	}
-	importOperation := raw.Paths["/internal/v1/data-import"]["post"]
+	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||
 		!strings.Contains(string(importOperation), `"blogs"`) ||
 		!strings.Contains(string(importOperation), `"taxonomy"`) {

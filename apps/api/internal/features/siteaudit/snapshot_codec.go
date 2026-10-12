@@ -38,8 +38,8 @@ func baseRevisionPointer(action Action, snapshot Snapshot) *int64 {
 	return &value
 }
 
-// Old selected-name identifiers are read only from persisted snapshots. New
-// request and response contracts never contain label identifiers or slugs.
+// Historical selected-name identifiers support identity resolution when reading
+// persisted tag snapshots. TagSnapshot defines the current serialized fields.
 func (tag *TagSnapshot) UnmarshalJSON(data []byte) error {
 	type current TagSnapshot
 	var stored struct {

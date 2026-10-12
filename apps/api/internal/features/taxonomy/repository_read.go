@@ -25,6 +25,12 @@ func parseID(value string) (pgtype.UUID, error) {
 	return id, err
 }
 
+func readCatalogGeneration(ctx context.Context, tx pgx.Tx) (int64, error) {
+	var generation int64
+	err := tx.QueryRow(ctx, "SELECT revision FROM runtime_cache.taxonomy_revision WHERE singleton").Scan(&generation)
+	return generation, err
+}
+
 func readGraph(ctx context.Context, tx pgx.Tx) (graph, error) {
 	q := dbgen.New(tx)
 	tags, err := q.ListManagedTags(ctx)
@@ -36,15 +42,13 @@ func readGraph(ctx context.Context, tx pgx.Tx) (graph, error) {
 		return graph{}, err
 	}
 	result := graph{Catalog: Catalog{Tags: make([]Tag, 0, len(tags)), Cascades: make([]Cascade, 0, len(cascades))}, Objects: []object{}}
-	aliases, err := q.ListTagIdentityAliases(ctx)
+	protectedIDs, err := q.ListProtectedTagIDs(ctx)
 	if err != nil {
 		return graph{}, err
 	}
 	keys := map[string]string{}
-	for _, a := range aliases {
-		if a.AliasKind == "TAG" && a.SystemKey != nil && *a.SystemKey == "other" {
-			keys[idText(a.TagID)] = "other"
-		}
+	for _, id := range protectedIDs {
+		keys[idText(id)] = "other"
 	}
 	for _, t := range tags {
 		result.Tags = append(result.Tags, Tag{ID: idText(t.ID), Name: t.Name, Description: t.Description, Enabled: t.IsEnabled, SystemKey: keys[idText(t.ID)], Roles: []string{}})

@@ -26,7 +26,7 @@ func RegisterRoutes(api huma.API, s *Service, webToken string) error {
 	}
 	guard := httpapi.HumaWebAuthorization(webToken)
 	operation := func(id, method, path string) huma.Operation {
-		return huma.Operation{OperationID: id, Method: method, Path: "/management/taxonomy" + path, Tags: []string{"taxonomy management"}, Security: []map[string][]string{{"webToken": {}, "accessCookie": {}}}, MaxBodyBytes: 65536, Middlewares: huma.Middlewares{guard}, Errors: []int{401, 403, 409, 422, 500}}
+		return huma.Operation{OperationID: id, Method: method, Path: "/api/web/management/taxonomy" + path, Tags: []string{"taxonomy management"}, Security: []map[string][]string{{"webToken": {}, "accessCookie": {}}}, MaxBodyBytes: 65536, Middlewares: huma.Middlewares{guard}, Errors: []int{401, 403, 409, 422, 500}}
 	}
 	httpapi.Register(api, operation("list-managed-tags", http.MethodGet, "/tags"), func(ctx context.Context, _ *struct{}) (*output[Catalog], error) {
 		if err := s.authorize(ctx, httpapi.Request(ctx)); err != nil {

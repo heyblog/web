@@ -1,6 +1,11 @@
 package publicview
 
+import "sync"
+
 type Service struct {
+	graphOnce     sync.Once
+	graphGate     chan struct{}
+	graphSnapshot *cachedGraph
 	graph         GraphQueries
 	home          HomeQueries
 	directory     DirectoryQueries

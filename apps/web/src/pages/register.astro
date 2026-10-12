@@ -14,7 +14,7 @@ const error = authErrorMessage(Astro.url.searchParams.get('error'));
   description="注册后需要使用邮箱验证码激活账号。"
 >
   <AuthNotice message={error} />
-  <form class="grid gap-4" method="post" action="/auth/register">
+  <form class="grid gap-4" method="post" action="/api/web/auth/register">
     <label class="grid gap-1.5 text-sm font-medium">
       用户名
       <input

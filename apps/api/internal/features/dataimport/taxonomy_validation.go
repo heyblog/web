@@ -32,7 +32,7 @@ func validateTagTaxonomyBundle(bundle TagTaxonomyBundle) error {
 			return errors.New("tag taxonomy cascade is invalid")
 		}
 		if tagSources[cascade.Level1TagID] != "SQLITE" || tagSources[cascade.Level2TagID] != "SQLITE" {
-			return errors.New("tag taxonomy cascade references unknown fixed tags")
+			return errors.New("tag taxonomy cascade references unknown source tags")
 		}
 		cascadeKeys[cascade.Scope+"\x00"+cascade.CascadeKey] = cascade
 	}

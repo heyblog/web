@@ -17,8 +17,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"heyblog-api/internal/features/publicview"
-	"heyblog-api/internal/platform/apperror"
 	"heyblog-api/internal/platform/config"
 )
 
@@ -89,7 +87,7 @@ func TestRouterKeepsPingContractAndAddsHealthEndpoints(t *testing.T) {
 		wantStatus int
 		wantBody   string
 	}{
-		{path: "/ping", wantStatus: http.StatusOK, wantBody: `{"message":"pong"}`},
+		{path: "/api/web/public/ping", wantStatus: http.StatusOK, wantBody: `{"message":"pong"}`},
 		{path: "/health/live", wantStatus: http.StatusNoContent},
 		{path: "/health/ready", wantStatus: http.StatusNoContent},
 	}
@@ -128,7 +126,7 @@ func TestWebEndpointRequiresServiceToken(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			request := httptest.NewRequest(http.MethodGet, "/api/web/public/ping", nil)
 			request.Header.Set(WebTokenHeader, test.token)
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
@@ -137,132 +135,6 @@ func TestWebEndpointRequiresServiceToken(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.Code, test.wantStatus)
 			}
 		})
-	}
-}
-
-func TestPublicViewRoutesUseWebAuthenticationAndTypedReader(t *testing.T) {
-	t.Parallel()
-
-	var gotIdentifier publicview.SiteIdentifier
-	var gotCustomID string
-	views := publicViewReaderStub{
-		home: func(context.Context) (publicview.Home, error) {
-			return publicview.Home{SiteCount: 2, Sites: []publicview.HomeSiteCard{}}, nil
-		},
-		directory: func(
-			_ context.Context,
-			query publicview.DirectoryQuery,
-		) (publicview.DirectoryView, error) {
-			return publicview.DirectoryView{
-				Items: []publicview.SiteCardView{}, Query: query,
-				Pagination: publicview.DirectoryPagination{Page: 1, PageSize: 24, TotalPages: 1},
-			}, nil
-		},
-		directoryOptions: func(context.Context) (publicview.DirectoryOptions, error) {
-			return publicview.DirectoryOptions{
-				Classifications: []publicview.DirectoryClassificationOption{{
-					DirectoryOption: publicview.DirectoryOption{Value: "technology", Label: "技术", NormalCount: 2},
-					Children:        []publicview.DirectoryOption{},
-				}},
-				TertiaryTags: []publicview.DirectoryOption{}, Warnings: []publicview.DirectoryOption{},
-				Technologies: []publicview.DirectoryOption{},
-			}, nil
-		},
-		byIdentifier: func(_ context.Context, identifier publicview.SiteIdentifier) (publicview.SiteProfile, error) {
-			gotIdentifier = identifier
-			return publicview.SiteProfile{SiteCard: publicview.SiteCard{ShortID: identifier.Value}}, nil
-		},
-		byCustomID: func(_ context.Context, customID string) (publicview.SiteProfile, error) {
-			gotCustomID = customID
-			return publicview.SiteProfile{SiteCard: publicview.SiteCard{CustomID: &customID}}, nil
-		},
-	}
-	router := newRouterWithViews(t, testHTTPConfig(), views)
-
-	tests := []struct {
-		path       string
-		wantStatus int
-		wantBody   string
-	}{
-		{path: "/home", wantStatus: http.StatusOK, wantBody: `"siteCount":2`},
-		{path: "/sites?q=Astro", wantStatus: http.StatusOK, wantBody: `"q":"Astro"`},
-		{path: "/sites/options", wantStatus: http.StatusOK, wantBody: `"value":"technology"`},
-		{path: "/sites/id/A1b2C3d4E", wantStatus: http.StatusOK, wantBody: `"shortId":"A1b2C3d4E"`},
-		{path: "/sites/custom/My_Blog", wantStatus: http.StatusOK, wantBody: `"customId":"My_Blog"`},
-	}
-	for _, test := range tests {
-		request := httptest.NewRequest(http.MethodGet, test.path, nil)
-		request.Header.Set(WebTokenHeader, testWebToken)
-		response := httptest.NewRecorder()
-		router.ServeHTTP(response, request)
-		if response.Code != test.wantStatus || !strings.Contains(response.Body.String(), test.wantBody) {
-			t.Fatalf("%s response = (%d, %q), want status %d containing %q", test.path, response.Code, response.Body.String(), test.wantStatus, test.wantBody)
-		}
-		if response.Header().Get("Cache-Control") != "no-store" {
-			t.Fatalf("%s Cache-Control = %q, want no-store", test.path, response.Header().Get("Cache-Control"))
-		}
-	}
-	if gotIdentifier.Kind != publicview.IdentifierShortID || gotIdentifier.Value != "A1b2C3d4E" {
-		t.Fatalf("identifier = %#v", gotIdentifier)
-	}
-	if gotCustomID != "My_Blog" {
-		t.Fatalf("custom ID = %q", gotCustomID)
-	}
-
-	unauthorized := httptest.NewRecorder()
-	router.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/home", nil))
-	if unauthorized.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthorized status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
-	}
-}
-
-func TestPublicViewRoutesRejectInvalidIdentifiersBeforeApplication(t *testing.T) {
-	t.Parallel()
-
-	applicationCalls := 0
-	views := publicViewReaderStub{
-		byIdentifier: func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error) {
-			applicationCalls++
-			return publicview.SiteProfile{}, nil
-		},
-		byCustomID: func(context.Context, string) (publicview.SiteProfile, error) {
-			applicationCalls++
-			return publicview.SiteProfile{}, nil
-		},
-	}
-	router := newRouterWithViews(t, testHTTPConfig(), views)
-	for _, path := range []string{"/sites/id/not-valid", "/sites/custom/a"} {
-		request := httptest.NewRequest(http.MethodGet, path, nil)
-		request.Header.Set(WebTokenHeader, testWebToken)
-		response := httptest.NewRecorder()
-		router.ServeHTTP(response, request)
-		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"bad_request"`) {
-			t.Fatalf("%s response = (%d, %q), want bad request", path, response.Code, response.Body.String())
-		}
-	}
-	if applicationCalls != 0 {
-		t.Fatalf("application calls = %d, want 0", applicationCalls)
-	}
-}
-
-func TestPublicViewRoutePreservesNotFoundProblem(t *testing.T) {
-	t.Parallel()
-
-	router := newRouterWithViews(t, testHTTPConfig(), publicViewReaderStub{
-		byIdentifier: func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error) {
-			return publicview.SiteProfile{}, apperror.New(
-				apperror.KindNotFound,
-				apperror.CodeNotFound,
-				"site was not found",
-			)
-		},
-	})
-	request := httptest.NewRequest(http.MethodGet, "/sites/id/A1b2C3d4E", nil)
-	request.Header.Set(WebTokenHeader, testWebToken)
-	response := httptest.NewRecorder()
-	router.ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound || !strings.Contains(response.Body.String(), `"code":"not_found"`) {
-		t.Fatalf("response = (%d, %q), want not found", response.Code, response.Body.String())
 	}
 }
 
@@ -379,7 +251,7 @@ func TestRouterReturnsProblemsForUnknownRouteAndMethod(t *testing.T) {
 	router := newTestRouter(t, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second))
 	for _, request := range []*http.Request{
 		httptest.NewRequest(http.MethodGet, "/missing", nil),
-		httptest.NewRequest(http.MethodPost, "/ping", nil),
+		httptest.NewRequest(http.MethodPost, "/api/web/public/ping", nil),
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
@@ -406,7 +278,7 @@ func TestRouterValidatesAndEchoesRequestID(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			request := httptest.NewRequest(http.MethodGet, "/api/web/public/ping", nil)
 			request.Header.Set(RequestIDHeader, test.input)
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
@@ -474,7 +346,7 @@ func TestBodyLimitRejectsDeclaredOversizedBodyBeforeHandler(t *testing.T) {
 		TrustedProxies: []string{},
 	}, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second), io.Discard)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/ping", strings.NewReader("12345")))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/web/public/ping", strings.NewReader("12345")))
 
 	if response.Code != http.StatusRequestEntityTooLarge || !strings.Contains(response.Body.String(), `"code":"request_too_large"`) {
 		t.Fatalf("response = (%d, %q), want request-too-large problem", response.Code, response.Body.String())
@@ -492,7 +364,6 @@ func TestBodyLimitUsesMethodAndRouteOverride(t *testing.T) {
 		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
 		HealthcheckToken: testHealthcheckToken,
 		WebToken:         testWebToken,
-		PublicViews:      publicViewReaderStub{},
 		BodyLimitOverrides: map[Route]int64{
 			{Method: http.MethodPost, Path: "/large"}: 8,
 		},
@@ -527,7 +398,7 @@ func TestCORSAndSecurityHeaders(t *testing.T) {
 	configuration.CORS.AllowOrigins = []string{"https://web.example.test"}
 	router := newRouterWithConfig(t, configuration, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second), io.Discard)
 
-	request := httptest.NewRequest(http.MethodOptions, "/ping", nil)
+	request := httptest.NewRequest(http.MethodOptions, "/api/web/public/ping", nil)
 	request.Header.Set("Origin", "https://web.example.test")
 	request.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	request.Header.Set("Access-Control-Request-Headers", "X-Request-ID")
@@ -555,7 +426,7 @@ func TestCORSRejectsBrowserAuthorizationHeader(t *testing.T) {
 	configuration.CORS.AllowOrigins = []string{"https://web.example.test"}
 	router := newRouterWithConfig(t, configuration, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second), io.Discard)
 
-	request := httptest.NewRequest(http.MethodOptions, "/ping", nil)
+	request := httptest.NewRequest(http.MethodOptions, "/api/web/public/ping", nil)
 	request.Header.Set("Origin", "https://web.example.test")
 	request.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	request.Header.Set("Access-Control-Request-Headers", "Authorization")
@@ -573,7 +444,7 @@ func TestCORSRejectsUnlistedOriginWithProblem(t *testing.T) {
 	configuration := testHTTPConfig()
 	configuration.CORS.AllowOrigins = []string{"https://web.example.test"}
 	router := newRouterWithConfig(t, configuration, NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second), io.Discard)
-	request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/web/public/ping", nil)
 	request.Header.Set("Origin", "https://attacker.example.test")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
@@ -589,7 +460,7 @@ func TestAccessLogDoesNotIncludeQueryString(t *testing.T) {
 	var logs bytes.Buffer
 	router := newRouterWithConfig(t, testHTTPConfig(), NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second), &logs)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ping?token=private-value", nil))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/web/public/ping?token=private-value", nil))
 
 	if strings.Contains(logs.String(), "private-value") || !strings.Contains(logs.String(), `request_id`) {
 		t.Fatalf("access log = %q, want request ID without query value", logs.String())
@@ -610,7 +481,6 @@ func newRouterWithMode(t *testing.T, mode config.Mode) *Router {
 		Health:           NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second),
 		HealthcheckToken: testHealthcheckToken,
 		WebToken:         testWebToken,
-		PublicViews:      publicViewReaderStub{},
 	})
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)
@@ -620,22 +490,7 @@ func newRouterWithMode(t *testing.T, mode config.Mode) *Router {
 
 func newRouterWithConfig(t *testing.T, configuration config.HTTPConfig, health *Health, output io.Writer) *Router {
 	t.Helper()
-	return newRouterWithDependencies(t, configuration, health, output, publicViewReaderStub{})
-}
-
-func newRouterWithViews(
-	t *testing.T,
-	configuration config.HTTPConfig,
-	views publicview.Reader,
-) *Router {
-	t.Helper()
-	return newRouterWithDependencies(
-		t,
-		configuration,
-		NewHealth(readinessFunc(func(context.Context) error { return nil }), time.Second),
-		io.Discard,
-		views,
-	)
+	return newRouterWithDependencies(t, configuration, health, output)
 }
 
 func newRouterWithDependencies(
@@ -643,7 +498,6 @@ func newRouterWithDependencies(
 	configuration config.HTTPConfig,
 	health *Health,
 	output io.Writer,
-	views publicview.Reader,
 ) *Router {
 	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(output, nil))
@@ -654,7 +508,6 @@ func newRouterWithDependencies(
 		Health:           health,
 		HealthcheckToken: testHealthcheckToken,
 		WebToken:         testWebToken,
-		PublicViews:      views,
 	})
 	if err != nil {
 		t.Fatalf("NewRouter() error = %v", err)
@@ -677,73 +530,4 @@ type readinessFunc func(context.Context) error
 
 func (function readinessFunc) Ready(ctx context.Context) error {
 	return function(ctx)
-}
-
-type publicViewReaderStub struct {
-	sitemap          func(context.Context, publicview.SitemapQuery) (publicview.SitemapPage, error)
-	home             func(context.Context) (publicview.Home, error)
-	directory        func(context.Context, publicview.DirectoryQuery) (publicview.DirectoryView, error)
-	directoryOptions func(context.Context) (publicview.DirectoryOptions, error)
-	randomSite       func(context.Context, publicview.RandomSiteQuery) (publicview.RandomSiteView, error)
-	byIdentifier     func(context.Context, publicview.SiteIdentifier) (publicview.SiteProfile, error)
-	byCustomID       func(context.Context, string) (publicview.SiteProfile, error)
-}
-
-func (stub publicViewReaderStub) Home(ctx context.Context) (publicview.Home, error) {
-	if stub.home != nil {
-		return stub.home(ctx)
-	}
-	return publicview.Home{Sites: []publicview.HomeSiteCard{}}, nil
-}
-
-func (stub publicViewReaderStub) Directory(
-	ctx context.Context,
-	query publicview.DirectoryQuery,
-) (publicview.DirectoryView, error) {
-	if stub.directory != nil {
-		return stub.directory(ctx, query)
-	}
-	return publicview.DirectoryView{Items: []publicview.HomeSiteCard{}}, nil
-}
-
-func (stub publicViewReaderStub) DirectoryOptions(
-	ctx context.Context,
-) (publicview.DirectoryOptions, error) {
-	if stub.directoryOptions != nil {
-		return stub.directoryOptions(ctx)
-	}
-	return publicview.DirectoryOptions{
-		Classifications: []publicview.DirectoryClassificationOption{}, TertiaryTags: []publicview.DirectoryOption{},
-		Warnings: []publicview.DirectoryOption{}, Technologies: []publicview.DirectoryOption{},
-	}, nil
-}
-
-func (stub publicViewReaderStub) RandomSite(
-	ctx context.Context,
-	query publicview.RandomSiteQuery,
-) (publicview.RandomSiteView, error) {
-	if stub.randomSite != nil {
-		return stub.randomSite(ctx, query)
-	}
-	return publicview.RandomSiteView{}, nil
-}
-
-func (stub publicViewReaderStub) SiteByIdentifier(
-	ctx context.Context,
-	identifier publicview.SiteIdentifier,
-) (publicview.SiteProfile, error) {
-	if stub.byIdentifier != nil {
-		return stub.byIdentifier(ctx, identifier)
-	}
-	return publicview.SiteProfile{}, nil
-}
-
-func (stub publicViewReaderStub) SiteByCustomID(
-	ctx context.Context,
-	customID string,
-) (publicview.SiteProfile, error) {
-	if stub.byCustomID != nil {
-		return stub.byCustomID(ctx, customID)
-	}
-	return publicview.SiteProfile{}, nil
 }

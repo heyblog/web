@@ -20,12 +20,9 @@
 
   function attachDialog(element: HTMLDialogElement) {
     const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     element.showModal();
     return () => {
       element.close();
-      document.body.style.overflow = previousOverflow;
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
     };
   }

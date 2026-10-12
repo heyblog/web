@@ -20,9 +20,9 @@ export async function readSubmissionProblem(response: Response): Promise<Submiss
 }
 
 export function submissionEndpoint(action: AuditAction, siteShortID: string): string {
-  if (action === 'CREATE') return '/api/site-submissions/create';
+  if (action === 'CREATE') return '/api/web/submissions/create';
   const suffix = action === 'UPDATE' ? 'update' : action === 'DELETE' ? 'delete' : 'restore';
-  return '/api/site-submissions/' + encodeURIComponent(siteShortID) + '/' + suffix;
+  return '/api/web/submissions/' + encodeURIComponent(siteShortID) + '/' + suffix;
 }
 
 export interface SubmissionRequest {
@@ -49,24 +49,24 @@ export function requestSiteAvailability(
   options: BrowserRequestOptions = {},
 ): Promise<Response> {
   const request = options.fetch ?? globalThis.fetch;
-  const endpoint = '/api/site-submissions/availability?url=' + encodeURIComponent(url);
+  const endpoint = '/api/web/submissions/availability?url=' + encodeURIComponent(url);
   return request(endpoint, { signal: options.signal });
 }
 
 export function requestSubmissionOptions(): Promise<Response> {
-  return fetch('/api/site-submissions/options');
+  return fetch('/api/web/submissions/options');
 }
 
 export function requestSubmissionSnapshot(siteShortID: string): Promise<Response> {
-  return fetch(`/api/site-submissions/${encodeURIComponent(siteShortID)}/resolve`);
+  return fetch(`/api/web/submissions/${encodeURIComponent(siteShortID)}/resolve`);
 }
 
 export function requestSubmissionSearch(value: string, signal: AbortSignal): Promise<Response> {
-  return fetch(`/api/site-submissions/sites?q=${encodeURIComponent(value)}`, { signal });
+  return fetch(`/api/web/submissions/sites?q=${encodeURIComponent(value)}`, { signal });
 }
 
 export function requestAuditLookup(lookupToken: string): Promise<Response> {
-  return fetch('/api/site-submissions/query', {
+  return fetch('/api/web/submissions/query', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lookup_token: lookupToken }),
@@ -92,15 +92,18 @@ export function requestAuditReview(
   discard: boolean,
   payload: ReviewExpectation | ReviewDecision,
 ): Promise<Response> {
-  return fetch(`/management/site-submissions/${auditID}/${discard ? 'review-draft' : 'review'}`, {
-    method: discard ? 'DELETE' : 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  return fetch(
+    `/api/web/management/site-submissions/${auditID}/${discard ? 'review-draft' : 'review'}`,
+    {
+      method: discard ? 'DELETE' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function requestReviewDraft(auditID: string, payload: ReviewDraft): Promise<Response> {
-  return fetch(`/management/site-submissions/${auditID}/review-draft`, {
+  return fetch(`/api/web/management/site-submissions/${auditID}/review-draft`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

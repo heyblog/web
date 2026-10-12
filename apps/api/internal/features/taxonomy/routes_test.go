@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"heyblog-api/internal/features/auth"
-	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
 )
@@ -28,7 +27,7 @@ func TestManagementRoutesEnforceBothGuards(t *testing.T) {
 		{"POST", "/changes/apply", `{"kind":"merge","source_id":"id","expected_revision":"version"}`},
 	} {
 		t.Run(route.method+route.path, func(t *testing.T) {
-			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "web-test", HealthcheckToken: "health-test", PublicViews: publicview.New(nil, nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+			router, err := httpapi.NewRouter(httpapi.Options{WebToken: "web-test", HealthcheckToken: "health-test", HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -36,7 +35,7 @@ func TestManagementRoutesEnforceBothGuards(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, token := range []string{"", "web-test"} {
-				req := httptest.NewRequest(route.method, "/management/taxonomy"+route.path, strings.NewReader(route.body))
+				req := httptest.NewRequest(route.method, "/api/web/management/taxonomy"+route.path, strings.NewReader(route.body))
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set(httpapi.WebTokenHeader, token)
 				response := httptest.NewRecorder()

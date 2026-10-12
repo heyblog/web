@@ -13,7 +13,7 @@ import { managementNavigation } from '../src/application/management/navigation.t
 
 import { inspectionFixture, restorationFixture } from './database-backup.fixture.ts';
 
-test('inspection parsing rejects missing datasets, duplicate datasets and inconsistent readiness', () => {
+test('inspection parsing validates the dataset inventory and restoration readiness', () => {
   // Given
   const cases = [
     { ...inspectionFixture, datasets: inspectionFixture.datasets.slice(1) },
@@ -21,27 +21,18 @@ test('inspection parsing rejects missing datasets, duplicate datasets and incons
       ...inspectionFixture,
       datasets: inspectionFixture.datasets.map(() => inspectionFixture.datasets[0]),
     },
+    {
+      ...inspectionFixture,
+      datasets: inspectionFixture.datasets.map((dataset, index) =>
+        index === 0 ? { ...dataset, name: 'directory.unexpected_dataset' } : dataset,
+      ),
+    },
     { ...inspectionFixture, can_restore: true, target_ready: false },
     { ...inspectionFixture, issues: [{ code: 'target_not_empty' }] },
     { ...inspectionFixture, graph: { vertices: -1, edges: 2 } },
     { ...inspectionFixture, schema_version: 1 },
     { ...inspectionFixture, schema_version: 2 },
   ];
-  for (const name of [
-    'directory.tag_labels',
-    'directory.tag_slug_aliases',
-    'directory.slug_generation_cache',
-    'directory.slug_generation_jobs',
-    'content.system_ai_settings',
-  ]) {
-    assert.equal(
-      parseBackupInspection({
-        ...inspectionFixture,
-        datasets: [...inspectionFixture.datasets, { name, count: 0 }],
-      }),
-      null,
-    );
-  }
   assert.equal(inspectionFixture.datasets.length, 33);
   // When / Then
   assert.deepEqual(parseBackupInspection(inspectionFixture), inspectionFixture);
@@ -55,7 +46,7 @@ test('restore upload binds the reviewed checksum and confirmation to the origina
   let calls = 0;
   const transport = createBackupTransport(async (input, init) => {
     calls += 1;
-    assert.equal(input, '/management/database-backup/restore');
+    assert.equal(input, '/api/web/management/database-backup/restore');
     assert.equal(init?.method, 'POST');
     assert.equal(init?.credentials, 'same-origin');
     assert.equal(init?.cache, 'no-store');

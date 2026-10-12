@@ -67,6 +67,13 @@ func verifySiteMetrics(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		t.Fatal("metrics changed site revision or timestamps")
 	}
 
+	// A graph records both display events synchronously without fetching unused counters.
+	stats.RecordGraph(ctx, []string{before.ShortID, before.ShortID})
+	recorded, err := queries.GetSiteMetrics(ctx, []string{before.ShortID})
+	if err != nil || len(recorded) != 1 || recorded[0].QueryCount != 2 || recorded[0].ResponseCount != 2 {
+		t.Fatalf("graph metrics=%#v error=%v", recorded, err)
+	}
+
 	t.Run("hidden site remains available", func(t *testing.T) {
 		// Given
 		if _, err := pool.Exec(ctx, "UPDATE directory.sites SET visibility='HIDDEN',visibility_reason='test' WHERE id=$1", id); err != nil {

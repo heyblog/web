@@ -13,7 +13,7 @@ test('acknowledged batches preserve event IDs and same-origin request policy', a
   let body = '';
   // When
   const retry = await sendImpressions(events, async (input, init) => {
-    assert.equal(input, '/api/site-metrics/impressions');
+    assert.equal(input, '/api/web/public/site-metrics/impressions');
     assert.equal(init?.credentials, 'same-origin');
     assert.equal(init?.cache, 'no-store');
     body = String(init?.body);

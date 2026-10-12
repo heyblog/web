@@ -37,6 +37,6 @@ Web 默认访问 `http://127.0.0.1:10101`。浏览器数据请求通过 Web 同�
 `Authorization: Bearer <API_HEALTHCHECK_TOKEN>`。
 开发邮件由 Mailpit 捕获，可在 `http://127.0.0.1:8025` 查看验证码和密码重置链接。
 本地 GitHub OAuth App 的 callback URL 应配置为
-`http://127.0.0.1:10101/auth/github/callback`；Web 收到回调后转发给私有 API。
+`http://127.0.0.1:10101/api/web/auth/github/callback`；Web 收到回调后转发给私有 API。
 
 开发环境准备、数据库变更和提交要求参见 [贡献指南](./CONTRIBUTING.md)。

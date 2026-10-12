@@ -5,7 +5,7 @@ export async function refreshHome(
   signal?: AbortSignal,
   fetcher: typeof fetch = fetch,
 ): Promise<HomeView> {
-  const response = await fetcher('/api/home', {
+  const response = await fetcher('/api/web/public/home', {
     cache: 'no-store',
     headers: { Accept: 'application/json' },
     signal,

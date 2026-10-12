@@ -41,11 +41,12 @@ func verifyAnnouncementManagement(ctx context.Context, t *testing.T, pool *pgxpo
 	if err != nil {
 		t.Fatal(err)
 	}
-	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "announcement-test", HealthcheckToken: "health-test", PublicViews: publicview.New(dbgen.New(pool), nil), HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
+	router, err := httpapi.NewRouter(httpapi.Options{WebToken: "announcement-test", HealthcheckToken: "health-test", HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	service := announcement.NewService(announcement.NewRepository(pool), announcementActor{auth.User{ID: actor.ID.String(), Role: auth.RoleSysAdmin}})
+	publicview.RegisterRoutes(router.API, "announcement-test", publicview.New(dbgen.New(pool), nil))
 	if err := announcement.RegisterRoutes(router.API, service, "announcement-test"); err != nil {
 		t.Fatal(err)
 	}
@@ -76,17 +77,17 @@ func verifyAnnouncementManagement(ctx context.Context, t *testing.T, pool *pgxpo
 	versionBody := func(version string) string { return `{"rowVersion":"` + version + `"}` }
 
 	// Given a manager creates a valid draft through the real HTTP adapter.
-	response := request(http.MethodPost, "/management/announcements", `{"kind":"MAIN","title":"Management lifecycle","bodyMarkdown":"**Published body**","priority":3,"actionType":"NONE","actionLabel":null,"actionPath":null,"actionExternalUrl":null,"startsAt":null,"endsAt":null}`)
+	response := request(http.MethodPost, "/api/web/management/announcements", `{"kind":"MAIN","title":"Management lifecycle","bodyMarkdown":"**Published body**","priority":3,"actionType":"NONE","actionLabel":null,"actionPath":null,"actionExternalUrl":null,"startsAt":null,"endsAt":null}`)
 	requireStatus(response, http.StatusCreated)
 	draft := decode(response)
-	path := "/management/announcements/" + draft.ID
-	requireStatus(request(http.MethodGet, "/announcements/"+draft.ID, ""), http.StatusNotFound)
+	path := "/api/web/management/announcements/" + draft.ID
+	requireStatus(request(http.MethodGet, "/api/web/public/announcements/"+draft.ID, ""), http.StatusNotFound)
 
 	// When it is published, edited and permanently archived.
 	response = request(http.MethodPost, path+"/publish", versionBody(draft.RowVersion))
 	requireStatus(response, http.StatusOK)
 	published := decode(response)
-	public := request(http.MethodGet, "/announcements/"+draft.ID, "")
+	public := request(http.MethodGet, "/api/web/public/announcements/"+draft.ID, "")
 	requireStatus(public, http.StatusOK)
 	if strings.Contains(public.Body.String(), "rowVersion") || strings.Contains(public.Body.String(), "createdBy") {
 		t.Fatal("public response exposes management fields")
@@ -122,12 +123,12 @@ func verifyAnnouncementManagement(ctx context.Context, t *testing.T, pool *pgxpo
 		t.Fatal(err)
 	}
 	requireStatus(request(http.MethodPut, path, string(body)), http.StatusConflict)
-	requireStatus(request(http.MethodGet, "/announcements/"+draft.ID, ""), http.StatusOK)
+	requireStatus(request(http.MethodGet, "/api/web/public/announcements/"+draft.ID, ""), http.StatusOK)
 
 	// Then concurrent banner publication permits exactly one overlapping interval.
 	drafts := make([]announcement.ManagedAnnouncement, 2)
 	for index := range drafts {
-		response = request(http.MethodPost, "/management/announcements", `{"kind":"BANNER","title":"Concurrent banner","bodyMarkdown":null,"priority":0,"actionType":"NONE","actionLabel":null,"actionPath":null,"actionExternalUrl":null,"startsAt":null,"endsAt":null}`)
+		response = request(http.MethodPost, "/api/web/management/announcements", `{"kind":"BANNER","title":"Concurrent banner","bodyMarkdown":null,"priority":0,"actionType":"NONE","actionLabel":null,"actionPath":null,"actionExternalUrl":null,"startsAt":null,"endsAt":null}`)
 		requireStatus(response, http.StatusCreated)
 		drafts[index] = decode(response)
 	}
@@ -135,7 +136,7 @@ func verifyAnnouncementManagement(ctx context.Context, t *testing.T, pool *pgxpo
 	results := make([]*httptest.ResponseRecorder, 2)
 	for index, draft := range drafts {
 		group.Go(func() {
-			results[index] = request(http.MethodPost, "/management/announcements/"+draft.ID+"/publish", `{"rowVersion":"`+draft.RowVersion+`","startsAt":"2050-01-01T00:00:00Z","endsAt":"2050-01-02T00:00:00Z"}`)
+			results[index] = request(http.MethodPost, "/api/web/management/announcements/"+draft.ID+"/publish", `{"rowVersion":"`+draft.RowVersion+`","startsAt":"2050-01-01T00:00:00Z","endsAt":"2050-01-02T00:00:00Z"}`)
 		})
 	}
 	group.Wait()
@@ -145,14 +146,14 @@ func verifyAnnouncementManagement(ctx context.Context, t *testing.T, pool *pgxpo
 		case http.StatusOK:
 			successes++
 			view := decode(result)
-			requireStatus(request(http.MethodPost, "/management/announcements/"+drafts[index].ID+"/archive", versionBody(view.RowVersion)), http.StatusOK)
-			requireStatus(request(http.MethodGet, "/announcements/"+view.ID, ""), http.StatusNotFound)
+			requireStatus(request(http.MethodPost, "/api/web/management/announcements/"+drafts[index].ID+"/archive", versionBody(view.RowVersion)), http.StatusOK)
+			requireStatus(request(http.MethodGet, "/api/web/public/announcements/"+view.ID, ""), http.StatusNotFound)
 		case http.StatusConflict:
 			conflicts++
 			if !strings.Contains(result.Body.String(), `"banner_window_conflict"`) {
 				t.Fatalf("unexpected banner conflict = %s", result.Body.String())
 			}
-			requireStatus(request(http.MethodDelete, "/management/announcements/"+drafts[index].ID, versionBody(drafts[index].RowVersion)), http.StatusNoContent)
+			requireStatus(request(http.MethodDelete, "/api/web/management/announcements/"+drafts[index].ID, versionBody(drafts[index].RowVersion)), http.StatusNoContent)
 		default:
 			t.Fatalf("concurrent banner status = %d body=%s", result.Code, result.Body.String())
 		}

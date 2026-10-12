@@ -84,7 +84,7 @@ func RegisterAPIKeyManagementRoutes(
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	operation := apiKeyManagementOperation(webToken)
-	issueOperation := operation("issue-api-client-key", http.MethodPost, "/management/api-clients/{id}/keys", "Issue an API client key")
+	issueOperation := operation("issue-api-client-key", http.MethodPost, "/api/web/management/api-clients/{id}/keys", "Issue an API client key")
 	issueOperation.DefaultStatus = http.StatusCreated
 	httpapi.Register(api, issueOperation, func(ctx context.Context, input *apiClientPathInput[apiKeyIssueRequest]) (*apiCredentialOutput, error) {
 		actor, err := sysAdmin(ctx, authService)
@@ -103,7 +103,7 @@ func RegisterAPIKeyManagementRoutes(
 		return output, nil
 	})
 
-	httpapi.Register(api, operation("list-api-clients", http.MethodGet, "/management/api-clients", "List API clients"), func(ctx context.Context, _ *emptyInput) (*apiClientsOutput, error) {
+	httpapi.Register(api, operation("list-api-clients", http.MethodGet, "/api/web/management/api-clients", "List API clients"), func(ctx context.Context, _ *emptyInput) (*apiClientsOutput, error) {
 		if _, err := sysAdmin(ctx, authService); err != nil {
 			return nil, err
 		}
@@ -116,7 +116,7 @@ func RegisterAPIKeyManagementRoutes(
 		return output, nil
 	})
 
-	httpapi.Register(api, operation("create-api-client", http.MethodPost, "/management/api-clients", "Create an API client"), func(ctx context.Context, input *bodyInput[apiClientCreateRequest]) (*apiCredentialOutput, error) {
+	httpapi.Register(api, operation("create-api-client", http.MethodPost, "/api/web/management/api-clients", "Create an API client"), func(ctx context.Context, input *bodyInput[apiClientCreateRequest]) (*apiCredentialOutput, error) {
 		actor, err := sysAdmin(ctx, authService)
 		if err != nil {
 			return nil, err
@@ -135,7 +135,7 @@ func RegisterAPIKeyManagementRoutes(
 		return output, nil
 	})
 
-	httpapi.Register(api, operation("update-api-client", http.MethodPatch, "/management/api-clients/{id}", "Update an API client"), func(ctx context.Context, input *apiClientPathInput[apiClientUpdateRequest]) (*apiClientOutput, error) {
+	httpapi.Register(api, operation("update-api-client", http.MethodPatch, "/api/web/management/api-clients/{id}", "Update an API client"), func(ctx context.Context, input *apiClientPathInput[apiClientUpdateRequest]) (*apiClientOutput, error) {
 		actor, err := sysAdmin(ctx, authService)
 		if err != nil {
 			return nil, err
@@ -153,7 +153,7 @@ func RegisterAPIKeyManagementRoutes(
 		return output, nil
 	})
 
-	httpapi.Register(api, operation("rotate-api-client-key", http.MethodPost, "/management/api-clients/{id}/rotate", "Rotate an API client key"), func(ctx context.Context, input *apiClientPathInput[apiKeyRotateRequest]) (*apiCredentialOutput, error) {
+	httpapi.Register(api, operation("rotate-api-client-key", http.MethodPost, "/api/web/management/api-clients/{id}/rotate", "Rotate an API client key"), func(ctx context.Context, input *apiClientPathInput[apiKeyRotateRequest]) (*apiCredentialOutput, error) {
 		actor, err := sysAdmin(ctx, authService)
 		if err != nil {
 			return nil, err
@@ -170,7 +170,7 @@ func RegisterAPIKeyManagementRoutes(
 		return output, nil
 	})
 
-	httpapi.Register(api, operation("revoke-api-key", http.MethodPost, "/management/api-keys/{id}/revoke", "Revoke an API key"), func(ctx context.Context, input *apiKeyPathInput) (*noContentOutput, error) {
+	httpapi.Register(api, operation("revoke-api-key", http.MethodPost, "/api/web/management/api-keys/{id}/revoke", "Revoke an API key"), func(ctx context.Context, input *apiKeyPathInput) (*noContentOutput, error) {
 		actor, err := sysAdmin(ctx, authService)
 		if err != nil {
 			return nil, err

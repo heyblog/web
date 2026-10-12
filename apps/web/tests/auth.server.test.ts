@@ -32,14 +32,14 @@ test('auth API forwards only service credentials and browser cookies', async () 
   try {
     // When
     const response = await requestAuthAPI(
-      new Request('https://web.example.test/auth/me', {
+      new Request('https://web.example.test/api/web/auth/me', {
         headers: { Cookie: 'heyblog_access_token=current', 'X-Real-IP': '203.0.113.10' },
       }),
-      '/auth/me',
+      '/api/web/auth/me',
     );
 
     // Then
-    assert.equal(upstreamRequest?.url, 'http://api.internal:10201/auth/me');
+    assert.equal(upstreamRequest?.url, 'http://api.internal:10201/api/web/auth/me');
     assert.equal(upstreamRequest?.headers.get('Cookie'), 'heyblog_access_token=current');
     assert.equal(
       upstreamRequest?.headers.get('X-HeyBlog-Web-Token'),
@@ -70,14 +70,17 @@ test('auth API gives the GitHub callback a longer timeout', async () => {
   try {
     // When
     await requestAuthAPI(
-      new Request('https://web.example.test/auth/github/callback'),
-      '/auth/github/callback?code=code&state=state',
+      new Request('https://web.example.test/api/web/auth/github/callback'),
+      '/api/web/auth/github/callback?code=code&state=state',
     );
 
     // Then
     assert.equal(requestedTimeout, 55_000);
 
-    await requestAuthAPI(new Request('https://web.example.test/auth/login'), '/auth/login');
+    await requestAuthAPI(
+      new Request('https://web.example.test/api/web/auth/login'),
+      '/api/web/auth/login',
+    );
     assert.equal(requestedTimeout, 10_000);
 
     for (const action of ['review', 'review-draft']) {
@@ -169,7 +172,7 @@ test('copySetCookie preserves multiple upstream cookie headers', () => {
 });
 
 test('OAuth start accepts only the GitHub authorization origin', () => {
-  const request = new Request('http://127.0.0.1:10101/auth/github/start');
+  const request = new Request('http://127.0.0.1:10101/api/web/auth/github/start');
 
   assert.equal(
     resolveOAuthLocation(
@@ -186,7 +189,9 @@ test('OAuth start accepts only the GitHub authorization origin', () => {
 });
 
 test('OAuth callback maps the API redirect back to the current Web origin', () => {
-  const request = new Request('http://127.0.0.1:10101/auth/github/callback?code=code&state=state');
+  const request = new Request(
+    'http://127.0.0.1:10101/api/web/auth/github/callback?code=code&state=state',
+  );
 
   assert.equal(
     resolveOAuthLocation(request, 'github/callback', 'http://api.internal:10201/dashboard'),

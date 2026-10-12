@@ -18,6 +18,8 @@ func poolConfig(input config.DatabaseConfig) (*pgxpool.Config, error) {
 		return nil, fmt.Errorf("parse runtime database URL: %w", err)
 	}
 
+	// Short OLTP queries spend more time compiling JIT code than executing it.
+	poolConfig.ConnConfig.RuntimeParams["jit"] = "off"
 	poolConfig.MaxConns = input.MaxConnections
 	poolConfig.MinConns = input.MinConnections
 	poolConfig.MaxConnLifetime = input.MaxConnectionLifetime

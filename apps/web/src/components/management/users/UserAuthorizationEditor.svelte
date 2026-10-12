@@ -102,7 +102,7 @@
     <p class="mt-2 mb-5 text-sm text-fg-muted">管理员可获得模块权限。</p>
     <form
       method="post"
-      action={`/management/users/${draft.saved.id}/role`}
+      action={`/api/web/management/users/${draft.saved.id}/role`}
       onsubmit={(event) => {
         event.preventDefault();
         void submit('role');
@@ -184,7 +184,7 @@
     {:else if dirty.role}<p class="mb-4 text-sm text-fg-muted">请先保存或撤销角色修改。</p>{/if}
     <form
       method="post"
-      action={`/management/users/${draft.saved.id}/permissions`}
+      action={`/api/web/management/users/${draft.saved.id}/permissions`}
       onsubmit={(event) => {
         event.preventDefault();
         void submit('permissions');

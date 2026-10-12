@@ -18,7 +18,7 @@ if (!(
   return Astro.redirect('/forbidden');
 const response = await requestAuthAPI(
   Astro.request,
-  `/management/site-claims/${Astro.params.claimId ?? ''}`,
+  `/api/web/management/site-claims/${Astro.params.claimId ?? ''}`,
 );
 if (response.status === 404) return Astro.redirect('/management/site-claims');
 const claim = response.ok ? parseClaim(await response.json()) : null;

@@ -23,7 +23,7 @@ export function createAnnouncementTransport(fetcher: typeof fetch = fetch) {
   async function request(path: string, method = 'GET', body?: object): Promise<Response> {
     let response: Response;
     try {
-      response = await fetcher(`/management/announcements/data${path}`, {
+      response = await fetcher(`/api/web/management/announcements/data${path}`, {
         method,
         credentials: 'same-origin',
         cache: 'no-store',

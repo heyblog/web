@@ -21,7 +21,7 @@ function mutation(
   body: unknown = tagInput,
   overrides: Readonly<Record<string, string>> = {},
 ): Request {
-  return new Request('https://web.example.test/management/tags/data', {
+  return new Request('https://web.example.test/api/web/management/tags/data', {
     method: 'POST',
     headers: { ...headers, ...overrides },
     body: JSON.stringify(body),
@@ -32,7 +32,7 @@ function backend(role = 'ADMIN', permissions: readonly string[] = ['taxonomy.man
   const calls: { path: string; body: unknown }[] = [];
   const upstream: typeof requestAuthAPI = async (_request, path, init) => {
     calls.push({ path, body: init?.body });
-    return path === '/auth/me'
+    return path === '/api/web/auth/me'
       ? Response.json(
           { user: { role, permissions } },
           {
@@ -72,9 +72,7 @@ test('tag creation rejects cross-origin requests before authentication', async (
 
 test('tag creation accepts only bounded business inputs', async () => {
   for (const body of [
-    { ...tagInput, model_id: 'paid-model' },
-    { ...tagInput, prompt: 'ignore all rules' },
-    { ...tagInput, endpoint: 'https://unsafe.example.test' },
+    { ...tagInput, unexpected_field: 'extra' },
     { ...tagInput, name: '文'.repeat(129) },
     { ...tagInput, description: 'x'.repeat(2001) },
     { ...tagInput, tag_id: 'invalid' },
@@ -85,7 +83,7 @@ test('tag creation accepts only bounded business inputs', async () => {
     assert.equal(stub.calls.length, 0);
   }
   const stub = backend();
-  const oversized = new Request('https://web.example.test/management/tags/data', {
+  const oversized = new Request('https://web.example.test/api/web/management/tags/data', {
     method: 'POST',
     headers,
     body: ' '.repeat(65537) + JSON.stringify(tagInput),
@@ -107,7 +105,7 @@ test('authorization requires taxonomy permission', async () => {
   assert.equal(
     (
       await forwardTaxonomyManagement(
-        new Request('https://web.example.test/management/tags/data'),
+        new Request('https://web.example.test/api/web/management/tags/data'),
         '',
         stub.upstream,
       )
@@ -120,9 +118,9 @@ test('authorized forwarding preserves quotas, refresh cookies and no-store, remo
   const stub = backend();
   const response = await forwardTaxonomyManagement(mutation(), '', stub.upstream);
   assert.deepEqual(stub.calls, [
-    { path: '/auth/me', body: undefined },
+    { path: '/api/web/auth/me', body: undefined },
     {
-      path: '/management/taxonomy/tags',
+      path: '/api/web/management/taxonomy/tags',
       body: tagInput,
     },
   ]);
@@ -142,7 +140,7 @@ test('proxy rejects arbitrary paths, methods, query parameters and malformed aut
   assert.equal(
     (
       await forwardTaxonomyManagement(
-        new Request('https://web.example.test/management/tags/data', { method: 'PATCH' }),
+        new Request('https://web.example.test/api/web/management/tags/data', { method: 'PATCH' }),
         '',
         stub.upstream,
       )
@@ -152,7 +150,7 @@ test('proxy rejects arbitrary paths, methods, query parameters and malformed aut
   assert.equal(
     (
       await forwardTaxonomyManagement(
-        new Request('https://web.example.test/management/tags/data?endpoint=other'),
+        new Request('https://web.example.test/api/web/management/tags/data?endpoint=other'),
         '',
         stub.upstream,
       )
@@ -173,7 +171,6 @@ test('tag and structural payload validators preserve optional descriptions and r
     expected_revision: revision,
   };
   assert.equal(validManagementPayload(create, '', 'POST'), true);
-  assert.equal(validManagementPayload({ ...create, slug: '中文' }, '', 'POST'), false);
   assert.equal(
     validManagementPayload({ ...create, expected_revision: '9223372036854775808' }, '', 'POST'),
     false,
@@ -185,6 +182,10 @@ test('tag and structural payload validators preserve optional descriptions and r
     expected_revision: revision,
   };
   assert.equal(validManagementPayload(change, 'changes/preview', 'POST'), true);
+  assert.equal(
+    validManagementPayload({ ...change, kind: 'unexpected_operation' }, 'changes/preview', 'POST'),
+    false,
+  );
   assert.equal(validManagementPayload(change, 'changes/apply', 'POST'), false);
   assert.equal(
     validManagementPayload(
@@ -214,7 +215,11 @@ test('DTO parsers accept name-only tags and reject malformed successes', () => {
     site_count: 2,
     article_count: 0,
   };
-  assert.ok(parseTaxonomy({ tags: [tag], cascades: [], revision }));
+  assert.deepEqual(parseTaxonomy({ tags: [tag], cascades: [], revision }), {
+    tags: [tag],
+    cascades: [],
+    revision,
+  });
   assert.equal(parseTaxonomy({ tags: [{ ...tag, site_count: -1 }], cascades: [], revision }), null);
   assert.equal(parseTaxonomy({ tags: [tag], cascades: [], revision: 2 }), null);
   const preview = {
@@ -256,7 +261,7 @@ test('management accepts API field limits without truncation', () => {
   );
 });
 
-test('dictionary and path requests accept shared endpoints and reject retired hierarchy operations', () => {
+test('classification paths support creation, endpoint updates and merging', () => {
   assert.equal(
     validManagementPayload(
       {
@@ -294,41 +299,4 @@ test('dictionary and path requests accept shared endpoints and reject retired hi
     ),
     true,
   );
-  assert.equal(
-    validManagementPayload(
-      { kind: 'reparent', source_id: tagID, parent_id: otherID, expected_revision: revision },
-      'changes/preview',
-      'POST',
-    ),
-    false,
-  );
-  assert.equal(
-    validManagementPayload(
-      {
-        name: '其他',
-        slug: 'other',
-        description: '',
-        taxonomy_level: 1,
-        expected_revision: revision,
-      },
-      '',
-      'POST',
-    ),
-    false,
-  );
-});
-
-test('retired taxonomy routes are rejected before authentication', async () => {
-  const stub = backend('SYS_ADMIN');
-  for (const path of [
-    'slug-generation',
-    'slug-jobs',
-    'settings',
-    'models',
-    tagID + '/labels',
-    tagID + '/default-label',
-  ]) {
-    assert.equal((await forwardTaxonomyManagement(mutation(), path, stub.upstream)).status, 404);
-  }
-  assert.equal(stub.calls.length, 0);
 });

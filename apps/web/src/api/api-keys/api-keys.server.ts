@@ -26,7 +26,7 @@ export function invalidRequest(): Response {
 }
 
 export async function listApiClients(request: Request): Promise<ApiClientsResponse> {
-  const response = await requestAuthAPI(request, '/management/api-clients');
+  const response = await requestAuthAPI(request, '/api/web/management/api-clients');
   if (!response.ok) throw new Error('failed to list API clients');
   const clients = parseClients(await response.json());
   if (clients === null) throw new Error('invalid API clients response');
@@ -37,7 +37,7 @@ export async function createApiClient(
   request: Request,
   body: Readonly<Record<string, unknown>>,
 ): Promise<Response> {
-  return requestAuthAPI(request, '/management/api-clients', { method: 'POST', body });
+  return requestAuthAPI(request, '/api/web/management/api-clients', { method: 'POST', body });
 }
 
 export async function updateApiClient(
@@ -45,7 +45,7 @@ export async function updateApiClient(
   clientId: string,
   body: Readonly<Record<string, unknown>>,
 ): Promise<Response> {
-  return requestAuthAPI(request, `/management/api-clients/${clientId}`, {
+  return requestAuthAPI(request, `/api/web/management/api-clients/${clientId}`, {
     method: 'PATCH',
     body,
   });
@@ -56,14 +56,16 @@ export async function rotateApiClient(
   clientId: string,
   overlapHours: number,
 ): Promise<Response> {
-  return requestAuthAPI(request, `/management/api-clients/${clientId}/rotate`, {
+  return requestAuthAPI(request, `/api/web/management/api-clients/${clientId}/rotate`, {
     method: 'POST',
     body: { overlap_hours: overlapHours },
   });
 }
 
 export async function revokeApiKey(request: Request, keyId: string): Promise<Response> {
-  return requestAuthAPI(request, `/management/api-keys/${keyId}/revoke`, { method: 'POST' });
+  return requestAuthAPI(request, `/api/web/management/api-keys/${keyId}/revoke`, {
+    method: 'POST',
+  });
 }
 
 export async function issueApiKey(
@@ -71,7 +73,7 @@ export async function issueApiKey(
   clientId: string,
   body: ApiKeyIssuePayload,
 ): Promise<Response> {
-  return requestAuthAPI(request, `/management/api-clients/${clientId}/keys`, {
+  return requestAuthAPI(request, `/api/web/management/api-clients/${clientId}/keys`, {
     method: 'POST',
     body: { ...body },
   });
