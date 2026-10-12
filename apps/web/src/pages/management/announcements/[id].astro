@@ -5,14 +5,13 @@ import {
 } from '@/api/announcements/announcements.server';
 import { isUUID } from '@/api/announcements/announcements.types';
 import { canManageAnnouncements } from '@/application/announcements/announcement-editor.shared';
-import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
 import AnnouncementEditor from '@/components/management/announcements/AnnouncementEditor.svelte';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
-const actor = await readSessionUser(Astro.request);
+const actor = Astro.locals.sessionUser;
 if (!actor) return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 if (!canManageAnnouncements(actor)) return Astro.redirect('/forbidden');
 const id = Astro.params.id ?? '';

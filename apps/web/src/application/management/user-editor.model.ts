@@ -52,7 +52,7 @@ export function prepareAuthorization(
   if (kind === 'role') {
     if (access.roleReason || !dirty.role || dirty.permissions || draft.role === 'SYS_ADMIN')
       return null;
-    return { kind, role: draft.role };
+    return { kind, role: draft.role, updated_at: draft.saved.updated_at };
   }
   if (access.permissionsReason || !dirty.permissions || dirty.role) return null;
   if (
@@ -60,7 +60,7 @@ export function prepareAuthorization(
     draft.permissions.some((permission) => !actor.permissions.includes(permission))
   )
     return null;
-  return { kind, permissions: draft.permissions };
+  return { kind, permissions: draft.permissions, updated_at: draft.saved.updated_at };
 }
 
 export function finishAuthorization(draft: UserDraft, result: AuthorizationResult): UserDraft {

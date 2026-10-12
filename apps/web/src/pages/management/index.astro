@@ -1,0 +1,55 @@
+---
+import { managementNavigation } from '@/application/management/navigation';
+import { roleLabels } from '@/application/management/users.model';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = Astro.locals.sessionUser;
+if (!user) return Astro.redirect('/login?next=%2Fmanagement');
+const navigation = [...managementNavigation(user)];
+if (!navigation.length) return Astro.redirect('/forbidden');
+const groups = [
+  { title: '站点审核', paths: ['/management/site-claims', '/management/site-submissions'] },
+  { title: '内容管理', paths: ['/management/tags', '/management/announcements'] },
+  {
+    title: '系统管理',
+    paths: ['/management/users', '/management/database-backup', '/management/api-keys'],
+  },
+];
+---
+
+<ManagementLayout
+  title="管理工作区"
+  heading="管理首页"
+  currentPath={Astro.url.pathname}
+  {navigation}
+  identity={{
+    displayName: user.display_name,
+    email: user.email ?? '',
+    roleLabel: roleLabels[user.role],
+  }}
+>
+  <div class="grid gap-12">
+    {groups.map((group) => {
+      const items = navigation.filter((item) => group.paths.includes(item.href));
+      return (
+        items.length > 0 && (
+          <section class="grid gap-4">
+            <h2 class="text-xl font-semibold">{group.title}</h2>
+            <div class="grid gap-4 sm:grid-cols-2">
+              {items.map((item) => (
+                <a
+                  class="grid gap-2 rounded-md border border-line bg-surface p-6 transition-colors hover:bg-subtle"
+                  href={item.href}
+                >
+                  <strong class="text-base font-semibold">{item.label}</strong>
+                  <span class="text-sm text-fg-muted">{item.description}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      );
+    })}
+  </div>
+</ManagementLayout>

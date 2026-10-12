@@ -21,7 +21,14 @@
     >
   </div>
   <div class="mt-4 flex flex-wrap gap-3 text-xs text-fg-muted">
-    <span class={user.active ? 'text-success-fg' : ''}>{user.active ? '账号可用' : '账号停用'}</span
+    <span class={user.active ? 'text-success-fg' : ''}
+      >{user.deletion_pending
+        ? '正在注销'
+        : user.access_status === 'ACTIVE'
+          ? '账号可用'
+          : user.access_status === 'SUSPENDED'
+            ? '账号停用'
+            : '正在注销'}</span
     >
     <span>{user.email_verified ? '邮箱已验证' : '邮箱未验证'}</span>
     {#if actor.id === user.id}<span>当前账号</span>{/if}

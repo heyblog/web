@@ -1,0 +1,30 @@
+---
+import { safeNext } from '@/application/auth/auth.server';
+import ProfileForm from '@/components/auth/ProfileForm.svelte';
+import AuthLayout from '@/layouts/AuthLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = Astro.locals.sessionUser;
+const requested = safeNext(Astro.url.searchParams.get('next'));
+const next = requested.startsWith('/complete-profile') ? '/dashboard' : requested;
+if (!user)
+  return Astro.redirect(
+    `/login?next=${encodeURIComponent(`/complete-profile?next=${encodeURIComponent(next)}`)}`,
+  );
+if (!user.profile_confirmation_required) return Astro.redirect(next);
+---
+
+<AuthLayout title="确认资料 | HeyBlog" heading="确认账号资料">
+  <ProfileForm {user} kind="confirm" {next} client:load />
+  <nav class="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm" aria-label="账号操作">
+    <a class="inline-flex min-h-11 items-center text-tint-fg hover:underline" href="/">
+      浏览首页
+    </a>
+    <form method="post" action="/api/web/auth/logout">
+      <button class="min-h-11 text-fg-muted hover:text-fg" type="submit">
+        退出登录
+      </button>
+    </form>
+  </nav>
+</AuthLayout>

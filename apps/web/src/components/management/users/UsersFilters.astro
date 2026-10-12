@@ -5,9 +5,9 @@ import { buttonClass, inputClass } from './users.styles';
 interface Props {
   q: string;
   role: string;
-  state: string;
+  status: string;
 }
-const { q, role, state } = Astro.props;
+const { q, role, status } = Astro.props;
 ---
 
 <form
@@ -32,12 +32,12 @@ const { q, role, state } = Astro.props;
   </label>
   <label class="grid gap-2 text-sm font-medium">
     账号状态
-    <select class={inputClass} name="state">
+    <select class={inputClass} name="status">
       <option value="">全部状态</option>
-      <option value="active" selected={state === 'active'}>
+      <option value="ACTIVE" selected={status === 'ACTIVE'}>
         可用
       </option>
-      <option value="inactive" selected={state === 'inactive'}>
+      <option value="SUSPENDED" selected={status === 'SUSPENDED'}>
         停用
       </option>
     </select>

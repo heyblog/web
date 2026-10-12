@@ -15,7 +15,7 @@
   interface Props {
     tag: ManagedTag;
     data: TaxonomyData;
-    onsaved: (data: TaxonomyData) => void;
+    onsaved: (data: TaxonomyData, retainedID?: string) => void;
     onbusy: (busy: boolean) => void;
     ondirty: (dirty: boolean) => void;
   }
@@ -68,7 +68,7 @@
     error = '';
     const result = await applyChange(previewInput, preview.fingerprint);
     pending = false;
-    if (result.ok) onsaved(result.value);
+    if (result.ok) onsaved(result.value, targetID);
     else {
       invalidate();
       error = taxonomyMessage(result.code);
@@ -79,7 +79,7 @@
 <section bind:this={section} class="grid gap-5" aria-busy={pending}>
   <p class="text-sm text-fg-muted">合并后，原标签的引用将指向保留的标签。</p>
   {#if confirmApply && preview}
-    <h3 class="text-base font-semibold" tabindex="-1">确认应用这次迁移？</h3>
+    <h3 class="text-base font-semibold" tabindex="-1">确认应用这次合并？</h3>
     <p class="text-sm">
       将影响 {preview.site_count} 个站点、{preview.article_count} 篇文章，移除 {preview.removed_duplicates}
       个重复引用。
@@ -92,7 +92,7 @@
         onclick={() => confirmation(false)}>返回预览</button
       >
       <button class={primaryClass} type="button" disabled={pending} onclick={apply}
-        >{pending ? '正在迁移…' : '确认迁移'}</button
+        >{pending ? '正在合并…' : '确认合并'}</button
       >
     </div>
   {:else}
@@ -111,12 +111,12 @@
     <button
       class={preview && !preview.blockers.length ? outlineClass : primaryClass}
       type="button"
-      disabled={pending}
-      onclick={inspect}>{pending ? '正在预览…' : '预览迁移影响'}</button
+      disabled={pending || !targetID}
+      onclick={inspect}>{pending ? '正在预览…' : '预览合并影响'}</button
     >
     {#if preview}
       <div class="grid gap-3 rounded-md border border-line bg-subtle p-4" role="status">
-        <h3 class="text-sm font-semibold">迁移影响</h3>
+        <h3 class="text-sm font-semibold">合并影响</h3>
         {#if !preview.blockers.length}<p class="text-sm">
             {preview.site_count} 个站点 · {preview.article_count} 篇文章 · {preview.removed_duplicates}
             个重复引用
@@ -127,7 +127,7 @@
               </li>{/each}
           </ul>{/if}
         {#if preview.blockers.length}
-          <p class="text-sm">完善迁移目标后，请重新预览完整影响。</p>
+          <p class="text-sm">完善合并目标后，请重新预览完整影响。</p>
           <ul class="grid list-disc gap-2 pl-5 text-sm text-warning-fg">
             {#each preview.blockers as blocker (blocker)}<li>{taxonomyBlocker(blocker)}</li>{/each}
           </ul>
@@ -136,7 +136,7 @@
             class={primaryClass}
             type="button"
             disabled={pending}
-            onclick={() => confirmation(true)}>应用迁移</button
+            onclick={() => confirmation(true)}>应用合并</button
           >
         {/if}
       </div>

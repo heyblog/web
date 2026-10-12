@@ -7,6 +7,7 @@
 
   import CascadeManager from './CascadeManager.svelte';
   import TagEditor from './TagEditor.svelte';
+  import { fadeDialogOut } from './tags.dialog.browser';
   import { inputClass, outlineClass, primaryClass } from './tags.styles';
   import TaxonomyChange from './TaxonomyChange.svelte';
 
@@ -28,7 +29,9 @@
   let panel = $state<'edit' | 'change'>('edit');
   let nextPanel = $state<'edit' | 'change' | 'close' | null>(null);
   let busy = $state(false);
+  let pathLocked = $state(false);
   let dirty = $state(false);
+  let closing = $state(false);
   let dialog: HTMLDialogElement;
   let trigger: HTMLElement | null = null;
   let canonical = $derived(data?.tags ?? []);
@@ -42,7 +45,7 @@
   );
 
   async function refresh(): Promise<void> {
-    if (loading || opened) return;
+    if (loading || opened || pathLocked) return;
     loading = true;
     error = '';
     const result = await readTaxonomy();
@@ -52,7 +55,7 @@
   }
 
   async function open(tag: ManagedTag | null, event: MouseEvent): Promise<void> {
-    if (loading || opened) return;
+    if (loading || opened || pathLocked) return;
     selected = tag;
     trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     dirty = false;
@@ -66,7 +69,12 @@
   }
 
   async function navigate(target: 'edit' | 'change' | 'close'): Promise<void> {
-    if (busy) return;
+    if (busy || closing) return;
+    if (nextPanel) {
+      nextPanel = null;
+      await focusStep();
+      return;
+    }
     if (dirty) {
       nextPanel = target;
       await focusStep();
@@ -82,7 +90,10 @@
     nextPanel = null;
     dirty = false;
     if (target === 'close') {
+      closing = true;
+      await fadeDialogOut(dialog);
       dialog.close();
+      closing = false;
       opened = false;
       await tick();
       if (trigger?.isConnected && !document.querySelector('dialog:modal')) {
@@ -94,12 +105,19 @@
     }
   }
 
-  function saved(value: TaxonomyData): void {
+  function saved(value: TaxonomyData, retainedID?: string): void {
     data = value;
-    message = '标签已更新。';
+    message = retainedID ? '标签已合并。' : '标签已更新。';
+    if (retainedID) {
+      search = '';
+      roleFilter = '';
+      statusFilter = 'all';
+    }
     dirty = false;
     busy = false;
-    void completeNavigation('close');
+    void completeNavigation('close').then(() => {
+      if (retainedID) document.getElementById(`tag-${retainedID}`)?.focus();
+    });
   }
 </script>
 
@@ -112,15 +130,18 @@
         </p>{/if}
     </div>
     <div class="flex gap-3">
-      <button class={outlineClass} type="button" disabled={loading || opened} onclick={refresh}
-        >{loading ? '正在加载…' : '刷新'}</button
-      >
       <button
-        class={primaryClass}
+        class={outlineClass}
         type="button"
-        disabled={!data || loading || opened}
-        onclick={(event) => open(null, event)}>新建标签</button
+        disabled={loading || opened || pathLocked}
+        onclick={refresh}>{loading ? '正在加载…' : '刷新'}</button
       >
+      {#if view === 'tags'}<button
+          class={primaryClass}
+          type="button"
+          disabled={!data || loading || opened || pathLocked}
+          onclick={(event) => open(null, event)}>新建标签</button
+        >{/if}
     </div>
   </header>
   {#if error}<p
@@ -136,17 +157,23 @@
         class={outlineClass}
         type="button"
         aria-pressed={view === 'tags'}
+        disabled={loading || opened || pathLocked}
         onclick={() => (view = 'tags')}>标签字典</button
       >
       <button
         class={outlineClass}
         type="button"
         aria-pressed={view === 'paths'}
+        disabled={loading || opened || pathLocked}
         onclick={() => (view = 'paths')}>分类路径</button
       >
     </nav>
     {#if view === 'paths'}
-      <CascadeManager {data} onsaved={(value) => (data = value)} />
+      <CascadeManager
+        {data}
+        onlock={(value) => (pathLocked = value)}
+        onsaved={(value) => (data = value)}
+      />
     {:else}
       <div class="grid min-w-0 gap-6">
         <section class="grid min-w-0 content-start gap-4" aria-label="标签列表" aria-busy={loading}>
@@ -163,7 +190,8 @@
               >使用角色<select class={inputClass} bind:value={roleFilter}
                 ><option value="">全部角色</option><option value="PRIMARY">一级分类</option><option
                   value="SECONDARY">二级分类</option
-                ><option value="TERTIARY">三级标签</option></select
+                ><option value="TERTIARY">三级标签</option><option value="WARNING">警告标签</option
+                ></select
               ></label
             >
             <label class="grid gap-1.5 text-sm"
@@ -225,7 +253,8 @@
                         class="min-h-11 rounded-md px-3 text-sm text-tint-fg hover:bg-subtle"
                         type="button"
                         aria-label={`管理标签 ${tag.name}`}
-                        disabled={loading || opened}
+                        id={`tag-${tag.id}`}
+                        disabled={loading || opened || pathLocked}
                         onclick={(event) => open(tag, event)}>管理</button
                       ></td
                     >
@@ -249,6 +278,13 @@
   class={selected
     ? 'fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-dvh w-full max-w-full border-l border-line bg-surface p-0 text-fg shadow-md backdrop:bg-overlay sm:w-120'
     : 'm-auto max-h-[calc(100dvh-2rem)] w-[min(calc(100%-2rem),30rem)] rounded-md border border-line bg-surface p-0 text-fg shadow-md backdrop:bg-overlay'}
+  onkeydown={(event) => {
+    if (event.key === 'Escape' && !event.isComposing) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!event.repeat) void navigate('close');
+    }
+  }}
   oncancel={(event) => {
     event.preventDefault();
     void navigate('close');
@@ -277,8 +313,11 @@
             {nextPanel ? '当前填写内容尚未保存。' : panel === 'change' ? '合并标签' : '标签信息'}
           </p>
         </div>
-        <button class={outlineClass} type="button" disabled={busy} onclick={() => navigate('close')}
-          >关闭</button
+        <button
+          class={outlineClass}
+          type="button"
+          disabled={busy || closing}
+          onclick={() => navigate('close')}>关闭</button
         >
       </header>
       <div class="min-h-0 overflow-y-auto p-6">
@@ -335,3 +374,27 @@
     </div>
   {/if}
 </dialog>
+
+<style>
+  dialog[open] {
+    animation: panel-enter var(--motion-base) var(--ease-out);
+  }
+
+  @keyframes panel-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open] {
+      animation: none;
+    }
+  }
+</style>

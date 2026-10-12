@@ -53,7 +53,7 @@ export interface BackupIssue {
 export interface BackupInspection {
   readonly sha256: string;
   readonly version: 1;
-  readonly schema_version: 3;
+  readonly schema_version: 3 | 4;
   readonly generated_at: string;
   readonly excluded_system_admin_id: string;
   readonly retained_system_admin_id: string;
@@ -130,7 +130,7 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
     !isRecord(value) ||
     !isHash(value.sha256) ||
     value.version !== 1 ||
-    value.schema_version !== 3 ||
+    (value.schema_version !== 3 && value.schema_version !== 4) ||
     typeof value.generated_at !== 'string' ||
     !Number.isFinite(Date.parse(value.generated_at)) ||
     !isUUID(value.excluded_system_admin_id) ||
@@ -152,7 +152,7 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
   return {
     sha256: value.sha256,
     version: 1,
-    schema_version: 3,
+    schema_version: value.schema_version,
     generated_at: value.generated_at,
     excluded_system_admin_id: value.excluded_system_admin_id,
     retained_system_admin_id: value.retained_system_admin_id,

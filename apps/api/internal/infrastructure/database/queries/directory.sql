@@ -315,6 +315,9 @@ SELECT tag.id, tag.name, tag.name AS value, counts.role, counts.normal_count, co
   FROM counts JOIN directory.tags AS tag ON tag.id = counts.tag_id
  ORDER BY counts.role, normal_count DESC, abnormal_count DESC, tag.name, tag.id;
 
+-- name: GetDirectoryTaxonomyRevision :one
+SELECT revision FROM runtime_cache.taxonomy_revision WHERE singleton;
+
 -- name: ListDirectoryTechnologyOptions :many
 SELECT component.name, component.normalized_name,
        count(DISTINCT assignment.site_id) FILTER (

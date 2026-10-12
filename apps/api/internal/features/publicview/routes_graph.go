@@ -12,9 +12,15 @@ import (
 )
 
 type graphOutput struct {
-	CacheControl string `header:"Cache-Control"`
-	ContentType  string `header:"Content-Type"`
-	Body         []byte
+	CacheControl    string `header:"Cache-Control"`
+	ContentType     string `header:"Content-Type"`
+	ContentEncoding string `header:"Content-Encoding"`
+	Vary            string `header:"Vary"`
+	Body            []byte
+}
+
+type graphInput struct {
+	AcceptEncoding string `header:"Accept-Encoding"`
 }
 
 func registerGraphRoutes(api huma.API, webToken string, reader Reader) {
@@ -30,7 +36,7 @@ func registerGraphRoutes(api huma.API, webToken string, reader Reader) {
 		"application/json": {Schema: api.OpenAPI().Components.Schemas.Schema(reflect.TypeFor[FriendGraph](), true, "")},
 	}}}
 	httpapi.Register(api, global,
-		func(ctx context.Context, _ *publicViewInput) (*graphOutput, error) {
+		func(ctx context.Context, input *graphInput) (*graphOutput, error) {
 			graph, err := reader.Graph(ctx)
 			if err != nil {
 				return nil, err
@@ -42,7 +48,18 @@ func registerGraphRoutes(api huma.API, webToken string, reader Reader) {
 					return nil, internalError(err, "encode friend graph")
 				}
 			}
-			return &graphOutput{CacheControl: "no-store", ContentType: "application/json", Body: body}, nil
+			encoding := ""
+			if acceptsGzip(input.AcceptEncoding) {
+				compressed := graph.gzipEncoded
+				if compressed == nil {
+					compressed, err = encodeCompressedGraph(body)
+					if err != nil {
+						return nil, internalError(err, "compress friend graph")
+					}
+				}
+				body, encoding = compressed, "gzip"
+			}
+			return &graphOutput{CacheControl: "no-store", ContentType: "application/json", ContentEncoding: encoding, Vary: "Accept-Encoding", Body: body}, nil
 		})
 	httpapi.Register(api, operation("get-site-friend-graph", "/api/web/public/sites/id/{identifier}/graph", "Get a site's direct friend-link graph"),
 		func(ctx context.Context, input *siteIdentifierInput) (*publicViewOutput[FriendGraph], error) {

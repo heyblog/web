@@ -29,6 +29,7 @@
   let pending = $state(false);
   $effect(() => protectReviewRequest(() => pending));
   let error = $state('');
+  let reloadRequired = $state(false);
 
   applySnapshot(
     form,
@@ -37,7 +38,7 @@
   );
 
   async function save(): Promise<void> {
-    if (pending) return;
+    if (pending || reloadRequired) return;
     for (let step = 0; step < 3; step += 1) {
       const result = validateSubmissionStep(detail.action, form, step);
       if (!result.valid) {
@@ -47,19 +48,31 @@
     }
     pending = true;
     error = '';
-    const response = await requestReviewDraft(detail.id, {
-      site: buildSubmissionPayload(form, detail.action).site,
-      expected_site_revision: detail.current_snapshot.revision ?? 0,
-      expected_review_draft_revision: detail.review_draft_revision,
-    });
-    pending = false;
-    if (!response.ok) {
-      error = await problemDetail(response);
-      return;
+    try {
+      const response = await requestReviewDraft(detail.id, {
+        site: buildSubmissionPayload(form, detail.action).site,
+        expected_site_revision: detail.current_snapshot.revision ?? 0,
+        expected_review_draft_revision: detail.review_draft_revision,
+      });
+      if (!response.ok) {
+        reloadRequired = response.status >= 500 || response.status === 409;
+        error = await problemDetail(response);
+        return;
+      }
+      window.location.assign(returnPath);
+    } catch {
+      reloadRequired = true;
+      error = '连接中断，提交结果尚未确认。请重新加载核实后继续。';
+    } finally {
+      pending = false;
     }
-    window.location.assign(returnPath);
   }
 </script>
+
+{#if reloadRequired}<a
+    class="inline-flex min-h-11 items-center text-sm text-tint-fg underline"
+    href={typeof window !== 'undefined' ? window.location.href : returnPath}>重新加载并核实结果</a
+  >{/if}
 
 <fieldset class="grid min-w-0 gap-6" disabled={pending} aria-busy={pending}>
   <section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
@@ -118,7 +131,7 @@
     <button
       class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
       type="button"
-      disabled={pending}
+      disabled={pending || reloadRequired}
       onclick={save}>{pending ? '保存中…' : '保存修正并返回'}</button
     >
   </div>

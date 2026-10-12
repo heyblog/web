@@ -1,7 +1,7 @@
 ---
 import { managementNavigation } from '@/application/management/navigation';
 import { authorizationError } from '@/application/management/users.messages';
-import { filterUsers, roleLabels, usersListPath } from '@/application/management/users.model';
+import { roleLabels, usersListPath, usersQuery } from '@/application/management/users.model';
 import { loadUsersPage } from '@/application/management/users-page.server';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import { buttonClass } from '@/components/management/users/users.styles';
@@ -10,7 +10,7 @@ import UsersList from '@/components/management/users/UsersList.astro';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
-const result = await loadUsersPage(Astro.request);
+const result = await loadUsersPage(Astro.request, Astro.locals.sessionUser);
 if (result.kind === 'redirect') {
   const headers = new Headers(result.headers);
   headers.set('Location', result.location);
@@ -23,11 +23,20 @@ for (const cookie of result.headers.getSetCookie())
   Astro.response.headers.append('Set-Cookie', cookie);
 if (result.kind === 'error') Astro.response.status = result.status;
 const actor = result.actor;
-const list = filterUsers(result.kind === 'ready' ? result.users : [], Astro.url.searchParams);
+const query = usersQuery(Astro.url.searchParams);
+const list = {
+  q: query.get('q') ?? '',
+  role: query.get('role') ?? '',
+  status: query.get('status') ?? '',
+  users: result.kind === 'ready' ? result.users : [],
+  total: result.kind === 'ready' ? result.total : 0,
+  page: result.kind === 'ready' ? result.page : 1,
+  pages: result.kind === 'ready' ? Math.max(1, Math.ceil(result.total / result.page_size)) : 1,
+};
 const listQuery = new URLSearchParams({
   q: list.q,
   role: list.role,
-  state: list.state,
+  status: list.status,
   page: String(list.page),
 });
 const returnPath = usersListPath(listQuery);
@@ -37,8 +46,8 @@ const error = Astro.url.searchParams.get('error');
 ---
 
 <ManagementLayout
-  title="用户与授权 | HeyBlog"
-  heading="用户与授权"
+  title="用户管理 | HeyBlog"
+  heading="用户管理"
   currentPath={Astro.url.pathname}
   identity={
     actor
@@ -66,12 +75,17 @@ const error = Astro.url.searchParams.get('error');
         message={Astro.url.searchParams.get('status') === 'updated' ? '授权已更新。' : null}
         kind="success"
       />
-      <UsersFilters q={list.q} role={list.role} state={list.state} />
+      <div class="mb-6 flex justify-end">
+        <a class={buttonClass} href="/management/users/new">
+          创建用户
+        </a>
+      </div>
+      <UsersFilters q={list.q} role={list.role} status={list.status} />
       <div class="mb-3 flex min-h-10 flex-wrap items-center justify-between gap-3 text-sm">
         <p class="text-fg-muted">
           共 <span class="font-medium text-fg">{list.total}</span> 位用户
         </p>
-        {(list.q || list.role || list.state) && (
+        {(list.q || list.role || list.status) && (
           <a
             class="inline-flex min-h-11 items-center text-tint-fg hover:underline sm:min-h-10"
             href="/management/users"
@@ -85,9 +99,9 @@ const error = Astro.url.searchParams.get('error');
       ) : (
         <section class="rounded-md border border-dashed border-line py-12 text-center">
           <h2 class="text-sm font-semibold">
-            {list.q || list.role || list.state ? '没有符合条件的用户' : '暂无用户'}
+            {list.q || list.role || list.status ? '没有符合条件的用户' : '暂无用户'}
           </h2>
-          {(list.q || list.role || list.state) && (
+          {(list.q || list.role || list.status) && (
             <p class="mt-2 text-sm text-fg-muted">调整搜索内容或清除筛选后再试。</p>
           )}
         </section>

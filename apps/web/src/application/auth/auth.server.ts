@@ -1,3 +1,4 @@
+import { parseSessionResponse } from '../../api/auth/auth.responses.ts';
 import { requestAuthAPI } from '../../api/auth/auth.server.ts';
 import type { SessionUser } from '../../api/auth/auth.types.ts';
 
@@ -6,14 +7,25 @@ export async function readSessionUser(request: Request): Promise<SessionUser | n
   const response = await requestAuthAPI(request, '/api/web/auth/me');
   if (response.status === 401) return null;
   if (!response.ok) throw new Error('failed to resolve session user');
-  const payload = (await response.json()) as { readonly user: SessionUser };
-  return payload.user;
+  const user = parseSessionResponse(await response.json());
+  if (!user) throw new Error('invalid session response');
+  return user;
 }
 
 export function safeNext(value: FormDataEntryValue | string | null | undefined): string {
   if (typeof value !== 'string') return '/dashboard';
   const path = value.trim();
-  return path.startsWith('/') && !path.startsWith('//') ? path : '/dashboard';
+  if (
+    !path.startsWith('/') ||
+    path.startsWith('//') ||
+    path.includes('\\') ||
+    [...path].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  )
+    return '/dashboard';
+  const target = new URL(path, 'https://local.invalid');
+  return target.origin === 'https://local.invalid'
+    ? target.pathname + target.search + target.hash
+    : '/dashboard';
 }
 
 export function pageLocation(request: Request, path: string): string {

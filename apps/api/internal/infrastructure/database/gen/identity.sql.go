@@ -20,7 +20,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 func (q *Queries) ActivateUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -44,6 +44,8 @@ func (q *Queries) ActivateUser(ctx context.Context, id pgtype.UUID) (IdentityUse
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -70,7 +72,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 func (q *Queries) CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -94,6 +96,8 @@ func (q *Queries) CancelUserDeletion(ctx context.Context, id pgtype.UUID) (Ident
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -107,7 +111,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 func (q *Queries) CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -131,6 +135,8 @@ func (q *Queries) CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (Ide
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -157,6 +163,27 @@ func (q *Queries) ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID)
 	return err
 }
 
+const countManagedUsers = `-- name: CountManagedUsers :one
+SELECT count(*) FROM identity.users u
+WHERE u.deleted_at IS NULL
+  AND ($1::text = '' OR u.username ILIKE '%' || $1::text || '%' OR u.email ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1::text || '%')
+  AND ($2::text = '' OR u.role = $2::text)
+  AND ($3::text = '' OR u.access_status = $3::text)
+`
+
+type CountManagedUsersParams struct {
+	Search string
+	Role   string
+	Status string
+}
+
+func (q *Queries) CountManagedUsers(ctx context.Context, arg CountManagedUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countManagedUsers, arg.Search, arg.Role, arg.Status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createEmailVerificationCode = `-- name: CreateEmailVerificationCode :exec
 INSERT INTO identity.email_verification_codes (user_id, email, code_hash, expires_at)
 VALUES ($1::uuid, $2::text, $3::text, $4::timestamptz)
@@ -177,6 +204,44 @@ func (q *Queries) CreateEmailVerificationCode(ctx context.Context, arg CreateEma
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const createOAuthUser = `-- name: CreateOAuthUser :one
+INSERT INTO identity.users (email, username, display_name, profile_confirmation_status, email_verified_at)
+VALUES ($1, $2, $3, 'PENDING', clock_timestamp()) RETURNING id, email, username, display_name, password_hash, role, access_status, email_verified_at, auth_version, profile, settings, last_login_at, deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
+`
+
+type CreateOAuthUserParams struct {
+	Email       *string
+	Username    string
+	DisplayName string
+}
+
+func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, createOAuthUser, arg.Email, arg.Username, arg.DisplayName)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
+	)
+	return i, err
 }
 
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
@@ -215,7 +280,7 @@ INSERT INTO identity.users (
 )
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 type CreateUserParams struct {
@@ -251,6 +316,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Identit
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -339,7 +406,6 @@ SELECT id, user_id, email, code_hash, attempt_count, expires_at, consumed_at, cr
  WHERE email = $1::text AND consumed_at IS NULL
  ORDER BY created_at DESC
  LIMIT 1
- FOR UPDATE
 `
 
 func (q *Queries) GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error) {
@@ -362,7 +428,6 @@ const getPasswordResetToken = `-- name: GetPasswordResetToken :one
 SELECT id, user_id, email, token_hash, expires_at, consumed_at, created_at
   FROM identity.password_reset_tokens
  WHERE token_hash = $1::text AND consumed_at IS NULL
- FOR UPDATE
 `
 
 func (q *Queries) GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error) {
@@ -383,7 +448,7 @@ func (q *Queries) GetPasswordResetToken(ctx context.Context, tokenHash string) (
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, username, display_name, password_hash, role, access_status,
        email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
   FROM identity.users
  WHERE email = $1::text
 `
@@ -409,6 +474,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (IdentityUse
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -416,7 +483,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (IdentityUse
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, email, username, display_name, password_hash, role, access_status,
        email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
   FROM identity.users
  WHERE id = $1
 `
@@ -442,6 +509,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -449,7 +518,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, email, username, display_name, password_hash, role, access_status,
        email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
   FROM identity.users
  WHERE username = $1
 `
@@ -475,6 +544,39 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (Ident
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
+	)
+	return i, err
+}
+
+const getUserForUpdate = `-- name: GetUserForUpdate :one
+SELECT id, email, username, display_name, password_hash, role, access_status, email_verified_at, auth_version, profile, settings, last_login_at, deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used FROM identity.users WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetUserForUpdate(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, getUserForUpdate, id)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -510,6 +612,81 @@ UPDATE identity.email_verification_codes
 func (q *Queries) IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, incrementEmailVerificationAttempts, id)
 	return err
+}
+
+const listManagedUsersPage = `-- name: ListManagedUsersPage :many
+SELECT u.id, u.email, u.username, u.display_name, u.password_hash, u.role, u.access_status, u.email_verified_at, u.auth_version, u.profile, u.settings, u.last_login_at, u.deletion_requested_at, u.deletion_scheduled_for, u.deleted_at, u.created_at, u.updated_at, u.profile_confirmation_status, u.username_changes_used,
+       ARRAY(SELECT p.permission_key FROM identity.user_management_permissions p WHERE p.user_id = u.id ORDER BY p.permission_key)::text[] AS permissions,
+       EXISTS(SELECT 1 FROM identity.oauth_identities o WHERE o.user_id = u.id AND o.provider = 'GITHUB') AS has_github
+FROM identity.users u
+WHERE u.deleted_at IS NULL
+  AND ($1::text = '' OR u.username ILIKE '%' || $1::text || '%' OR u.email ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1::text || '%')
+  AND ($2::text = '' OR u.role = $2::text)
+  AND ($3::text = '' OR u.access_status = $3::text)
+ORDER BY u.created_at DESC, u.id DESC
+LIMIT $5::int OFFSET $4::int
+`
+
+type ListManagedUsersPageParams struct {
+	Search     string
+	Role       string
+	Status     string
+	PageOffset int32
+	PageSize   int32
+}
+
+type ListManagedUsersPageRow struct {
+	IdentityUser IdentityUser
+	Permissions  []string
+	HasGithub    bool
+}
+
+func (q *Queries) ListManagedUsersPage(ctx context.Context, arg ListManagedUsersPageParams) ([]ListManagedUsersPageRow, error) {
+	rows, err := q.db.Query(ctx, listManagedUsersPage,
+		arg.Search,
+		arg.Role,
+		arg.Status,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListManagedUsersPageRow{}
+	for rows.Next() {
+		var i ListManagedUsersPageRow
+		if err := rows.Scan(
+			&i.IdentityUser.ID,
+			&i.IdentityUser.Email,
+			&i.IdentityUser.Username,
+			&i.IdentityUser.DisplayName,
+			&i.IdentityUser.PasswordHash,
+			&i.IdentityUser.Role,
+			&i.IdentityUser.AccessStatus,
+			&i.IdentityUser.EmailVerifiedAt,
+			&i.IdentityUser.AuthVersion,
+			&i.IdentityUser.Profile,
+			&i.IdentityUser.Settings,
+			&i.IdentityUser.LastLoginAt,
+			&i.IdentityUser.DeletionRequestedAt,
+			&i.IdentityUser.DeletionScheduledFor,
+			&i.IdentityUser.DeletedAt,
+			&i.IdentityUser.CreatedAt,
+			&i.IdentityUser.UpdatedAt,
+			&i.IdentityUser.ProfileConfirmationStatus,
+			&i.IdentityUser.UsernameChangesUsed,
+			&i.Permissions,
+			&i.HasGithub,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listUserManagementPermissions = `-- name: ListUserManagementPermissions :many
@@ -575,51 +752,43 @@ func (q *Queries) ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUI
 	return items, nil
 }
 
-const listUsersForManagement = `-- name: ListUsersForManagement :many
-SELECT id, email, username, display_name, password_hash, role, access_status,
-       email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
-  FROM identity.users
- WHERE deleted_at IS NULL
- ORDER BY created_at DESC
+const lockEmailVerificationCode = `-- name: LockEmailVerificationCode :one
+SELECT id, user_id, email, code_hash, attempt_count, expires_at, consumed_at, created_at FROM identity.email_verification_codes WHERE id = $1 AND consumed_at IS NULL FOR UPDATE
 `
 
-func (q *Queries) ListUsersForManagement(ctx context.Context) ([]IdentityUser, error) {
-	rows, err := q.db.Query(ctx, listUsersForManagement)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []IdentityUser{}
-	for rows.Next() {
-		var i IdentityUser
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Username,
-			&i.DisplayName,
-			&i.PasswordHash,
-			&i.Role,
-			&i.AccessStatus,
-			&i.EmailVerifiedAt,
-			&i.AuthVersion,
-			&i.Profile,
-			&i.Settings,
-			&i.LastLoginAt,
-			&i.DeletionRequestedAt,
-			&i.DeletionScheduledFor,
-			&i.DeletedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) LockEmailVerificationCode(ctx context.Context, id pgtype.UUID) (IdentityEmailVerificationCode, error) {
+	row := q.db.QueryRow(ctx, lockEmailVerificationCode, id)
+	var i IdentityEmailVerificationCode
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Email,
+		&i.CodeHash,
+		&i.AttemptCount,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const lockPasswordResetToken = `-- name: LockPasswordResetToken :one
+SELECT id, user_id, email, token_hash, expires_at, consumed_at, created_at FROM identity.password_reset_tokens WHERE id = $1 AND consumed_at IS NULL FOR UPDATE
+`
+
+func (q *Queries) LockPasswordResetToken(ctx context.Context, id pgtype.UUID) (IdentityPasswordResetToken, error) {
+	row := q.db.QueryRow(ctx, lockPasswordResetToken, id)
+	var i IdentityPasswordResetToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Email,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const recordUserLogin = `-- name: RecordUserLogin :one
@@ -631,7 +800,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 func (q *Queries) RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -655,6 +824,8 @@ func (q *Queries) RecordUserLogin(ctx context.Context, id pgtype.UUID) (Identity
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -678,7 +849,7 @@ RETURNING identity.users.id, identity.users.email, identity.users.username,
           identity.users.auth_version, identity.users.profile, identity.users.settings,
           identity.users.last_login_at, identity.users.deletion_requested_at,
           identity.users.deletion_scheduled_for, identity.users.deleted_at,
-          identity.users.created_at, identity.users.updated_at
+          identity.users.created_at, identity.users.updated_at, identity.users.profile_confirmation_status, identity.users.username_changes_used
 `
 
 func (q *Queries) RequestUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -702,6 +873,92 @@ func (q *Queries) RequestUserDeletion(ctx context.Context, id pgtype.UUID) (Iden
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
+	)
+	return i, err
+}
+
+const setAccountProfile = `-- name: SetAccountProfile :one
+UPDATE identity.users SET username = $2, display_name = $3,
+    profile_confirmation_status = $4, username_changes_used = $5
+WHERE id = $1 RETURNING id, email, username, display_name, password_hash, role, access_status, email_verified_at, auth_version, profile, settings, last_login_at, deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
+`
+
+type SetAccountProfileParams struct {
+	ID                        pgtype.UUID
+	Username                  string
+	DisplayName               string
+	ProfileConfirmationStatus string
+	UsernameChangesUsed       int32
+}
+
+func (q *Queries) SetAccountProfile(ctx context.Context, arg SetAccountProfileParams) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, setAccountProfile,
+		arg.ID,
+		arg.Username,
+		arg.DisplayName,
+		arg.ProfileConfirmationStatus,
+		arg.UsernameChangesUsed,
+	)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
+	)
+	return i, err
+}
+
+const setManagedProfile = `-- name: SetManagedProfile :one
+UPDATE identity.users SET display_name = $2, email = $3 WHERE id = $1 RETURNING id, email, username, display_name, password_hash, role, access_status, email_verified_at, auth_version, profile, settings, last_login_at, deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
+`
+
+type SetManagedProfileParams struct {
+	ID          pgtype.UUID
+	DisplayName string
+	Email       *string
+}
+
+func (q *Queries) SetManagedProfile(ctx context.Context, arg SetManagedProfileParams) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, setManagedProfile, arg.ID, arg.DisplayName, arg.Email)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AccessStatus,
+		&i.EmailVerifiedAt,
+		&i.AuthVersion,
+		&i.Profile,
+		&i.Settings,
+		&i.LastLoginAt,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -762,7 +1019,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 func (q *Queries) SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser, error) {
@@ -786,6 +1043,8 @@ func (q *Queries) SuspendUser(ctx context.Context, id pgtype.UUID) (IdentityUser
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }
@@ -830,7 +1089,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
 `
 
 type UpdateUserProfileParams struct {
@@ -866,6 +1125,8 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProfileConfirmationStatus,
+		&i.UsernameChangesUsed,
 	)
 	return i, err
 }

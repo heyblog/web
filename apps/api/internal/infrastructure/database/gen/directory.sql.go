@@ -552,6 +552,17 @@ func (q *Queries) DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) e
 	return err
 }
 
+const getDirectoryTaxonomyRevision = `-- name: GetDirectoryTaxonomyRevision :one
+SELECT revision FROM runtime_cache.taxonomy_revision WHERE singleton
+`
+
+func (q *Queries) GetDirectoryTaxonomyRevision(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getDirectoryTaxonomyRevision)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
+}
+
 const getReadableSiteTagCascade = `-- name: GetReadableSiteTagCascade :one
 SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
        level1.id AS level1_id, level1.name AS level1_name, level1.description AS level1_description,

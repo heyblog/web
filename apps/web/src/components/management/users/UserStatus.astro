@@ -14,7 +14,13 @@ const { user } = Astro.props;
     ]}
   >
     <span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
-    {user.active ? '可用' : '停用'}
+    {user.deletion_pending
+      ? '正在注销'
+      : user.access_status === 'ACTIVE'
+        ? '可用'
+        : user.access_status === 'SUSPENDED'
+          ? '停用'
+          : '正在注销'}
   </span>
   <span class="text-xs text-fg-muted">{user.email_verified ? '邮箱已验证' : '邮箱未验证'}</span>
 </div>

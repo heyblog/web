@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-const baselineIdentity = "heyblog-final-schema-3-2026-10-clean-seeds"
+const baselineIdentity = "heyblog-final-schema-4-2026-10-account-profile"
 
 func ensureBaseline(ctx context.Context, connection *sql.Conn) error {
 	var marked bool
@@ -41,7 +41,7 @@ func ensureBaseline(ctx context.Context, connection *sql.Conn) error {
 		COMMENT ON TABLE migration.baseline IS 'Identifies the fresh-install migration lineage independently of Goose versions.';
 		COMMENT ON COLUMN migration.baseline.singleton IS 'Restricts the lineage marker to one row.';
 		COMMENT ON COLUMN migration.baseline.identity IS 'Stable baseline identity retained while migrations are resumed.';
-		INSERT INTO migration.baseline(identity) VALUES ('heyblog-final-schema-3-2026-10-clean-seeds');
+		INSERT INTO migration.baseline(identity) VALUES ('heyblog-final-schema-4-2026-10-account-profile');
 	`)
 	if err != nil {
 		return fmt.Errorf("initialize database baseline: %w", err)

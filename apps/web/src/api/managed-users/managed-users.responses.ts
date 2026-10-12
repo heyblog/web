@@ -5,7 +5,7 @@ import {
   userRoles,
 } from '../auth/auth.types.ts';
 
-import type { ManagedUser } from './managed-users.types.ts';
+import type { ManagedUser, ManagedUsersPage } from './managed-users.types.ts';
 
 export function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -32,7 +32,14 @@ export function parseManagedUser(value: unknown): ManagedUser | null {
     !value.permissions.every(isPermission) ||
     new Set(value.permissions).size !== value.permissions.length ||
     typeof value.active !== 'boolean' ||
-    typeof value.email_verified !== 'boolean'
+    typeof value.email_verified !== 'boolean' ||
+    typeof value.has_password !== 'boolean' ||
+    typeof value.has_github !== 'boolean' ||
+    typeof value.created_at !== 'string' ||
+    typeof value.updated_at !== 'string' ||
+    typeof value.access_status !== 'string' ||
+    typeof value.deletion_pending !== 'boolean' ||
+    (value.last_login_at !== null && typeof value.last_login_at !== 'string')
   )
     return null;
   return {
@@ -44,6 +51,13 @@ export function parseManagedUser(value: unknown): ManagedUser | null {
     permissions: value.permissions,
     active: value.active,
     email_verified: value.email_verified,
+    has_password: value.has_password,
+    has_github: value.has_github,
+    created_at: value.created_at,
+    updated_at: value.updated_at,
+    last_login_at: value.last_login_at,
+    access_status: value.access_status,
+    deletion_pending: value.deletion_pending,
   };
 }
 
@@ -56,4 +70,24 @@ export function parseUsersResponse(value: unknown): readonly ManagedUser[] | nul
   const users = value.users.map(parseManagedUser);
   if (users.some((user) => user === null)) return null;
   return users.filter((user) => user !== null);
+}
+
+export function parseUsersPage(value: unknown): ManagedUsersPage | null {
+  const users = parseUsersResponse(value);
+  if (
+    !users ||
+    !isRecord(value) ||
+    typeof value.total !== 'number' ||
+    !Number.isSafeInteger(value.total) ||
+    value.total < 0 ||
+    typeof value.page !== 'number' ||
+    !Number.isSafeInteger(value.page) ||
+    value.page < 1 ||
+    typeof value.page_size !== 'number' ||
+    !Number.isSafeInteger(value.page_size) ||
+    value.page_size < 1 ||
+    value.page_size > 100
+  )
+    return null;
+  return { users, total: value.total, page: value.page, page_size: value.page_size };
 }

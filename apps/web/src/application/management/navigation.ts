@@ -30,7 +30,10 @@ export function managementNavigation(
       description: '管理主公告与横幅公告',
     });
   }
-  if (user.role === 'SYS_ADMIN' || user.permissions.includes('site_audit.review')) {
+  if (
+    user.role === 'SYS_ADMIN' ||
+    (user.role === 'ADMIN' && user.permissions.includes('site_audit.review'))
+  ) {
     items.push({
       label: '站点认证审核',
       href: '/management/site-claims',
@@ -42,11 +45,14 @@ export function managementNavigation(
       description: '查看申请、差异与审核结果',
     });
   }
-  if (user.role === 'SYS_ADMIN' || user.permissions.includes('user.manage')) {
+  if (
+    user.role === 'SYS_ADMIN' ||
+    (user.role === 'ADMIN' && user.permissions.includes('user.manage'))
+  ) {
     items.push({
-      label: '用户与授权',
+      label: '用户管理',
       href: '/management/users',
-      description: '管理角色与模块权限',
+      description: '管理账号、资料与授权',
     });
   }
   if (user.role === 'SYS_ADMIN') {

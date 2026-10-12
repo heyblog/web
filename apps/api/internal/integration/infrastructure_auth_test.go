@@ -24,9 +24,15 @@ import (
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
-type authMailRecorder struct{ messages []mail.Message }
+type authMailRecorder struct {
+	messages []mail.Message
+	failure  error
+}
 
 func (sender *authMailRecorder) Send(_ context.Context, message mail.Message) error {
+	if sender.failure != nil {
+		return sender.failure
+	}
 	sender.messages = append(sender.messages, message)
 	return nil
 }
@@ -170,6 +176,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("complete second GitHub login: %v", err)
 	}
 	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/api/web/auth/password", nil)
+	githubTokens = verifyOAuthProfileChanges(ctx, t, service, githubUser, githubTokens)
 	setPasswordRequest.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: githubTokens[0]})
 	if _, _, err := service.SetPassword(ctx, setPasswordRequest, "", "github-local-password"); err != nil {
 		t.Fatalf("set GitHub user password: %v", err)
@@ -189,7 +196,11 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	if _, err := pool.Exec(ctx, `UPDATE identity.users SET role = 'SYS_ADMIN', email_verified_at = clock_timestamp() WHERE id = $1`, admin.ID); err != nil {
 		t.Fatalf("promote auth sysadmin: %v", err)
 	}
-	actor := auth.User{ID: admin.ID.String(), Role: auth.RoleSysAdmin}
+	adminRecord, err := dbgen.New(pool).GetUserByID(ctx, admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := auth.User{ID: admin.ID.String(), Role: auth.RoleSysAdmin, AuthVersion: adminRecord.AuthVersion}
 	managed, err := service.UpdateRole(ctx, actor, user.ID, auth.RoleAdmin)
 	if err != nil || managed.Role != auth.RoleAdmin {
 		t.Fatalf("update auth role = (%q, %v)", managed.Role, err)

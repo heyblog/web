@@ -83,6 +83,7 @@ type ClassificationQueries interface {
 
 type DirectoryOptionsQueries interface {
 	ClassificationQueries
+	GetDirectoryTaxonomyRevision(context.Context) (int64, error)
 	ListDirectoryTagOptions(context.Context) ([]dbgen.ListDirectoryTagOptionsRow, error)
 	ListDirectoryTechnologyOptions(context.Context) ([]dbgen.ListDirectoryTechnologyOptionsRow, error)
 }

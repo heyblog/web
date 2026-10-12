@@ -1,14 +1,13 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
 import type { AuditDetail, SubmissionOptions } from '@/api/site-submission/site-submission.types';
-import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
 import AuditCorrectionEditor from '@/components/management/site-submissions/AuditCorrectionEditor.svelte';
 import AuditDiffView from '@/components/management/site-submissions/AuditDiffView.astro';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
-const actor = await readSessionUser(Astro.request);
+const actor = Astro.locals.sessionUser;
 if (!actor) return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const allowed =
   actor.role === 'SYS_ADMIN' ||
@@ -32,7 +31,8 @@ const listReturnPath =
     : '/management/site-submissions?status=PENDING';
 const returnPath = `/management/site-submissions/${auditID}?returnTo=${encodeURIComponent(listReturnPath)}`;
 const canManageTaxonomy =
-  actor.role === 'SYS_ADMIN' || actor.permissions.includes('taxonomy.manage');
+  actor.role === 'SYS_ADMIN' ||
+  (actor.role === 'ADMIN' && actor.permissions.includes('taxonomy.manage'));
 ---
 
 <ManagementLayout

@@ -1,0 +1,30 @@
+---
+import { managementNavigation } from '@/application/management/navigation';
+import UserCreateForm from '@/components/management/users/UserCreateForm.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = Astro.locals.sessionUser;
+if (!user) return Astro.redirect('/login?next=%2Fmanagement%2Fusers%2Fnew');
+if (!(
+  user.role === 'SYS_ADMIN' ||
+  (user.role === 'ADMIN' && user.permissions.includes('user.manage'))
+))
+  return Astro.redirect('/forbidden');
+---
+
+<ManagementLayout
+  title="创建用户"
+  heading="创建用户"
+  currentPath="/management/users"
+  navigation={[...managementNavigation(user)]}
+  identity={{ displayName: user.display_name, email: user.email ?? '', roleLabel: user.role }}
+>
+  <a
+    class="mb-6 inline-flex min-h-11 items-center text-sm text-tint-fg hover:underline"
+    href="/management/users"
+  >
+    ← 返回用户列表
+  </a>
+  <UserCreateForm client:load />
+</ManagementLayout>

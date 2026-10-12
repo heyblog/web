@@ -12,26 +12,26 @@ INSERT INTO identity.users (
 )
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: GetUserByID :one
 SELECT id, email, username, display_name, password_hash, role, access_status,
        email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
   FROM identity.users
  WHERE id = $1;
 
 -- name: GetUserByEmail :one
 SELECT id, email, username, display_name, password_hash, role, access_status,
        email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
   FROM identity.users
  WHERE email = sqlc.arg(email)::text;
 
 -- name: GetUserByUsername :one
 SELECT id, email, username, display_name, password_hash, role, access_status,
        email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
+       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used
   FROM identity.users
  WHERE username = $1;
 
@@ -46,7 +46,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: RecordUserLogin :one
 UPDATE identity.users
@@ -57,7 +57,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: SuspendUser :one
 UPDATE identity.users
@@ -68,7 +68,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: ActivateUser :one
 UPDATE identity.users
@@ -79,7 +79,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: RequestUserDeletion :one
 WITH request_time AS (
@@ -100,7 +100,7 @@ RETURNING identity.users.id, identity.users.email, identity.users.username,
           identity.users.auth_version, identity.users.profile, identity.users.settings,
           identity.users.last_login_at, identity.users.deletion_requested_at,
           identity.users.deletion_scheduled_for, identity.users.deleted_at,
-          identity.users.created_at, identity.users.updated_at;
+          identity.users.created_at, identity.users.updated_at, identity.users.profile_confirmation_status, identity.users.username_changes_used;
 
 -- name: CancelUserDeletion :one
 UPDATE identity.users
@@ -113,7 +113,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: CompleteUserDeletion :one
 UPDATE identity.users
@@ -124,7 +124,7 @@ UPDATE identity.users
    AND deleted_at IS NULL
 RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
-          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at;
+          deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
 -- name: UpsertGitHubIdentity :one
 INSERT INTO identity.oauth_identities (
@@ -202,8 +202,7 @@ SELECT id, user_id, email, code_hash, attempt_count, expires_at, consumed_at, cr
   FROM identity.email_verification_codes
  WHERE email = sqlc.arg(email)::text AND consumed_at IS NULL
  ORDER BY created_at DESC
- LIMIT 1
- FOR UPDATE;
+ LIMIT 1;
 
 -- name: IncrementEmailVerificationAttempts :exec
 UPDATE identity.email_verification_codes
@@ -226,8 +225,7 @@ VALUES (sqlc.arg(user_id)::uuid, sqlc.arg(email)::text, sqlc.arg(token_hash)::te
 -- name: GetPasswordResetToken :one
 SELECT id, user_id, email, token_hash, expires_at, consumed_at, created_at
   FROM identity.password_reset_tokens
- WHERE token_hash = sqlc.arg(token_hash)::text AND consumed_at IS NULL
- FOR UPDATE;
+ WHERE token_hash = sqlc.arg(token_hash)::text AND consumed_at IS NULL;
 
 -- name: ConsumePasswordResetToken :exec
 UPDATE identity.password_reset_tokens
@@ -239,14 +237,6 @@ SELECT permission_key
   FROM identity.user_management_permissions
  WHERE user_id = sqlc.arg(user_id)::uuid
  ORDER BY permission_key;
-
--- name: ListUsersForManagement :many
-SELECT id, email, username, display_name, password_hash, role, access_status,
-       email_verified_at, auth_version, profile, settings, last_login_at,
-       deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at
-  FROM identity.users
- WHERE deleted_at IS NULL
- ORDER BY created_at DESC;
 
 -- name: SetUserRole :exec
 UPDATE identity.users
@@ -274,3 +264,43 @@ SELECT id, user_id, provider, provider_user_id, provider_login, profile, created
 -- name: DeleteUserGitHubIdentity :exec
 DELETE FROM identity.oauth_identities
  WHERE provider = 'GITHUB' AND user_id = sqlc.arg(user_id)::uuid;
+
+-- name: GetUserForUpdate :one
+SELECT * FROM identity.users WHERE id = $1 FOR UPDATE;
+
+-- name: CreateOAuthUser :one
+INSERT INTO identity.users (email, username, display_name, profile_confirmation_status, email_verified_at)
+VALUES ($1, $2, $3, 'PENDING', clock_timestamp()) RETURNING *;
+
+-- name: SetAccountProfile :one
+UPDATE identity.users SET username = $2, display_name = $3,
+    profile_confirmation_status = $4, username_changes_used = $5
+WHERE id = $1 RETURNING *;
+
+-- name: SetManagedProfile :one
+UPDATE identity.users SET display_name = $2, email = $3 WHERE id = $1 RETURNING *;
+
+-- name: ListManagedUsersPage :many
+SELECT sqlc.embed(u),
+       ARRAY(SELECT p.permission_key FROM identity.user_management_permissions p WHERE p.user_id = u.id ORDER BY p.permission_key)::text[] AS permissions,
+       EXISTS(SELECT 1 FROM identity.oauth_identities o WHERE o.user_id = u.id AND o.provider = 'GITHUB') AS has_github
+FROM identity.users u
+WHERE u.deleted_at IS NULL
+  AND (sqlc.arg(search)::text = '' OR u.username ILIKE '%' || sqlc.arg(search)::text || '%' OR u.email ILIKE '%' || sqlc.arg(search)::text || '%' OR u.display_name ILIKE '%' || sqlc.arg(search)::text || '%')
+  AND (sqlc.arg(role)::text = '' OR u.role = sqlc.arg(role)::text)
+  AND (sqlc.arg(status)::text = '' OR u.access_status = sqlc.arg(status)::text)
+ORDER BY u.created_at DESC, u.id DESC
+LIMIT sqlc.arg(page_size)::int OFFSET sqlc.arg(page_offset)::int;
+
+-- name: CountManagedUsers :one
+SELECT count(*) FROM identity.users u
+WHERE u.deleted_at IS NULL
+  AND (sqlc.arg(search)::text = '' OR u.username ILIKE '%' || sqlc.arg(search)::text || '%' OR u.email ILIKE '%' || sqlc.arg(search)::text || '%' OR u.display_name ILIKE '%' || sqlc.arg(search)::text || '%')
+  AND (sqlc.arg(role)::text = '' OR u.role = sqlc.arg(role)::text)
+  AND (sqlc.arg(status)::text = '' OR u.access_status = sqlc.arg(status)::text);
+
+-- name: LockEmailVerificationCode :one
+SELECT * FROM identity.email_verification_codes WHERE id = $1 AND consumed_at IS NULL FOR UPDATE;
+
+-- name: LockPasswordResetToken :one
+SELECT * FROM identity.password_reset_tokens WHERE id = $1 AND consumed_at IS NULL FOR UPDATE;

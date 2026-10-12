@@ -13,7 +13,7 @@ BEGIN
  SELECT md5(string_agg(n.nspname||'.'||c.relname||':'||a.attname||':'||a.atttypid::regtype::text||':'||a.attgenerated::text,',' ORDER BY n.nspname,c.relname,a.attnum)) INTO signature
  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped
  WHERE n.nspname IN ('identity','directory','content') AND c.relkind IN ('r','p');
- IF signature<>'591864c8c3d0a0a650ed94cceb3c42f5' THEN RAISE EXCEPTION 'unsupported backup schema' USING ERRCODE='22023'; END IF;
+ IF signature<>'87754795deb6c82c9f4be4017ce37bcf' THEN RAISE EXCEPTION 'unsupported backup schema' USING ERRCODE='22023'; END IF;
 END $$;
 
 -- +goose StatementEnd

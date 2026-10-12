@@ -1,0 +1,32 @@
+---
+import ProfileForm from '@/components/auth/ProfileForm.svelte';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = Astro.locals.sessionUser;
+if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fprofile');
+---
+
+<DashboardLayout title="个人资料" heading="个人资料" {user} currentPath={Astro.url.pathname}>
+  <div class="mx-auto grid w-[min(calc(100%-2rem),40rem)] gap-8 py-8 sm:py-12">
+    <section
+      class="grid gap-5 rounded-md border border-line bg-surface p-6"
+      aria-labelledby="display-heading"
+    >
+      <h2 class="text-lg font-semibold" id="display-heading">
+        显示名称
+      </h2>
+      <ProfileForm {user} kind="display" client:load />
+    </section>
+    <section
+      class="grid gap-5 rounded-md border border-line bg-surface p-6"
+      aria-labelledby="username-heading"
+    >
+      <h2 class="text-lg font-semibold" id="username-heading">
+        用户名
+      </h2>
+      <ProfileForm {user} kind="username" client:load />
+    </section>
+  </div>
+</DashboardLayout>

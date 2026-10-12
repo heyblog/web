@@ -16,14 +16,6 @@ type userOutput struct {
 	Body         userResponseBody
 }
 
-type usersResponseBody struct {
-	Users []User `json:"users"`
-}
-
-type usersOutput struct {
-	Body usersResponseBody
-}
-
 type acceptedResponseBody struct {
 	Status string `json:"status" enum:"verification_required"`
 }

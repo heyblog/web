@@ -6,7 +6,7 @@ import { siteConfig } from '../src/site.config.ts';
 
 test('aligns the management sidebar CSS with its 80rem desktop controller', async () => {
   const source = await readFile(
-    new URL('../src/layouts/ManagementLayout.astro', import.meta.url),
+    new URL('../src/layouts/WorkspaceLayout.astro', import.meta.url),
     'utf8',
   );
 

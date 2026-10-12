@@ -1,15 +1,18 @@
 ---
 import { IconBrandGithub, IconLogin2 } from '@tabler/icons-svelte';
 
-import { readSessionUser, safeNext } from '@/application/auth/auth.server';
+import { safeNext } from '@/application/auth/auth.server';
 import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
+import { confirmationLocation } from '@/application/auth/profile-routing';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import AuthLayout from '@/layouts/AuthLayout.astro';
 
 export const prerender = false;
 const next = safeNext(Astro.url.searchParams.get('next'));
-const user = await readSessionUser(Astro.request);
-if (user) return Astro.redirect(next);
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = Astro.locals.sessionUser;
+if (user)
+  return Astro.redirect(user.profile_confirmation_required ? confirmationLocation(next) : next);
 const error = authErrorMessage(Astro.url.searchParams.get('error'));
 const status = authStatusMessage(Astro.url.searchParams.get('status'));
 ---

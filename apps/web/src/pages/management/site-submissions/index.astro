@@ -5,13 +5,12 @@ import type {
   AuditPage,
   AuditStatus,
 } from '@/api/site-submission/site-submission.types';
-import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
-const actor = await readSessionUser(Astro.request);
+const actor = Astro.locals.sessionUser;
 if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Fsite-submissions');
 const allowed =
   actor.role === 'SYS_ADMIN' ||

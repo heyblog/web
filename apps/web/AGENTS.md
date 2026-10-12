@@ -64,8 +64,8 @@ layer and browser-module boundaries.
   safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
   Purpose-built POST forwarding streams attachments and multipart files without parsing backup data
   in Web. Keep Cookie/Web-token authorization, same-origin metadata, private no-store, 512 MiB file
-  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Only backup version 1 /
-  schema version 3 with 33 datasets is supported. Inspection contains
+  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Backup version 1 supports schema versions 3 and 4 with 33 datasets. Exports use schema 4;
+  legacy schema 3 restores initialize account confirmation and username allowances. Inspection contains
   counts and administrator mapping only. Never retry restoration automatically; an uncertain result
   requires fresh inspection. Browser state holds selected files only until navigation.
 
@@ -111,7 +111,7 @@ layer and browser-module boundaries.
 - Authentication transport lives in `apps/web/src/api/auth`; session checks, safe local `next`
   paths, and page redirects live in `apps/web/src/application/auth`. Web guards improve experience;
   the Go API remains the authorization authority.
-- `/dashboard` owns the user workbench, with separate sites, claims, submissions, and security
+- `/dashboard` owns the user workbench, with separate sites, claims, submissions, profile, and security
   routes. `apps/web/src/api/site-management` owns account/claim DTOs and the bounded, authenticated
   route whitelist for `/api/web/account` and `/api/web/management`; never widen it to arbitrary paths.
 - Preserve accepted HTTP methods, URLs, statuses, Cookie/Set-Cookie handling, cancellation,
@@ -166,3 +166,8 @@ cannot prove equivalence. Check the route's rendering/cache choice, same-origin 
 browser import graph, and relevant feature tests before completion.
 
 OG image generation reads `/api/web/public/sites/id/{identifier}/metadata` so image requests do not increment public display metrics.
+
+Protected dashboard and management pages reuse the session resolved by middleware. OAuth accounts
+with pending confirmation enter `/complete-profile` before business operations. Confirmation and
+subsequent one-time username changes use the dedicated `api/account-profile` boundary; display
+names remain editable. Management user lists use server pagination and per-account details.

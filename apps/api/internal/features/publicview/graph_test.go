@@ -17,7 +17,7 @@ func (queries graphQueriesStub) GetPublicGraphRevision(context.Context) (int64, 
 
 func TestGraphWaitCanBeCancelledDuringAnotherLoad(t *testing.T) {
 	// Given a cache load that owns the gate.
-	service := &Service{}
+	service := &Service{graph: queryStub{}}
 	service.graphOnce.Do(func() { service.graphGate = make(chan struct{}, 1) })
 	service.graphGate <- struct{}{}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -33,6 +33,24 @@ func TestGraphWaitCanBeCancelledDuringAnotherLoad(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("cancelled graph reader remained blocked")
+	}
+}
+
+func TestGraphCacheHitCanReadWhileRefreshGateIsOccupied(t *testing.T) {
+	// Given a committed snapshot and another reader holding the refresh gate.
+	service := &Service{graph: queryStub{}}
+	if _, err := service.Graph(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	service.graphGate <- struct{}{}
+	defer func() { <-service.graphGate }()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	// When the same committed generation is requested.
+	_, err := service.Graph(ctx)
+	// Then a cache hit completes without waiting for the refresh gate.
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

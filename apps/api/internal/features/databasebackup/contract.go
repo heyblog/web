@@ -12,9 +12,10 @@ import (
 )
 
 type document struct {
-	header   Header
-	manifest []Manifest
-	offsets  map[string]int64
+	legacyOAuth map[string]bool
+	header      Header
+	manifest    []Manifest
+	offsets     map[string]int64
 }
 
 type rowVisitor func(string, json.RawMessage) error
@@ -68,7 +69,7 @@ func readDocument(reader io.Reader, visit rowVisitor) (document, error) {
 	if err := requireEOF(decoder); err != nil {
 		return document{}, err
 	}
-	if len(sections) != 4 || doc.header.Format != Format || doc.header.Version != 1 || doc.header.SchemaVersion != 3 || doc.header.GeneratedAt.IsZero() {
+	if len(sections) != 4 || doc.header.Format != Format || doc.header.Version != 1 || (doc.header.SchemaVersion != 3 && doc.header.SchemaVersion != 4) || doc.header.GeneratedAt.IsZero() {
 		return document{}, ErrInvalid
 	}
 	if _, err := uuid.Parse(doc.header.ExcludedSystemAdminID); err != nil {

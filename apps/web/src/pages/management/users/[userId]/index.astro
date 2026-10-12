@@ -9,7 +9,7 @@ import { buttonClass } from '@/components/management/users/users.styles';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
-const result = await loadUsersPage(Astro.request);
+const result = await loadUsersPage(Astro.request, Astro.locals.sessionUser, Astro.params.userId);
 if (result.kind === 'redirect') {
   const headers = new Headers(result.headers);
   headers.set('Location', result.location);
@@ -30,8 +30,8 @@ const error = Astro.url.searchParams.get('error');
 ---
 
 <ManagementLayout
-  title="用户授权 | HeyBlog"
-  heading="用户授权"
+  title="用户详情 | HeyBlog"
+  heading="用户详情"
   currentPath={Astro.url.pathname}
   identity={
     actor

@@ -22,11 +22,16 @@ export interface SessionUser {
   readonly role: UserRole;
   readonly permissions: readonly ManagementPermission[];
   readonly active: boolean;
+  readonly deletion_pending: boolean;
+  readonly access_status: 'ACTIVE' | 'SUSPENDED';
+  readonly profile_confirmation_required: boolean;
+  readonly username_changes_remaining: number;
   readonly email_verified: boolean;
   readonly has_password: boolean;
   readonly has_github: boolean;
   readonly auth_version: number;
   readonly created_at: string;
+  readonly updated_at: string;
   readonly last_login_at: string | null;
 }
 

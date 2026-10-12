@@ -1,10 +1,9 @@
 ---
-import { readSessionUser } from '@/application/auth/auth.server';
 import SiteSubmissionForm from '@/components/site-submission/SiteSubmissionForm.svelte';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
-const user = await readSessionUser(Astro.request);
+const user = Astro.locals.sessionUser;
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
 ---
 

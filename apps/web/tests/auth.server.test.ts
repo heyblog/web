@@ -152,6 +152,8 @@ test('safeNext accepts only root-relative same-origin paths', () => {
   assert.equal(safeNext('/dashboard/account'), '/dashboard/account');
   assert.equal(safeNext('//attacker.example/path'), '/dashboard');
   assert.equal(safeNext('https://attacker.example/path'), '/dashboard');
+  assert.equal(safeNext('/\\attacker.example/path'), '/dashboard');
+  assert.equal(safeNext('/dashboard\n/path'), '/dashboard');
 });
 
 test('copySetCookie preserves multiple upstream cookie headers', () => {
@@ -219,5 +221,5 @@ test('user management routes share the guarded page loader', async () => {
     source,
     /import\s*\{[^}]*\bloadUsersPage\b[^}]*\}\s*from\s*['"]@\/application\/management\/users-page\.server['"]/u,
   );
-  assert.match(source, /await loadUsersPage\(Astro.request\)/u);
+  assert.match(source, /await loadUsersPage\(Astro.request, Astro.locals.sessionUser\)/u);
 });

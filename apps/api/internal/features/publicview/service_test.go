@@ -491,6 +491,10 @@ func (stub queryStub) ListDirectorySites(
 	return []dbgen.DirectorySite{}, nil
 }
 
+func (stub queryStub) GetDirectoryTaxonomyRevision(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (stub queryStub) ListDirectoryTagOptions(
 	context.Context,
 ) ([]dbgen.ListDirectoryTagOptionsRow, error) {

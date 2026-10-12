@@ -11,6 +11,17 @@ import (
 )
 
 func (service *Service) Current(ctx context.Context, request *http.Request) (User, error) {
+	user, err := service.CurrentSession(ctx, request)
+	if err != nil {
+		return User{}, err
+	}
+	if user.ProfileConfirmationRequired {
+		return User{}, newAuthError("profile_confirmation_required", 403, "confirm your account profile to continue")
+	}
+	return user, nil
+}
+
+func (service *Service) CurrentSession(ctx context.Context, request *http.Request) (User, error) {
 	access, err := request.Cookie("heyblog_access_token")
 	if err != nil {
 		return User{}, newAuthError("unauthenticated", 401, "authentication is required")
@@ -114,10 +125,14 @@ func (service *Service) toUser(ctx context.Context, record dbUser) (User, error)
 	if oauthErr != nil && !isNotFound(oauthErr) {
 		return User{}, repositoryError("read GitHub identity", oauthErr)
 	}
-	return User{ID: record.ID, Email: record.Email, Username: record.Username, DisplayName: record.DisplayName,
+	return userDTO(record, permissions, oauthErr == nil), nil
+}
+
+func userDTO(record dbUser, permissions []Permission, hasGitHub bool) User {
+	return User{DeletionPending: record.DeletionRequestedAt != nil, AccessStatus: record.AccessStatus, ProfileConfirmationRequired: record.ProfileConfirmationStatus == "PENDING", UsernameChangesRemaining: 1 - record.UsernameChangesUsed, UpdatedAt: record.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: record.ID, Email: record.Email, Username: record.Username, DisplayName: record.DisplayName,
 		AvatarURL: record.AvatarURL, Role: Role(record.Role), Permissions: permissions, Active: isActive(record),
-		EmailVerified: record.VerifiedAt != nil, HasPassword: record.PasswordHash != nil, HasGitHub: oauthErr == nil,
-		AuthVersion: record.AuthVersion, CreatedAt: record.CreatedAt.UTC().Format(time.RFC3339), LastLoginAt: formatTime(record.LastLoginAt)}, nil
+		EmailVerified: record.VerifiedAt != nil, HasPassword: record.PasswordHash != nil, HasGitHub: hasGitHub,
+		AuthVersion: record.AuthVersion, CreatedAt: record.CreatedAt.UTC().Format(time.RFC3339), LastLoginAt: formatTime(record.LastLoginAt)}
 }
 
 func formatTime(value *time.Time) *string {

@@ -31,6 +31,7 @@ type Querier interface {
 	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
+	CountManagedUsers(ctx context.Context, arg CountManagedUsersParams) (int64, error)
 	CountPublicAnnouncementArchive(ctx context.Context) (int64, error)
 	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
@@ -40,6 +41,7 @@ type Querier interface {
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
 	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
 	CreateManagedTag(ctx context.Context, arg CreateManagedTagParams) (DirectoryTag, error)
+	CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) (IdentityUser, error)
 	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error
 	CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error)
 	CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams) (DirectorySiteAudit, error)
@@ -75,6 +77,7 @@ type Querier interface {
 	GetCanonicalCascade(ctx context.Context, id pgtype.UUID) (GetCanonicalCascadeRow, error)
 	GetCanonicalTag(ctx context.Context, id pgtype.UUID) (DirectoryTag, error)
 	GetCurrentSiteOwner(ctx context.Context, arg GetCurrentSiteOwnerParams) (DirectorySiteOwnership, error)
+	GetDirectoryTaxonomyRevision(ctx context.Context) (int64, error)
 	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
 	GetHistoricalTagLabel(ctx context.Context, aliasID pgtype.UUID) (DirectoryTag, error)
 	GetIncrementalSource(ctx context.Context, sourceKey string) (GetIncrementalSourceRow, error)
@@ -106,6 +109,7 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (IdentityUser, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserByUsername(ctx context.Context, username string) (IdentityUser, error)
+	GetUserForUpdate(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error)
 	HasOwnerAddressProof(ctx context.Context, arg HasOwnerAddressProofParams) (bool, error)
 	ImportLockCapacity(ctx context.Context) (int32, error)
@@ -148,6 +152,7 @@ type Querier interface {
 	ListIncrementalSites(ctx context.Context) ([]ListIncrementalSitesRow, error)
 	ListManagedCascades(ctx context.Context) ([]DirectoryTagCascade, error)
 	ListManagedTags(ctx context.Context) ([]DirectoryTag, error)
+	ListManagedUsersPage(ctx context.Context, arg ListManagedUsersPageParams) ([]ListManagedUsersPageRow, error)
 	ListOwnerDecisionRecipients(ctx context.Context, auditID pgtype.UUID) ([]string, error)
 	ListOwnerFriendLinks(ctx context.Context, pSourceSiteID pgtype.UUID) ([]ListOwnerFriendLinksRow, error)
 	ListOwnerFriendRequests(ctx context.Context, arg ListOwnerFriendRequestsParams) ([]ListOwnerFriendRequestsRow, error)
@@ -172,14 +177,15 @@ type Querier interface {
 	ListSoftwareComponentDependencies(ctx context.Context, componentID pgtype.UUID) ([]ListSoftwareComponentDependenciesRow, error)
 	ListUserManagementPermissions(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
-	ListUsersForManagement(ctx context.Context) ([]IdentityUser, error)
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
 	LockAnnouncement(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	LockCurrentSiteOwner(ctx context.Context, arg LockCurrentSiteOwnerParams) (DirectorySiteOwnership, error)
+	LockEmailVerificationCode(ctx context.Context, id pgtype.UUID) (IdentityEmailVerificationCode, error)
 	LockFriendEndpointSites(ctx context.Context, arg LockFriendEndpointSitesParams) ([]pgtype.UUID, error)
 	LockIncrementalHosts(ctx context.Context, hosts []string) error
 	LockIncrementalSites(ctx context.Context) error
 	LockOwnerSubmissionHost(ctx context.Context, host string) error
+	LockPasswordResetToken(ctx context.Context, id pgtype.UUID) (IdentityPasswordResetToken, error)
 	LockPendingCreateAuditForHost(ctx context.Context, host string) (DirectorySiteAudit, error)
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
@@ -204,6 +210,8 @@ type Querier interface {
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	SaveSiteAuditReviewDraft(ctx context.Context, arg SaveSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
 	SearchSitesForSubmission(ctx context.Context, query string) ([]DirectorySite, error)
+	SetAccountProfile(ctx context.Context, arg SetAccountProfileParams) (IdentityUser, error)
+	SetManagedProfile(ctx context.Context, arg SetManagedProfileParams) (IdentityUser, error)
 	SetRegisteredFriendLink(ctx context.Context, arg SetRegisteredFriendLinkParams) error
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
 	SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error

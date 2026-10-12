@@ -25,7 +25,7 @@ func seedDatabaseBackup(t *testing.T, fixture auditMigrationFixture, actor strin
 	}
 	statements := []string{
 		`INSERT INTO directory.tag_identity_aliases(alias_kind,alias_id,tag_id,snapshot) SELECT 'LABEL','11111111-1111-4111-8111-111111111111',id,jsonb_build_object('id','11111111-1111-4111-8111-111111111111','tag_id',id::text,'name','Historical computer') FROM directory.tags WHERE name='计算机'`,
-		`INSERT INTO identity.users(email,username,display_name,role,profile) VALUES('other@example.test','other_admin','Other','ADMIN',jsonb_build_object('actor_id',$1::text))`,
+		`INSERT INTO identity.users(email,username,display_name,role,profile,profile_confirmation_status,username_changes_used) VALUES('other@example.test','other_admin','Other','ADMIN',jsonb_build_object('actor_id',$1::text),'CONFIRMED',1)`,
 		`INSERT INTO identity.oauth_identities(user_id,provider,provider_user_id,provider_login) SELECT id,'GITHUB','synthetic-subject','synthetic-login' FROM identity.users WHERE role='ADMIN'`,
 		`INSERT INTO identity.user_management_permissions(user_id,permission_key,granted_by) SELECT id,'site.manage',$1 FROM identity.users`,
 		`INSERT INTO identity.email_verification_codes(user_id,email,code_hash,expires_at) SELECT id,email,'synthetic-code-hash',now()+interval '1 hour' FROM identity.users`,

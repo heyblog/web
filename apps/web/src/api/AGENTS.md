@@ -12,6 +12,8 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
   `apps/web/src/api/transport/endpoint.server.ts` provides the declarative GET-only forwarding
   adapter. Preserve policy whitelists, audience/CORS checks, timeout plus incoming cancellation,
   request IDs, explicit response headers, and `no-store` behavior. Do not widen it for mutations.
+  Global graph forwarding uses `encoded.server.ts` to stream compressed bytes with cancellation,
+  preserving Content-Encoding and Vary through the proxy. Other reads retain Fetch transport.
 - Web-only GETs use Fetch Metadata when present. If all Fetch Metadata headers are absent (as on
   plain HTTP LAN origins), require JSON Accept, a Referer matching the request URL's origin, and
   no conflicting Origin. Reject direct navigation, missing source evidence, and cross-origin
@@ -24,8 +26,10 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
 - Browser adapters use only accepted same-origin routes. Preserve method, query ordering, body,
   signal, timeout, error code, and request count. No retries may be added to mutations during a
   structural refactor.
-- Managed-user adapters in `apps/web/src/api/managed-users` parse account display DTOs and
-  preserve form-encoded authorization POSTs with JSON response negotiation. The role and permission
+- Managed-user adapters in `apps/web/src/api/managed-users` parse paginated account display DTOs and
+  single-user details. Account lifecycle mutations use bounded, same-origin JSON proxies;
+  authorization retains form-encoded POSTs with JSON response negotiation. All updates carry
+  the saved `updated_at` version. The role and permission
   mutations remain separate PATCH calls upstream; never retry a mutation automatically. Tests:
   `apps/web/tests/managed-users.transport.test.ts`.
 - Credential adapters own response parsing and raw failures, not labels or result-view state.

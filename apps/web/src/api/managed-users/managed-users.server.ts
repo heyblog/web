@@ -4,9 +4,13 @@ import {
   isPermission,
   isRecord,
   parseUserResponse,
-  parseUsersResponse,
+  parseUsersPage,
 } from './managed-users.responses.ts';
-import type { AuthorizationOperation, ManagedUser } from './managed-users.types.ts';
+import type {
+  AuthorizationOperation,
+  ManagedUser,
+  ManagedUsersPage,
+} from './managed-users.types.ts';
 
 type ReadResult<T> =
   | { readonly ok: true; readonly value: T; readonly headers: Headers }
@@ -47,8 +51,19 @@ export async function readManagementActor(request: Request): Promise<ReadResult<
 
 export async function readManagedUsers(
   request: Request,
-): Promise<ReadResult<readonly ManagedUser[]>> {
-  return read(await requestAuthAPI(request, '/api/web/management/users'), parseUsersResponse);
+  query: URLSearchParams = new URLSearchParams(),
+): Promise<ReadResult<ManagedUsersPage>> {
+  return read(await requestAuthAPI(request, `/api/web/management/users?${query}`), parseUsersPage);
+}
+
+export async function readManagedUser(
+  request: Request,
+  id: string,
+): Promise<ReadResult<ManagedUser>> {
+  return read(
+    await requestAuthAPI(request, `/api/web/management/users/${encodeURIComponent(id)}`),
+    parseUserResponse,
+  );
 }
 
 export async function updateManagedUser(
@@ -63,6 +78,8 @@ export async function updateManagedUser(
     headers: new Headers(),
   } as const;
   if (!target.id || !/^[a-zA-Z0-9][a-zA-Z0-9-]*$/u.test(target.id)) return invalid;
+  const updated_at = form.get('updated_at');
+  if (typeof updated_at !== 'string' || !updated_at) return invalid;
   const role = form.get('role');
   const permissions = form.getAll('permissions');
   if (target.operation === 'role' && role !== 'USER' && role !== 'ADMIN') return invalid;
@@ -76,7 +93,7 @@ export async function updateManagedUser(
     `/api/web/management/users/${target.id}/${target.operation}`,
     {
       method: 'PATCH',
-      body: target.operation === 'role' ? { role } : { permissions },
+      body: target.operation === 'role' ? { role, updated_at } : { permissions, updated_at },
     },
   );
   return read(response, (payload) => {

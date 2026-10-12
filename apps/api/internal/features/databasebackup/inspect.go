@@ -53,7 +53,23 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 	if err != nil {
 		return Inspection{}, document{}, err
 	}
-	doc, err := readDocument(file, func(name string, row json.RawMessage) error { return validateRow(name, row, inventory) })
+	doc, err := readDocument(file, nil)
+	if err != nil {
+		return Inspection{}, document{}, err
+	}
+	if err = doc.prepareConversion(file); err != nil {
+		return Inspection{}, document{}, err
+	}
+	if _, err = file.Seek(0, io.SeekStart); err != nil {
+		return Inspection{}, document{}, err
+	}
+	_, err = readDocument(file, func(name string, row json.RawMessage) error {
+		converted, conversionErr := doc.convertRow(name, row)
+		if conversionErr != nil {
+			return conversionErr
+		}
+		return validateRow(name, converted, inventory)
+	})
 	if err != nil {
 		return Inspection{}, document{}, err
 	}

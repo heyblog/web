@@ -21,6 +21,11 @@ func (service *Service) ForgotPassword(ctx context.Context, email string) error 
 	if user.PasswordHash == nil || user.VerifiedAt == nil || !isActive(user) {
 		return nil
 	}
+	return service.sendPasswordLink(ctx, user)
+}
+
+func (service *Service) sendPasswordLink(ctx context.Context, user dbUser) error {
+	email := *user.Email
 	token, err := randomToken(32)
 	if err != nil {
 		return repositoryError("generate reset token", err)

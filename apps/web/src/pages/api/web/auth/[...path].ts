@@ -1,7 +1,9 @@
 import type { APIRoute } from 'astro';
 
+import { parseSessionResponse } from '@/api/auth/auth.responses.ts';
 import { copySetCookie, readProblemCode, requestAuthAPI } from '@/api/auth/auth.server.ts';
 import { pageLocation, resolveOAuthLocation, safeNext } from '@/application/auth/auth.server.ts';
+import { confirmationLocation } from '@/application/auth/profile-routing.ts';
 
 export const prerender = false;
 
@@ -110,7 +112,13 @@ export const POST: APIRoute = async ({ params, request }) => {
     if (token) parameters.set('token', token);
     return Response.redirect(pageLocation(request, `${fallback}?${parameters}`), 303);
   }
-  const headers = new Headers({ Location: action.success(request, form) });
+  let location = action.success(request, form);
+  if (path === 'login') {
+    const user = parseSessionResponse(await response.json());
+    if (!user) return Response.redirect(pageLocation(request, '/login?error=request_failed'), 303);
+    if (user.profile_confirmation_required) location = confirmationLocation(location);
+  }
+  const headers = new Headers({ Location: location, 'Cache-Control': 'private, no-store' });
   copySetCookie(response, headers);
   return new Response(null, { status: 303, headers });
 };

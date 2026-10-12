@@ -106,7 +106,11 @@ func (service *Service) Restore(ctx context.Context, file *os.File, actor, check
 			if kind, ok := strings.CutPrefix(dataset, "graph."); ok {
 				return queries.RestoreDatabaseGraphRow(ctx, dbgen.RestoreDatabaseGraphRowParams{Kind: kind, RowData: row})
 			}
-			return queries.RestoreDatabaseRow(ctx, dbgen.RestoreDatabaseRowParams{Dataset: dataset, RowData: row, SourceAdminID: sourceID, TargetAdminID: targetID})
+			converted, err := doc.convertRow(dataset, row)
+			if err != nil {
+				return err
+			}
+			return queries.RestoreDatabaseRow(ctx, dbgen.RestoreDatabaseRowParams{Dataset: dataset, RowData: converted, SourceAdminID: sourceID, TargetAdminID: targetID})
 		})
 		if err != nil {
 			return Restoration{}, fmt.Errorf("restore dataset %s: %w", name, err)

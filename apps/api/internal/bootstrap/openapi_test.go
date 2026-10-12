@@ -66,6 +66,9 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		t.Fatalf("decode generated OpenAPI: %v", err)
 	}
 	wantedPaths := []string{
+		"/api/web/account/profile/confirm", "/api/web/account/profile", "/api/web/account/username",
+		"/api/web/management/users/{id}", "/api/web/management/users/{id}/profile", "/api/web/management/users/{id}/status",
+		"/api/web/management/users/{id}/sessions/revoke", "/api/web/management/users/{id}/password-reset", "/api/web/management/users/{id}/verification",
 		"/api/web/management/database-backup/export", "/api/web/management/database-backup/inspect", "/api/web/management/database-backup/restore",
 		"/api/web/public/sitemap",
 		"/api/web/public/sites/id/{shortId}/outbound", "/api/web/public/site-metrics/impressions",
@@ -205,8 +208,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 103 {
-		t.Fatalf("documented operation count = %d, want 103", operationCount)
+	if operationCount != 113 {
+		t.Fatalf("documented operation count = %d, want 113", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

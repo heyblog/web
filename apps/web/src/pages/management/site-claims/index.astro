@@ -1,14 +1,13 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
 import { parseClaims } from '@/api/site-management/site-management.types';
-import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
 import { claimMethodLabels, claimStatusLabels } from '@/application/site-management/messages';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
-const user = await readSessionUser(Astro.request);
+const user = Astro.locals.sessionUser;
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
 if (!(
   user.role === 'SYS_ADMIN' ||

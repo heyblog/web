@@ -1,14 +1,13 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
 import type { Snapshot } from '@/api/site-submission/site-submission.types';
-import { readSessionUser } from '@/application/auth/auth.server';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import FriendManager from '@/components/site-management/FriendManager.svelte';
 import SiteSubmissionForm from '@/components/site-submission/SiteSubmissionForm.svelte';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
-const user = await readSessionUser(Astro.request);
+const user = Astro.locals.sessionUser;
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
 const shortId = Astro.params.shortId ?? '';
 const response = await requestAuthAPI(Astro.request, `/api/web/account/sites/${shortId}`);

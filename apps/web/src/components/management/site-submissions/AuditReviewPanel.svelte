@@ -3,6 +3,7 @@
 
   import { requestAuditReview } from '@/api/site-submission/site-submission.browser';
   import type { AuditDetail } from '@/api/site-submission/site-submission.types';
+  import { protectReviewRequest } from '@/application/site-submission/review-navigation.browser';
   import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
 
   interface Props {
@@ -16,7 +17,9 @@
   let { detail, returnPath, canManageTaxonomy }: Props = $props();
   let comment = $state(untrack(() => detail.reviewer_comment ?? ''));
   let pending = $state(false);
+  $effect(() => protectReviewRequest(() => pending));
   let error = $state('');
+  let reloadRequired = $state(false);
   let pendingAction = $state<PendingAction | null>(null);
   let confirmDialog: HTMLDialogElement;
   let canCorrect = $derived(detail.action === 'CREATE' || detail.action === 'UPDATE');
@@ -29,6 +32,7 @@
   let approveBlocked = $derived(hasNewTaxonomy && !canManageTaxonomy);
 
   function requestAction(action: PendingAction): void {
+    if (pending || reloadRequired) return;
     error = '';
     if (action === 'REJECTED' && !comment.trim()) {
       error = '驳回申请时必须填写审核意见。';
@@ -44,42 +48,54 @@
   }
 
   async function confirmAction(): Promise<void> {
-    if (!pendingAction) return;
+    if (!pendingAction || pending || reloadRequired) return;
     pending = true;
     error = '';
     const action = pendingAction;
     confirmDialog.close();
     const discard = action === 'DISCARD';
-    const response = await requestAuditReview(
-      detail.id,
-      discard,
-      discard
-        ? {
-            expected_site_revision: detail.current_snapshot.revision ?? 0,
-            expected_review_draft_revision: detail.review_draft_revision,
-          }
-        : {
-            decision: action,
-            reviewer_comment: comment.trim(),
-            expected_site_revision: detail.current_snapshot.revision ?? 0,
-            expected_review_draft_revision: detail.review_draft_revision,
-          },
-    );
-    pending = false;
-    pendingAction = null;
-    if (!response.ok) {
-      error = await problemDetail(response);
-      return;
+    try {
+      const response = await requestAuditReview(
+        detail.id,
+        discard,
+        discard
+          ? {
+              expected_site_revision: detail.current_snapshot.revision ?? 0,
+              expected_review_draft_revision: detail.review_draft_revision,
+            }
+          : {
+              decision: action,
+              reviewer_comment: comment.trim(),
+              expected_site_revision: detail.current_snapshot.revision ?? 0,
+              expected_review_draft_revision: detail.review_draft_revision,
+            },
+      );
+      pendingAction = null;
+      if (!response.ok) {
+        reloadRequired = response.status >= 500 || response.status === 409;
+        error = await problemDetail(response);
+        return;
+      }
+      if (discard) {
+        window.location.reload();
+        return;
+      }
+      const target = new URL(returnPath, window.location.origin);
+      target.searchParams.set('reviewed', action === 'APPROVED' ? 'approved' : 'rejected');
+      window.location.assign(`${target.pathname}${target.search}`);
+    } catch {
+      reloadRequired = true;
+      error = '连接中断，提交结果尚未确认。请重新加载核实后继续。';
+    } finally {
+      pending = false;
     }
-    if (discard) {
-      window.location.reload();
-      return;
-    }
-    const target = new URL(returnPath, window.location.origin);
-    target.searchParams.set('reviewed', action === 'APPROVED' ? 'approved' : 'rejected');
-    window.location.assign(`${target.pathname}${target.search}`);
   }
 </script>
+
+{#if reloadRequired}<a
+    class="inline-flex min-h-11 items-center text-sm text-tint-fg underline"
+    href={typeof window !== 'undefined' ? window.location.href : returnPath}>重新加载并核实结果</a
+  >{/if}
 
 <section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 xl:sticky xl:top-6">
   <header>
@@ -110,7 +126,7 @@
       {#if detail.review_draft_snapshot}<button
           class="min-h-10 rounded-sm px-3 text-sm text-danger-fg hover:bg-danger-bg"
           type="button"
-          disabled={pending}
+          disabled={pending || reloadRequired}
           onclick={() => requestAction('DISCARD')}>放弃修正稿</button
         >{/if}
     </div>{/if}
@@ -119,30 +135,25 @@
     >审核意见<textarea
       class="min-h-28 rounded-sm border border-line-strong bg-surface p-3"
       bind:value={comment}
-      disabled={pending}
+      disabled={pending || reloadRequired}
       placeholder="通过可不填，驳回时必填。"></textarea></label
   >
 
   {#if error}<div class="grid gap-2" role="alert">
       <p class="rounded-sm border border-danger bg-danger-bg p-3 text-sm text-danger-fg">{error}</p>
-      {#if error.includes('刷新')}<button
-          class="min-h-10 w-fit rounded-sm border border-line-strong px-3 text-sm font-medium"
-          type="button"
-          onclick={() => window.location.reload()}>刷新页面</button
-        >{/if}
     </div>{/if}
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
     <button
       class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
       type="button"
-      disabled={pending || approveBlocked}
+      disabled={pending || reloadRequired || approveBlocked}
       onclick={() => requestAction('APPROVED')}>批准申请</button
     >
     <button
       class="min-h-11 rounded-sm border border-danger px-5 font-semibold text-danger-fg disabled:opacity-50"
       type="button"
-      disabled={pending}
+      disabled={pending || reloadRequired}
       onclick={() => requestAction('REJECTED')}>驳回申请</button
     >
   </div>

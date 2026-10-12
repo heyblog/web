@@ -9,6 +9,13 @@ export const systemActor: ManagedUser = {
   permissions: [],
   active: true,
   email_verified: true,
+  has_password: true,
+  has_github: false,
+  created_at: '2026-10-01T00:00:00Z',
+  updated_at: '2026-10-01T00:00:00Z',
+  last_login_at: null,
+  access_status: 'ACTIVE',
+  deletion_pending: false,
 };
 export const managedUser: ManagedUser = {
   ...systemActor,

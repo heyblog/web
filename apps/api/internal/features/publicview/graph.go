@@ -33,11 +33,13 @@ type GraphStats struct {
 }
 
 type FriendGraph struct {
-	encoded  []byte
-	Nodes    []GraphNode `json:"nodes"`
-	Edges    []GraphEdge `json:"edges"`
-	Stats    GraphStats  `json:"stats"`
-	CenterID *string     `json:"centerId"`
+	encoded     []byte
+	gzipEncoded []byte
+	metricIDs   []string
+	Nodes       []GraphNode `json:"nodes"`
+	Edges       []GraphEdge `json:"edges"`
+	Stats       GraphStats  `json:"stats"`
+	CenterID    *string     `json:"centerId"`
 }
 
 type cachedGraph struct {
@@ -55,6 +57,16 @@ func (service *Service) Graph(ctx context.Context) (FriendGraph, error) {
 }
 
 func (service *Service) globalGraph(ctx context.Context) (FriendGraph, error) {
+	if err := ctx.Err(); err != nil {
+		return FriendGraph{}, internalError(err, "load friend graph")
+	}
+	revision, err := service.graph.GetPublicGraphRevision(ctx)
+	if err != nil {
+		return FriendGraph{}, internalError(err, "read graph generation")
+	}
+	if snapshot := service.graphSnapshot.Load(); snapshot != nil && snapshot.revision == revision {
+		return snapshot.view, nil
+	}
 	service.graphOnce.Do(func() { service.graphGate = make(chan struct{}, 1) })
 	select {
 	case service.graphGate <- struct{}{}:
@@ -64,15 +76,15 @@ func (service *Service) globalGraph(ctx context.Context) (FriendGraph, error) {
 	}
 	// Read the committed generation before loading a snapshot. A concurrent commit may
 	// make this result newer than the key, but the next request will then reload it.
-	revision, err := service.graph.GetPublicGraphRevision(ctx)
+	revision, err = service.graph.GetPublicGraphRevision(ctx)
 	if err != nil {
 		return FriendGraph{}, internalError(err, "read graph generation")
 	}
 	if err := ctx.Err(); err != nil {
 		return FriendGraph{}, internalError(err, "load friend graph")
 	}
-	if service.graphSnapshot != nil && service.graphSnapshot.revision == revision {
-		return service.graphSnapshot.view, nil
+	if snapshot := service.graphSnapshot.Load(); snapshot != nil && snapshot.revision == revision {
+		return snapshot.view, nil
 	}
 	graph, err := service.decodeGraph(ctx, pgtype.UUID{})
 	if err != nil {
@@ -82,7 +94,11 @@ func (service *Service) globalGraph(ctx context.Context) (FriendGraph, error) {
 	if err != nil {
 		return FriendGraph{}, internalError(err, "encode friend graph")
 	}
-	service.graphSnapshot = &cachedGraph{revision: revision, view: graph}
+	graph.gzipEncoded, err = encodeCompressedGraph(graph.encoded)
+	if err != nil {
+		return FriendGraph{}, internalError(err, "compress friend graph")
+	}
+	service.graphSnapshot.Store(&cachedGraph{revision: revision, view: graph})
 	return graph, nil
 }
 
@@ -122,17 +138,17 @@ func (service *Service) decodeGraph(ctx context.Context, centerID pgtype.UUID) (
 	if err := json.Unmarshal(data, &graph); err != nil {
 		return FriendGraph{}, internalError(err, "decode friend graph")
 	}
+	graph.metricIDs = make([]string, 0, len(graph.Nodes))
+	for _, node := range graph.Nodes {
+		if node.ShortID != nil {
+			graph.metricIDs = append(graph.metricIDs, *node.ShortID)
+		}
+	}
 	return graph, nil
 }
 
 func (service *Service) recordGraph(ctx context.Context, graph FriendGraph) {
 	if service.metrics != nil {
-		ids := make([]string, 0, len(graph.Nodes))
-		for _, node := range graph.Nodes {
-			if node.ShortID != nil {
-				ids = append(ids, *node.ShortID)
-			}
-		}
-		service.metrics.RecordGraph(ctx, ids)
+		service.metrics.RecordGraph(ctx, graph.metricIDs)
 	}
 }

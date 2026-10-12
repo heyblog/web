@@ -1,14 +1,13 @@
 ---
 import { readTaxonomyPage } from '@/api/taxonomy/taxonomy.server';
 import type { TaxonomyData } from '@/api/taxonomy/taxonomy.types';
-import { readSessionUser } from '@/application/auth/auth.server';
 import { managementNavigation } from '@/application/management/navigation';
 import TagManager from '@/components/management/tags/TagManager.svelte';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
-const actor = await readSessionUser(Astro.request);
+const actor = Astro.locals.sessionUser;
 if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Ftags');
 if (!(
   actor.role === 'SYS_ADMIN' ||

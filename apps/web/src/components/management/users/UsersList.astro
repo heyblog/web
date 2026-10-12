@@ -27,9 +27,9 @@ const detailPath = (id: string) =>
         <a
           class="inline-flex min-h-11 items-center text-sm font-medium text-tint-fg hover:underline"
           href={detailPath(user.id)}
-          aria-label={`查看 ${user.display_name || user.username} 的授权`}
+          aria-label={`查看 ${user.display_name || user.username} 的资料`}
         >
-          查看授权 →
+          查看详情 →
         </a>
       </div>
     </article>
@@ -37,7 +37,7 @@ const detailPath = (id: string) =>
 </div>
 <div class="hidden overflow-x-auto rounded-md border border-line md:block">
   <table class="w-full min-w-180 border-collapse text-left text-sm">
-    <caption class="sr-only">用户角色与模块权限</caption>
+    <caption class="sr-only">用户资料、账号状态与授权</caption>
     <thead class="bg-subtle text-xs text-fg-muted">
       <tr>
         {['用户', '账号状态', '角色', '模块权限', '操作'].map((label) => (
@@ -62,9 +62,9 @@ const detailPath = (id: string) =>
             <a
               class="inline-flex min-h-10 items-center font-medium whitespace-nowrap text-tint-fg hover:underline"
               href={detailPath(user.id)}
-              aria-label={`查看 ${user.display_name || user.username} 的授权`}
+              aria-label={`查看 ${user.display_name || user.username} 的资料`}
             >
-              查看授权 →
+              查看详情 →
             </a>
           </td>
         </tr>

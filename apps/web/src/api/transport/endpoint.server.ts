@@ -5,13 +5,15 @@ import type { APIRoute } from 'astro';
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
 
 import { forwardClientAddress } from './client-ip.server.ts';
+import { requestEncoded } from './encoded.server.ts';
 
 export const apiWebTokenHeader = 'X-HeyBlog-Web-Token';
 
 type ForwardableRequestHeader =
   'accept' | 'accept-language' | 'authorization' | 'content-type' | 'cookie';
 
-type ForwardableResponseHeader = 'content-type' | 'etag' | 'last-modified' | 'www-authenticate';
+type ForwardableResponseHeader =
+  'content-type' | 'etag' | 'last-modified' | 'www-authenticate' | 'content-encoding' | 'vary';
 
 interface EndpointPolicyBase {
   method: 'GET';
@@ -21,6 +23,7 @@ interface EndpointPolicyBase {
   responseHeaders: readonly ForwardableResponseHeader[];
   forwardSetCookie?: boolean;
   timeoutMs?: number;
+  preserveEncoding?: boolean;
 }
 
 export interface PublicCorsPolicy {
@@ -121,18 +124,25 @@ export async function handleApiRequest(
     }
   }
   forwardClientAddress(request, upstreamHeaders);
+  if (policy.preserveEncoding)
+    upstreamHeaders.set('Accept-Encoding', request.headers.get('Accept-Encoding') ?? 'identity');
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await (dependencies.fetch ?? fetch)(
-      new URL(upstreamURL.pathname + upstreamURL.search, configuration.apiBaseUrl),
-      {
-        method: policy.method,
-        headers: upstreamHeaders,
-        redirect: 'manual',
-        signal: AbortSignal.any([request.signal, AbortSignal.timeout(policy.timeoutMs ?? 5_000)]),
-      },
-    );
+    const url = new URL(upstreamURL.pathname + upstreamURL.search, configuration.apiBaseUrl);
+    const signal = AbortSignal.any([
+      request.signal,
+      AbortSignal.timeout(policy.timeoutMs ?? 5_000),
+    ]);
+    upstreamResponse =
+      policy.preserveEncoding && !dependencies.fetch
+        ? await requestEncoded(url, upstreamHeaders, signal)
+        : await (dependencies.fetch ?? fetch)(url, {
+            method: policy.method,
+            headers: upstreamHeaders,
+            redirect: 'manual',
+            signal,
+          });
   } catch {
     return problemResponse(
       request,
@@ -154,7 +164,10 @@ export async function handleApiRequest(
   for (const header of policy.responseHeaders) {
     const value = upstreamResponse.headers.get(header);
     if (value !== null) {
-      responseHeaders.set(header, value);
+      responseHeaders.set(
+        header,
+        header === 'vary' ? appendVary(responseHeaders.get('Vary'), value) : value,
+      );
     }
   }
   if (policy.forwardSetCookie) {

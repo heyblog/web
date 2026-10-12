@@ -25,6 +25,8 @@ BEGIN
         NEW.email IS DISTINCT FROM OLD.email
         OR NEW.username IS DISTINCT FROM OLD.username
         OR NEW.display_name IS DISTINCT FROM OLD.display_name
+        OR NEW.profile_confirmation_status IS DISTINCT FROM OLD.profile_confirmation_status
+        OR NEW.username_changes_used IS DISTINCT FROM OLD.username_changes_used
         OR NEW.password_hash IS DISTINCT FROM OLD.password_hash
         OR NEW.role IS DISTINCT FROM OLD.role
         OR NEW.email_verified_at IS DISTINCT FROM OLD.email_verified_at
@@ -170,6 +172,10 @@ CREATE TABLE identity.users (
     deleted_at timestamp with time zone, -- Time account anonymization and OAuth removal completed.
     created_at timestamp with time zone DEFAULT now() NOT NULL, -- Account creation time.
     updated_at timestamp with time zone DEFAULT now() NOT NULL, -- Last account or profile update time maintained by trigger.
+    profile_confirmation_status text DEFAULT 'NOT_REQUIRED' NOT NULL, -- First OAuth profile confirmation state: NOT_REQUIRED, PENDING, or CONFIRMED.
+    username_changes_used integer DEFAULT 0 NOT NULL, -- Completed optional username changes, limited to one per account.
+    CONSTRAINT users_profile_confirmation_status_check CHECK (profile_confirmation_status IN ('NOT_REQUIRED', 'PENDING', 'CONFIRMED')),
+    CONSTRAINT users_username_changes_used_check CHECK (username_changes_used BETWEEN 0 AND 1),
     CONSTRAINT users_access_status_check CHECK ((access_status = ANY (ARRAY['ACTIVE'::text, 'SUSPENDED'::text]))),
     CONSTRAINT users_auth_version_check CHECK ((auth_version >= 1)),
     CONSTRAINT users_deleted_data_check CHECK (((deleted_at IS NULL) OR ((display_name = username) AND (password_hash IS NULL) AND (role = 'USER'::text) AND (access_status = 'SUSPENDED'::text) AND (email_verified_at IS NULL) AND (profile = '{}'::jsonb) AND (settings = '{}'::jsonb) AND (last_login_at IS NULL)))),
@@ -239,6 +245,10 @@ COMMENT ON COLUMN identity.users.email IS 'Trimmed lowercase login and notificat
 COMMENT ON COLUMN identity.users.username IS 'Globally unique lowercase public username.';
 
 COMMENT ON COLUMN identity.users.display_name IS 'Trimmed user-facing display name not used for identity matching.';
+
+COMMENT ON COLUMN identity.users.profile_confirmation_status IS 'First OAuth profile confirmation state: NOT_REQUIRED, PENDING, or CONFIRMED.';
+
+COMMENT ON COLUMN identity.users.username_changes_used IS 'Completed optional username changes, limited to one per account.';
 
 COMMENT ON COLUMN identity.users.password_hash IS 'Reserved optional password verifier for future password login.';
 

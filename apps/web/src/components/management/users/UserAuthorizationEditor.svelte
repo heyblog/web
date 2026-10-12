@@ -16,6 +16,7 @@
   import { authorizationAccess, permissionLabels } from '@/application/management/users.model';
   import { protectUserDraft } from '@/application/management/users-navigation.browser';
 
+  import UserAccountEditor from './UserAccountEditor.svelte';
   import { buttonClass, inputClass, panelClass, primaryClass } from './users.styles';
   import UserSummary from './UserSummary.svelte';
 
@@ -27,9 +28,14 @@
   let { actor, user, returnPath }: Props = $props();
   let draft = $state(untrack(() => createUserDraft(user)));
   let confirmed = $state(false);
+  let accountBusy = $state(false);
+  let accountUncertain = $state(false);
+  let accountDirty = $state(false);
   const dirty = $derived(draftChanges(draft));
   const access = $derived(authorizationAccess(actor, draft.saved));
-  const locked = $derived(draft.busy || draft.reloadRequired);
+  const locked = $derived(
+    draft.busy || draft.reloadRequired || accountBusy || accountDirty || accountUncertain,
+  );
   const lowering = $derived(
     dirty.role && (draft.role === 'USER' || draft.saved.role === 'SYS_ADMIN'),
   );
@@ -37,7 +43,10 @@
   const permissionsDisabled = $derived(Boolean(access.permissionsReason) || locked || dirty.role);
 
   onMount(() =>
-    protectUserDraft(() => ({ dirty: dirty.role || dirty.permissions, busy: draft.busy })),
+    protectUserDraft(() => ({
+      dirty: dirty.role || dirty.permissions || accountDirty,
+      busy: draft.busy || accountBusy,
+    })),
   );
 
   function toggle(permission: ManagementPermission, checked: boolean) {
@@ -52,6 +61,7 @@
   }
 
   async function submit(kind: AuthorizationOperation) {
+    if (accountBusy || accountDirty || accountUncertain) return;
     if (kind === 'role' && lowering && !confirmed) return;
     const change = prepareAuthorization(actor, draft, kind);
     if (!change) return;
@@ -76,6 +86,18 @@
     >{/if}
 </div>
 <UserSummary user={draft.saved} {actor} />
+<UserAccountEditor
+  user={draft.saved}
+  {actor}
+  disabled={draft.busy || draft.reloadRequired || dirty.role || dirty.permissions}
+  onsaved={(user) => {
+    draft = createUserDraft(user);
+    confirmed = false;
+  }}
+  onbusy={(value) => (accountBusy = value)}
+  onuncertain={(value) => (accountUncertain = value)}
+  ondirty={(value) => (accountDirty = value)}
+/>
 {#if draft.error}<div
     class="mb-6 rounded-md border border-danger bg-danger-bg p-4 text-sm text-danger-fg"
     role="alert"

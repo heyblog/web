@@ -4,7 +4,8 @@ const endpoint = createApiEndpoint({
   audience: 'web-only',
   method: 'GET',
   upstreamPath: '/api/web/public/sites/graph',
-  responseHeaders: ['content-type'],
+  responseHeaders: ['content-type', 'content-encoding', 'vary'],
+  preserveEncoding: true,
   timeoutMs: 30_000,
 });
 export const GET = endpoint.GET;

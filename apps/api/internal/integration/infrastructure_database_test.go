@@ -215,6 +215,8 @@ func verifyIdentitySchema(ctx context.Context, t *testing.T, connection *pgx.Con
 		"deleted_at:timestamp with time zone:YES",
 		"created_at:timestamp with time zone:NO",
 		"updated_at:timestamp with time zone:NO",
+		"profile_confirmation_status:text:NO",
+		"username_changes_used:integer:NO",
 	}
 	if !slices.Equal(columns, want) {
 		t.Fatalf("identity user columns = %v, want %v", columns, want)

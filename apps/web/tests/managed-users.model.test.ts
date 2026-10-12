@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { managementNavigation } from '../src/application/management/navigation.ts';
 import {
   createUserDraft,
   draftChanges,
@@ -8,39 +9,35 @@ import {
   prepareAuthorization,
 } from '../src/application/management/user-editor.model.ts';
 import {
+  accountManagementReason,
   authorizationAccess,
-  filterUsers,
   permissionSummary,
+  userMutationNeedsReload,
+  usersQuery,
   usersReturnPath,
 } from '../src/application/management/users.model.ts';
 
 import { managedUser, systemActor } from './fixtures/managed-users.ts';
 
-test('user filters combine case-insensitive identity, role and state with bounded pages', () => {
-  const users = Array.from({ length: 43 }, (_, index) => ({
-    ...managedUser,
-    id: String(index),
-    username: `member${index}`,
-  }));
-  const first = filterUsers(users, new URLSearchParams());
-  assert.equal(first.users.length, 20);
-  assert.equal(first.total, 43);
-  assert.equal(first.pages, 3);
-  assert.equal(filterUsers(users, new URLSearchParams('page=900')).users.length, 3);
-  assert.equal(filterUsers(users, new URLSearchParams('page=NaN')).page, 1);
-  assert.equal(filterUsers(users, new URLSearchParams('page=1.5')).page, 1);
+test('server list query bounds page and preserves accepted search filters', () => {
   assert.equal(
-    filterUsers(users, new URLSearchParams('q=EDITOR@EXAMPLE.TEST&role=ADMIN&state=active')).total,
-    43,
+    usersQuery(new URLSearchParams('q= editor &role=ADMIN&status=ACTIVE&page=2')).toString(),
+    'q=editor&role=ADMIN&status=ACTIVE&page=2&page_size=20',
   );
-  assert.equal(filterUsers(users, new URLSearchParams('state=inactive')).total, 0);
-  assert.equal(filterUsers(users, new URLSearchParams('role=USER')).total, 0);
-  assert.equal(filterUsers(users, new URLSearchParams('q=member42')).users[0]?.id, '42');
   assert.equal(
-    filterUsers([{ ...managedUser, email: null }], new URLSearchParams('q=编辑')).total,
-    1,
+    usersQuery(new URLSearchParams('page=NaN&role=bad&status=bad')).toString(),
+    'page=1&page_size=20',
   );
-  assert.equal(filterUsers([], new URLSearchParams('page=2')).page, 1);
+  assert.equal(usersQuery(new URLSearchParams('page=1.5')).get('page'), '1');
+});
+
+test('account changes follow role hierarchy and account lifecycle', () => {
+  const manager = { ...managedUser, id: 'manager', permissions: ['user.manage'] as const };
+  assert.equal(accountManagementReason(systemActor, managedUser), null);
+  assert.equal(accountManagementReason(manager, { ...managedUser, role: 'USER' }), null);
+  assert.ok(accountManagementReason(manager, managedUser));
+  assert.ok(accountManagementReason(systemActor, systemActor));
+  assert.ok(accountManagementReason(systemActor, { ...managedUser, deletion_pending: true }));
 });
 
 test('return navigation permits only list paths and known filter parameters', () => {
@@ -91,6 +88,7 @@ test('draft submission refuses unchanged, overlapping, unauthorized and in-fligh
   assert.deepEqual(prepareAuthorization(systemActor, permissions, 'permissions'), {
     kind: 'permissions',
     permissions: [],
+    updated_at: managedUser.updated_at,
   });
   assert.equal(
     prepareAuthorization(systemActor, { ...permissions, busy: true }, 'permissions'),
@@ -123,4 +121,61 @@ test('success replaces the whole baseline; errors retain draft and block uncerta
     finishAuthorization(draft, { ok: false, code: 'forbidden', status: 401 }).loginRequired,
     true,
   );
+});
+
+test('management navigation uses role and business permission together', () => {
+  assert.deepEqual(
+    managementNavigation({ role: 'USER', permissions: ['user.manage', 'site_audit.review'] }),
+    [],
+  );
+  assert.deepEqual(
+    managementNavigation({ role: 'ADMIN', permissions: ['taxonomy.manage'] }).map(
+      (item) => item.href,
+    ),
+    ['/management/tags'],
+  );
+  assert.ok(
+    managementNavigation({ role: 'ADMIN', permissions: ['announcement.manage'] }).some(
+      (item) => item.href === '/management/announcements',
+    ),
+  );
+});
+
+test('definite identity conflicts keep drafts editable while stale or uncertain outcomes require reload', () => {
+  for (const code of ['username_taken', 'email_taken'])
+    assert.equal(userMutationNeedsReload(code, 409), false);
+  assert.equal(userMutationNeedsReload('validation_failed', 422), false);
+  for (const [code, status] of [
+    ['user_conflict', 409],
+    ['network_error', 0],
+    ['bad_gateway', 502],
+    ['invalid_response', 200],
+  ] as const)
+    assert.equal(userMutationNeedsReload(code, status), true);
+});
+
+test('pending deletion locks account and authorization changes independently of access status', () => {
+  const pending = { ...managedUser, deletion_pending: true, access_status: 'ACTIVE' };
+  assert.ok(accountManagementReason(systemActor, pending));
+  const access = authorizationAccess(systemActor, pending);
+  assert.ok(access.roleReason);
+  assert.ok(access.permissionsReason);
+  assert.equal(
+    prepareAuthorization(systemActor, { ...createUserDraft(pending), role: 'USER' }, 'role'),
+    null,
+  );
+  assert.equal(
+    prepareAuthorization(
+      systemActor,
+      { ...createUserDraft(pending), permissions: [] },
+      'permissions',
+    ),
+    null,
+  );
+});
+
+test('user queries stay within API search and page bounds', () => {
+  const query = usersQuery(new URLSearchParams({ q: 'q'.repeat(200), page: '1000001' }));
+  assert.equal(query.get('q')?.length, 128);
+  assert.equal(query.get('page'), '1000000');
 });

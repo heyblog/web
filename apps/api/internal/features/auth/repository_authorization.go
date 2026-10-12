@@ -53,69 +53,6 @@ func (repo *repository) permissions(ctx context.Context, userID string) ([]Permi
 	return result, nil
 }
 
-func (repo *repository) listUsers(ctx context.Context) ([]dbUser, error) {
-	rows, err := repo.queries.ListUsersForManagement(ctx)
-	if err != nil {
-		return nil, err
-	}
-	users := make([]dbUser, len(rows))
-	for index, row := range rows {
-		users[index] = mapUser(row)
-	}
-	return users, nil
-}
-
-func (repo *repository) setRole(ctx context.Context, userID, role string) error {
-	parsed, err := parseUUID(userID)
-	if err != nil {
-		return err
-	}
-	tx, err := repo.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	queries := repo.queries.WithTx(tx)
-	if err := queries.SetUserRole(ctx, dbgen.SetUserRoleParams{ID: parsed, Role: role}); err != nil {
-		return err
-	}
-	if role == string(RoleUser) {
-		if err := queries.DeleteUserManagementPermissions(ctx, parsed); err != nil {
-			return err
-		}
-	}
-	return tx.Commit(ctx)
-}
-
-func (repo *repository) replacePermissions(ctx context.Context, userID, actorID string, permissions []Permission) error {
-	userUUID, err := parseUUID(userID)
-	if err != nil {
-		return err
-	}
-	actorUUID, err := parseUUID(actorID)
-	if err != nil {
-		return err
-	}
-	tx, err := repo.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	queries := repo.queries.WithTx(tx)
-	if err := queries.DeleteUserManagementPermissions(ctx, userUUID); err != nil {
-		return err
-	}
-	for _, permission := range permissions {
-		if err := queries.CreateUserManagementPermission(ctx, dbgen.CreateUserManagementPermissionParams{UserID: userUUID, PermissionKey: string(permission), GrantedBy: actorUUID}); err != nil {
-			return err
-		}
-	}
-	if err := queries.BumpUserAuthVersion(ctx, userUUID); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
-}
-
 func mapOAuth(row dbgen.IdentityOauthIdentity) dbOAuth {
 	return dbOAuth{ID: row.ID.String(), UserID: row.UserID.String(), ProviderID: row.ProviderUserID, ProviderLogin: row.ProviderLogin}
 }

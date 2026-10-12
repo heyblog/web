@@ -28,13 +28,9 @@ type DirectoryClassificationOption struct {
 }
 
 func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions, error) {
-	tags, err := service.options.ListDirectoryTagOptions(ctx)
+	taxonomy, err := service.directoryTags(ctx)
 	if err != nil {
-		return DirectoryOptions{}, internalError(err, "list directory tag options")
-	}
-	cascades, err := service.options.ListPublicSiteTagCascades(ctx)
-	if err != nil {
-		return DirectoryOptions{}, internalError(err, "list directory classifications")
+		return DirectoryOptions{}, err
 	}
 	technologies, err := service.options.ListDirectoryTechnologyOptions(ctx)
 	if err != nil {
@@ -44,8 +40,8 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 		Classifications: []DirectoryClassificationOption{}, TertiaryTags: []DirectoryOption{},
 		Warnings: []DirectoryOption{}, Technologies: []DirectoryOption{},
 	}
-	counts := make(map[string]DirectoryOption, len(tags))
-	for _, tag := range tags {
+	counts := make(map[string]DirectoryOption, len(taxonomy.tags))
+	for _, tag := range taxonomy.tags {
 		option := DirectoryOption{
 			ID: uuidText(tag.ID), Value: tag.Name, Label: tag.Name,
 			NormalCount: tag.NormalCount, AbnormalCount: tag.AbnormalCount,
@@ -67,7 +63,7 @@ func (service *Service) DirectoryOptions(ctx context.Context) (DirectoryOptions,
 		}
 	}
 	classificationIndex := make(map[string]int)
-	for _, cascade := range cascades {
+	for _, cascade := range taxonomy.cascades {
 		level1 := counts["PRIMARY:"+cascade.Level1Name]
 		level1.Value, level1.Label, level1.ID = cascade.Level1Name, cascade.Level1Name, uuidText(cascade.Level1ID)
 		level2 := counts["SECONDARY:"+cascade.Level2Name]

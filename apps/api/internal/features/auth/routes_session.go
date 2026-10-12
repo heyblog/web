@@ -57,7 +57,7 @@ func registerSessionRoutes(api huma.API, service *Service, limiter mailRateLimit
 	currentOperation := operation("get-current-user", http.MethodGet, "/api/web/auth/me", "Get the current user")
 	currentOperation.Security = []map[string][]string{{"webToken": {}, "accessCookie": {}}}
 	httpapi.Register(api, currentOperation, func(ctx context.Context, _ *emptyInput) (*userOutput, error) {
-		user, err := service.Current(ctx, httpapi.Request(ctx))
+		user, err := service.CurrentSession(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, mapError(err)
 		}

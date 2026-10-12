@@ -79,6 +79,13 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - Browser auth preserves password/email verification, rotating refresh sessions, HttpOnly and
   SameSite cookie delivery, and operation-specific `auth_version` invalidation. GitHub login uses
   a verified primary email; binding must match the account and unbinding must leave password login.
+  OAuth-created users confirm their account profile before authenticated business operations.
+  Initial confirmation preserves the separate one-time username change allowance; display names remain editable.
+  `CurrentSession` serves session/profile confirmation and `Current` additionally requires completed confirmation.
+  Profile mutations serialize on the account row and rotate the current session after username changes.
+  User management uses server pagination and timestamp revision checks; password setup/reset uses email links.
+  User DTOs expose `deletion_pending`; scheduled-deletion accounts remain readable and cannot be managed
+  until the existing deletion lifecycle permits an account-state transition.
   Preserve user-management role, permission, scope, and self-management restrictions in
   `apps/api/internal/features/auth/management.go`, `apps/api/internal/features/auth/github.go`, and
   `apps/api/internal/features/auth/repository_authorization.go`.
@@ -155,9 +162,9 @@ and focused tests referenced below, not additional package-level AGENTS files.
   `/api/web/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
   and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
   these routes. Private temporary files are streamed and removed after each request.
-- Backup protocol version 1, schema version 3 covers all 33 identity/directory/content tables and complete AGE
+- Backup protocol version 1, schema version 4 covers all 33 identity/directory/content tables and complete AGE
   logical vertices and edges. The baseline freezes the schema inventory; schema evolution
-  requires an explicit backup compatibility change. Only schema-version-3 backups are accepted. Binary columns use Base64 and bigint columns
+  requires an explicit backup compatibility change. Schema versions 3 and 4 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns
   use decimal strings. Never decode row JSON through floating-point numbers.
 - Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
   and maps structured actor references to the retained target administrator. It accepts only
@@ -185,11 +192,13 @@ and focused tests referenced below, not additional package-level AGENTS files.
   change sources and use the declared generation/vet/diff tasks when a schema change is requested.
 - Keep each cache's initialization, invalidation, and shutdown lifecycle explicit. Other modules
   must not bypass the API's data ownership.
-- Global graph snapshots and encoded JSON are cached by the committed revision in
+- Global graph snapshots, encoded JSON and gzip bytes are cached by the committed revision in
   `runtime_cache.public_graph_revision`. Site/SQL graph triggers and the Cypher mutation/restore
   wrappers invalidate atomically (AGE bypasses ordinary triggers); failed refreshes never serve stale snapshots. This derived
   schema is excluded from the 33 business backup tables and starts fresh on rebuild.
 - Taxonomy list catalogs are cached by `runtime_cache.taxonomy_revision`; source-table triggers invalidate all catalog/revision inputs in the writing transaction. Preview and mutations still load the full graph under the existing taxonomy advisory lock. Cached lists retain that lock and return independent DTO slices.
+- Public directory tag counts and classification rows reuse the same committed taxonomy generation.
+  Only refreshes serialize; each response builds independent DTOs and reads software counts afresh.
 - Graph displays combine query/response increments into synchronous weighted batches. One coordinator
   serializes batches, each with a one-second database deadline and at most eight disjoint partition writes; accepted calls wait for persistence
   even after cancellation. Bootstrap drains the recorder before closing its pool. Ordinary metric
@@ -238,3 +247,8 @@ database semantics require isolated integration tests. Preserve integration runn
 cleanup during test-file splits. Consult the affected package's source contracts and focused tests;
 report any required gate that could not run instead of treating build-tag compilation as a real
 container integration pass.
+
+Database backup exports use format version 1 and schema version 4. Schema version 3 inputs are
+verified against their original manifest before shared inspect/restore conversion initializes account
+profile confirmation from OAuth bindings and grants one optional username change. New backups
+preserve confirmation and usage state. The consolidated baseline owns these identity fields.

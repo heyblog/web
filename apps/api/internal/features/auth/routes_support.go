@@ -51,9 +51,11 @@ type setPasswordRequest struct {
 	NextPassword    string `json:"next_password"`
 }
 type roleRequest struct {
+	ManagedRevision
 	Role Role `json:"role"`
 }
 type permissionsRequest struct {
+	ManagedRevision
 	Permissions []Permission `json:"permissions"`
 }
 
@@ -87,6 +89,8 @@ func mapError(err error) error {
 	if errors.As(err, &authErr) {
 		kind := apperror.KindBadRequest
 		switch statusKind(authErr.StatusCode) {
+		case "not_found":
+			kind = apperror.KindNotFound
 		case "unauthorized":
 			kind = apperror.KindUnauthorized
 		case "forbidden":

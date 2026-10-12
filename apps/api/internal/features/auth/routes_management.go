@@ -30,16 +30,16 @@ func registerManagementRoutes(api huma.API, service *Service, build authOperatio
 		})
 	}
 
-	httpapi.Register(api, operation("list-managed-users", http.MethodGet, "/api/web/management/users", "List managed users"), func(ctx context.Context, _ *emptyInput) (*usersOutput, error) {
+	httpapi.Register(api, operation("list-managed-users", http.MethodGet, "/api/web/management/users", "List managed users"), func(ctx context.Context, input *ManagedUsersFilter) (*managedUsersOutput, error) {
 		actor, err := service.Current(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, mapError(err)
 		}
-		users, err := service.ListManagedUsers(ctx, actor)
+		users, err := service.ManagedUsers(ctx, actor, *input)
 		if err != nil {
 			return nil, mapError(err)
 		}
-		return &usersOutput{Body: usersResponseBody{Users: users}}, nil
+		return &managedUsersOutput{Body: users}, nil
 	})
 
 	httpapi.Register(api, operation("update-user-role", http.MethodPatch, "/api/web/management/users/{id}/role", "Update a user's role"), func(ctx context.Context, input *userPathInput[roleRequest]) (*userOutput, error) {
@@ -47,7 +47,7 @@ func registerManagementRoutes(api huma.API, service *Service, build authOperatio
 		if err != nil {
 			return nil, mapError(err)
 		}
-		user, err := service.UpdateRole(ctx, actor, input.ID, input.Body.Role)
+		user, err := service.updateManagedAuthorization(ctx, managedMutation{Actor: actor, ID: input.ID, Kind: "role", Role: input.Body.Role, UpdatedAt: input.Body.UpdatedAt})
 		if err != nil {
 			return nil, mapError(err)
 		}
@@ -59,10 +59,11 @@ func registerManagementRoutes(api huma.API, service *Service, build authOperatio
 		if err != nil {
 			return nil, mapError(err)
 		}
-		user, err := service.UpdatePermissions(ctx, actor, input.ID, input.Body.Permissions)
+		user, err := service.updateManagedAuthorization(ctx, managedMutation{Actor: actor, ID: input.ID, Kind: "permissions", Permissions: input.Body.Permissions, UpdatedAt: input.Body.UpdatedAt})
 		if err != nil {
 			return nil, mapError(err)
 		}
 		return &userOutput{Body: userResponseBody{User: user}}, nil
 	})
+	registerManagedAccountRoutes(api, service, operation)
 }

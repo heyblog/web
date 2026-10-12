@@ -596,4 +596,8 @@ type IdentityUser struct {
 	CreatedAt pgtype.Timestamptz
 	// Last account or profile update time maintained by trigger.
 	UpdatedAt pgtype.Timestamptz
+	// First OAuth profile confirmation state: NOT_REQUIRED, PENDING, or CONFIRMED.
+	ProfileConfirmationStatus string
+	// Completed optional username changes, limited to one per account.
+	UsernameChangesUsed int32
 }
