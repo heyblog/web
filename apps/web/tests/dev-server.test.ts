@@ -19,9 +19,20 @@ test('development keeps page scripts and QR images working after graph workers l
   // Given: a fresh dev server and an isolated API with public fixture data.
   const directory = await mkdtemp(join(tmpdir(), 'heyblog-dev-'));
   let emptyLists = false;
+  let sessionStatus = 401;
   const api = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
-    if (
+    if (request.url === '/api/web/auth/me') {
+      response.statusCode = sessionStatus;
+      response.end(JSON.stringify({ code: 'session_unavailable' }));
+    } else if (request.url === '/api/web/auth/logout') {
+      response.statusCode = 204;
+      response.setHeader('Set-Cookie', [
+        'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly',
+        'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly',
+      ]);
+      response.end();
+    } else if (
       request.url === `/api/web/public/sites/id/${profile.shortId}` ||
       request.url === `/api/web/public/sites/id/${profile.shortId}/metadata`
     ) {
@@ -84,6 +95,37 @@ test('development keeps page scripts and QR images working after graph workers l
     assert.ok(typeof server.address === 'object');
     const origin = `http://127.0.0.1:${server.address.port}`;
     const get = (path: string) => fetch(origin + path, { signal: AbortSignal.timeout(120_000) });
+
+    // Auth failures return native redirects with immutable headers.
+    const failedLogin = await fetch(origin + '/api/web/auth/login', {
+      method: 'POST',
+      headers: { Origin: origin },
+      body: new URLSearchParams({ identifier: 'synthetic', password: 'invalid' }),
+      redirect: 'manual',
+    });
+    const failedOAuth = await fetch(origin + '/api/web/auth/github/start', { redirect: 'manual' });
+    for (const [response, status] of [
+      [failedLogin, 303],
+      [failedOAuth, 302],
+    ] as const) {
+      assert.equal(response.status, status);
+      assert.equal(response.headers.get('Location'), origin + '/login?error=unauthorized');
+      assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, follow');
+      assert.equal(await response.text(), '');
+    }
+    const logout = await fetch(origin + '/api/web/auth/logout', {
+      method: 'POST',
+      headers: { Origin: origin },
+      body: new URLSearchParams(),
+      redirect: 'manual',
+    });
+    assert.equal(logout.status, 303);
+    assert.equal(logout.headers.get('Location'), '/login');
+    assert.equal(logout.headers.get('Cache-Control'), 'private, no-store');
+    assert.deepEqual(logout.headers.getSetCookie(), [
+      'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly',
+      'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly',
+    ]);
 
     // Resolve the toolbar before late-loaded Worker imports can change the dependency bundle.
     const toolbar = '/@id/astro/runtime/client/dev-toolbar/entrypoint.js';
@@ -183,6 +225,20 @@ test('development keeps page scripts and QR images working after graph workers l
     assert.match(login.headers.get('X-Robots-Tag') ?? '', /noindex/);
     assert.match(loginHtml, /name="robots" content="noindex/);
     assert.doesNotMatch(loginHtml, /application\/ld\+json/);
+    sessionStatus = 503;
+    for (const path of ['/management/database-backup', '/dashboard', '/login']) {
+      const response = await fetch(origin + path, {
+        headers: { Cookie: 'heyblog_access_token=current' },
+        redirect: 'manual',
+      });
+      assert.equal(response.status, 503, path);
+      assert.equal(response.headers.get('Location'), null);
+      assert.equal(response.headers.get('Set-Cookie'), null);
+      assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+      assert.equal(response.headers.get('Retry-After'), '5');
+      assert.equal(await response.text(), '暂时无法读取登录状态，请稍后刷新重试。');
+    }
+    sessionStatus = 401;
     const alias = await fetch(origin + '/sitemap-index.xml', { redirect: 'manual' });
     assert.equal(alias.status, 308);
     assert.equal(alias.headers.get('Location'), '/sitemap.xml');

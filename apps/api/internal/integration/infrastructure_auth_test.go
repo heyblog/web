@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/infrastructure/cache"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
@@ -113,6 +114,30 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	request.AddCookie(&http.Cookie{Name: "heyblog_refresh_token", Value: tokens[1]})
 	if current, err := service.Current(ctx, request); err != nil || current.ID != user.ID {
 		t.Fatalf("current user = (%q, %v), want %q", current.ID, err, user.ID)
+	}
+	blocked, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = blocked.Rollback(ctx) }()
+	if _, err := blocked.Exec(ctx, "LOCK TABLE identity.users IN ACCESS EXCLUSIVE MODE"); err != nil {
+		t.Fatal(err)
+	}
+	for _, operation := range []string{"current", "refresh"} {
+		deadline, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+		var lookupErr error
+		if operation == "current" {
+			_, lookupErr = service.CurrentSession(deadline, request)
+		} else {
+			_, _, lookupErr = service.Refresh(deadline, request)
+		}
+		cancel()
+		if !errors.Is(lookupErr, context.DeadlineExceeded) {
+			t.Fatalf("%s lost database timeout: %v", operation, lookupErr)
+		}
+	}
+	if err := blocked.Rollback(ctx); err != nil {
+		t.Fatal(err)
 	}
 	_, rotated, err := service.Refresh(ctx, request)
 	if err != nil {

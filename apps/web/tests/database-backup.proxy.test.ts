@@ -184,3 +184,62 @@ test('restore network errors report an unknown outcome instead of inviting an au
   });
   assert.equal(calls, 1);
 });
+
+test('job queries and cancellation retain bounded methods and same-origin authorization', async () => {
+  const id = '019f033c-2111-7000-9000-000000000003';
+  let calls = 0;
+  const dependencies = {
+    configuration,
+    authenticate,
+    fetcher: async (_input: string | URL | Request, init?: RequestInit) => {
+      calls += 1;
+      assert.equal(init?.method, calls === 1 ? 'GET' : 'POST');
+      assert.equal(init?.body, undefined);
+      return Response.json({ job: null });
+    },
+  };
+  const read = (extra: Readonly<Record<string, string>> = {}) =>
+    new Request(
+      'https://web.example.test/api/web/management/database-backup/restore-jobs/current',
+      {
+        headers: {
+          Cookie: headers.Cookie,
+          'Sec-Fetch-Site': 'same-origin',
+          'Sec-Fetch-Mode': 'cors',
+          'Sec-Fetch-Dest': 'empty',
+          ...extra,
+        },
+      },
+    );
+  assert.equal(
+    (await forwardDatabaseBackup(read(), 'restore-jobs/current', dependencies)).status,
+    200,
+  );
+  assert.equal(
+    (await forwardDatabaseBackup(request(), `restore-jobs/${id}/cancel`, dependencies)).status,
+    200,
+  );
+  assert.equal(
+    (
+      await forwardDatabaseBackup(
+        read({ 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' }),
+        'restore-jobs/current',
+        dependencies,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await forwardDatabaseBackup(read(), `restore-jobs/${id}/cancel`, dependencies)).status,
+    405,
+  );
+  assert.equal(
+    (await forwardDatabaseBackup(read(), 'restore-jobs/current/cancel', dependencies)).status,
+    404,
+  );
+  assert.equal(
+    (await forwardDatabaseBackup(read(), `restore-jobs/${id}/other`, dependencies)).status,
+    404,
+  );
+  assert.equal(calls, 2);
+});

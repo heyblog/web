@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"heyblog-api/internal/platform/apperror"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -42,7 +44,10 @@ func (service *Service) CurrentSession(ctx context.Context, request *http.Reques
 		return User{}, newAuthError("session_expired", 401, "authentication is required")
 	}
 	user, err := service.repo.userByID(ctx, claims.Subject)
-	if err != nil || !isActive(user) || user.AuthVersion != claims.AuthVersion {
+	if err != nil && !isNotFound(err) {
+		return User{}, sessionUnavailable(err)
+	}
+	if isNotFound(err) || !isActive(user) || user.AuthVersion != claims.AuthVersion {
 		return User{}, newAuthError("unauthenticated", 401, "authentication is required")
 	}
 	return service.toUser(ctx, user)
@@ -69,7 +74,10 @@ func (service *Service) Refresh(ctx context.Context, request *http.Request) (Use
 		return User{}, nil, newAuthError("session_expired", 401, "authentication is required")
 	}
 	user, err := service.repo.userByID(ctx, claims.Subject)
-	if err != nil || !isActive(user) || user.AuthVersion != claims.AuthVersion {
+	if err != nil && !isNotFound(err) {
+		return User{}, nil, sessionUnavailable(err)
+	}
+	if isNotFound(err) || !isActive(user) || user.AuthVersion != claims.AuthVersion {
 		return User{}, nil, newAuthError("session_expired", 401, "authentication is required")
 	}
 	if err := service.redis.Del(ctx, "heyblog:auth:session:"+claims.SessionID).Err(); err != nil {
@@ -81,6 +89,10 @@ func (service *Service) Refresh(ctx context.Context, request *http.Request) (Use
 	}
 	authUser, err := service.toUser(ctx, user)
 	return authUser, []string{access, refresh}, err
+}
+
+func sessionUnavailable(err error) error {
+	return apperror.Wrap(err, apperror.KindUnavailable, "session_unavailable", "session service is temporarily unavailable", "read session identity")
 }
 
 func (service *Service) Logout(ctx context.Context, request *http.Request) error {

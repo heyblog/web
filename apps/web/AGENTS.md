@@ -62,12 +62,14 @@ layer and browser-module boundaries.
 
 - Database backup transport lives in `src/api/database-backup`; file selection, confirmation and
   safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
-  Purpose-built POST forwarding streams attachments and multipart files without parsing backup data
+  Purpose-built native HTTP(S) forwarding streams attachments and multipart files without parsing backup data
   in Web. Keep Cookie/Web-token authorization, same-origin metadata, private no-store, 512 MiB file
   bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Backup version 1 supports schema versions 3 and 4 with 33 datasets. Exports use schema 4;
   legacy schema 3 restores initialize account confirmation and username allowances. Inspection contains
   counts and administrator mapping only. Never retry restoration automatically; an uncertain result
-  requires fresh inspection. Browser state holds selected files only until navigation.
+  is resolved through the current restore task. The one-off restore runs as an API-owned in-memory task;
+  the page polls status and exposes explicit cancellation. Navigation stops polling without cancelling
+  an accepted task. Browser state holds selected files only until navigation.
 
 - Site homepage navigation uses `application/site-outbound` and `/site/out/{shortId}`; external
   resources and management snapshots use the same link attributes without click tracking. Links

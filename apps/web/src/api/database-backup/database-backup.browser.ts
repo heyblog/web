@@ -1,9 +1,5 @@
-import {
-  backupTimeoutMs,
-  isRecord,
-  parseBackupInspection,
-  parseBackupRestoration,
-} from './database-backup.types.ts';
+import { parseCurrentRestoreJob, parseRestoreJob } from './database-backup.jobs.ts';
+import { backupTimeoutMs, isRecord, parseBackupInspection } from './database-backup.types.ts';
 
 export class BackupTransportError extends Error {
   readonly name = 'BackupTransportError';
@@ -18,14 +14,14 @@ export class BackupTransportError extends Error {
 
 export function createBackupTransport(fetcher: typeof fetch = fetch) {
   async function upload(
-    action: 'inspect' | 'restore',
-    form: FormData,
+    action: string,
+    form: FormData | undefined,
     signal: AbortSignal,
   ): Promise<Response> {
     let response: Response;
     try {
       response = await fetcher(`/api/web/management/database-backup/${action}`, {
-        method: 'POST',
+        method: form || action.endsWith('/cancel') ? 'POST' : 'GET',
         body: form,
         credentials: 'same-origin',
         cache: 'no-store',
@@ -49,7 +45,10 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
       } catch (error) {
         if (!(error instanceof Error)) throw error;
       }
-      throw new BackupTransportError(code, response.status);
+      throw new BackupTransportError(
+        action === 'restore' && response.status >= 500 ? 'restore_outcome_unknown' : code,
+        response.status,
+      );
     }
     return response;
   }
@@ -66,6 +65,24 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
     return result;
   }
   return {
+    async current(signal: AbortSignal) {
+      return decode(
+        await upload('restore-jobs/current', undefined, signal),
+        parseCurrentRestoreJob,
+      );
+    },
+    async job(id: string, signal: AbortSignal) {
+      return decode(
+        await upload(`restore-jobs/${encodeURIComponent(id)}`, undefined, signal),
+        parseRestoreJob,
+      );
+    },
+    async cancel(id: string, signal: AbortSignal) {
+      return decode(
+        await upload(`restore-jobs/${encodeURIComponent(id)}/cancel`, undefined, signal),
+        parseRestoreJob,
+      );
+    },
     async inspect(file: File, signal: AbortSignal) {
       const form = new FormData();
       form.set('file', file);
@@ -78,13 +95,14 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
       form.set('confirmation', 'RESTORE');
       let result;
       try {
-        result = await decode(await upload('restore', form, signal), parseBackupRestoration);
+        result = await decode(await upload('restore', form, signal), parseRestoreJob);
       } catch (error) {
         if (error instanceof BackupTransportError && error.code === 'invalid_response')
           throw new BackupTransportError('restore_outcome_unknown');
         throw error;
       }
-      if (result.sha256 !== sha256) throw new BackupTransportError('restore_outcome_unknown');
+      if (result.status === 'succeeded' && result.result.sha256 !== sha256)
+        throw new BackupTransportError('restore_outcome_unknown');
       return result;
     },
   };

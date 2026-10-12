@@ -82,6 +82,10 @@ func clearedCookieValues(config Config) []string {
 }
 
 func mapError(err error) error {
+	var applicationError *apperror.Error
+	if errors.As(err, &applicationError) {
+		return err
+	}
 	if errors.Is(err, mail.ErrDeliveryUnavailable) {
 		return apperror.Wrap(err, apperror.KindUnavailable, "mail_unavailable", "email delivery is temporarily unavailable", "send authentication email")
 	}

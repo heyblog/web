@@ -161,7 +161,14 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `features/databasebackup` owns versioned full-database JSON transfer at
   `/api/web/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
   and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
-  these routes. Private temporary files are streamed and removed after each request.
+  these operations. Export and inspection remain request-bound. Restore uploads reserve the sole
+  process-local slot before reading; accepted restores return 202 and execute independently of
+  the request. `/restore-jobs/current`, `/restore-jobs/{id}`, and `/restore-jobs/{id}/cancel`
+  expose the latest in-memory task with the same authorization. No task survives API restart.
+  Explicit cancellation reports completion only after rollback; uncertain commit or rollback
+  outcomes remain unknown. Cancellation cannot interrupt a commit already started. Private
+  temporary files are removed after request completion or the accepted restore terminates.
+  Bootstrap cancels and joins restore workers before closing the database pool.
 - Backup protocol version 1, schema version 4 covers all 33 identity/directory/content tables and complete AGE
   logical vertices and edges. The baseline freezes the schema inventory; schema evolution
   requires an explicit backup compatibility change. Schema versions 3 and 4 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns

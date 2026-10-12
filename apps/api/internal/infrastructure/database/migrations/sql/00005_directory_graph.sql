@@ -562,7 +562,11 @@ BEGIN
         RAISE EXCEPTION 'site reference does not match a directory site';
     END IF;
 
-    PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || p_normalized_host, 0));
+    -- The protected restore transaction already owns exclusive site and graph
+    -- table locks; retaining one additional lock per host exhausts the lock table.
+    IF NOT directory.backup_restore_is_active() THEN
+        PERFORM pg_advisory_xact_lock(hashtextextended('site-ref:' || p_normalized_host, 0));
+    END IF;
 
     FOR incoming IN SELECT * FROM directory.graph_incoming_links(p_normalized_host)
     LOOP
@@ -624,7 +628,7 @@ COMMENT ON FUNCTION directory.upsert_friend_link(p_source_site_id uuid, p_target
 
 COMMENT ON FUNCTION directory.upsert_registered_friend_link(p_source_site_id uuid, p_target_url text, p_target_host text, p_status text) IS 'Creates or updates one directed FRIEND_LINK edge when both endpoint sites are already registered.';
 
-COMMENT ON FUNCTION directory.upsert_site_ref(p_site_id uuid, p_normalized_host text) IS 'Creates or promotes one SiteRef vertex for an authoritative directory site.';
+COMMENT ON FUNCTION directory.upsert_site_ref(p_site_id uuid, p_normalized_host text) IS 'Creates or promotes one SiteRef vertex for an authoritative directory site; protected full restores use their exclusive table locks instead of per-host advisory locks.';
 
 COMMENT ON TRIGGER sites_prevent_delete ON directory.sites IS 'Requires HIDDEN or REMOVED instead of hard deletion.';
 

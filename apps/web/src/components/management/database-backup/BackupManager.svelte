@@ -6,6 +6,7 @@
   import { buttonClass, inputClass, primaryClass } from '../api-keys/api-keys.styles.ts';
 
   import BackupInspection from './BackupInspection.svelte';
+  import BackupProgress from './BackupProgress.svelte';
 
   let { initialError = null }: { initialError?: string | null } = $props();
   const controller = createBackupController();
@@ -13,12 +14,15 @@
   let dialog = $state<HTMLDialogElement>();
   let cancelButton = $state<HTMLButtonElement>();
   let confirmed = $state(false);
+  let confirmation = $state<'restore' | 'cancel'>('restore');
   const loadingLabels = {
     inspect: '正在检查文件…',
-    restore: '正在恢复数据，请勿关闭页面…',
+    restore: '正在上传恢复文件，请保持页面打开…',
+    cancel: '正在请求取消恢复…',
   } as const;
   onMount(() => {
     hydrated = true;
+    void controller.refresh();
     const preventLeaving = (event: BeforeUnloadEvent) => {
       if (controller.busy !== 'restore') return;
       event.preventDefault();
@@ -32,12 +36,18 @@
     dialog?.close();
   });
   function confirmRestore() {
-    if (!controller.inspection?.can_restore || controller.busy !== null) return;
+    if (!controller.inspection?.can_restore || controller.blocked) return;
+    confirmation = 'restore';
     confirmed = false;
     dialog?.showModal();
     cancelButton?.focus();
   }
   async function restore() {
+    if (confirmation === 'cancel') {
+      dialog?.close();
+      await controller.cancel();
+      return;
+    }
     if (!confirmed) return;
     dialog?.close();
     await controller.restore();
@@ -56,7 +66,7 @@
       </p>
     </div>
     <form method="POST" action="/api/web/management/database-backup/export" data-astro-reload>
-      <button type="submit" class={buttonClass} disabled={controller.busy !== null}
+      <button type="submit" class={buttonClass} disabled={controller.blocked}
         ><IconDownload size={18} aria-hidden="true" />导出 JSON</button
       >
     </form>
@@ -82,7 +92,7 @@
         type="file"
         accept=".json,application/json"
         class="{inputClass} py-2 file:mr-3 file:rounded-sm file:border-0 file:bg-subtle file:px-3 file:py-1 file:text-sm file:text-fg"
-        disabled={!hydrated || controller.busy !== null}
+        disabled={!hydrated || controller.blocked}
         onchange={(event) => controller.select(event.currentTarget.files?.item(0) ?? null)}
       />
       <div class="flex flex-wrap items-center gap-3">
@@ -93,7 +103,7 @@
             !controller.file ||
             controller.file.size === 0 ||
             controller.file.size > 512 * 1024 * 1024 ||
-            controller.busy !== null}><IconUpload size={18} aria-hidden="true" />检查文件</button
+            controller.blocked}><IconUpload size={18} aria-hidden="true" />检查文件</button
         >
         {#if controller.busy === 'inspect'}<button
             type="button"
@@ -102,6 +112,28 @@
           >{/if}
       </div>
     </form>
+    {#if controller.checking}<p class="mt-4 text-sm text-fg-muted" role="status">
+        正在查询恢复任务…
+      </p>{/if}
+    {#if controller.job}<BackupProgress job={controller.job} />{/if}
+    {#if controller.job?.status === 'running'}
+      <button
+        type="button"
+        class="{buttonClass} mt-4"
+        disabled={controller.busy !== null || controller.job.progress.stage === 'committing'}
+        onclick={() => {
+          confirmation = 'cancel';
+          dialog?.showModal();
+          cancelButton?.focus();
+        }}>取消恢复</button
+      >
+    {/if}
+    {#if controller.acceptanceUnknown}<button
+        type="button"
+        class="{buttonClass} mt-4"
+        disabled={controller.checking}
+        onclick={() => void controller.refresh()}>查询任务状态</button
+      >{/if}
     {#if controller.busy}<p class="mt-4 text-sm text-fg-muted" role="status">
         {loadingLabels[controller.busy]}
       </p>{/if}
@@ -127,7 +159,7 @@
       <button
         type="button"
         class="{primaryClass} mt-5"
-        disabled={!controller.inspection.can_restore || controller.busy !== null}
+        disabled={!controller.inspection.can_restore || controller.blocked}
         onclick={confirmRestore}>恢复数据</button
       >
     {/if}
@@ -140,17 +172,23 @@
   aria-labelledby="restore-dialog-title"
   aria-describedby="restore-dialog-description"
 >
-  <h2 id="restore-dialog-title" class="text-xl font-semibold">确认恢复数据</h2>
+  <h2 id="restore-dialog-title" class="text-xl font-semibold">
+    {confirmation === 'restore' ? '确认恢复数据' : '取消恢复？'}
+  </h2>
   <p id="restore-dialog-description" class="mt-3 text-sm/relaxed text-fg-muted">
-    将文件中的全部数据恢复到当前初始化数据库，替换默认种子数据。当前管理员账号和登录资料将保留。
+    {confirmation === 'restore'
+      ? '将文件中的全部数据恢复到当前初始化数据库，替换默认种子数据。当前管理员账号和登录资料将保留。'
+      : '取消后将回滚本次恢复。请等待回滚结果确认。'}
   </p>
-  <label class="mt-5 flex min-h-11 items-start gap-3 text-sm/relaxed"
-    ><input
-      type="checkbox"
-      class="mt-1 size-4 shrink-0 accent-primary"
-      bind:checked={confirmed}
-    />确认将历史管理员操作关联到当前管理员</label
-  >
+  {#if confirmation === 'restore'}<label
+      class="mt-5 flex min-h-11 items-start gap-3 text-sm/relaxed"
+      ><input
+        type="checkbox"
+        class="mt-1 size-4 shrink-0 accent-primary"
+        bind:checked={confirmed}
+      />确认将历史管理员操作关联到当前管理员</label
+    >
+  {/if}
   <div class="mt-6 flex flex-wrap justify-end gap-3">
     <button
       type="button"
@@ -158,8 +196,11 @@
       bind:this={cancelButton}
       onclick={() => dialog?.close()}>取消</button
     >
-    <button type="button" class={primaryClass} disabled={!confirmed} onclick={() => void restore()}
-      >确认恢复</button
+    <button
+      type="button"
+      class={primaryClass}
+      disabled={confirmation === 'restore' && !confirmed}
+      onclick={() => void restore()}>{confirmation === 'restore' ? '确认恢复' : '确认取消'}</button
     >
   </div>
 </dialog>

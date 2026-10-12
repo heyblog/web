@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18,6 +19,11 @@ func TestAuthErrorStatusMapping(t *testing.T) {
 	}
 	if got := statusKind(http.StatusBadGateway); got != "unavailable" {
 		t.Fatalf("502 kind = %q", got)
+	}
+	mapped := mapError(sessionUnavailable(context.DeadlineExceeded))
+	var unavailable *apperror.Error
+	if !errors.As(mapped, &unavailable) || unavailable.Kind() != apperror.KindUnavailable || !errors.Is(mapped, context.DeadlineExceeded) {
+		t.Fatalf("session timeout lost service status or cause: %v", mapped)
 	}
 }
 

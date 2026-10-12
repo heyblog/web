@@ -152,7 +152,14 @@ DECLARE dataset text;
 BEGIN
  IF NOT pg_try_advisory_xact_lock(728640312) THEN RAISE EXCEPTION 'restore running' USING ERRCODE='55P03'; END IF;
  PERFORM pg_advisory_xact_lock(74821953);
- FOREACH dataset IN ARRAY directory.backup_tables() LOOP EXECUTE format('LOCK TABLE %s IN ACCESS EXCLUSIVE MODE',dataset); END LOOP;
+ FOREACH dataset IN ARRAY directory.backup_tables() LOOP
+  IF dataset IN ('identity.users','identity.oauth_identities','identity.user_management_permissions') THEN
+   -- Session checks read committed identities; writes remain blocked until restore completes.
+   EXECUTE format('LOCK TABLE %s IN EXCLUSIVE MODE',dataset);
+  ELSE
+   EXECUTE format('LOCK TABLE %s IN ACCESS EXCLUSIVE MODE',dataset);
+  END IF;
+ END LOOP;
  LOCK TABLE directory_graph."_ag_label_vertex",directory_graph."_ag_label_edge",directory_graph."SiteRef",directory_graph."FRIEND_LINK" IN ACCESS EXCLUSIVE MODE;
  IF EXISTS(SELECT 1 FROM directory.backup_target_issues(p_admin)) THEN RAISE EXCEPTION 'target not initialized' USING ERRCODE='55000'; END IF;
  CREATE TEMP TABLE heyblog_restore_guard(transaction_id bigint NOT NULL) ON COMMIT DROP;

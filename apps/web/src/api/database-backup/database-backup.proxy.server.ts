@@ -2,6 +2,7 @@ import { loadWebServerConfig, type WebServerConfig } from '../../config.server.t
 import { requestAuthAPI } from '../auth/auth.server.ts';
 import { forwardClientAddress } from '../transport/client-ip.server.ts';
 
+import { requestBackup } from './database-backup.http.server.ts';
 import { backupBodyLimit, backupTimeoutMs, isRecord } from './database-backup.types.ts';
 
 interface ProxyDependencies {
@@ -24,13 +25,21 @@ export async function forwardDatabaseBackup(
   action: string,
   dependencies?: ProxyDependencies,
 ): Promise<Response> {
-  if (!['export', 'inspect', 'restore'].includes(action)) return failure(404, 'not_found');
-  if (request.method !== 'POST') return failure(405, 'method_not_allowed');
+  const fileAction = ['export', 'inspect', 'restore'].includes(action);
+  const jobAction =
+    /^restore-jobs\/(?:current|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?:\/cancel)?$/iu.test(
+      action,
+    ) && action !== 'restore-jobs/current/cancel';
+  if (!fileAction && !jobAction) return failure(404, 'not_found');
+  const method = fileAction || action.endsWith('/cancel') ? 'POST' : 'GET';
+  if (request.method !== method) return failure(405, 'method_not_allowed');
   const url = new URL(request.url);
   if (url.search !== '') return failure(400, 'bad_request');
   if (
-    request.headers.get('Origin') !== url.origin ||
-    request.headers.get('Sec-Fetch-Site') !== 'same-origin'
+    method === 'GET'
+      ? !isPageRead(request)
+      : request.headers.get('Origin') !== url.origin ||
+        request.headers.get('Sec-Fetch-Site') !== 'same-origin'
   )
     return failure(403, 'forbidden');
   if (!request.headers.get('cookie')) return failure(401, 'unauthorized');
@@ -38,7 +47,7 @@ export async function forwardDatabaseBackup(
   if (length !== null && (!/^\d+$/u.test(length) || Number(length) > backupBodyLimit))
     return failure(413, 'request_too_large');
   if (
-    action !== 'export' &&
+    (action === 'inspect' || action === 'restore') &&
     !/^multipart\/form-data\s*;/iu.test(request.headers.get('content-type') ?? '')
   )
     return failure(415, 'unsupported_media_type');
@@ -75,43 +84,78 @@ export async function forwardDatabaseBackup(
   const body =
     action === 'export'
       ? '{}'
-      : request.body?.pipeThrough(
-          new TransformStream<Uint8Array, Uint8Array>({
-            transform(chunk, controller) {
-              received += chunk.byteLength;
-              if (received > backupBodyLimit) {
-                oversized = true;
-                throw new BackupBodyLimitError();
-              }
-              controller.enqueue(chunk);
-            },
-          }),
-        );
+      : jobAction
+        ? undefined
+        : request.body?.pipeThrough(
+            new TransformStream<Uint8Array, Uint8Array>({
+              transform(chunk, controller) {
+                received += chunk.byteLength;
+                if (received > backupBodyLimit) {
+                  oversized = true;
+                  throw new BackupBodyLimitError();
+                }
+                controller.enqueue(chunk);
+              },
+            }),
+          );
   headers.set(
     'Content-Type',
     action === 'export' ? 'application/json' : (request.headers.get('content-type') ?? ''),
   );
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(backupTimeoutMs)]);
+  const started = performance.now();
   const init = {
-    method: 'POST',
+    method,
     headers,
     body,
     duplex: 'half',
     redirect: 'manual' as const,
-    signal: AbortSignal.any([request.signal, AbortSignal.timeout(backupTimeoutMs)]),
+    signal,
   };
   let upstream: Response;
   try {
-    upstream = await (dependencies?.fetcher ?? fetch)(
+    upstream = await (dependencies?.fetcher ?? requestBackup)(
       new URL(`/api/web/management/database-backup/${action}`, configuration.apiBaseUrl),
       init,
     );
   } catch (error) {
     if (oversized) return failure(413, 'request_too_large');
-    if (error instanceof Error)
+    if (error instanceof Error) {
+      const causeCode =
+        'code' in error ? error.code : isRecord(error.cause) ? error.cause.code : undefined;
+      const transportCode =
+        typeof causeCode === 'string' &&
+        [
+          'UND_ERR_SOCKET',
+          'UND_ERR_HEADERS_TIMEOUT',
+          'UND_ERR_CONNECT_TIMEOUT',
+          'ECONNRESET',
+          'ECONNREFUSED',
+          'EPIPE',
+        ].includes(causeCode)
+          ? causeCode
+          : 'unknown';
+      console.error(
+        JSON.stringify({
+          event: 'database_backup_proxy_failed',
+          action,
+          reason: request.signal.aborted
+            ? 'client_cancelled'
+            : signal.aborted
+              ? 'deadline_exceeded'
+              : 'upstream_connection',
+          transport_code: transportCode,
+          duration_ms: Math.round(performance.now() - started),
+        }),
+      );
       return failure(502, action === 'restore' ? 'restore_outcome_unknown' : 'bad_gateway');
+    }
     throw error;
   }
-  if (upstream.status >= 300 && upstream.status < 400) return failure(502, 'bad_gateway');
+  if (upstream.status >= 300 && upstream.status < 400) {
+    await upstream.body?.cancel();
+    return failure(502, 'bad_gateway');
+  }
   const responseHeaders = new Headers({
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
@@ -127,4 +171,22 @@ export async function forwardDatabaseBackup(
     responseHeaders.set('Content-Type', 'application/json');
   }
   return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
+}
+
+function isPageRead(request: Request): boolean {
+  const site = request.headers.get('Sec-Fetch-Site');
+  const mode = request.headers.get('Sec-Fetch-Mode');
+  const destination = request.headers.get('Sec-Fetch-Dest');
+  if (site !== null || mode !== null || destination !== null)
+    return (
+      site === 'same-origin' &&
+      (mode === 'cors' || mode === 'same-origin') &&
+      destination === 'empty'
+    );
+  const origin = new URL(request.url).origin;
+  return (
+    request.headers.get('Accept') === 'application/json' &&
+    URL.parse(request.headers.get('Referer') ?? '')?.origin === origin &&
+    (request.headers.get('Origin') === null || request.headers.get('Origin') === origin)
+  );
 }

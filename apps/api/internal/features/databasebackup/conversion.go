@@ -1,6 +1,7 @@
 package databasebackup
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -8,7 +9,7 @@ import (
 
 // Conversion runs only after the complete original manifest has been verified.
 // The source file and its checksum remain unchanged for inspect/restore matching.
-func (doc *document) prepareConversion(file *os.File) error {
+func (doc *document) prepareConversion(ctx context.Context, file *os.File) error {
 	if doc.header.SchemaVersion != 3 {
 		return nil
 	}
@@ -16,7 +17,7 @@ func (doc *document) prepareConversion(file *os.File) error {
 	if _, err := file.Seek(doc.offsets["identity.oauth_identities"], io.SeekStart); err != nil {
 		return err
 	}
-	_, err := readRows(json.NewDecoder(file), "identity.oauth_identities", func(_ string, raw json.RawMessage) error {
+	_, err := readRows(json.NewDecoder(contextReader{ctx, file}), "identity.oauth_identities", func(_ string, raw json.RawMessage) error {
 		var identity struct {
 			UserID string `json:"user_id"`
 		}

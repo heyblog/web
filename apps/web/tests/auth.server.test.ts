@@ -147,6 +147,26 @@ test('session reader treats an unauthorized API response as signed out', async (
   }
 });
 
+test('session reader distinguishes service failure from a signed-out session', async () => {
+  Object.assign(process.env, authEnvironment);
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const status of [502, 503]) {
+      globalThis.fetch = async () => new Response(null, { status });
+      await assert.rejects(
+        readSessionUser(
+          new Request('https://web.example.test/management', {
+            headers: { Cookie: 'heyblog_access_token=current' },
+          }),
+        ),
+        { name: 'SessionUnavailableError' },
+      );
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('safeNext accepts only root-relative same-origin paths', () => {
   // Given / When / Then
   assert.equal(safeNext('/dashboard/account'), '/dashboard/account');

@@ -11,7 +11,7 @@ import {
 } from '../src/api/database-backup/database-backup.types.ts';
 import { managementNavigation } from '../src/application/management/navigation.ts';
 
-import { inspectionFixture, restorationFixture } from './database-backup.fixture.ts';
+import { inspectionFixture, jobFixture, restorationFixture } from './database-backup.fixture.ts';
 
 test('inspection parsing validates the dataset inventory and restoration readiness', () => {
   // Given
@@ -58,7 +58,7 @@ test('restore upload binds the reviewed checksum and confirmation to the origina
     const uploaded = init.body.get('file');
     assert.ok(uploaded instanceof File);
     assert.equal(await uploaded.text(), await file.text());
-    return Response.json(restorationFixture);
+    return Response.json(jobFixture, { status: 202 });
   });
   // When
   const result = await transport.restore(
@@ -67,7 +67,7 @@ test('restore upload binds the reviewed checksum and confirmation to the origina
     new AbortController().signal,
   );
   // Then
-  assert.deepEqual(result, restorationFixture);
+  assert.deepEqual(result, jobFixture);
   assert.equal(calls, 1);
 });
 
@@ -131,4 +131,45 @@ test('backup management navigation is available only to system administrators', 
     system.some((item) => item.href === '/management/database-backup'),
     true,
   );
+});
+
+test('job transport queries current and individual tasks and sends cancellation once', async () => {
+  const calls: string[] = [];
+  const transport = createBackupTransport(async (input, init) => {
+    calls.push(`${init?.method} ${String(input)}`);
+    assert.equal(init?.credentials, 'same-origin');
+    return Response.json(String(input).endsWith('/current') ? { job: jobFixture } : jobFixture);
+  });
+  const signal = new AbortController().signal;
+  assert.deepEqual(await transport.current(signal), { job: jobFixture });
+  assert.deepEqual(await transport.job(jobFixture.id, signal), jobFixture);
+  await transport.cancel(jobFixture.id, signal);
+  assert.deepEqual(calls, [
+    'GET /api/web/management/database-backup/restore-jobs/current',
+    `GET /api/web/management/database-backup/restore-jobs/${jobFixture.id}`,
+    `POST /api/web/management/database-backup/restore-jobs/${jobFixture.id}/cancel`,
+  ]);
+});
+
+test('restore server failures and malformed acceptance responses require task recovery', async () => {
+  for (const response of [
+    Response.json({ code: 'bad_gateway' }, { status: 502 }),
+    Response.json({ accepted: true }, { status: 202 }),
+  ]) {
+    let calls = 0;
+    const transport = createBackupTransport(async () => {
+      calls += 1;
+      return response;
+    });
+    await assert.rejects(
+      transport.restore(
+        new File(['{}'], 'fixture.json'),
+        inspectionFixture.sha256,
+        new AbortController().signal,
+      ),
+      (error: unknown) =>
+        error instanceof BackupTransportError && error.code === 'restore_outcome_unknown',
+    );
+    assert.equal(calls, 1);
+  }
 });

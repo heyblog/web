@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"heyblog-api/internal/features/databasebackup"
 	"heyblog-api/internal/features/publicview"
 	"heyblog-api/internal/features/sitestats"
 	"heyblog-api/internal/infrastructure/cache"
@@ -25,6 +26,7 @@ type Dependencies struct {
 	VerificationMailer *mail.VerificationMailer
 	views              publicview.Reader
 	metrics            *sitestats.Service
+	backupJobs         *databasebackup.Jobs
 
 	pingDatabase  func(context.Context) error
 	pingRedis     func(context.Context) error
@@ -104,6 +106,7 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		VerificationMailer: mail.NewVerificationMailer(mailSender, configuration.Mail.Senders.Verification.Address, configuration.Auth.VerificationTTL),
 		views:              publicview.New(dbgen.New(pool), metrics),
 		metrics:            metrics,
+		backupJobs:         databasebackup.NewJobs(databasebackup.New(pool), nil),
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},
@@ -116,6 +119,8 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		closeRedis: func() error { return operations.closeRedis(redisClient) },
 	}, nil
 }
+
+func (dependencies *Dependencies) BackupJobs() *databasebackup.Jobs { return dependencies.backupJobs }
 
 func (dependencies *Dependencies) PublicViews() publicview.Reader {
 	return dependencies.views
@@ -167,6 +172,9 @@ func (dependencies *Dependencies) Verification() *mail.VerificationMailer {
 
 func (dependencies *Dependencies) Close() error {
 	dependencies.closeOnce.Do(func() {
+		if dependencies.backupJobs != nil {
+			dependencies.backupJobs.Close()
+		}
 		if dependencies.metrics != nil {
 			dependencies.metrics.Close()
 		}

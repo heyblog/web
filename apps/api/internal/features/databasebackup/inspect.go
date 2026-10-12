@@ -20,7 +20,13 @@ func (service *Service) Inspect(ctx context.Context, file *os.File, actor string
 	return preview, err
 }
 
-func (service *Service) inspect(ctx context.Context, file *os.File, actor string) (Inspection, document, error) {
+func (service *Service) inspect(ctx context.Context, file *os.File, actor string) (previewResult Inspection, documentResult document, resultErr error) {
+	defer func() {
+		if ctx.Err() != nil {
+			resultErr = ctx.Err()
+		}
+	}()
+	reader := contextReader{ctx, file}
 	info, err := file.Stat()
 	if err != nil {
 		return Inspection{}, document{}, err
@@ -32,7 +38,7 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 		return Inspection{}, document{}, err
 	}
 	hash := sha256.New()
-	decoder := json.NewDecoder(io.TeeReader(file, hash))
+	decoder := json.NewDecoder(io.TeeReader(reader, hash))
 	decoder.UseNumber()
 	if err = scanJSON(decoder, 0); err != nil {
 		return Inspection{}, document{}, err
@@ -53,17 +59,17 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 	if err != nil {
 		return Inspection{}, document{}, err
 	}
-	doc, err := readDocument(file, nil)
+	doc, err := readDocument(reader, nil)
 	if err != nil {
 		return Inspection{}, document{}, err
 	}
-	if err = doc.prepareConversion(file); err != nil {
+	if err = doc.prepareConversion(ctx, file); err != nil {
 		return Inspection{}, document{}, err
 	}
 	if _, err = file.Seek(0, io.SeekStart); err != nil {
 		return Inspection{}, document{}, err
 	}
-	_, err = readDocument(file, func(name string, row json.RawMessage) error {
+	_, err = readDocument(reader, func(name string, row json.RawMessage) error {
 		converted, conversionErr := doc.convertRow(name, row)
 		if conversionErr != nil {
 			return conversionErr

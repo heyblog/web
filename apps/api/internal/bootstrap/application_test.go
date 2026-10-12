@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"heyblog-api/internal/features/databasebackup"
 	"io"
 	"log/slog"
 	"net"
@@ -221,4 +222,8 @@ func (server *stubHTTPServer) Close() error {
 		close(server.serveDone)
 	}
 	return server.close()
+}
+
+func (dependencies *stubRuntimeDependencies) BackupJobs() *databasebackup.Jobs {
+	return databasebackup.NewJobs(nil, nil)
 }

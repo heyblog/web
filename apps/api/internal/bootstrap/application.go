@@ -33,6 +33,7 @@ type runtimeDependencies interface {
 	httpapi.Readiness
 	PublicViews() publicview.Reader
 	DatabasePool() *pgxpool.Pool
+	BackupJobs() *databasebackup.Jobs
 	RedisClient() *redis.Client
 	Mail() mail.Sender
 	Verification() *mail.VerificationMailer
@@ -188,7 +189,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
 		return nil, err
 	}
-	databasebackup.RegisterRoutes(router.API, databasebackup.New(dependencies.DatabasePool()), authService, options.WebToken, options.Logger)
+	databasebackup.RegisterRoutes(router.API, databasebackup.New(dependencies.DatabasePool()), dependencies.BackupJobs(), authService, options.WebToken, options.Logger)
 	if err := announcement.RegisterRoutes(router.API, announcement.NewService(announcement.NewRepository(dependencies.DatabasePool()), authService), options.WebToken); err != nil {
 		return nil, err
 	}

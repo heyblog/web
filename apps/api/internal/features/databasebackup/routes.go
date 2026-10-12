@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -20,7 +21,7 @@ import (
 type Operations interface {
 	Export(context.Context) (*os.File, error)
 	Inspect(context.Context, *os.File, string) (Inspection, error)
-	Restore(context.Context, *os.File, string, string) (Restoration, error)
+	Restorer
 }
 
 type Authenticator interface {
@@ -47,10 +48,11 @@ func BodyLimitOverrides() map[httpapi.Route]int64 {
 	return limits
 }
 
-func RegisterRoutes(api huma.API, service Operations, authenticator Authenticator, webToken string, logger *slog.Logger) {
+func RegisterRoutes(api huma.API, service Operations, jobs *Jobs, authenticator Authenticator, webToken string, logger *slog.Logger) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
+	jobs.logger = logger
 	cleanup := func(file *os.File) {
 		if err := errorsWithCleanup(nil, file); err != nil {
 			logger.Warn("database backup temporary file cleanup failed", "event", "database_backup_cleanup_failed")
@@ -80,6 +82,10 @@ func RegisterRoutes(api huma.API, service Operations, authenticator Authenticato
 		}}, nil
 	})
 	httpapi.Register(api, operation("inspect"), func(ctx context.Context, _ *emptyInput) (*output[Inspection], error) {
+		if err := jobs.reserve(); err != nil {
+			return nil, httpError(err)
+		}
+		defer jobs.release()
 		file, _, err := upload(httpapi.Request(ctx))
 		if err != nil {
 			return nil, httpError(err)
@@ -94,25 +100,39 @@ func RegisterRoutes(api huma.API, service Operations, authenticator Authenticato
 		}
 		return &output[Inspection]{CacheControl: "private, no-store", Body: preview}, nil
 	})
-	httpapi.Register(api, operation("restore"), func(ctx context.Context, _ *emptyInput) (*output[Restoration], error) {
+	restoreOperation := operation("restore")
+	restoreOperation.DefaultStatus = http.StatusAccepted
+	httpapi.Register(api, restoreOperation, func(ctx context.Context, _ *emptyInput) (*output[RestoreJob], error) {
+		if err := jobs.reserve(); err != nil {
+			return nil, httpError(err)
+		}
+		accepted := false
+		defer func() {
+			if !accepted {
+				jobs.release()
+			}
+		}()
 		file, fields, err := upload(httpapi.Request(ctx))
 		if err != nil {
 			return nil, httpError(err)
 		}
-		defer cleanup(file)
+		defer func() {
+			if !accepted {
+				cleanup(file)
+			}
+		}()
 		if fields["confirmation"] != "RESTORE" || len(fields["sha256"]) != 64 {
 			return nil, httpError(ErrInvalid)
 		}
 		actor, _ := ctx.Value(actorKey{}).(string)
-		work, cancel := context.WithTimeout(ctx, Timeout)
-		defer cancel()
-		result, err := service.Restore(work, file, actor, fields["sha256"])
+		job, err := jobs.start(ctx, file, actor, fields["sha256"])
 		if err != nil {
 			return nil, httpError(err)
 		}
-		logger.InfoContext(ctx, "database restore completed", "event", "database_restore_completed", "sha256", result.SHA256, "source_admin_id", result.AdminMapping.SourceID, "target_admin_id", actor)
-		return &output[Restoration]{CacheControl: "private, no-store", Body: result}, nil
+		accepted = true
+		return &output[RestoreJob]{CacheControl: "private, no-store", Body: job}, nil
 	})
+	registerJobRoutes(api, jobs, authenticator, webToken)
 	// Publish the multipart contract after registration: parsing remains streaming
 	// in upload, while Huma must not buffer the entire backup as a JSON body.
 	for _, action := range []string{"inspect", "restore"} {
@@ -134,7 +154,14 @@ func authorize(service Authenticator) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		actor, err := service.Current(ctx.Context(), httpapi.Request(ctx.Context()))
 		if err != nil {
-			httpapi.RejectHumaRequest(ctx, apperror.New(apperror.KindUnauthorized, "database_backup_auth_required", "sign in to continue"))
+			var authError *auth.AuthError
+			if errors.As(err, &authError) && authError.StatusCode == http.StatusUnauthorized {
+				httpapi.RejectHumaRequest(ctx, apperror.New(apperror.KindUnauthorized, "database_backup_auth_required", "sign in to continue"))
+			} else if errors.As(err, &authError) && authError.StatusCode == http.StatusForbidden {
+				httpapi.RejectHumaRequest(ctx, apperror.New(apperror.KindForbidden, authError.Code, authError.Message))
+			} else {
+				httpapi.RejectHumaRequest(ctx, httpError(err))
+			}
 			return
 		}
 		if actor.Role != auth.RoleSysAdmin || !actor.Active {
@@ -151,19 +178,46 @@ func authorize(service Authenticator) func(huma.Context, func(huma.Context)) {
 
 func httpError(err error) error {
 	var databaseError *pgconn.PgError
+	var networkError net.Error
+	reason := "dependency_failure"
 	switch {
+	case errors.Is(err, context.Canceled):
+		reason = "request_cancelled"
+	case errors.Is(err, context.DeadlineExceeded):
+		reason = "deadline_exceeded"
+	case errors.As(err, &networkError) && networkError.Timeout():
+		reason = "network_timeout"
+	case errors.As(err, &databaseError):
+		reason = "database_error"
+	}
+	diagnostics := []apperror.Diagnostic{{Key: "reason", Value: reason}}
+	if databaseError != nil {
+		diagnostics = append(diagnostics, apperror.Diagnostic{Key: "sqlstate", Value: databaseError.Code})
+	}
+	wrap := func(kind apperror.Kind, code, detail string) error {
+		return apperror.Wrap(err, kind, code, detail, "database backup").WithDiagnostics(diagnostics)
+	}
+	switch {
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return wrap(apperror.KindUnavailable, "database_backup_unavailable", "database backup is temporarily unavailable")
+	case errors.Is(err, ErrBusy):
+		return wrap(apperror.KindConflict, "database_backup_busy", "a database restore is already active")
+	case errors.Is(err, ErrJobNotFound):
+		return wrap(apperror.KindNotFound, "database_backup_job_not_found", "the database restore task was not found")
+	case errors.Is(err, ErrOutcomeUnknown):
+		return wrap(apperror.KindUnavailable, "restore_outcome_unknown", "the database restore outcome could not be confirmed")
 	case errors.Is(err, ErrTooLarge):
-		return apperror.Wrap(err, apperror.KindTooLarge, "database_backup_too_large", "the backup exceeds the upload limit", "database backup")
+		return wrap(apperror.KindTooLarge, "database_backup_too_large", "the backup exceeds the upload limit")
 	case errors.Is(err, ErrInvalid):
-		return apperror.Wrap(err, apperror.KindValidation, "database_backup_invalid", "the backup file or confirmation is invalid", "database backup")
+		return wrap(apperror.KindValidation, "database_backup_invalid", "the backup file or confirmation is invalid")
 	case errors.Is(err, ErrTarget):
-		return apperror.Wrap(err, apperror.KindConflict, "database_backup_target_not_ready", "restore requires an initialized database", "database backup")
+		return wrap(apperror.KindConflict, "database_backup_target_not_ready", "restore requires an initialized database")
 	case errors.As(err, &databaseError):
 		if databaseError.Code == "55000" || databaseError.Code == "55P03" {
-			return apperror.Wrap(err, apperror.KindConflict, "database_backup_target_not_ready", "the database is not ready for restoration", "database backup")
+			return wrap(apperror.KindConflict, "database_backup_target_not_ready", "the database is not ready for restoration")
 		}
-		return apperror.Wrap(err, apperror.KindValidation, "database_backup_restore_failed", "the backup could not be restored; no changes were saved", "database backup")
+		return wrap(apperror.KindValidation, "database_backup_restore_failed", "the backup could not be restored; no changes were saved")
 	default:
-		return apperror.Wrap(err, apperror.KindUnavailable, "database_backup_unavailable", "database backup is temporarily unavailable", "database backup")
+		return wrap(apperror.KindUnavailable, "database_backup_unavailable", "database backup is temporarily unavailable")
 	}
 }

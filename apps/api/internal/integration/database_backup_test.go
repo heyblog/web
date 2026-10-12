@@ -64,6 +64,7 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	}
 	verifyBackupRestoreLocks(t, target, retained)
 	verifyBackupRestoreRollback(t, target, restore, file, retained, preview.SHA256)
+	verifyBackupRestoreCancellation(t, target, restore, file, retained, preview.SHA256)
 	result, err := restore.Restore(t.Context(), file, retained, preview.SHA256)
 	if err != nil {
 		t.Fatal(err)

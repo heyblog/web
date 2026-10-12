@@ -22,3 +22,9 @@ export const restorationFixture = {
   graph: inspectionFixture.graph,
   admin_mapping: { source_id: sourceAdmin, target_id: targetAdmin },
 };
+
+export const jobFixture = {
+  id: '019f033c-2111-7000-9000-000000000003',
+  status: 'running',
+  progress: { stage: 'validating', dataset: '', completed: 0, total: 0 },
+} as const;

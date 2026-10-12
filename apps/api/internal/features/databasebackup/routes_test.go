@@ -3,6 +3,7 @@ package databasebackup
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/platform/config"
@@ -21,6 +23,58 @@ import (
 type routeAuth struct {
 	user auth.User
 	err  error
+}
+
+type slowRouteOperation struct{ routeOperation }
+
+func (operation *slowRouteOperation) RestoreWithProgress(ctx context.Context, file *os.File, actor, checksum string, report func(RestoreProgress) error) (Restoration, error) {
+	select {
+	case <-time.After(200 * time.Millisecond):
+		return operation.routeOperation.RestoreWithProgress(ctx, file, actor, checksum, report)
+	case <-ctx.Done():
+		return Restoration{}, ctx.Err()
+	}
+}
+
+func TestBackupRestoreOutlivesServerWriteTimeout(t *testing.T) {
+	t.Parallel()
+	operation := &slowRouteOperation{}
+	server := httptest.NewUnstartedServer(backupRouter(t, operation, routeAuth{user: auth.User{ID: "actor", Role: auth.RoleSysAdmin, Active: true}}))
+	server.Config.WriteTimeout = 50 * time.Millisecond
+	server.Start()
+	defer server.Close()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "backup.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.WriteString(part, `{"synthetic":true}`); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.WriteField("sha256", strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.WriteField("confirmation", "RESTORE"); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+Path+"/restore", io.NopCloser(&body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	request.Header.Set(httpapi.WebTokenHeader, "backup-test-web-token")
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatalf("restore connection closed before its operation deadline: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusAccepted {
+		t.Fatalf("restore status = %d", response.StatusCode)
+	}
 }
 
 func (authenticator routeAuth) Current(context.Context, *http.Request) (auth.User, error) {
@@ -50,7 +104,7 @@ func (operation *routeOperation) Inspect(_ context.Context, file *os.File, actor
 	operation.filePath = file.Name()
 	return Inspection{RetainedSystemAdminID: actor, Issues: []Issue{}, Datasets: []Dataset{}}, nil
 }
-func (operation *routeOperation) Restore(_ context.Context, file *os.File, actor, checksum string) (Restoration, error) {
+func (operation *routeOperation) RestoreWithProgress(_ context.Context, file *os.File, actor, checksum string, _ func(RestoreProgress) error) (Restoration, error) {
 	operation.calls++
 	operation.filePath = file.Name()
 	return Restoration{Status: "restored", SHA256: checksum, AdminMapping: AdminMapping{TargetID: actor}}, nil
@@ -62,7 +116,9 @@ func backupRouter(t *testing.T, operation Operations, authenticator Authenticato
 	if err != nil {
 		t.Fatal(err)
 	}
-	RegisterRoutes(router.API, operation, authenticator, "backup-test-web-token", nil)
+	jobs := NewJobs(operation, nil)
+	t.Cleanup(jobs.Close)
+	RegisterRoutes(router.API, operation, jobs, authenticator, "backup-test-web-token", nil)
 	return router
 }
 
@@ -75,15 +131,21 @@ func TestBackupRoutesRequireBothWebAndActiveAdministrator(t *testing.T) {
 		status      int
 	}{
 		{"missing web token", "", auth.User{Role: auth.RoleSysAdmin, Active: true}, nil, 401},
-		{"missing session", "backup-test-web-token", auth.User{}, errors.New("no session"), 401},
+		{"missing session", "backup-test-web-token", auth.User{}, &auth.AuthError{StatusCode: 401}, 401},
+		{"session storage unavailable", "backup-test-web-token", auth.User{}, context.DeadlineExceeded, 503},
+		{"profile confirmation required", "backup-test-web-token", auth.User{}, &auth.AuthError{StatusCode: 403, Code: "profile_confirmation_required"}, 403},
 		{"delegated admin", "backup-test-web-token", auth.User{Role: auth.RoleAdmin, Active: true}, nil, 403},
 		{"inactive admin", "backup-test-web-token", auth.User{Role: auth.RoleSysAdmin}, nil, 403},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			operation := &routeOperation{}
 			router := backupRouter(t, operation, routeAuth{user: test.user, err: test.err})
-			for _, action := range []string{"export", "inspect", "restore"} {
-				request := httptest.NewRequest(http.MethodPost, Path+"/"+action, strings.NewReader("invalid"))
+			for _, endpoint := range []struct{ method, path string }{
+				{http.MethodPost, "export"}, {http.MethodPost, "inspect"}, {http.MethodPost, "restore"},
+				{http.MethodGet, "restore-jobs/current"}, {http.MethodGet, "restore-jobs/00000000-0000-4000-8000-000000000000"},
+				{http.MethodPost, "restore-jobs/00000000-0000-4000-8000-000000000000/cancel"},
+			} {
+				request := httptest.NewRequest(endpoint.method, Path+"/"+endpoint.path, strings.NewReader("invalid"))
 				request.Header.Set(httpapi.WebTokenHeader, test.token)
 				response := httptest.NewRecorder()
 				router.ServeHTTP(response, request)
@@ -123,11 +185,39 @@ func TestBackupRoutesStreamFilesAndRemovePrivateTemporaries(t *testing.T) {
 		request.Header.Set(httpapi.WebTokenHeader, "backup-test-web-token")
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
-		if response.Code != 200 {
+		wantStatus := http.StatusOK
+		if action == "restore" {
+			wantStatus = http.StatusAccepted
+		}
+		if response.Code != wantStatus {
 			t.Fatalf("%s status=%d body=%s", action, response.Code, response.Body.String())
 		}
 		if response.Header().Get("Cache-Control") != "private, no-store" {
 			t.Fatal("missing no-store")
+		}
+		if action == "restore" {
+			var accepted RestoreJob
+			if err := json.Unmarshal(response.Body.Bytes(), &accepted); err != nil {
+				t.Fatal(err)
+			}
+			for {
+				request := httptest.NewRequest(http.MethodGet, Path+"/restore-jobs/"+accepted.ID, nil)
+				request.Header.Set(httpapi.WebTokenHeader, "backup-test-web-token")
+				status := httptest.NewRecorder()
+				router.ServeHTTP(status, request)
+				var job RestoreJob
+				if err := json.Unmarshal(status.Body.Bytes(), &job); err != nil {
+					t.Fatal(err)
+				}
+				if job.Status == "succeeded" {
+					break
+				}
+				select {
+				case <-t.Context().Done():
+					t.Fatal("restore did not complete")
+				case <-time.After(time.Millisecond):
+				}
+			}
 		}
 		if _, err = os.Stat(operation.filePath); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("temporary retained: %v", err)
