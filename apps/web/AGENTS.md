@@ -116,6 +116,11 @@ layer and browser-module boundaries.
 - `/dashboard` owns the user workbench, with separate sites, claims, submissions, profile, and security
   routes. `apps/web/src/api/site-management` owns account/claim DTOs and the bounded, authenticated
   route whitelist for `/api/web/account` and `/api/web/management`; never widen it to arbitrary paths.
+- Site claims use authenticated context and detail reads, explicit proof regeneration and bounded
+  verification checks. Keep proof values only in the current page; refreshing can resume checking or
+  explicitly regenerate. Dashboard owns applicant flows; management owns manual review and versioned
+  ownership revocation. The public profile claim link contains only the site identifier. Verified
+  address proofs are read server-side before prefilling only the account editor's homepage address.
 - Preserve accepted HTTP methods, URLs, statuses, Cookie/Set-Cookie handling, cancellation,
   timeouts, redirects, request counts, and failure mappings. Consult the API layer rules and
   route's focused tests before changing forwarding behavior.

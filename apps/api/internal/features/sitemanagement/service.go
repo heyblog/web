@@ -2,10 +2,7 @@ package sitemanagement
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -97,11 +94,10 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 			claim.EvidenceURL = &value
 		}
 	} else {
-		bytes := make([]byte, 32)
-		if _, err := rand.Read(bytes); err != nil {
-			return CreateResult{}, fmt.Errorf("generate site challenge: %w", err)
+		token, err = challengeToken()
+		if err != nil {
+			return CreateResult{}, err
 		}
-		token = base64.RawURLEncoding.EncodeToString(bytes)
 		claim.TokenHash = digest(token)
 		expiry := s.now().Add(24 * time.Hour)
 		claim.ExpiresAt = &expiry
@@ -110,16 +106,12 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 	if err != nil {
 		return CreateResult{}, err
 	}
-	result := CreateResult{Claim: created, Token: token}
-	if token != "" {
-		parsed, err := url.Parse(address)
-		if err != nil {
-			return CreateResult{}, err
-		}
-		result.Instructions = &Instructions{DNSName: "_heyblog-verification." + parsed.Hostname(), DNSValue: proofPrefix + token, Meta: `<meta name="heyblog-site-verification" content="` + token + `">`, FileURL: strings.TrimRight(address, "/") + "/.well-known/heyblog-site-verification.txt", FileContent: token}
+	if created.TokenHash != claim.TokenHash {
+		token = ""
 	}
-	return result, nil
+	return proofResult(s.present(created, user.ID, false), token), nil
 }
+
 func (s *Service) Check(ctx context.Context, user auth.User, id string) (Claim, error) {
 	claim, err := s.applicant(ctx, user, id)
 	if err != nil {
@@ -134,13 +126,19 @@ func (s *Service) Check(ctx context.Context, user auth.User, id string) (Claim, 
 	if claim.ExpiresAt == nil || !s.now().Before(*claim.ExpiresAt) {
 		return Claim{}, failure("claim_expired", "This verification challenge has expired", 409)
 	}
-	if err := s.verifier.Verify(ctx, claim); err != nil {
+	work, cancel := context.WithTimeout(ctx, VerificationTimeout)
+	defer cancel()
+	if err := s.verifier.Verify(work, claim); err != nil {
 		if ctx.Err() != nil {
 			return Claim{}, ctx.Err()
 		}
-		return Claim{}, failure("proof_not_found", "Verification failed. Check the published proof and try again", 422)
+		return Claim{}, verificationError(err)
 	}
-	return s.store.Decide(ctx, Decision{Claim: claim, Status: "VERIFIED", Now: s.now()})
+	if err := work.Err(); err != nil {
+		return Claim{}, verificationError(err)
+	}
+	result, err := s.store.Decide(work, Decision{Claim: claim, Status: "VERIFIED", Now: s.now()})
+	return s.present(result, user.ID, false), err
 }
 func (s *Service) applicant(ctx context.Context, user auth.User, id string) (Claim, error) {
 	claim, err := s.store.Claim(ctx, id)
@@ -157,7 +155,8 @@ func (s *Service) Cancel(ctx context.Context, user auth.User, id string) (Claim,
 	if err != nil {
 		return Claim{}, err
 	}
-	return s.store.Decide(ctx, Decision{Claim: claim, Status: "CANCELLED", Now: s.now()})
+	result, err := s.store.Decide(ctx, Decision{Claim: claim, Status: "CANCELLED", Now: s.now()})
+	return s.present(result, user.ID, false), err
 }
 func (s *Service) Review(ctx context.Context, user auth.User, id string, input SiteClaimReviewInput) (Claim, error) {
 	if !canReview(user) {
@@ -181,23 +180,24 @@ func (s *Service) Review(ctx context.Context, user auth.User, id string, input S
 	if input.Approve {
 		status = "VERIFIED"
 	}
-	return s.store.Decide(ctx, Decision{Claim: claim, Status: status, ActorID: user.ID, Reason: reason, Now: s.now()})
+	result, err := s.store.Decide(ctx, Decision{Claim: claim, Status: status, ActorID: user.ID, Reason: reason, Now: s.now()})
+	return s.present(result, user.ID, true), err
 }
-func (s *Service) ChangeOwner(ctx context.Context, user auth.User, shortID string, input OwnershipInput) error {
+func (s *Service) Revoke(ctx context.Context, user auth.User, shortID string, input OwnershipInput) error {
 	if !canReview(user) {
 		return failure("forbidden", "Site verification review permission is required", 403)
 	}
 	if strings.TrimSpace(input.Reason) == "" || len(input.Reason) > 2000 || strings.TrimSpace(input.Evidence) == "" || len(input.Evidence) > 4000 {
 		return failure("invalid_evidence", "A reason and ownership evidence are required", 422)
 	}
-	if input.UserID == user.ID {
-		return failure("self_assignment", "You cannot assign a site to yourself", 403)
+	if input.OwnershipID == "" || input.Revision < 1 {
+		return failure("ownership_changed", "Current ownership and revision are required", 409)
 	}
 	target, err := s.store.Site(ctx, shortID)
 	if err != nil {
 		return err
 	}
-	return s.store.ChangeOwner(ctx, target, input, user.ID)
+	return s.store.Revoke(ctx, target, input, user.ID)
 }
 func canReview(user auth.User) bool {
 	return user.Role == auth.RoleSysAdmin || user.Role == auth.RoleAdmin && slices.Contains(user.Permissions, auth.PermissionSiteAuditReview)

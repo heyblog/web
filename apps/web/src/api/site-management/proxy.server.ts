@@ -12,15 +12,17 @@ const accountRoutes: readonly [RegExp, readonly string[]][] = [
   [new RegExp(`^sites/${identifier}/friend-links/by-host/[a-zA-Z0-9.-]+$`), ['DELETE']],
   [new RegExp(`^sites/${identifier}/friend-link-submissions$`), ['POST']],
   [new RegExp(`^sites/${identifier}/friend-link-requests/${identifier}$`), ['DELETE']],
+  [new RegExp(`^sites/${identifier}/claim-context$`), ['GET']],
   [/^site-claims$/, ['GET', 'POST']],
-  [new RegExp(`^site-claims/${identifier}$`), ['DELETE']],
+  [new RegExp(`^site-claims/${identifier}/regenerate$`), ['POST']],
+  [new RegExp(`^site-claims/${identifier}$`), ['GET', 'DELETE']],
   [new RegExp(`^site-claims/${identifier}/check$`), ['POST']],
 ];
 const managementRoutes: readonly [RegExp, readonly string[]][] = [
   [/^site-claims$/, ['GET']],
   [new RegExp(`^site-claims/${identifier}$`), ['GET']],
   [new RegExp(`^site-claims/${identifier}/review$`), ['POST']],
-  [new RegExp(`^site-ownership/${identifier}$`), ['PUT', 'DELETE']],
+  [new RegExp(`^site-ownership/${identifier}$`), ['GET', 'DELETE']],
 ];
 
 export function acceptsSiteManagementRoute(
@@ -94,6 +96,10 @@ export async function forwardSiteManagement(
   for (const name of ['page', 'page_size']) {
     const value = query.get(name);
     if (value && /^\d{1,4}$/.test(value)) allowedQuery.set(name, value);
+  }
+  for (const name of ['status', 'method']) {
+    const value = query.get(name);
+    if (value && /^[A-Z_]+$/u.test(value)) allowedQuery.set(name, value);
   }
   const suffix = allowedQuery.size ? `?${allowedQuery}` : '';
   const upstream = await requestAuthAPI(

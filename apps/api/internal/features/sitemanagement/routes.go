@@ -38,11 +38,13 @@ type ownerRequest struct {
 	Body    OwnershipInput
 }
 type listRequest struct {
-	Page string `query:"page"`
-	Size string `query:"page_size"`
+	Page   string `query:"page"`
+	Status string `query:"status"`
+	Method string `query:"method"`
+	Size   string `query:"page_size"`
 }
-type claimList struct {
-	Items []Claim `json:"items"`
+type siteRequest struct {
+	ShortID string `path:"shortId" minLength:"9" maxLength:"9"`
 }
 type success struct {
 	Success bool `json:"success"`
@@ -54,10 +56,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 	}
 	limiter := ratelimit.New(redisClient)
 	operation := func(id, method, path string) huma.Operation {
-		policy := ratelimit.Policy{Name: "site-claims-read", Capacity: 30, RefillTokens: 30, RefillInterval: time.Minute}
-		if method != http.MethodGet {
-			policy = ratelimit.Policy{Name: "site-claims-write", Capacity: 10, RefillTokens: 10, RefillInterval: time.Hour}
-		}
+		policy := claimRatePolicy(id)
 		return huma.Operation{OperationID: id, Method: method, Path: path, Summary: id, Tags: []string{"site management"}, Errors: []int{400, 401, 403, 404, 409, 422, 429, 503}, Security: []map[string][]string{{"webToken": {}, "accessCookie": {}}}, Middlewares: huma.Middlewares{httpapi.HumaWebAuthorization(webToken), httpapi.HumaRateLimit(limiter, policy)}}
 	}
 	httpapi.Register(api, operation("create-site-claim", http.MethodPost, "/api/web/account/site-claims"), func(ctx context.Context, input *createRequest) (*output[CreateResult], error) {
@@ -94,47 +93,66 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		}
 		return response(result), nil
 	})
-	httpapi.Register(api, operation("revoke-site-ownership", http.MethodDelete, "/api/web/management/site-ownership/{shortId}"), ownerHandler(service, true))
-	httpapi.Register(api, operation("reassign-site-ownership", http.MethodPut, "/api/web/management/site-ownership/{shortId}"), ownerHandler(service, false))
-	return nil
-}
-func listHandler(s *Service, management bool) func(context.Context, *listRequest) (*output[claimList], error) {
-	return func(ctx context.Context, input *listRequest) (*output[claimList], error) {
-		user, err := s.Current(ctx, httpapi.Request(ctx))
-		if management {
-			user, err = s.Reviewer(ctx, httpapi.Request(ctx))
-		}
+	httpapi.Register(api, operation("revoke-site-ownership", http.MethodDelete, "/api/web/management/site-ownership/{shortId}"), ownerHandler(service))
+	httpapi.Register(api, operation("site-claim-context", http.MethodGet, "/api/web/account/sites/{shortId}/claim-context"), func(ctx context.Context, input *siteRequest) (*output[ClaimContext], error) {
+		user, err := service.Current(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, routeError(err)
 		}
-		userID := user.ID
-		if management {
-			userID = ""
+		result, err := service.Context(ctx, user, input.ShortID)
+		if err != nil {
+			return nil, routeError(err)
+		}
+		return response(result), nil
+	})
+	httpapi.Register(api, operation("get-site-ownership", http.MethodGet, "/api/web/management/site-ownership/{shortId}"), func(ctx context.Context, input *siteRequest) (*output[OwnershipDetail], error) {
+		user, err := service.Reviewer(ctx, httpapi.Request(ctx))
+		if err != nil {
+			return nil, routeError(err)
+		}
+		result, err := service.Ownership(ctx, user, input.ShortID)
+		if err != nil {
+			return nil, routeError(err)
+		}
+		return response(result), nil
+	})
+	httpapi.Register(api, operation("regenerate-site-claim", http.MethodPost, "/api/web/account/site-claims/{claimId}/regenerate"), func(ctx context.Context, input *claimRequest) (*output[CreateResult], error) {
+		user, err := service.Current(ctx, httpapi.Request(ctx))
+		if err != nil {
+			return nil, routeError(err)
+		}
+		result, err := service.Regenerate(ctx, user, input.ID)
+		if err != nil {
+			return nil, routeError(err)
+		}
+		return response(result), nil
+	})
+	return nil
+}
+func listHandler(s *Service, management bool) func(context.Context, *listRequest) (*output[ClaimList], error) {
+	return func(ctx context.Context, input *listRequest) (*output[ClaimList], error) {
+		user, err := routeUser(ctx, s, management)
+		if err != nil {
+			return nil, routeError(err)
 		}
 		page := integer(input.Page, 1, 1000000)
 		size := integer(input.Size, 20, 50)
-		items, err := s.store.List(ctx, userID, size, (page-1)*size)
+		result, err := s.List(ctx, user, ClaimFilter{Status: input.Status, Method: input.Method, Limit: size, Offset: (page - 1) * size}, management)
 		if err != nil {
 			return nil, routeError(err)
 		}
-		return response(claimList{Items: items}), nil
+		return response(result), nil
 	}
 }
 func detailHandler(s *Service, management bool) func(context.Context, *claimRequest) (*output[Claim], error) {
 	return func(ctx context.Context, input *claimRequest) (*output[Claim], error) {
-		user, err := s.Current(ctx, httpapi.Request(ctx))
-		if management {
-			user, err = s.Reviewer(ctx, httpapi.Request(ctx))
-		}
+		user, err := routeUser(ctx, s, management)
 		if err != nil {
 			return nil, routeError(err)
 		}
-		claim, err := s.store.Claim(ctx, input.ID)
+		claim, err := s.Detail(ctx, user, input.ID, management)
 		if err != nil {
 			return nil, routeError(err)
-		}
-		if !management && claim.UserID != user.ID {
-			return nil, routeError(ErrNotFound)
 		}
 		return response(claim), nil
 	}
@@ -157,18 +175,14 @@ func claimActionHandler(s *Service, cancel bool) func(context.Context, *claimReq
 		return response(claim), nil
 	}
 }
-func ownerHandler(s *Service, revoke bool) func(context.Context, *ownerRequest) (*output[success], error) {
+func ownerHandler(s *Service) func(context.Context, *ownerRequest) (*output[success], error) {
 	return func(ctx context.Context, input *ownerRequest) (*output[success], error) {
 		user, err := s.Reviewer(ctx, httpapi.Request(ctx))
 		if err != nil {
 			return nil, routeError(err)
 		}
-		if revoke {
-			input.Body.UserID = ""
-		} else if input.Body.UserID == "" {
-			return nil, routeError(failure("invalid_user", "An account is required for assignment", 422))
-		}
-		if err := s.ChangeOwner(ctx, user, input.ShortID, input.Body); err != nil {
+
+		if err := s.Revoke(ctx, user, input.ShortID, input.Body); err != nil {
 			return nil, routeError(err)
 		}
 		return response(success{Success: true}), nil
@@ -182,9 +196,20 @@ func integer(raw string, fallback, maximum int32) int32 {
 	return int32(value)
 }
 func routeError(err error) error {
+	var application *apperror.Error
+	if errors.As(err, &application) {
+		return err
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return apperror.Wrap(err, apperror.KindUnavailable, "service_unavailable", "Site verification is temporarily unavailable", "site management")
+	}
 	var authentication *auth.AuthError
 	if errors.As(err, &authentication) {
-		return huma.NewError(authentication.StatusCode, authentication.Message)
+		kind := apperror.KindUnauthorized
+		if authentication.StatusCode == 403 {
+			kind = apperror.KindForbidden
+		}
+		return apperror.Wrap(err, kind, authentication.Code, authentication.Message, "site management")
 	}
 	if errors.Is(err, ErrNotFound) {
 		return apperror.New(apperror.KindNotFound, "claim_not_found", "The site or verification application was not found")
@@ -201,4 +226,25 @@ func routeError(err error) error {
 		return apperror.Wrap(err, kind, service.Code, service.Message, "site management")
 	}
 	return apperror.Wrap(err, apperror.KindInternal, apperror.CodeInternal, "The site verification operation failed", "site management")
+}
+
+func routeUser(ctx context.Context, s *Service, management bool) (auth.User, error) {
+	if management {
+		return s.Reviewer(ctx, httpapi.Request(ctx))
+	}
+	return s.Current(ctx, httpapi.Request(ctx))
+}
+func claimRatePolicy(id string) ratelimit.Policy {
+	name, capacity, interval := "site-claims-read", int64(30), time.Minute
+	switch id {
+	case "create-site-claim", "regenerate-site-claim":
+		name, capacity, interval = "site-claims-create", 10, time.Hour
+	case "check-site-claim":
+		name, capacity, interval = "site-claims-check", 30, time.Minute
+	case "cancel-site-claim":
+		name, capacity, interval = "site-claims-cancel", 30, time.Hour
+	case "review-site-claim", "revoke-site-ownership":
+		name, capacity, interval = "site-claims-review", 60, time.Hour
+	}
+	return ratelimit.Policy{Name: name, Capacity: capacity, RefillTokens: capacity, RefillInterval: interval}
 }

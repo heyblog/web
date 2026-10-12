@@ -88,6 +88,12 @@ const badgeClass =
         访问博客
         <IconExternalLink aria-hidden="true" size={16} stroke={1.8} />
       </a>
+      <a
+        class="inline-flex min-h-11 items-center justify-center text-sm text-tint-fg underline underline-offset-4"
+        href={`/dashboard/claims?short_id=${profile.shortId}`}
+      >
+        认领此站点
+      </a>
       <SiteCardPreview
         client:load
         imagePath={cardImagePath}

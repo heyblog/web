@@ -11,15 +11,7 @@ import {
   parseFriendLinks,
 } from '../src/api/site-management/site-management.types.ts';
 
-const claim = {
-  id: 'claim-id',
-  short_id: 'abc123456',
-  user_id: 'user-id',
-  address: 'https://example.test/',
-  method: 'DNS_TXT',
-  status: 'PENDING',
-  created_at: '2026-10-01T00:00:00Z',
-};
+import { claimFixture as claim } from './site-claims.fixture.ts';
 
 test('account forwarding permits only purpose-built methods and paths', () => {
   assert.equal(acceptsSiteManagementRoute('sites/abc123456/updates', 'POST'), true);
@@ -40,8 +32,12 @@ test('account forwarding permits only purpose-built methods and paths', () => {
   assert.equal(acceptsSiteManagementRoute('../management/users', 'GET'), false);
   assert.equal(acceptsSiteManagementRoute('site-claims/claim-id/review', 'POST'), false);
   assert.equal(acceptsSiteManagementRoute('site-claims/claim-id/review', 'POST', true), true);
-  assert.equal(acceptsSiteManagementRoute('site-ownership/abc123456', 'PUT', true), true);
+  assert.equal(acceptsSiteManagementRoute('site-ownership/abc123456', 'PUT', true), false);
   assert.equal(acceptsSiteManagementRoute('sites/abc123456', 'DELETE'), false);
+  assert.equal(acceptsSiteManagementRoute('site-ownership/abc123456', 'GET', true), true);
+  assert.equal(acceptsSiteManagementRoute('site-claims/claim-id', 'GET'), true);
+  assert.equal(acceptsSiteManagementRoute('site-claims/claim-id/regenerate', 'POST'), true);
+  assert.equal(acceptsSiteManagementRoute('sites/abc123456/claim-context', 'GET'), true);
 });
 test('mutations reject cross-origin, malformed and oversized requests before forwarding', async () => {
   const request = (headers: HeadersInit, body = '{}') =>

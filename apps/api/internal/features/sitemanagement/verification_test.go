@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"heyblog-api/internal/platform/apperror"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -137,4 +140,53 @@ func TestRedirect_when_TargetChangesOrigin(t *testing.T) {
 	err = verifier.client.CheckRedirect(target, []*http.Request{source})
 	// Then another site's proof cannot verify the requested site.
 	require.Error(t, err)
+}
+
+type deadlineResolver struct{}
+
+func (deadlineResolver) LookupTXT(ctx context.Context, _ string) ([]string, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+func (deadlineResolver) LookupNetIP(ctx context.Context, _, _ string) ([]netip.Addr, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func TestAutomaticVerificationSharesEightSecondDeadline(t *testing.T) {
+	for _, method := range []Method{DNS, Meta, File} {
+		t.Run(string(method), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				started := time.Now()
+				verifier := newNetworkVerifier(deadlineResolver{})
+				err := verifier.Verify(t.Context(), Claim{Address: "https://verification.example/", Method: method, TokenHash: digest(testToken)})
+				require.Error(t, err)
+				require.Equal(t, 8*time.Second, time.Since(started))
+				var application *apperror.Error
+				require.ErrorAs(t, verificationError(err), &application)
+				require.Equal(t, "verification_timeout", application.Code())
+			})
+		})
+	}
+}
+
+func TestVerificationFailuresPreserveSafeCategories(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		cause error
+		code  string
+	}{
+		{"mismatch", errProof, "proof_not_found"},
+		{"missing DNS", &net.DNSError{IsNotFound: true, Name: "private diagnostic hostname"}, "proof_not_found"},
+		{"network", errors.New("private connection diagnostic"), "verification_network"},
+		{"timeout", context.DeadlineExceeded, "verification_timeout"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var application *apperror.Error
+			require.ErrorAs(t, routeError(verificationError(test.cause)), &application)
+			require.Equal(t, test.code, application.Code())
+			require.NotContains(t, application.PublicDetail(), "private")
+			require.ErrorIs(t, application, test.cause)
+		})
+	}
 }

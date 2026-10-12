@@ -1,15 +1,15 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
-import { parseClaim } from '@/api/site-management/site-management.types';
+import { parseClaim, parseOwnership } from '@/api/site-management/claims.types';
 import { managementNavigation } from '@/application/management/navigation';
-import { claimMethodLabels } from '@/application/site-management/messages';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import ClaimReview from '@/components/site-management/ClaimReview.svelte';
 import ManagementLayout from '@/layouts/ManagementLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
-if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+if (!user)
+  return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
 if (!(
   user.role === 'SYS_ADMIN' ||
   (user.role === 'ADMIN' && user.permissions.includes('site_audit.review'))
@@ -21,6 +21,10 @@ const response = await requestAuthAPI(
 );
 if (response.status === 404) return Astro.redirect('/management/site-claims');
 const claim = response.ok ? parseClaim(await response.json()) : null;
+const ownerResponse = claim
+  ? await requestAuthAPI(Astro.request, `/api/web/management/site-ownership/${claim.short_id}`)
+  : null;
+const ownership = ownerResponse?.ok ? parseOwnership(await ownerResponse.json()) : null;
 ---
 
 <ManagementLayout
@@ -31,48 +35,5 @@ const claim = response.ok ? parseClaim(await response.json()) : null;
   navigation={[...managementNavigation(user)]}
 >
   <AuthNotice message={claim ? null : '认证申请暂时无法加载，请刷新重试。'} />
-  {claim ? (
-    <>
-      <dl class="mb-8 grid gap-4 border-b border-line pb-6">
-        <div>
-          <dt class="text-xs text-fg-muted">验证地址</dt>
-          <dd class="mt-1 text-sm break-all">{claim.address}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-fg-muted">申请用户</dt>
-          <dd class="mt-1 font-mono text-sm break-all">{claim.user_id}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-fg-muted">认证方式</dt>
-          <dd class="mt-1 text-sm">{claimMethodLabels[claim.method]}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-fg-muted">归属说明</dt>
-          <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.evidence || '未填写'}</dd>
-        </div>
-        {claim.evidence_url ? (
-          <div>
-            <dt class="text-xs text-fg-muted">公开证据</dt>
-            <dd class="mt-1 text-sm break-all">
-              <a
-                class="text-tint-fg underline"
-                href={/^https?:\/\//.test(claim.evidence_url) ? claim.evidence_url : undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {claim.evidence_url}
-              </a>
-            </dd>
-          </div>
-        ) : null}
-        {claim.review_reason ? (
-          <div>
-            <dt class="text-xs text-fg-muted">审核意见</dt>
-            <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.review_reason}</dd>
-          </div>
-        ) : null}
-      </dl>
-      <ClaimReview client:load initial={claim} />
-    </>
-  ) : null}
+  {claim && <ClaimReview client:load initial={claim} {ownership} reviewerId={user.id} />}
 </ManagementLayout>

@@ -12,12 +12,13 @@ import (
 )
 
 const claimSite = `-- name: ClaimSite :one
-SELECT id::text, short_id,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1 FOR UPDATE
+SELECT id::text, short_id,name,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1
 `
 
 type ClaimSiteRow struct {
 	ID         string
 	ShortID    string
+	Name       string
 	Address    string
 	Visibility string
 }
@@ -28,6 +29,7 @@ func (q *Queries) ClaimSite(ctx context.Context, shortID string) (ClaimSiteRow, 
 	err := row.Scan(
 		&i.ID,
 		&i.ShortID,
+		&i.Name,
 		&i.Address,
 		&i.Visibility,
 	)
@@ -96,6 +98,29 @@ func (q *Queries) DeleteSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID)
 	return err
 }
 
+const findPendingSiteClaim = `-- name: FindPendingSiteClaim :one
+SELECT id::text FROM directory.site_claims WHERE site_id=$1::uuid AND user_id=$2::uuid AND address=$3 AND method=$4 AND status='PENDING' ORDER BY created_at DESC,id DESC LIMIT 1
+`
+
+type FindPendingSiteClaimParams struct {
+	Column1 pgtype.UUID
+	Column2 pgtype.UUID
+	Address string
+	Method  string
+}
+
+func (q *Queries) FindPendingSiteClaim(ctx context.Context, arg FindPendingSiteClaimParams) (string, error) {
+	row := q.db.QueryRow(ctx, findPendingSiteClaim,
+		arg.Column1,
+		arg.Column2,
+		arg.Address,
+		arg.Method,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const finishSiteClaim = `-- name: FinishSiteClaim :execrows
 UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
 WHERE id=$1::uuid AND status='PENDING'
@@ -125,25 +150,32 @@ func (q *Queries) FinishSiteClaim(ctx context.Context, arg FinishSiteClaimParams
 }
 
 const getSiteClaim = `-- name: GetSiteClaim :one
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id WHERE c.id=$1::uuid
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid
 `
 
 type GetSiteClaimRow struct {
-	CID          string
-	CSiteID      string
-	UserID       string
-	ShortID      string
-	Address      string
-	Method       string
-	Status       string
-	TokenHash    *string
-	ExpiresAt    pgtype.Timestamptz
-	Evidence     *string
-	EvidenceUrl  *string
-	ReviewReason *string
-	CreatedAt    pgtype.Timestamptz
-	VerifiedAt   pgtype.Timestamptz
-	ConsumedAt   pgtype.Timestamptz
+	CID                  string
+	CSiteID              string
+	UserID               string
+	ShortID              string
+	SiteName             string
+	CurrentAddress       string
+	Visibility           string
+	Address              string
+	Method               string
+	Status               string
+	TokenHash            *string
+	ExpiresAt            pgtype.Timestamptz
+	Evidence             *string
+	EvidenceUrl          *string
+	ReviewReason         *string
+	CreatedAt            pgtype.Timestamptz
+	VerifiedAt           pgtype.Timestamptz
+	ConsumedAt           pgtype.Timestamptz
+	OwnerUserID          string
+	OwnerAddress         string
+	ApplicantUsername    string
+	ApplicantDisplayName string
 }
 
 func (q *Queries) GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteClaimRow, error) {
@@ -154,6 +186,9 @@ func (q *Queries) GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSi
 		&i.CSiteID,
 		&i.UserID,
 		&i.ShortID,
+		&i.SiteName,
+		&i.CurrentAddress,
+		&i.Visibility,
 		&i.Address,
 		&i.Method,
 		&i.Status,
@@ -165,20 +200,26 @@ func (q *Queries) GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSi
 		&i.CreatedAt,
 		&i.VerifiedAt,
 		&i.ConsumedAt,
+		&i.OwnerUserID,
+		&i.OwnerAddress,
+		&i.ApplicantUsername,
+		&i.ApplicantDisplayName,
 	)
 	return i, err
 }
 
 const getSiteOwnership = `-- name: GetSiteOwnership :one
-SELECT o.id::text,o.site_id::text,o.user_id::text,o.address,o.revision FROM directory.site_ownerships o WHERE o.site_id=$1::uuid FOR UPDATE
+SELECT o.id::text,o.site_id::text,o.user_id::text,o.address,o.revision,u.username,u.display_name FROM directory.site_ownerships o JOIN identity.users u ON u.id=o.user_id WHERE o.site_id=$1::uuid
 `
 
 type GetSiteOwnershipRow struct {
-	OID      string
-	OSiteID  string
-	OUserID  string
-	Address  string
-	Revision int64
+	OID         string
+	OSiteID     string
+	OUserID     string
+	Address     string
+	Revision    int64
+	Username    string
+	DisplayName string
 }
 
 func (q *Queries) GetSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteOwnershipRow, error) {
@@ -190,33 +231,107 @@ func (q *Queries) GetSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (G
 		&i.OUserID,
 		&i.Address,
 		&i.Revision,
+		&i.Username,
+		&i.DisplayName,
 	)
 	return i, err
 }
 
+const invalidateSiteClaims = `-- name: InvalidateSiteClaims :exec
+UPDATE directory.site_claims SET status='CANCELLED' WHERE site_id=$1::uuid AND (status='PENDING' OR (status='VERIFIED' AND consumed_at IS NULL))
+`
+
+func (q *Queries) InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, invalidateSiteClaims, dollar_1)
+	return err
+}
+
 const listSiteClaims = `-- name: ListSiteClaims :many
-SELECT c.id::text FROM directory.site_claims c WHERE $3::uuid IS NULL OR c.user_id=$3::uuid ORDER BY c.created_at DESC LIMIT $1 OFFSET $2
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id
+WHERE ($1::uuid IS NULL OR c.user_id=$1::uuid)
+AND ($2::uuid IS NULL OR c.site_id=$2::uuid)
+AND ($3::text='' OR c.status=$3::text)
+AND ($4::text='' OR c.method=$4::text)
+ORDER BY c.created_at DESC,c.id DESC LIMIT NULLIF($6::integer,0) OFFSET $5
 `
 
 type ListSiteClaimsParams struct {
-	Limit  int32
-	Offset int32
-	UserID pgtype.UUID
+	UserID     pgtype.UUID
+	SiteID     pgtype.UUID
+	Status     string
+	Method     string
+	PageOffset int32
+	PageLimit  int32
 }
 
-func (q *Queries) ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, listSiteClaims, arg.Limit, arg.Offset, arg.UserID)
+type ListSiteClaimsRow struct {
+	CID                  string
+	CSiteID              string
+	UserID               string
+	ShortID              string
+	SiteName             string
+	CurrentAddress       string
+	Visibility           string
+	Address              string
+	Method               string
+	Status               string
+	TokenHash            *string
+	ExpiresAt            pgtype.Timestamptz
+	Evidence             *string
+	EvidenceUrl          *string
+	ReviewReason         *string
+	CreatedAt            pgtype.Timestamptz
+	VerifiedAt           pgtype.Timestamptz
+	ConsumedAt           pgtype.Timestamptz
+	OwnerUserID          string
+	OwnerAddress         string
+	ApplicantUsername    string
+	ApplicantDisplayName string
+}
+
+func (q *Queries) ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) ([]ListSiteClaimsRow, error) {
+	rows, err := q.db.Query(ctx, listSiteClaims,
+		arg.UserID,
+		arg.SiteID,
+		arg.Status,
+		arg.Method,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []string{}
+	items := []ListSiteClaimsRow{}
 	for rows.Next() {
-		var c_id string
-		if err := rows.Scan(&c_id); err != nil {
+		var i ListSiteClaimsRow
+		if err := rows.Scan(
+			&i.CID,
+			&i.CSiteID,
+			&i.UserID,
+			&i.ShortID,
+			&i.SiteName,
+			&i.CurrentAddress,
+			&i.Visibility,
+			&i.Address,
+			&i.Method,
+			&i.Status,
+			&i.TokenHash,
+			&i.ExpiresAt,
+			&i.Evidence,
+			&i.EvidenceUrl,
+			&i.ReviewReason,
+			&i.CreatedAt,
+			&i.VerifiedAt,
+			&i.ConsumedAt,
+			&i.OwnerUserID,
+			&i.OwnerAddress,
+			&i.ApplicantUsername,
+			&i.ApplicantDisplayName,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, c_id)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -224,26 +339,100 @@ func (q *Queries) ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) 
 	return items, nil
 }
 
+const listSiteOwnershipEvents = `-- name: ListSiteOwnershipEvents :many
+SELECT id::text,coalesce(user_id::text,'')::text AS user_id,coalesce(actor_id::text,'')::text AS actor_id,action,reason,evidence,created_at FROM directory.site_ownership_events WHERE site_id=$1::uuid ORDER BY created_at DESC,id DESC
+`
+
+type ListSiteOwnershipEventsRow struct {
+	ID        string
+	UserID    string
+	ActorID   string
+	Action    string
+	Reason    string
+	Evidence  *string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) ListSiteOwnershipEvents(ctx context.Context, dollar_1 pgtype.UUID) ([]ListSiteOwnershipEventsRow, error) {
+	rows, err := q.db.Query(ctx, listSiteOwnershipEvents, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSiteOwnershipEventsRow{}
+	for rows.Next() {
+		var i ListSiteOwnershipEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.ActorID,
+			&i.Action,
+			&i.Reason,
+			&i.Evidence,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockClaimSite = `-- name: LockClaimSite :one
+SELECT id::text, short_id,name,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1 FOR UPDATE
+`
+
+type LockClaimSiteRow struct {
+	ID         string
+	ShortID    string
+	Name       string
+	Address    string
+	Visibility string
+}
+
+func (q *Queries) LockClaimSite(ctx context.Context, shortID string) (LockClaimSiteRow, error) {
+	row := q.db.QueryRow(ctx, lockClaimSite, shortID)
+	var i LockClaimSiteRow
+	err := row.Scan(
+		&i.ID,
+		&i.ShortID,
+		&i.Name,
+		&i.Address,
+		&i.Visibility,
+	)
+	return i, err
+}
+
 const lockSiteClaim = `-- name: LockSiteClaim :one
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id WHERE c.id=$1::uuid FOR UPDATE OF c
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid FOR UPDATE OF c
 `
 
 type LockSiteClaimRow struct {
-	CID          string
-	CSiteID      string
-	UserID       string
-	ShortID      string
-	Address      string
-	Method       string
-	Status       string
-	TokenHash    *string
-	ExpiresAt    pgtype.Timestamptz
-	Evidence     *string
-	EvidenceUrl  *string
-	ReviewReason *string
-	CreatedAt    pgtype.Timestamptz
-	VerifiedAt   pgtype.Timestamptz
-	ConsumedAt   pgtype.Timestamptz
+	CID                  string
+	CSiteID              string
+	UserID               string
+	ShortID              string
+	SiteName             string
+	CurrentAddress       string
+	Visibility           string
+	Address              string
+	Method               string
+	Status               string
+	TokenHash            *string
+	ExpiresAt            pgtype.Timestamptz
+	Evidence             *string
+	EvidenceUrl          *string
+	ReviewReason         *string
+	CreatedAt            pgtype.Timestamptz
+	VerifiedAt           pgtype.Timestamptz
+	ConsumedAt           pgtype.Timestamptz
+	OwnerUserID          string
+	OwnerAddress         string
+	ApplicantUsername    string
+	ApplicantDisplayName string
 }
 
 func (q *Queries) LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteClaimRow, error) {
@@ -254,6 +443,9 @@ func (q *Queries) LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (Lock
 		&i.CSiteID,
 		&i.UserID,
 		&i.ShortID,
+		&i.SiteName,
+		&i.CurrentAddress,
+		&i.Visibility,
 		&i.Address,
 		&i.Method,
 		&i.Status,
@@ -265,6 +457,35 @@ func (q *Queries) LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (Lock
 		&i.CreatedAt,
 		&i.VerifiedAt,
 		&i.ConsumedAt,
+		&i.OwnerUserID,
+		&i.OwnerAddress,
+		&i.ApplicantUsername,
+		&i.ApplicantDisplayName,
+	)
+	return i, err
+}
+
+const lockSiteOwnership = `-- name: LockSiteOwnership :one
+SELECT o.id::text,o.site_id::text,o.user_id::text,o.address,o.revision FROM directory.site_ownerships o WHERE o.site_id=$1::uuid FOR UPDATE
+`
+
+type LockSiteOwnershipRow struct {
+	OID      string
+	OSiteID  string
+	OUserID  string
+	Address  string
+	Revision int64
+}
+
+func (q *Queries) LockSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteOwnershipRow, error) {
+	row := q.db.QueryRow(ctx, lockSiteOwnership, dollar_1)
+	var i LockSiteOwnershipRow
+	err := row.Scan(
+		&i.OID,
+		&i.OSiteID,
+		&i.OUserID,
+		&i.Address,
+		&i.Revision,
 	)
 	return i, err
 }
@@ -281,6 +502,21 @@ type RefreshSiteOwnershipParams struct {
 
 func (q *Queries) RefreshSiteOwnership(ctx context.Context, arg RefreshSiteOwnershipParams) error {
 	_, err := q.db.Exec(ctx, refreshSiteOwnership, arg.Column1, arg.Address, arg.Column3)
+	return err
+}
+
+const regenerateSiteClaim = `-- name: RegenerateSiteClaim :exec
+UPDATE directory.site_claims SET token_hash=$2,expires_at=$3 WHERE id=$1::uuid AND status='PENDING' AND method<>'MANUAL'
+`
+
+type RegenerateSiteClaimParams struct {
+	Column1   pgtype.UUID
+	TokenHash *string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) RegenerateSiteClaim(ctx context.Context, arg RegenerateSiteClaimParams) error {
+	_, err := q.db.Exec(ctx, regenerateSiteClaim, arg.Column1, arg.TokenHash, arg.ExpiresAt)
 	return err
 }
 

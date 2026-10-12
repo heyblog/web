@@ -5,14 +5,13 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
 func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) {
 	err := r.transaction(ctx, func(q *dbgen.Queries) error {
-		target, err := q.ClaimSite(ctx, input.Claim.ShortID)
+		target, err := q.LockClaimSite(ctx, input.Claim.ShortID)
 		if err != nil {
 			return repositoryError(err)
 		}
@@ -30,6 +29,12 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 		}
 		if claim.UserID == "" {
 			return failure("claim_anonymized", "The applicant account is no longer available", 409)
+		}
+		if claim.UserID != input.Claim.UserID || claim.Address != input.Claim.Address || claim.Method != input.Claim.Method {
+			return failure("proof_changed", "The verification application changed; reload it before checking", 409)
+		}
+		if input.Status == "VERIFIED" && claim.Method != Manual && claim.TokenHash != input.Claim.TokenHash {
+			return failure("proof_changed", "The verification proof changed; use the latest challenge", 409)
 		}
 		if input.Status == "VERIFIED" && target.Visibility == "REMOVED" {
 			return failure("site_removed", "Removed sites cannot be verified", 409)
@@ -54,7 +59,7 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 			if _, err := q.ResolveOwnershipUser(ctx, userID); err != nil {
 				return repositoryError(err)
 			}
-			owner, ownerErr := q.GetSiteOwnership(ctx, siteID)
+			owner, ownerErr := q.LockSiteOwnership(ctx, siteID)
 			if ownerErr == nil && owner.OUserID != claim.UserID {
 				return failure("site_already_owned", "This site already has a verified owner", 409)
 			}
@@ -97,9 +102,9 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 	}
 	return r.Claim(ctx, input.Claim.ID)
 }
-func (r *Repository) ChangeOwner(ctx context.Context, target Site, input OwnershipInput, actor string) error {
+func (r *Repository) Revoke(ctx context.Context, target Site, input OwnershipInput, actor string) error {
 	return r.transaction(ctx, func(q *dbgen.Queries) error {
-		current, err := q.ClaimSite(ctx, target.ShortID)
+		current, err := q.LockClaimSite(ctx, target.ShortID)
 		if err != nil {
 			return repositoryError(err)
 		}
@@ -111,43 +116,29 @@ func (r *Repository) ChangeOwner(ctx context.Context, target Site, input Ownersh
 		if err != nil {
 			return err
 		}
-		owner, err := q.GetSiteOwnership(ctx, siteID)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		owner, err := q.LockSiteOwnership(ctx, siteID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return failure("ownership_changed", "Site ownership changed; reload the current ownership", 409)
+		}
+		if err != nil {
 			return err
 		}
-		if err == nil && owner.OUserID == actor {
+		if owner.OID != input.OwnershipID || owner.Revision != input.Revision {
+			return failure("ownership_changed", "Site ownership changed; reload the current ownership", 409)
+		}
+		if owner.OUserID == actor {
 			return failure("self_review", "You cannot revoke your own site ownership", 403)
 		}
-		var userID pgtype.UUID
-		action := "REVOKED"
-		if input.UserID != "" {
-			if current.Visibility == "REMOVED" {
-				return failure("site_removed", "Removed sites cannot be assigned", 409)
-			}
-			userID, err = uuid(input.UserID)
-			if err != nil {
-				return err
-			}
-			if _, err := q.ResolveOwnershipUser(ctx, userID); err != nil {
-				return repositoryError(err)
-			}
-			action = "REASSIGNED"
-		} else if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
-		} else {
-			userID, err = uuid(owner.OUserID)
-			if err != nil {
-				return err
-			}
+		userID, err := uuid(owner.OUserID)
+		if err != nil {
+			return err
+		}
+		if err := q.InvalidateSiteClaims(ctx, siteID); err != nil {
+			return err
 		}
 		if err := q.DeleteSiteOwnership(ctx, siteID); err != nil {
 			return err
 		}
-		if input.UserID != "" {
-			if err := q.CreateSiteOwnership(ctx, dbgen.CreateSiteOwnershipParams{Column1: siteID, Column2: userID, Address: current.Address}); err != nil {
-				return err
-			}
-		}
-		return q.SiteOwnershipEvent(ctx, dbgen.SiteOwnershipEventParams{Column1: siteID, Column2: userID, Column3: actorID, Action: action, Reason: input.Reason, Evidence: &input.Evidence})
+		return q.SiteOwnershipEvent(ctx, dbgen.SiteOwnershipEventParams{Column1: siteID, Column2: userID, Column3: actorID, Action: "REVOKED", Reason: input.Reason, Evidence: &input.Evidence})
 	})
 }

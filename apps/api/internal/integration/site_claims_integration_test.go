@@ -143,16 +143,37 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		var consumed bool
 		require.NoError(t, pool.QueryRow(ctx, `SELECT consumed_at IS NOT NULL FROM directory.site_claims WHERE id=$1::uuid`, proof.Claim.ID).Scan(&consumed))
 		require.True(t, consumed)
-		err = service.ChangeOwner(ctx, reviewer, "Claim0002", sitemanagement.OwnershipInput{UserID: users[1].ID, Reason: "Ownership transferred", Evidence: "Independent public evidence"})
+		stalePending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.Manual, Address: "https://claim-future.example/", Evidence: "Future address proof"})
 		require.NoError(t, err)
-		newOwner, err := service.CurrentOwner(ctx, users[1], "Claim0002")
+		unusedProof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.File, Address: "https://claim-unused.example/"})
 		require.NoError(t, err)
-		require.NotEqual(t, owner.ID, newOwner.ID)
-		_, err = pool.Exec(ctx, `SELECT directory.apply_verified_site_address($1::uuid,$2::uuid,$3,$4::uuid)`, owner.SiteID, users[0].ID, proof.Claim.Address, owner.ID)
+		_, err = service.Check(ctx, users[0], unusedProof.Claim.ID)
+		require.NoError(t, err)
+		revoke := sitemanagement.OwnershipInput{OwnershipID: refreshed.ID, Revision: refreshed.Revision, Reason: "Ownership revoked", Evidence: "Independent revocation evidence"}
+		staleRevoke := revoke
+		staleRevoke.Revision--
+		require.Error(t, service.Revoke(ctx, reviewer, "Claim0002", staleRevoke))
+		require.NoError(t, service.Revoke(ctx, reviewer, "Claim0002", revoke))
+		_, err = service.Review(ctx, reviewer, stalePending.Claim.ID, sitemanagement.SiteClaimReviewInput{Approve: true, Reason: "Old evidence"})
 		require.Error(t, err)
-		require.NoError(t, service.ChangeOwner(ctx, reviewer, "Claim0002", sitemanagement.OwnershipInput{Reason: "Ownership revoked", Evidence: "Independent revocation evidence"}))
+		for _, id := range []string{stalePending.Claim.ID, unusedProof.Claim.ID} {
+			claim, err := repository.Claim(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, "CANCELLED", claim.Status)
+		}
+		_, err = service.CurrentOwner(ctx, users[0], "Claim0002")
+		require.Error(t, err)
+		require.Error(t, service.Revoke(ctx, reviewer, "Claim0002", revoke))
 		var revokedUser string
 		require.NoError(t, pool.QueryRow(ctx, `SELECT coalesce(user_id::text,'') FROM directory.site_ownership_events WHERE site_id=$1::uuid AND action='REVOKED'`, owner.SiteID).Scan(&revokedUser))
-		require.Equal(t, users[1].ID, revokedUser)
+		require.Equal(t, users[0].ID, revokedUser)
+		_, err = pool.Exec(ctx, `INSERT INTO directory.site_ownership_events(site_id,user_id,actor_id,action,reason,evidence) VALUES($1::uuid,$2::uuid,$3::uuid,'REASSIGNED','Historical reassignment','Archived evidence')`, owner.SiteID, users[1].ID, reviewer.ID)
+		require.NoError(t, err)
+		history, err := service.Ownership(ctx, reviewer, "Claim0002")
+		require.NoError(t, err)
+		require.Nil(t, history.Current)
+		require.Equal(t, "REASSIGNED", history.History[0].Action)
+
 	})
+	verifySiteClaimRecovery(ctx, t, pool, users, reviewer)
 }

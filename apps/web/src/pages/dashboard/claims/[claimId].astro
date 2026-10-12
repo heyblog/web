@@ -1,0 +1,25 @@
+---
+import { requestAuthAPI } from '@/api/auth/auth.server';
+import { parseClaim } from '@/api/site-management/claims.types';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import ClaimDetail from '@/components/site-management/ClaimDetail.svelte';
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const user = Astro.locals.sessionUser;
+if (!user)
+  return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
+const response = await requestAuthAPI(
+  Astro.request,
+  `/api/web/account/site-claims/${encodeURIComponent(Astro.params.claimId ?? '')}`,
+);
+if (response.status === 404) return Astro.redirect('/dashboard/claims');
+const claim = response.ok ? parseClaim(await response.json()) : null;
+---
+
+<DashboardLayout title="认领申请" heading="认领申请" {user} currentPath="/dashboard/claims">
+  <div class="max-w-4xl">
+    <AuthNotice message={claim ? null : '申请暂时无法加载，请刷新重试。'} />
+    {claim && <ClaimDetail client:load initial={claim} />}
+  </div>
+</DashboardLayout>

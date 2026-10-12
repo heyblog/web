@@ -109,8 +109,15 @@ and focused tests referenced below, not additional package-level AGENTS files.
   editing authority. Owner updates require approval and address changes consume a matching verified
   proof in the same transaction. Existing registered friend links apply directly through graph
   wrappers; new targets share CREATE audits and deferred recommendations are applied only while
-  their captured ownership generation is still valid. Manual certification, revoke and reassignment
-  use site-review authorization, with self-review forbidden. Never persist raw verification tokens,
+  their captured ownership generation is still valid. Manual certification and ownership revocation use site-review authorization, with self-review and
+  self-revocation forbidden. Ownership changes begin with applicant verification; management has no
+  direct reassignment operation. Historical reassignment events remain readable. Duplicate pending
+  claims reuse the existing application without reissuing its proof. Explicit regeneration changes
+  only the stored digest and expiry, and verification decisions compare that digest under the claim
+  lock after network verification. Automatic proof checks share an eight-second deadline. Revocation
+  compares the ownership identifier and revision and invalidates pending claims and unused verified
+  proofs in the same transaction. Account claim context and paginated claim lists use read-only,
+  batched queries; applicant profiles are returned only to authorized reviewers. Never persist raw verification tokens,
   fetch private network addresses, or expose another submitter's contact through a shared target.
 - Random reads select VISIBLE sites, including warned sites, using confirmed classification
   names with case-insensitive matching. Validate before selection, retain a normal null result when no candidate

@@ -1,3 +1,5 @@
+import { accountRequest } from '../site-management/site-management.browser.ts';
+
 import type { AuditAction, SubmissionPayload } from './site-submission.types.ts';
 
 export interface BrowserRequestOptions {
@@ -57,8 +59,16 @@ export function requestSubmissionOptions(): Promise<Response> {
   return fetch('/api/web/submissions/options');
 }
 
-export function requestSubmissionSnapshot(siteShortID: string): Promise<Response> {
-  return fetch(`/api/web/submissions/${encodeURIComponent(siteShortID)}/resolve`);
+export function requestSubmissionSnapshot(
+  siteShortID: string,
+  options: { readonly account?: boolean; readonly signal?: AbortSignal } = {},
+): Promise<Response> {
+  return options.account
+    ? accountRequest(`sites/${siteShortID}`, { signal: options.signal })
+    : fetch(
+        `/api/web/submissions/${encodeURIComponent(siteShortID)}/resolve`,
+        options.signal ? { signal: options.signal } : undefined,
+      );
 }
 
 export function requestSubmissionSearch(value: string, signal: AbortSignal): Promise<Response> {

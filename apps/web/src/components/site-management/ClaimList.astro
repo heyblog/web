@@ -1,0 +1,80 @@
+---
+import { claimMethods, type ClaimPage, claimStatuses } from '@/api/site-management/claims.types';
+import { claimLabel } from '@/application/site-management/claims.model';
+import { claimMethodLabels, claimStatusLabels } from '@/application/site-management/messages';
+
+import PageNavigation from './PageNavigation.astro';
+interface Props {
+  data: ClaimPage;
+  page: number;
+  query: URLSearchParams;
+  management?: boolean;
+}
+const { data, page, query, management = false } = Astro.props;
+const filters = new URLSearchParams(query);
+filters.set('status', query.get('status') ?? '');
+filters.set('method', query.get('method') ?? '');
+---
+
+<section class="grid gap-5" aria-labelledby="claims-list-heading">
+  <h2 class="text-xl font-semibold" id="claims-list-heading">
+    {management ? '认领申请' : '我的认领记录'}
+  </h2>
+  <form method="GET" class="flex flex-wrap items-end gap-3">
+    <label class="grid gap-2 text-sm">
+      申请状态
+      <select name="status" class="min-h-11 rounded-md border border-line-strong bg-surface px-3">
+        <option value="">全部状态</option>
+        {claimStatuses.map((status) => (
+          <option value={status} selected={filters.get('status') === status}>
+            {status === 'PENDING' ? '进行中' : claimStatusLabels[status]}
+          </option>
+        ))}
+      </select>
+    </label>
+    <label class="grid gap-2 text-sm">
+      验证方式
+      <select name="method" class="min-h-11 rounded-md border border-line-strong bg-surface px-3">
+        <option value="">全部方式</option>
+        {claimMethods.map((method) => (
+          <option value={method} selected={filters.get('method') === method}>
+            {claimMethodLabels[method]}
+          </option>
+        ))}
+      </select>
+    </label>
+    <button
+      type="submit"
+      class="min-h-11 rounded-md border border-line-strong px-4 text-sm font-medium"
+    >
+      筛选
+    </button>
+  </form>
+  <ul class="divide-y divide-line">
+    {data.items.map((claim) => (
+      <li>
+        <a
+          class="grid gap-2 py-5"
+          href={`${management ? '/management/site-claims' : '/dashboard/claims'}/${claim.id}`}
+        >
+          <div class="flex flex-wrap justify-between gap-3">
+            <strong class="text-sm">{claim.site_name}</strong>
+            <span class="text-sm text-fg-muted">{claimLabel(claim)}</span>
+          </div>
+          <span class="text-sm break-all text-fg-muted">{claim.address}</span>
+          <span class="text-sm text-fg-muted">
+            {claimMethodLabels[claim.method]}
+            {claim.applicant
+              ? ` · ${claim.applicant.display_name} (@${claim.applicant.username})`
+              : ''}
+          </span>
+          <time datetime={claim.created_at} class="text-xs text-fg-muted">
+            {new Date(claim.created_at).toLocaleString('zh-CN')}
+          </time>
+        </a>
+      </li>
+    ))}
+  </ul>
+  {data.items.length === 0 && <p class="py-5 text-sm text-fg-muted">暂无符合条件的申请。</p>}
+  <PageNavigation {page} hasNext={data.has_more} query={filters} />
+</section>

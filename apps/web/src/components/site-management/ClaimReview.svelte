@@ -1,112 +1,117 @@
 <script lang="ts">
-  import { accountRequest } from '@/api/site-management/site-management.browser';
-  import { type Claim, parseClaim } from '@/api/site-management/site-management.types';
+  import { onDestroy } from 'svelte';
+
+  import type { Claim, OwnershipDetail } from '@/api/site-management/claims.types';
+  import { createClaimReview } from '@/application/site-management/claim-review.controller.svelte';
+  import { claimLabel } from '@/application/site-management/claims.model';
+  import { claimMethodLabels } from '@/application/site-management/messages';
   import {
-    claimStatusLabels,
-    managementError,
-    SiteManagementProblem,
-  } from '@/application/site-management/messages';
-  import InlineAlert from '@/components/feedback/InlineAlert.svelte';
-  interface Props {
-    initial: Claim;
-  }
-  let { initial }: Props = $props();
-  let claim = $state.raw(initial);
+    buttonClass,
+    dangerClass,
+    inputClass,
+    primaryClass,
+  } from '@/components/management/api-keys/api-keys.styles';
+
+  import OwnershipPanel from './OwnershipPanel.svelte';
+  let {
+    initial,
+    ownership,
+    reviewerId,
+  }: { initial: Claim; ownership: OwnershipDetail | null; reviewerId: string } = $props();
+  const controller = createClaimReview(initial, ownership);
   let reason = $state('');
-  let evidence = $state('');
-  let userId = $state('');
-  let busy = $state(false);
-  let error = $state('');
-  let notice = $state('');
-  async function operate(action: 'approve' | 'reject' | 'revoke' | 'reassign'): Promise<void> {
-    if (busy || !reason.trim()) return;
-    if (
-      (action === 'revoke' || action === 'reassign') &&
-      !confirm(action === 'revoke' ? '撤销此站点的有效归属？' : '将此站点归属转移给填写的用户？')
-    )
-      return;
-    busy = true;
-    error = '';
-    notice = '';
-    try {
-      const review = action === 'approve' || action === 'reject';
-      const response = await accountRequest(
-        review ? `site-claims/${claim.id}/review` : `site-ownership/${claim.short_id}`,
-        {
-          management: true,
-          method: review ? 'POST' : action === 'revoke' ? 'DELETE' : 'PUT',
-          body: review
-            ? { approve: action === 'approve', reason: reason.trim() }
-            : {
-                reason: reason.trim(),
-                evidence: evidence.trim(),
-                ...(action === 'reassign' ? { user_id: userId.trim() } : {}),
-              },
-        },
-      );
-      if (!response.ok) throw new SiteManagementProblem(await managementError(response));
-      if (review) claim = parseClaim(await response.json());
-      notice = review
-        ? '审核结果已保存。'
-        : action === 'revoke'
-          ? '站点归属已撤销。'
-          : '站点归属已转移。';
-    } catch (caught) {
-      error = caught instanceof SiteManagementProblem ? caught.message : '操作未完成，请稍后重试。';
-    } finally {
-      busy = false;
-    }
-  }
+  onDestroy(() => controller.dispose());
 </script>
 
-<section class="grid gap-5">
-  <p class="text-sm text-fg-muted">{claimStatusLabels[claim.status]}</p>
-  {#if error}<InlineAlert tone="danger">{error}</InlineAlert>{/if}
-  {#if notice}<p class="text-sm text-success-fg" role="status">{notice}</p>{/if}
-  <label class="grid gap-2 text-sm"
-    >处理理由<textarea
-      class="min-h-28 rounded-sm border border-line-strong bg-surface p-3"
-      bind:value={reason}
-      required
-      maxlength="2000"></textarea></label
-  >
-  {#if claim.status === 'PENDING' && claim.method === 'MANUAL'}<div class="flex flex-wrap gap-3">
-      <button
-        class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
-        type="button"
-        disabled={busy || !reason.trim()}
-        onclick={() => operate('approve')}>批准认证</button
-      ><button
-        class="min-h-11 rounded-sm border border-danger px-5 text-danger-fg disabled:opacity-50"
-        type="button"
-        disabled={busy || !reason.trim()}
-        onclick={() => operate('reject')}>驳回认证</button
-      >
-    </div>{/if}
-  <fieldset class="grid gap-4 border-t border-line pt-6">
-    <legend class="pt-6 font-semibold">站点归属</legend><label class="grid gap-2 text-sm"
-      >处理证据<textarea
-        class="min-h-24 rounded-sm border border-line-strong bg-surface p-3"
-        bind:value={evidence}
-        maxlength="4000"></textarea></label
-    ><label class="grid gap-2 text-sm"
-      >新所有者用户 ID<input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
-        bind:value={userId}
-      /></label
-    >
-    <div class="flex flex-wrap gap-3">
-      <button
-        class="min-h-11 rounded-sm border border-line-strong px-4 text-sm disabled:opacity-50"
-        type="button"
-        disabled={busy || !reason.trim() || !evidence.trim() || !userId.trim()}
-        onclick={() => operate('reassign')}>转移归属</button
-      ><button
-        class="min-h-11 rounded-sm border border-danger px-4 text-sm text-danger-fg disabled:opacity-50"
-        type="button"
-        disabled={busy || !reason.trim() || !evidence.trim()}
-        onclick={() => operate('revoke')}>撤销归属</button
-      >
+{#if controller.claim}
+  {@const claim = controller.claim}
+  <section class="grid max-w-4xl gap-5">
+    <div class="flex flex-wrap justify-between gap-3">
+      <h2 class="text-xl font-semibold">{claim.site_name}</h2>
+      <span class="text-sm text-fg-muted">{claimLabel(claim)}</span>
     </div>
-  </fieldset>
-</section>
+    <dl class="grid gap-4 rounded-md border border-line p-5">
+      <div>
+        <dt class="text-xs text-fg-muted">验证地址</dt>
+        <dd class="mt-1 text-sm break-all">{claim.address}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fg-muted">申请用户</dt>
+        <dd class="mt-1 text-sm">
+          {claim.applicant
+            ? `${claim.applicant.display_name} (@${claim.applicant.username})`
+            : '账号已不可用'}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fg-muted">验证方式</dt>
+        <dd class="mt-1 text-sm">{claimMethodLabels[claim.method]}</dd>
+      </div>
+      {#if claim.evidence}<div>
+          <dt class="text-xs text-fg-muted">归属说明</dt>
+          <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.evidence}</dd>
+        </div>{/if}{#if claim.evidence_url && /^https?:\/\//u.test(claim.evidence_url)}<div>
+          <dt class="text-xs text-fg-muted">公开证据</dt>
+          <dd class="mt-1 text-sm break-all">
+            <a
+              href={claim.evidence_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-tint-fg underline">{claim.evidence_url}</a
+            >
+          </dd>
+        </div>{/if}{#if claim.review_reason}<div>
+          <dt class="text-xs text-fg-muted">审核意见</dt>
+          <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.review_reason}</dd>
+        </div>{/if}
+    </dl>
+    {#if controller.error}<p
+        class="rounded-md bg-danger-bg p-4 text-sm text-danger-fg"
+        role="alert"
+      >
+        {controller.error}
+      </p>{/if}{#if controller.notice}<p class="text-sm text-success-fg" role="status">
+        {controller.notice}
+      </p>{/if}
+    {#if claim.status === 'PENDING' && claim.method === 'MANUAL'}
+      {#if claim.user_id === reviewerId}<p class="rounded-md bg-subtle p-4 text-sm">
+          自己的申请需要由其他审核者处理。
+        </p>{:else}<label class="grid gap-2 text-sm"
+          >审核意见<textarea
+            class="{inputClass} min-h-28 py-3"
+            bind:value={reason}
+            required
+            maxlength="2000"
+            disabled={controller.busy}></textarea></label
+        >
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="button"
+            class={primaryClass}
+            disabled={controller.busy || !reason.trim()}
+            onclick={() => void controller.review(true, reason)}>批准认领</button
+          ><button
+            type="button"
+            class={dangerClass}
+            disabled={controller.busy || !reason.trim()}
+            onclick={() => void controller.review(false, reason)}>驳回申请</button
+          >
+        </div>{/if}
+    {/if}
+    <button
+      type="button"
+      class="{buttonClass} w-fit"
+      disabled={controller.busy}
+      onclick={() => void controller.refresh()}
+      >{controller.busy ? '正在处理…' : '刷新最新状态'}</button
+    >
+    {#if controller.ownership}<OwnershipPanel
+        ownership={controller.ownership}
+        busy={controller.busy}
+        onrevoke={(input) => controller.revoke(input)}
+      />{:else}<p class="text-sm text-fg-muted">当前归属暂时无法加载，请刷新状态。</p>{/if}
+    <a class="min-h-11 text-sm text-tint-fg underline" href="/management/site-claims"
+      >返回认领审核</a
+    >
+  </section>
+{/if}

@@ -67,6 +67,7 @@ type Querier interface {
 	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
 	EnableCanonicalTag(ctx context.Context, id pgtype.UUID) error
 	FindAPIKeyCredential(ctx context.Context, publicID string) (FindAPIKeyCredentialRow, error)
+	FindPendingSiteClaim(ctx context.Context, arg FindPendingSiteClaimParams) (string, error)
 	FinishDatabaseRestore(ctx context.Context) error
 	FinishSiteClaim(ctx context.Context, arg FinishSiteClaimParams) (int64, error)
 	GetAPIClient(ctx context.Context, id pgtype.UUID) (IdentityApiClient, error)
@@ -130,6 +131,7 @@ type Querier interface {
 	InsertSoftwareComponent(ctx context.Context, arg InsertSoftwareComponentParams) error
 	InsertSoftwareDependency(ctx context.Context, arg InsertSoftwareDependencyParams) error
 	InsertSource(ctx context.Context, arg InsertSourceParams) (pgtype.UUID, error)
+	InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID) error
 	ListAPIClientScopes(ctx context.Context) ([]IdentityApiClientScope, error)
 	ListAPIClientScopesByClient(ctx context.Context, clientID pgtype.UUID) ([]string, error)
 	ListAPIClients(ctx context.Context) ([]IdentityApiClient, error)
@@ -166,9 +168,10 @@ type Querier interface {
 	ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error)
 	ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error)
 	ListSiteAuditsForManagement(ctx context.Context, arg ListSiteAuditsForManagementParams) ([]ListSiteAuditsForManagementRow, error)
-	ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) ([]string, error)
+	ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) ([]ListSiteClaimsRow, error)
 	ListSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListSiteOrigins(ctx context.Context, siteID pgtype.UUID) ([]ListSiteOriginsRow, error)
+	ListSiteOwnershipEvents(ctx context.Context, dollar_1 pgtype.UUID) ([]ListSiteOwnershipEventsRow, error)
 	ListSiteResources(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteResource, error)
 	ListSiteSoftwareComponents(ctx context.Context, siteID pgtype.UUID) ([]ListSiteSoftwareComponentsRow, error)
 	ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListSiteTagsRow, error)
@@ -179,6 +182,7 @@ type Querier interface {
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
 	LockAnnouncement(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
+	LockClaimSite(ctx context.Context, shortID string) (LockClaimSiteRow, error)
 	LockCurrentSiteOwner(ctx context.Context, arg LockCurrentSiteOwnerParams) (DirectorySiteOwnership, error)
 	LockEmailVerificationCode(ctx context.Context, id pgtype.UUID) (IdentityEmailVerificationCode, error)
 	LockFriendEndpointSites(ctx context.Context, arg LockFriendEndpointSitesParams) ([]pgtype.UUID, error)
@@ -190,6 +194,7 @@ type Querier interface {
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteClaimRow, error)
+	LockSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteOwnershipRow, error)
 	LockTaxonomy(ctx context.Context) error
 	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
@@ -199,6 +204,7 @@ type Querier interface {
 	RecordSiteResponseMetrics(ctx context.Context, shortIds []string) ([]RecordSiteResponseMetricsRow, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	RefreshSiteOwnership(ctx context.Context, arg RefreshSiteOwnershipParams) error
+	RegenerateSiteClaim(ctx context.Context, arg RegenerateSiteClaimParams) error
 	RejectSiteAudit(ctx context.Context, arg RejectSiteAuditParams) (DirectorySiteAudit, error)
 	RemoveOwnerFriendLink(ctx context.Context, arg RemoveOwnerFriendLinkParams) (bool, error)
 	RemoveSoftwareComponentDependency(ctx context.Context, arg RemoveSoftwareComponentDependencyParams) error

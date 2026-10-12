@@ -33,7 +33,7 @@ func NewNetworkVerifier() *NetworkVerifier { return newNetworkVerifier(net.Defau
 func newNetworkVerifier(resolver Resolver) *NetworkVerifier {
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	transport := verificationTransport(resolver, dialer.DialContext)
-	return &NetworkVerifier{resolver: resolver, client: &http.Client{Transport: transport, Timeout: 10 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	return &NetworkVerifier{resolver: resolver, client: &http.Client{Transport: transport, Timeout: VerificationTimeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) > 3 || req.URL.Scheme != via[0].URL.Scheme || req.URL.Host != via[0].URL.Host {
 			return errors.New("verification redirect is not allowed")
 		}
@@ -43,6 +43,8 @@ func newNetworkVerifier(resolver Resolver) *NetworkVerifier {
 func verificationTransport(resolver Resolver, dial func(context.Context, string, string) (net.Conn, error)) *http.Transport {
 	transport := &http.Transport{Proxy: nil, DisableKeepAlives: true, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: 5 * time.Second}
 	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		ctx, cancel := context.WithTimeout(ctx, VerificationTimeout)
+		defer cancel()
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return nil, err
@@ -99,6 +101,8 @@ func digest(token string) string {
 }
 func matches(token, hash string) bool { return len(token) == 43 && digest(token) == hash }
 func (v *NetworkVerifier) Verify(ctx context.Context, claim Claim) error {
+	ctx, cancel := context.WithTimeout(ctx, VerificationTimeout)
+	defer cancel()
 	parsed, err := url.Parse(claim.Address)
 	if err != nil {
 		return err

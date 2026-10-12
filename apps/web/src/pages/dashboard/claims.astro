@@ -1,31 +1,35 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
-import { parseClaims } from '@/api/site-management/site-management.types';
+import { parseClaimPage } from '@/api/site-management/claims.types';
+import { claimListQuery } from '@/application/site-management/claims-query';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
+import ClaimList from '@/components/site-management/ClaimList.astro';
 import ClaimManager from '@/components/site-management/ClaimManager.svelte';
-import PageNavigation from '@/components/site-management/PageNavigation.astro';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
-if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
-const page = Math.min(
-  1000,
-  Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1),
-);
-const response = await requestAuthAPI(
-  Astro.request,
-  `/api/web/account/site-claims?page=${page}&page_size=50`,
-);
-const claims = response.ok ? parseClaims(await response.json()) : [];
+if (!user)
+  return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
+const { page, query } = claimListQuery(Astro.url.searchParams);
+const response = await requestAuthAPI(Astro.request, `/api/web/account/site-claims?${query}`);
+const data = response.ok ? parseClaimPage(await response.json()) : null;
+const rawID = Astro.url.searchParams.get('short_id') ?? '';
+const shortId = /^[a-zA-Z0-9]{9}$/u.test(rawID) ? rawID : '';
 ---
 
-<DashboardLayout title="认证申请" heading="认证申请" {user} currentPath={Astro.url.pathname}>
-  <AuthNotice message={response.ok ? null : '认证记录暂时无法加载，请刷新重试。'} />
-  <ClaimManager
-    client:load
-    initial={claims}
-    initialShortId={Astro.url.searchParams.get('short_id') ?? ''}
-  />
-  <PageNavigation {page} hasNext={claims.length === 50} />
+<DashboardLayout title="站点认领" heading="站点认领" {user} currentPath={Astro.url.pathname}>
+  <div class="grid max-w-4xl gap-10">
+    <ClaimManager
+      client:load
+      initialShortId={shortId}
+      purpose={Astro.url.searchParams.get('purpose') === 'address' ? 'address' : 'claim'}
+    />
+    <AuthNotice message={data ? null : '认领记录暂时无法加载，请刷新重试。'} />
+    {data && (
+      <div class="border-t border-line pt-8">
+        <ClaimList {data} {page} {query} />
+      </div>
+    )}
+  </div>
 </DashboardLayout>

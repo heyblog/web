@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -41,7 +42,7 @@ func (r *Repository) Site(ctx context.Context, shortID string) (Site, error) {
 	if err != nil {
 		return Site{}, repositoryError(err)
 	}
-	return Site{ID: row.ID, ShortID: row.ShortID, Address: row.Address, Visibility: row.Visibility}, nil
+	return Site{ID: row.ID, ShortID: row.ShortID, Name: row.Name, Address: row.Address, Visibility: row.Visibility}, nil
 }
 func (r *Repository) Owner(ctx context.Context, siteID string) (Ownership, error) {
 	id, err := uuid(siteID)
@@ -52,10 +53,21 @@ func (r *Repository) Owner(ctx context.Context, siteID string) (Ownership, error
 	if err != nil {
 		return Ownership{}, repositoryError(err)
 	}
-	return Ownership{ID: row.OID, SiteID: row.OSiteID, UserID: row.OUserID, Address: row.Address, Revision: row.Revision}, nil
+	return Ownership{ID: row.OID, SiteID: row.OSiteID, UserID: row.OUserID, Address: row.Address, Revision: row.Revision, Owner: Profile{ID: row.OUserID, Username: row.Username, DisplayName: row.DisplayName}}, nil
 }
 func mapClaim(row dbgen.GetSiteClaimRow) Claim {
-	claim := Claim{ID: row.CID, SiteID: row.CSiteID, UserID: row.UserID, ShortID: row.ShortID, Address: row.Address, Method: Method(row.Method), Status: row.Status, Evidence: row.Evidence, EvidenceURL: row.EvidenceUrl, ReviewReason: row.ReviewReason, CreatedAt: row.CreatedAt.Time}
+	claim := Claim{SiteName: row.SiteName, CurrentAddress: row.CurrentAddress, Visibility: row.Visibility, OwnerUserID: row.OwnerUserID, OwnerAddress: row.OwnerAddress, ID: row.CID, SiteID: row.CSiteID, UserID: row.UserID, ShortID: row.ShortID, Address: row.Address, Method: Method(row.Method), Status: row.Status, Evidence: row.Evidence, EvidenceURL: row.EvidenceUrl, ReviewReason: row.ReviewReason, CreatedAt: row.CreatedAt.Time}
+	if row.UserID != "" {
+		claim.Applicant = &Profile{ID: row.UserID, Username: row.ApplicantUsername, DisplayName: row.ApplicantDisplayName}
+	}
+	if row.VerifiedAt.Valid {
+		value := row.VerifiedAt.Time
+		claim.VerifiedAt = &value
+	}
+	if row.ConsumedAt.Valid {
+		value := row.ConsumedAt.Time
+		claim.ConsumedAt = &value
+	}
 	if row.TokenHash != nil {
 		claim.TokenHash = *row.TokenHash
 	}
@@ -76,22 +88,22 @@ func (r *Repository) Claim(ctx context.Context, raw string) (Claim, error) {
 	}
 	return mapClaim(row), nil
 }
-func (r *Repository) List(ctx context.Context, userID string, limit, offset int32) ([]Claim, error) {
-	id, err := uuid(userID)
+func (r *Repository) List(ctx context.Context, filter ClaimFilter) ([]Claim, error) {
+	id, err := uuid(filter.UserID)
 	if err != nil {
 		return nil, err
 	}
-	ids, err := r.queries.ListSiteClaims(ctx, dbgen.ListSiteClaimsParams{Limit: limit, Offset: offset, UserID: id})
+	siteID, err := uuid(filter.SiteID)
 	if err != nil {
 		return nil, err
 	}
-	claims := make([]Claim, 0, len(ids))
-	for _, id := range ids {
-		claim, err := r.Claim(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		claims = append(claims, claim)
+	rows, err := r.queries.ListSiteClaims(ctx, dbgen.ListSiteClaimsParams{UserID: id, SiteID: siteID, Status: filter.Status, Method: filter.Method, PageLimit: filter.Limit, PageOffset: filter.Offset})
+	if err != nil {
+		return nil, err
+	}
+	claims := make([]Claim, 0, len(rows))
+	for _, row := range rows {
+		claims = append(claims, mapClaim(dbgen.GetSiteClaimRow(row)))
 	}
 	return claims, nil
 }
@@ -100,7 +112,11 @@ func (r *Repository) transaction(ctx context.Context, operation func(*dbgen.Quer
 	if err != nil {
 		return fmt.Errorf("begin ownership transaction: %w", err)
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_ = tx.Rollback(cleanup)
+	}()
 	if err := operation(r.queries.WithTx(tx)); err != nil {
 		return err
 	}
@@ -109,7 +125,7 @@ func (r *Repository) transaction(ctx context.Context, operation func(*dbgen.Quer
 func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, error) {
 	var claimID string
 	err := r.transaction(ctx, func(q *dbgen.Queries) error {
-		target, err := q.ClaimSite(ctx, input.Claim.ShortID)
+		target, err := q.LockClaimSite(ctx, input.Claim.ShortID)
 		if err != nil {
 			return repositoryError(err)
 		}
@@ -124,12 +140,22 @@ func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, erro
 		if err != nil {
 			return err
 		}
-		owner, err := q.GetSiteOwnership(ctx, siteID)
+		claimID, err = q.FindPendingSiteClaim(ctx, dbgen.FindPendingSiteClaimParams{Column1: siteID, Column2: userID, Address: input.Claim.Address, Method: string(input.Claim.Method)})
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		owner, err := q.LockSiteOwnership(ctx, siteID)
 		if err == nil && owner.OUserID != input.UserID {
 			return failure("site_already_owned", "This site already has a verified owner", 409)
 		}
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		if err == nil && owner.Address == target.Address && input.Claim.Address == target.Address {
+			return failure("site_already_owned", "This address is already verified for your account", 409)
 		}
 		if errors.Is(err, pgx.ErrNoRows) && input.Claim.Address != target.Address {
 			return failure("address_owner_required", "Verify the existing site address before changing it", 403)

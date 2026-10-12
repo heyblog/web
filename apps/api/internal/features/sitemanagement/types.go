@@ -19,28 +19,86 @@ const (
 )
 
 type Claim struct {
-	ID           string     `json:"id"`
-	SiteID       string     `json:"-"`
-	ShortID      string     `json:"short_id"`
-	UserID       string     `json:"user_id"`
-	Address      string     `json:"address"`
-	Method       Method     `json:"method"`
-	Status       string     `json:"status"`
-	TokenHash    string     `json:"-"`
-	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
-	Evidence     *string    `json:"evidence,omitempty"`
-	EvidenceURL  *string    `json:"evidence_url,omitempty"`
-	ReviewReason *string    `json:"review_reason,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID             string     `json:"id"`
+	SiteID         string     `json:"-"`
+	ShortID        string     `json:"short_id"`
+	SiteName       string     `json:"site_name"`
+	CurrentAddress string     `json:"current_address"`
+	Visibility     string     `json:"-"`
+	OwnerUserID    string     `json:"-"`
+	OwnerAddress   string     `json:"-"`
+	Applicant      *Profile   `json:"applicant,omitempty"`
+	OwnershipState string     `json:"ownership_state"`
+	CanCheck       bool       `json:"can_check"`
+	CanRegenerate  bool       `json:"can_regenerate"`
+	CanCancel      bool       `json:"can_cancel"`
+	CanManage      bool       `json:"can_manage"`
+	VerifiedAt     *time.Time `json:"verified_at,omitempty"`
+	ConsumedAt     *time.Time `json:"consumed_at,omitempty"`
+	UserID         string     `json:"user_id"`
+	Address        string     `json:"address"`
+	Method         Method     `json:"method"`
+	Status         string     `json:"status"`
+	TokenHash      string     `json:"-"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+	Evidence       *string    `json:"evidence,omitempty"`
+	EvidenceURL    *string    `json:"evidence_url,omitempty"`
+	ReviewReason   *string    `json:"review_reason,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 type Ownership struct {
-	ID       string `json:"id"`
-	SiteID   string `json:"-"`
-	UserID   string `json:"user_id"`
-	Address  string `json:"address"`
-	Revision int64  `json:"revision"`
+	ID        string  `json:"id"`
+	SiteID    string  `json:"-"`
+	UserID    string  `json:"user_id"`
+	Address   string  `json:"address"`
+	Revision  int64   `json:"revision"`
+	Owner     Profile `json:"owner"`
+	IsCurrent bool    `json:"is_current"`
 }
-type Site struct{ ID, ShortID, Address, Visibility string }
+type Profile struct {
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+}
+type Site struct {
+	ID         string `json:"-"`
+	ShortID    string `json:"short_id"`
+	Name       string `json:"name"`
+	Address    string `json:"address"`
+	Visibility string `json:"visibility"`
+}
+type ClaimContext struct {
+	Site             Site    `json:"site"`
+	OwnershipState   string  `json:"ownership_state"`
+	CanClaim         bool    `json:"can_claim"`
+	CanManage        bool    `json:"can_manage"`
+	CanVerifyAddress bool    `json:"can_verify_address"`
+	PendingClaims    []Claim `json:"pending_claims"`
+}
+type OwnershipEvent struct {
+	ID        string    `json:"id"`
+	UserID    *string   `json:"user_id"`
+	ActorID   *string   `json:"actor_id"`
+	Action    string    `json:"action"`
+	Reason    string    `json:"reason"`
+	Evidence  *string   `json:"evidence"`
+	CreatedAt time.Time `json:"created_at"`
+}
+type OwnershipDetail struct {
+	Site      Site             `json:"site"`
+	Current   *Ownership       `json:"current"`
+	History   []OwnershipEvent `json:"history"`
+	CanRevoke bool             `json:"can_revoke"`
+}
+type ClaimFilter struct {
+	UserID, SiteID, Status, Method string
+	Limit, Offset                  int32
+}
+type ClaimList struct {
+	Items   []Claim `json:"items"`
+	HasMore bool    `json:"has_more"`
+}
+
 type SiteClaimCreateInput struct {
 	ShortID     string `json:"short_id" minLength:"9" maxLength:"9"`
 	Method      Method `json:"method" enum:"DNS_TXT,META,FILE,MANUAL"`
@@ -65,9 +123,10 @@ type SiteClaimReviewInput struct {
 	Reason  string `json:"reason" minLength:"1" maxLength:"2000"`
 }
 type OwnershipInput struct {
-	UserID   string `json:"user_id,omitempty"`
-	Reason   string `json:"reason" minLength:"1" maxLength:"2000"`
-	Evidence string `json:"evidence" minLength:"1" maxLength:"4000"`
+	OwnershipID string `json:"ownership_id" format:"uuid"`
+	Revision    int64  `json:"revision" minimum:"1"`
+	Reason      string `json:"reason" minLength:"1" maxLength:"2000"`
+	Evidence    string `json:"evidence" minLength:"1" maxLength:"4000"`
 }
 type Decision struct {
 	Claim                   Claim
@@ -83,9 +142,11 @@ type Store interface {
 	Owner(context.Context, string) (Ownership, error)
 	Create(context.Context, StoredClaim) (Claim, error)
 	Claim(context.Context, string) (Claim, error)
-	List(context.Context, string, int32, int32) ([]Claim, error)
+	List(context.Context, ClaimFilter) ([]Claim, error)
+	Regenerate(context.Context, Claim, string, time.Time) (Claim, error)
+	History(context.Context, string) ([]OwnershipEvent, error)
 	Decide(context.Context, Decision) (Claim, error)
-	ChangeOwner(context.Context, Site, OwnershipInput, string) error
+	Revoke(context.Context, Site, OwnershipInput, string) error
 }
 type Authentication interface {
 	Current(context.Context, *http.Request) (auth.User, error)

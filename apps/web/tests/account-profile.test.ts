@@ -38,6 +38,12 @@ test('pending profiles return to the requested workspace after confirmation', ()
   assert.equal(profileRedirect(url, { ...user, profile_confirmation_required: false }), null);
   assert.equal(profileRedirect(new URL('https://web.example.test/site'), user), null);
   assert.equal(profileRedirect(url, null), '/login?next=%2Fmanagement%2Ftags%3Fview%3Dpaths');
+  const claimURL = new URL(
+    'https://web.example.test/dashboard/claims?short_id=abc123456&purpose=address',
+  );
+  const claimNext = encodeURIComponent(claimURL.pathname + claimURL.search);
+  assert.equal(profileRedirect(claimURL, null), `/login?next=${claimNext}`);
+  assert.equal(profileRedirect(claimURL, user), `/complete-profile?next=${claimNext}`);
 });
 
 test('session parser preserves account policy and rejects unusable quota responses', () => {

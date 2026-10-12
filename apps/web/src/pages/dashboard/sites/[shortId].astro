@@ -1,6 +1,8 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
+import { parseClaim } from '@/api/site-management/claims.types';
 import type { Snapshot } from '@/api/site-submission/site-submission.types';
+import { verifiedClaimAddress } from '@/application/site-management/claims.model';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import FriendManager from '@/components/site-management/FriendManager.svelte';
 import SiteSubmissionForm from '@/components/site-submission/SiteSubmissionForm.svelte';
@@ -8,11 +10,18 @@ import DashboardLayout from '@/layouts/DashboardLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
-if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+if (!user)
+  return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
 const shortId = Astro.params.shortId ?? '';
 const response = await requestAuthAPI(Astro.request, `/api/web/account/sites/${shortId}`);
 if (response.status === 403 || response.status === 404) return Astro.redirect('/dashboard/sites');
 const site: Snapshot | null = response.ok ? await response.json() : null;
+let verifiedAddress: string | undefined;
+const claimId = Astro.url.searchParams.get('verified_claim');
+if (site && claimId && /^[0-9a-f-]{36}$/iu.test(claimId)) {
+  const proof = await requestAuthAPI(Astro.request, `/api/web/account/site-claims/${claimId}`);
+  if (proof.ok) verifiedAddress = verifiedClaimAddress(parseClaim(await proof.json()), shortId);
+}
 ---
 
 <DashboardLayout
@@ -35,7 +44,10 @@ const site: Snapshot | null = response.ok ? await response.json() : null;
         <a class="text-sm text-tint-fg" href="#friends">
           友链
         </a>
-        <a class="text-sm text-tint-fg" href={`/dashboard/claims?short_id=${shortId}`}>
+        <a
+          class="text-sm text-tint-fg"
+          href={`/dashboard/claims?short_id=${shortId}&purpose=address`}
+        >
           验证新地址
         </a>
       </nav>
@@ -49,6 +61,7 @@ const site: Snapshot | null = response.ok ? await response.json() : null;
               client:load
               action="UPDATE"
               initialShortId={shortId}
+              initialVerifiedAddress={verifiedAddress}
               accountEndpoint={`sites/${shortId}/updates`}
               accountContact={{ name: user.display_name, email: user.email }}
             />

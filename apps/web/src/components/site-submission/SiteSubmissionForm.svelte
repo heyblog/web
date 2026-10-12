@@ -1,7 +1,7 @@
+<!-- allow: SIZE_OK — the existing multi-step form keeps field bindings and submission transitions in one island. -->
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack } from 'svelte';
 
-  import { accountRequest } from '@/api/site-management/site-management.browser';
   import {
     requestSubmissionOptions,
     requestSubmissionSnapshot,
@@ -41,9 +41,16 @@
     action: AuditAction;
     initialShortId?: string;
     accountEndpoint?: string;
+    initialVerifiedAddress?: string;
     accountContact?: AccountSubmissionContact;
   }
-  let { action, initialShortId = '', accountEndpoint = '', accountContact }: Props = $props();
+  let {
+    action,
+    initialShortId = '',
+    accountEndpoint = '',
+    accountContact,
+    initialVerifiedAddress,
+  }: Props = $props();
   const contact = $derived(
     accountEndpoint ? (accountContact ?? { name: '', email: null }) : undefined,
   );
@@ -96,9 +103,10 @@
   async function resolveSite(siteShortID: string): Promise<void> {
     resolving = true;
     error = '';
-    const response = accountEndpoint
-      ? await accountRequest(`sites/${siteShortID}`, { signal: controller.signal })
-      : await requestSubmissionSnapshot(siteShortID);
+    const response = await requestSubmissionSnapshot(siteShortID, {
+      account: Boolean(accountEndpoint),
+      signal: controller.signal,
+    });
     resolving = Boolean(accountEndpoint) && !response.ok;
     if (!response.ok) {
       error = await problemDetail(response);
@@ -107,6 +115,8 @@
     }
     applySnapshot(form, (await response.json()) as PublicSnapshot, options);
     baseline = JSON.stringify(form);
+    if (accountEndpoint && initialVerifiedAddress && siteShortID === initialShortId)
+      form.url = initialVerifiedAddress;
   }
   function clearError(): void {
     error = '';
@@ -183,6 +193,11 @@
   <SubmissionReceipt auditId={result.audit_id} />
 {:else if result}<SubmissionSuccess {result} />{:else}
   <form class="grid min-w-0 gap-6" onsubmit={handleSubmit}>
+    {#if accountEndpoint && initialVerifiedAddress}<p
+        class="rounded-md bg-tint p-4 text-sm text-tint-fg"
+      >
+        已填入验证地址，请核对资料并提交更新申请。
+      </p>{/if}
     <SubmissionStepper
       {labels}
       current={currentStep}
@@ -205,6 +220,9 @@
               initialQuery={initialShortId}
               {resolving}
               onresolve={resolveSite}
+              onclear={() => {
+                form.siteShortId = '';
+              }}
             />{/if}
           {#if detailAction && (action === 'CREATE' || form.siteShortId)}
             <SiteDetailsStep

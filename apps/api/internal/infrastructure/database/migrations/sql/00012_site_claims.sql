@@ -332,6 +332,10 @@ CREATE INDEX owner_friend_requests_user_idx ON directory.owner_friend_link_reque
 
 CREATE INDEX site_claims_pending_idx ON directory.site_claims USING btree (created_at DESC) WHERE (status = 'PENDING'::text);
 
+CREATE INDEX site_claims_site_user_idx ON directory.site_claims USING btree (site_id, user_id, created_at DESC);
+
+COMMENT ON INDEX directory.site_claims_site_user_idx IS 'Supports site-specific pending application reads and atomic proof invalidation on ownership revocation.';
+
 CREATE INDEX site_claims_user_idx ON directory.site_claims USING btree (user_id, created_at DESC);
 
 CREATE INDEX site_ownership_events_site_idx ON directory.site_ownership_events USING btree (site_id, created_at DESC);
