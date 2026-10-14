@@ -123,7 +123,7 @@ func TestTaxonomyPendingAuditCanonicalization(t *testing.T) {
 	if detail.ProposedSnapshot.Classification.Level2.ID != detail.CurrentSnapshot.Classification.Level2.ID {
 		t.Fatal("unrelated update replaced the selected merged name with the default")
 	}
-	draft, err := service.SaveReviewDraft(ctx, reviewer, siteaudit.ReviewDraftInput{AuditID: updated.AuditID, Site: input.Site, ExpectedSiteRevision: detail.CurrentSnapshot.Revision})
+	draft, err := service.SaveReviewDraft(ctx, reviewer, siteaudit.ReviewDraftInput{AuditID: updated.AuditID, Site: siteaudit.ReviewSiteInput{SiteInput: input.Site}, ExpectedSiteRevision: detail.CurrentSnapshot.Revision})
 	if err != nil {
 		t.Fatalf("save disabled selection: %v", err)
 	}

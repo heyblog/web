@@ -6,6 +6,9 @@ import (
 
 func MergeRequestedSnapshot(base, proposed, current Snapshot) (Snapshot, []DiffItem) {
 	merged := current
+	if merged.AccessScope == "" {
+		merged.AccessScope = "ALL"
+	}
 	conflicts := make([]DiffItem, 0)
 	mergeString := func(field string, baseValue, proposedValue, currentValue string, destination *string) {
 		if baseValue == proposedValue {
@@ -22,7 +25,6 @@ func MergeRequestedSnapshot(base, proposed, current Snapshot) (Snapshot, []DiffI
 	mergeString("normalized_host", base.NormalizedHost, proposed.NormalizedHost, current.NormalizedHost, &merged.NormalizedHost)
 	mergeString("base_path", base.BasePath, proposed.BasePath, current.BasePath, &merged.BasePath)
 	mergeString("summary", base.Summary, proposed.Summary, current.Summary, &merged.Summary)
-	mergeString("access_scope", base.AccessScope, proposed.AccessScope, current.AccessScope, &merged.AccessScope)
 	mergeString("visibility", base.Visibility, proposed.Visibility, current.Visibility, &merged.Visibility)
 	mergeString("visibility_reason", base.VisibilityReason, proposed.VisibilityReason, current.VisibilityReason, &merged.VisibilityReason)
 	mergeSlice("feeds", base.Feeds, proposed.Feeds, current.Feeds, &merged.Feeds, &conflicts)

@@ -10,6 +10,7 @@ import {
   requestSubmissionSnapshot,
   submitSite,
 } from '../src/api/site-submission/site-submission.browser.ts';
+import type { ReviewSiteInput } from '../src/api/site-submission/site-submission.types.ts';
 import {
   buildSubmissionPayload,
   emptySubmission,
@@ -41,7 +42,10 @@ test('submission reads preserve dedicated URLs, cancellation, and the untouched 
 
 test('audit mutations preserve methods, payloads, and one request per operation', async (context) => {
   const expectations = { expected_site_revision: 7, expected_review_draft_revision: 3 };
-  const site = buildSubmissionPayload(emptySubmission(), 'UPDATE').site;
+  const site: ReviewSiteInput = {
+    ...buildSubmissionPayload(emptySubmission(), 'UPDATE').site,
+    access_scope: 'GLOBAL_ONLY',
+  };
   const decision = {
     ...expectations,
     decision: 'REJECTED' as const,

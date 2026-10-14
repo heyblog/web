@@ -1,6 +1,6 @@
 import { accountRequest } from '../site-management/site-management.browser.ts';
 
-import type { AuditAction, SubmissionPayload } from './site-submission.types.ts';
+import type { AuditAction, ReviewSiteInput, SubmissionPayload } from './site-submission.types.ts';
 
 export interface BrowserRequestOptions {
   readonly signal?: AbortSignal;
@@ -94,7 +94,7 @@ export interface ReviewDecision extends ReviewExpectation {
 }
 
 export interface ReviewDraft extends ReviewExpectation {
-  readonly site: SubmissionPayload['site'];
+  readonly site: ReviewSiteInput;
 }
 
 export function requestAuditReview(

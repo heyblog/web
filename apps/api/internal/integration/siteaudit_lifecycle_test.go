@@ -78,13 +78,13 @@ func verifySiteAuditLifecycle(ctx context.Context, t *testing.T, pool *pgxpool.P
 	assertSiteAuditServiceError(t, err, "submission_pending", http.StatusConflict)
 
 	// When a correction is saved, stale saves/discards fail without replacing that correction.
-	correction := input.Site
+	correction := siteaudit.ReviewSiteInput{SiteInput: input.Site}
 	correction.Name = "Corrected Name"
 	draft, err := service.SaveReviewDraft(ctx, reviewer, siteaudit.ReviewDraftInput{AuditID: created.AuditID, Site: correction})
 	if err != nil || draft.ReviewDraftRevision != 1 || draft.ReviewDraftSnapshot == nil || draft.ReviewDraftSnapshot.Name != correction.Name {
 		t.Fatalf("save correction = %#v / %v", draft, err)
 	}
-	_, err = service.SaveReviewDraft(ctx, reviewer, siteaudit.ReviewDraftInput{AuditID: created.AuditID, Site: input.Site})
+	_, err = service.SaveReviewDraft(ctx, reviewer, siteaudit.ReviewDraftInput{AuditID: created.AuditID, Site: siteaudit.ReviewSiteInput{SiteInput: input.Site}})
 	assertSiteAuditServiceError(t, err, "review_draft_changed", http.StatusConflict)
 	_, err = service.DiscardReviewDraft(ctx, reviewer, siteaudit.DiscardReviewDraftInput{AuditID: created.AuditID})
 	assertSiteAuditServiceError(t, err, "review_draft_changed", http.StatusConflict)
@@ -122,6 +122,7 @@ func verifySiteAuditLifecycle(ctx context.Context, t *testing.T, pool *pgxpool.P
 	}
 
 	verifySiteAuditMaintenance(ctx, t, service, reviewer, input, &notifiedAuditID)
+	verifySiteAuditAccessScope(ctx, t, pool, reviewer, input.Site)
 }
 
 func verifySiteAuditMaintenance(ctx context.Context, t *testing.T, service *siteaudit.Service, reviewer auth.User, input siteaudit.SubmissionInput, notifiedAuditID *string) {

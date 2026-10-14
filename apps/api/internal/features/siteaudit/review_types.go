@@ -70,11 +70,16 @@ type ReviewInput struct {
 	ExpectedReviewDraftRevision int64          `json:"expected_review_draft_revision"`
 }
 
+type ReviewSiteInput struct {
+	SiteInput
+	AccessScope string `json:"access_scope,omitempty" enum:"CN_ONLY,GLOBAL_ONLY,ALL"`
+}
+
 type ReviewDraftInput struct {
-	AuditID                     string    `json:"-"`
-	Site                        SiteInput `json:"site"`
-	ExpectedSiteRevision        int64     `json:"expected_site_revision"`
-	ExpectedReviewDraftRevision int64     `json:"expected_review_draft_revision"`
+	AuditID                     string          `json:"-"`
+	Site                        ReviewSiteInput `json:"site"`
+	ExpectedSiteRevision        int64           `json:"expected_site_revision"`
+	ExpectedReviewDraftRevision int64           `json:"expected_review_draft_revision"`
 }
 
 type DiscardReviewDraftInput struct {

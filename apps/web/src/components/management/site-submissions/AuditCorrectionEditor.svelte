@@ -2,7 +2,11 @@
   import { untrack } from 'svelte';
 
   import { requestReviewDraft } from '@/api/site-submission/site-submission.browser';
-  import type { AuditDetail, SubmissionOptions } from '@/api/site-submission/site-submission.types';
+  import type {
+    AuditDetail,
+    ReviewSiteInput,
+    SubmissionOptions,
+  } from '@/api/site-submission/site-submission.types';
   import { protectReviewRequest } from '@/application/site-submission/review-navigation.browser';
   import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
   import {
@@ -25,7 +29,13 @@
 
   let { detail, options, returnPath, canManageTaxonomy }: Props = $props();
   const initialDetail = untrack(() => detail);
+  const initialSnapshot = initialDetail.review_draft_snapshot ?? initialDetail.effective_snapshot;
   let form = $state(emptySubmission());
+  let accessScope = $state<ReviewSiteInput['access_scope']>(
+    initialSnapshot.access_scope === 'CN_ONLY' || initialSnapshot.access_scope === 'GLOBAL_ONLY'
+      ? initialSnapshot.access_scope
+      : 'ALL',
+  );
   let pending = $state(false);
   $effect(() => protectReviewRequest(() => pending));
   let error = $state('');
@@ -33,7 +43,7 @@
 
   applySnapshot(
     form,
-    initialDetail.review_draft_snapshot ?? initialDetail.effective_snapshot,
+    initialSnapshot,
     untrack(() => options),
   );
 
@@ -50,7 +60,7 @@
     error = '';
     try {
       const response = await requestReviewDraft(detail.id, {
-        site: buildSubmissionPayload(form, detail.action).site,
+        site: { ...buildSubmissionPayload(form, detail.action).site, access_scope: accessScope },
         expected_site_revision: detail.current_snapshot.revision ?? 0,
         expected_review_draft_revision: detail.review_draft_revision,
       });
@@ -99,6 +109,17 @@
         bind:value={form.summary}
         maxlength="2000"></textarea></label
     >
+    <label class="grid min-w-0 gap-2 text-sm">
+      访问范围
+      <select
+        class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
+        bind:value={accessScope}
+      >
+        <option value="ALL">全球可访问</option>
+        <option value="CN_ONLY">仅中国大陆可访问</option>
+        <option value="GLOBAL_ONLY">仅中国大陆以外可访问</option>
+      </select>
+    </label>
   </section>
 
   <section class="min-w-0 rounded-md border border-line bg-surface p-5 sm:p-6">

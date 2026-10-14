@@ -31,7 +31,6 @@ type ComponentInput struct {
 }
 
 type SiteInput struct {
-	AccessScope         string           `json:"access_scope,omitempty" enum:"CN_ONLY,GLOBAL_ONLY,ALL"`
 	Name                string           `json:"name"`
 	URL                 string           `json:"url"`
 	Summary             string           `json:"summary"`

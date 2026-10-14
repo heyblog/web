@@ -110,12 +110,12 @@ func TestProposedDeleteUsesSubmittedReasonAsVisibilityReason(t *testing.T) {
 	}
 }
 
-func TestMergeRequestedSnapshotAppliesCreateAccessScope(t *testing.T) {
+func TestMergeRequestedSnapshotDefaultsCreateAccessScope(t *testing.T) {
 	t.Parallel()
 
 	merged, conflicts := MergeRequestedSnapshot(
 		Snapshot{},
-		Snapshot{AccessScope: "ALL", Visibility: "VISIBLE"},
+		Snapshot{AccessScope: "CN_ONLY", Visibility: "VISIBLE"},
 		Snapshot{},
 	)
 

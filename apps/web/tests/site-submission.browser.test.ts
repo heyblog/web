@@ -58,6 +58,7 @@ test('builds a structured custom-program submission payload', () => {
 
   const payload = buildSubmissionPayload(form, 'UPDATE');
 
+  assert.equal(Object.hasOwn(payload.site, 'access_scope'), false);
   assert.deepEqual(payload.site.tags, [
     { id: 'tag-primary', suggested_name: '', description: '', role: 'PRIMARY' },
     { id: 'tag-secondary', suggested_name: '', description: '', role: 'SECONDARY' },
@@ -105,6 +106,7 @@ test('omits the reason field for a create submission', () => {
   const payload = buildSubmissionPayload(form, 'CREATE');
 
   assert.equal('reason' in payload, false);
+  assert.equal(Object.hasOwn(payload.site, 'access_scope'), false);
 });
 
 test('maintains exactly one default feed while adding and removing feeds', () => {

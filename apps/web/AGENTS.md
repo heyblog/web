@@ -121,6 +121,9 @@ layer and browser-module boundaries.
   explicitly regenerate. Dashboard owns applicant flows; management owns manual review and versioned
   ownership revocation. The public profile claim link contains only the site identifier. Verified
   address proofs are read server-side before prefilling only the account editor's homepage address.
+- Site access scope is maintained through administrator review corrections and internal imports.
+  Public and account submission drafts contain only applicant-editable fields; the review editor
+  owns access-scope state and sends it through the dedicated review input contract.
 - Preserve accepted HTTP methods, URLs, statuses, Cookie/Set-Cookie handling, cancellation,
   timeouts, redirects, request counts, and failure mappings. Consult the API layer rules and
   route's focused tests before changing forwarding behavior.

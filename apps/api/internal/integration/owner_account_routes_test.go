@@ -97,10 +97,19 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	}
 	input := siteauditConflictSubmission("https://http-owner.example.test/", siteauditConflictTaxonomy{Level1ID: integrationUUIDText(t, cascades[0].Level1ID), Level2ID: integrationUUIDText(t, cascades[0].Level2ID)}, integrationUUIDText(t, program.ID))
 	input.Site.Name = "Updated HTTP owner"
-	input.Site.AccessScope = "CN_ONLY"
+	if _, err := fixture.pool.Exec(ctx, "UPDATE directory.sites SET access_scope = 'CN_ONLY' WHERE short_id = 'HTTPown01'"); err != nil {
+		t.Fatal(err)
+	}
 	body, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/web/account/site-submissions", "/api/web/account/sites/HTTPown01/updates", "/api/web/account/sites/HTTPown01/friend-link-submissions"} {
+		attemptedScope := strings.Replace(string(body), `"site":{`, `"site":{"access_scope":"ALL",`, 1)
+		rejected := fixture.request("POST", path, attemptedScope)
+		if rejected.Code != http.StatusUnprocessableEntity || !strings.Contains(rejected.Body.String(), "access_scope") {
+			t.Fatalf("applicant access scope %s = %d / %s", path, rejected.Code, rejected.Body.String())
+		}
 	}
 	submitted := fixture.request("POST", "/api/web/account/sites/HTTPown01/updates", string(body))
 	if submitted.Code != http.StatusCreated {
@@ -117,5 +126,29 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	canonical := fixture.request("GET", "/api/web/account/sites/HTTPown01", "")
 	if canonical.Code != 200 || strings.Contains(canonical.Body.String(), "Updated HTTP owner") {
 		t.Fatalf("pending edit became canonical = %d / %s", canonical.Code, canonical.Body.String())
+	}
+	var snapshot siteaudit.Snapshot
+	if err := json.Unmarshal(canonical.Body.Bytes(), &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	draftBody, err := json.Marshal(siteaudit.ReviewDraftInput{Site: siteaudit.ReviewSiteInput{SiteInput: input.Site, AccessScope: "GLOBAL_ONLY"}, ExpectedSiteRevision: snapshot.Revision})
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := fixture.request("PUT", "/api/web/management/site-audits/"+submission.AuditID+"/review-draft", string(draftBody))
+	if draft.Code != http.StatusOK {
+		t.Fatalf("admin scope draft = %d / %s", draft.Code, draft.Body.String())
+	}
+	decisionBody, err := json.Marshal(siteaudit.ReviewInput{Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: snapshot.Revision, ExpectedReviewDraftRevision: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	approved := fixture.request("POST", "/api/web/management/site-audits/"+submission.AuditID+"/review", string(decisionBody))
+	var audit siteaudit.Audit
+	if err := json.Unmarshal(approved.Body.Bytes(), &audit); err != nil {
+		t.Fatal(err)
+	}
+	if approved.Code != http.StatusOK || audit.FinalSnapshot.AccessScope != "GLOBAL_ONLY" {
+		t.Fatalf("admin scope approval = %d / %s", approved.Code, approved.Body.String())
 	}
 }

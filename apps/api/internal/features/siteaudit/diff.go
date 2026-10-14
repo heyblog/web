@@ -85,6 +85,9 @@ func conflictingDiffs(requested, drift []DiffItem) []DiffItem {
 	}
 	conflicts := make([]DiffItem, 0)
 	for _, requestedItem := range requested {
+		if requestedItem.Field == "access_scope" {
+			continue
+		}
 		driftItem, exists := driftByField[requestedItem.Field]
 		if !exists || diffOutcome(requestedItem) == diffOutcome(driftItem) {
 			continue

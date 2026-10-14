@@ -58,7 +58,6 @@ export interface ComponentInput {
   readonly is_open_source: boolean | null;
 }
 export interface SiteInput {
-  readonly access_scope?: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
   readonly name: string;
   readonly url: string;
   readonly summary: string;
@@ -67,6 +66,9 @@ export interface SiteInput {
   readonly tags: readonly TagInput[];
   readonly components: readonly ComponentInput[];
   readonly program_dependencies: readonly ComponentInput[];
+}
+export interface ReviewSiteInput extends SiteInput {
+  readonly access_scope?: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
 }
 export interface SubmissionPayload {
   readonly site: SiteInput;

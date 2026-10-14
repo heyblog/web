@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { SubmissionOptions } from '../src/api/site-submission/site-submission.types.ts';
-import { emptySubmission } from '../src/application/site-submission/site-submission.browser.ts';
+import {
+  buildSubmissionPayload,
+  emptySubmission,
+} from '../src/application/site-submission/site-submission.browser.ts';
 import { applySnapshot } from '../src/application/site-submission/site-submission.snapshot.browser.ts';
 
 const options: SubmissionOptions = {
@@ -32,7 +35,7 @@ test('applies a complete aggregate snapshot to editable state', () => {
       normalized_host: 'example.test',
       base_path: '/blog',
       summary: 'Summary',
-      access_scope: 'ALL',
+      access_scope: 'CN_ONLY',
       visibility: 'VISIBLE',
       feeds: [{ name: 'Main', url: '/feed.xml', format: 'RSS', is_default: true }],
       resources: [{ kind: 'LINK_PAGE', url: '/friends' }],
@@ -62,6 +65,8 @@ test('applies a complete aggregate snapshot to editable state', () => {
     options,
   );
   assert.equal(form.siteShortId, 'A1b2C3d4E');
+  assert.equal(Object.hasOwn(form, 'accessScope'), false);
+  assert.equal(Object.hasOwn(buildSubmissionPayload(form).site, 'access_scope'), false);
   assert.equal(form.url, 'https://example.test/blog');
   assert.equal(form.feeds[0]?.url, '/feed.xml');
   assert.equal(form.linkPage, '/friends');
