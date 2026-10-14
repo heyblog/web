@@ -1,95 +1,17 @@
 <script lang="ts">
-  import { onDestroy, tick } from 'svelte';
-
-  import type { SiteSearchResult } from '@/api/site-submission/site-submission.types';
-  import {
-    checkSiteAvailability,
-    siteAvailabilityTarget,
-  } from '@/application/site-submission/site-submission.api.browser';
+  import type { SiteAvailabilityController } from '@/application/site-submission/site-availability.controller.svelte';
   import type { EditableSubmission } from '@/application/site-submission/site-submission.browser';
-  import InlineAlert from '@/components/feedback/InlineAlert.svelte';
+
+  import SiteAddressAvailability from './SiteAddressAvailability.svelte';
 
   interface Props {
     form: EditableSubmission;
-    checkDuplicates: boolean;
-    oncheckingchange?: (checking: boolean) => void;
+    availability: SiteAvailabilityController;
+    purpose: 'CREATE' | 'UPDATE';
+    oncheck: () => Promise<boolean>;
   }
-
-  type AvailabilityState = 'idle' | 'checking' | 'available' | 'duplicate' | 'failed';
-
-  let { form = $bindable(), checkDuplicates, oncheckingchange }: Props = $props();
-  let state = $state<AvailabilityState>('idle');
-  let existingSite = $state.raw<SiteSearchResult | null>(null);
-  let checkedURL = '';
-  let requestSequence = 0;
-  let controller: AbortController | null = null;
-
-  onDestroy(() => {
-    controller?.abort();
-    oncheckingchange?.(false);
-  });
-
-  function setState(nextState: AvailabilityState): void {
-    state = nextState;
-    oncheckingchange?.(nextState === 'checking');
-  }
-
-  function isCheckableURL(value: string): boolean {
-    try {
-      const parsed = new URL(value);
-      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-    } catch {
-      return false;
-    }
-  }
-
-  function updateURL(event: Event): void {
-    const input = event.currentTarget;
-    if (!(input instanceof HTMLInputElement)) return;
-    form.url = input.value;
-    controller?.abort();
-    requestSequence += 1;
-    checkedURL = '';
-    existingSite = null;
-    setState('idle');
-  }
-
-  async function verifyAvailability(force = false): Promise<boolean> {
-    if (!checkDuplicates) return true;
-    const url = form.url.trim();
-    if (!isCheckableURL(url)) return false;
-    if (!force && checkedURL === url && state === 'available') return true;
-    if (!force && checkedURL === url && state === 'duplicate') return false;
-
-    controller?.abort();
-    controller = new AbortController();
-    const sequence = ++requestSequence;
-    setState('checking');
-    existingSite = null;
-    try {
-      const availability = await checkSiteAvailability(url, { signal: controller.signal });
-      if (sequence !== requestSequence) return false;
-      checkedURL = url;
-      existingSite = availability.existing_site ?? null;
-      setState(availability.available ? 'available' : 'duplicate');
-      return availability.available;
-    } catch (caught) {
-      if (sequence !== requestSequence) return false;
-      if (caught instanceof DOMException && caught.name === 'AbortError') return false;
-      checkedURL = '';
-      setState('failed');
-      return false;
-    }
-  }
-
-  export async function confirmAvailability(force = false): Promise<boolean> {
-    const available = await verifyAvailability(force);
-    if (!available) {
-      await tick();
-      document.querySelector<HTMLElement>('#site-address-availability [role="alert"]')?.focus();
-    }
-    return available;
-  }
+  let { form = $bindable(), availability, purpose, oncheck }: Props = $props();
+  let addressInput: HTMLInputElement;
 </script>
 
 <div class="grid gap-4">
@@ -109,49 +31,20 @@
     主页地址
     <input
       class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
-      value={form.url}
-      aria-describedby={checkDuplicates && state !== 'idle' && state !== 'available'
-        ? 'site-address-availability'
-        : undefined}
-      oninput={updateURL}
+      bind:this={addressInput}
+      bind:value={form.url}
+      aria-invalid={availability.state === 'duplicate' || availability.state === 'invalid'}
+      aria-describedby={availability.state !== 'idle' ? 'site-address-availability' : undefined}
+      oninput={() => availability.clear()}
     />
   </label>
-  {#if checkDuplicates && state !== 'idle' && state !== 'available'}
-    <div id="site-address-availability" aria-busy={state === 'checking'}>
-      {#if state === 'checking'}
-        <p class="text-sm text-fg-muted" role="status">正在检查站点地址…</p>
-      {:else if state === 'duplicate' && existingSite}
-        <InlineAlert tone="warning">
-          <p>
-            {existingSite.visibility === 'REMOVED'
-              ? '该站点已移除，请提交恢复申请。'
-              : '该站点已在目录中，请改为提交更新申请。'}
-          </p>
-          {#snippet actions()}
-            <a
-              class="inline-flex min-h-11 w-fit items-center font-semibold underline underline-offset-4 sm:min-h-10"
-              href={siteAvailabilityTarget(existingSite)}
-            >
-              {existingSite.visibility === 'REMOVED' ? '申请恢复站点' : '填写更新申请'}
-            </a>
-          {/snippet}
-        </InlineAlert>
-      {:else if state === 'failed'}
-        <InlineAlert tone="danger">
-          <p>暂时无法检查站点地址，请稍后重试。</p>
-          {#snippet actions()}
-            <button
-              class="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-10"
-              type="button"
-              onclick={() => confirmAvailability(true)}
-            >
-              重新检查
-            </button>
-          {/snippet}
-        </InlineAlert>
-      {/if}
-    </div>
-  {/if}
+  <SiteAddressAvailability
+    id="site-address-availability"
+    {availability}
+    {purpose}
+    onretry={oncheck}
+    onedit={() => addressInput.focus()}
+  />
   <label class="grid gap-2 text-sm">
     站点简介
     <textarea

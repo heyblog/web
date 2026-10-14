@@ -10,6 +10,7 @@
     inputClass,
     primaryClass,
   } from '@/components/management/api-keys/api-keys.styles';
+  import SiteAddressAvailability from '@/components/site-submission/SiteAddressAvailability.svelte';
   import SiteResolver from '@/components/site-submission/SiteResolver.svelte';
 
   import ClaimDetail from './ClaimDetail.svelte';
@@ -20,9 +21,15 @@
   const controller = createClaimCreator();
   let method = $state<ClaimMethod>('DNS_TXT');
   let address = $state('');
+  let addressInput = $state<HTMLInputElement>();
   let evidence = $state('');
   let evidenceURL = $state('');
   const newAddress = $derived(purpose === 'address');
+  const addressContext = $derived({
+    url: address,
+    currentSiteShortID: controller.context?.site.short_id,
+  });
+  $effect(() => controller.availability.setContext(addressContext));
   onMount(() => {
     if (initialShortId) void controller.select(initialShortId);
   });
@@ -30,6 +37,10 @@
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     await controller.create({ method, newAddress, address, evidence, evidenceURL });
+    if (newAddress && !controller.created && controller.availability.state !== 'idle') {
+      await tick();
+      document.getElementById('claim-address-availability')?.focus();
+    }
     if (controller.created) {
       history.replaceState(null, '', `/dashboard/claims/${controller.created.claim.id}`);
       await tick();
@@ -85,11 +96,25 @@
             >新的主页地址<input
               class={inputClass}
               type="url"
+              bind:this={addressInput}
               bind:value={address}
+              aria-invalid={controller.availability.state === 'duplicate' ||
+                controller.availability.state === 'invalid'}
+              aria-describedby={controller.availability.state !== 'idle'
+                ? 'claim-address-availability'
+                : undefined}
+              oninput={() => controller.availability.clear()}
               required
               disabled={controller.busy}
             /></label
-          >{/if}
+          >
+          <SiteAddressAvailability
+            id="claim-address-availability"
+            availability={controller.availability}
+            purpose="VERIFY"
+            onretry={() => controller.availability.check(addressContext, true)}
+            onedit={() => addressInput?.focus()}
+          />{/if}
         <fieldset class="grid gap-3" disabled={controller.busy}>
           <legend class="mb-2 text-sm font-medium">验证方式</legend>
           <div class="flex flex-wrap gap-5">
@@ -115,7 +140,10 @@
               disabled={controller.busy}
             /></label
           >{/if}
-        <button class={primaryClass} type="submit" disabled={controller.busy}
+        <button
+          class={primaryClass}
+          type="submit"
+          disabled={controller.busy || controller.availability.checking}
           >{method === 'MANUAL' ? '提交人工审核' : '生成验证配置'}</button
         >
       {/if}

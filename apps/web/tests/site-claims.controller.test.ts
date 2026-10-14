@@ -6,6 +6,7 @@ import test from 'node:test';
 import { compileModule } from 'svelte/compiler';
 
 import { createClaimsTransport } from '../src/api/site-management/claims.browser.ts';
+import { checkSiteAvailability } from '../src/application/site-submission/site-submission.api.browser.ts';
 
 import {
   claimFixture,
@@ -18,6 +19,7 @@ const sources = [
   '../src/application/site-management/claim-detail.controller.svelte.ts',
   '../src/application/site-management/claim-review.controller.svelte.ts',
   '../src/application/site-submission/site-search.controller.svelte.ts',
+  '../src/application/site-submission/site-availability.controller.svelte.ts',
 ];
 const compiled = new Map<string, string>();
 for (const path of sources) {
@@ -92,6 +94,72 @@ test('a duplicate pending creation enters existing detail without requiring a ne
   });
   assert.equal(creator.created?.claim.id, claimFixture.id);
   assert.equal(creator.created?.token, undefined);
+  creator.dispose();
+});
+
+test('an occupied new address prevents creation of verification instructions', async () => {
+  // Given: an owner can verify addresses but another site owns the new address.
+  let writes = 0;
+  const creator = createClaimCreator(
+    createClaimsTransport(async (_path, options) => {
+      if (options?.method === 'POST') writes += 1;
+      return Response.json({ ...contextFixture, can_verify_address: true });
+    }),
+    (url, options) =>
+      checkSiteAvailability(url, {
+        ...options,
+        fetch: async () =>
+          Response.json({
+            available: false,
+            existing_site: {
+              short_id: 'Z9y8X7w6V',
+              name: 'Other',
+              url: 'https://other.test/',
+              visibility: 'VISIBLE',
+            },
+          }),
+      }),
+  );
+  await creator.select(claimFixture.short_id);
+  // When: the owner asks to verify the occupied address.
+  await creator.create({
+    method: 'DNS_TXT',
+    newAddress: true,
+    address: 'https://other.test/',
+    evidence: '',
+    evidenceURL: '',
+  });
+  // Then: no verification mutation was issued and the conflict is actionable.
+  assert.equal(writes, 0);
+  assert.equal(creator.created, null);
+  assert.equal(creator.availability.state, 'duplicate');
+  creator.dispose();
+});
+
+test('ordinary ownership claims do not perform homepage availability checks', async () => {
+  // Given: an unowned site can be claimed using its existing address.
+  let checks = 0;
+  const creator = createClaimCreator(
+    createClaimsTransport(async (_path, options) =>
+      Response.json(options?.method === 'POST' ? { claim: claimFixture } : contextFixture),
+    ),
+    async () => {
+      checks += 1;
+      return { available: true };
+    },
+  );
+  await creator.select(claimFixture.short_id);
+  // When: ordinary ownership verification is requested.
+  await creator.create({
+    method: 'DNS_TXT',
+    newAddress: false,
+    address: '',
+    evidence: '',
+    evidenceURL: '',
+  });
+  // Then: only ownership semantics apply; availability was not queried.
+  assert.equal(checks, 0);
+  assert.equal(creator.created?.claim.id, claimFixture.id);
   creator.dispose();
 });
 test('refresh resumes an existing claim without regenerating proof and expiry clears obsolete instructions', async () => {

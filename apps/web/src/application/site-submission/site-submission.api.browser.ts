@@ -1,4 +1,5 @@
 import { accountRequest } from '../../api/site-management/site-management.browser.ts';
+import { parseSiteAvailability } from '../../api/site-submission/site-availability.types.ts';
 import {
   type BrowserRequestOptions,
   readSubmissionProblem,
@@ -21,7 +22,7 @@ const problemMessages: Readonly<Record<string, string>> = {
   site_url_purpose_conflict:
     '主页、Feed、Sitemap 和友链页不能使用同一地址，请修改地址或清空可选项。',
   invalid_site_address: '请填写有效的 HTTP 或 HTTPS 主页地址。',
-  site_address_conflict: '该站点已在目录中，请改为提交更新申请。',
+  site_address_conflict: '该主页地址已被其他站点使用，请核对并修改地址。',
   audit_not_found: '查询凭证无效或申请不存在。',
   site_not_found: '未找到该站点。',
   site_ownership_required: '当前账号已无权编辑该站点，请重新认证站点。',
@@ -60,14 +61,14 @@ export class SiteSubmissionProblem extends Error {
   }
 }
 
-async function responseProblem(response: Response): Promise<SiteSubmissionProblem> {
+export async function submissionProblem(response: Response): Promise<SiteSubmissionProblem> {
   const problem = await readSubmissionProblem(response);
   const message = problemMessages[problem.code] ?? fallbackProblemMessage;
   return new SiteSubmissionProblem(problem.code, message);
 }
 
 export async function problemDetail(response: Response): Promise<string> {
-  return (await responseProblem(response)).message;
+  return (await submissionProblem(response)).message;
 }
 
 export async function submitForm(
@@ -86,17 +87,23 @@ export async function submitForm(
         { action, siteShortID: form.siteShortId, payload: buildSubmissionPayload(form, action) },
         options,
       );
-  if (!response.ok) throw await responseProblem(response);
+  if (!response.ok) throw await submissionProblem(response);
   return (await response.json()) as SubmissionResult;
 }
 
 export async function checkSiteAvailability(
   url: string,
-  options: BrowserRequestOptions = {},
+  options: BrowserRequestOptions & { readonly currentSiteShortID?: string } = {},
 ): Promise<SiteAvailability> {
   const response = await requestSiteAvailability(url, options);
-  if (!response.ok) throw await responseProblem(response);
-  return (await response.json()) as SiteAvailability;
+  if (!response.ok) throw await submissionProblem(response);
+  const availability = parseSiteAvailability(await response.json());
+  if (
+    options.currentSiteShortID &&
+    availability.existing_site?.short_id === options.currentSiteShortID
+  )
+    return { available: true };
+  return availability;
 }
 
 export function siteAvailabilityTarget(site: SiteSearchResult): string {

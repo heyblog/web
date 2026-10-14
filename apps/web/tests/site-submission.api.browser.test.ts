@@ -88,6 +88,51 @@ test('routes duplicate sites to update or restore by lifecycle state', () => {
   );
 });
 
+test('allows the current site address while preserving the availability request contract', async () => {
+  // Given: the address is registered to the site being updated.
+  const requested: string[] = [];
+  // When: availability is checked with the current site identity.
+  const result = await checkSiteAvailability('https://existing.example/blog', {
+    currentSiteShortID: existingShortID,
+    fetch: async (input) => {
+      requested.push(String(input));
+      return Response.json({
+        available: false,
+        existing_site: {
+          short_id: existingShortID,
+          name: 'Existing Site',
+          url: 'https://existing.example/',
+          visibility: 'VISIBLE',
+        },
+      });
+    },
+  });
+  // Then: self is allowed without sending an exclusion parameter upstream.
+  assert.equal(result.available, true);
+  assert.equal(result.existing_site, undefined);
+  assert.deepEqual(requested, [
+    '/api/web/submissions/availability?url=https%3A%2F%2Fexisting.example%2Fblog',
+  ]);
+});
+
+test('blocks another site even when the caller supplies its current site identity', async () => {
+  // Given: another site owns the requested address.
+  const existing = {
+    short_id: 'Z9y8X7w6V',
+    name: 'Other Site',
+    url: 'https://other.example/',
+    visibility: 'VISIBLE',
+  };
+  // When: availability is checked for the current site.
+  const result = await checkSiteAvailability(existing.url, {
+    currentSiteShortID: existingShortID,
+    fetch: async () => Response.json({ available: false, existing_site: existing }),
+  });
+  // Then: the conflict keeps the matched site for recovery guidance.
+  assert.equal(result.available, false);
+  assert.deepEqual(result.existing_site, existing);
+});
+
 test('preserves the stable problem code when submission races with registration', async () => {
   const form = emptySubmission();
   await assert.rejects(
@@ -97,6 +142,6 @@ test('preserves the stable problem code when submission races with registration'
     (error: unknown) =>
       error instanceof SiteSubmissionProblem &&
       error.code === 'site_address_conflict' &&
-      error.message === '该站点已在目录中，请改为提交更新申请。',
+      error.message === '该主页地址已被其他站点使用，请核对并修改地址。',
   );
 });

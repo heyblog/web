@@ -12,6 +12,7 @@
     SubmissionOptions,
     SubmissionResult,
   } from '@/api/site-submission/site-submission.types';
+  import { createSiteAvailability } from '@/application/site-submission/site-availability.controller.svelte';
   import {
     problemDetail,
     SiteSubmissionProblem,
@@ -70,15 +71,20 @@
   let baseline = $state(untrack(() => JSON.stringify(form)));
   let dirty = $derived(JSON.stringify(form) !== baseline);
   const controller = new AbortController();
-  onDestroy(() => controller.abort());
+  const availability = createSiteAvailability();
+  const addressContext = $derived({
+    url: form.url,
+    currentSiteShortID: action === 'UPDATE' ? form.siteShortId : '',
+  });
+  $effect(() => availability.setContext(addressContext));
+  onDestroy(() => {
+    controller.abort();
+    availability.dispose();
+  });
   let resolving = $state(untrack(() => Boolean(accountEndpoint)));
-  let checkingSiteAddress = $state(false);
   let error = $state('');
   let showFinalValidation = $state(false);
   let result = $state.raw<SubmissionResult | null>(null);
-  let siteDetailsStep = $state<{
-    confirmAvailability: (force?: boolean) => Promise<boolean>;
-  }>();
   let detailAction = $derived(action === 'CREATE' || action === 'UPDATE');
   let labels = $derived(
     detailAction ? ['站点资料', '订阅资源', '分类程序', '确认提交'] : ['选择站点', '确认提交'],
@@ -101,6 +107,7 @@
     }
   });
   async function resolveSite(siteShortID: string): Promise<void> {
+    availability.clear();
     resolving = true;
     error = '';
     const response = await requestSubmissionSnapshot(siteShortID, {
@@ -129,17 +136,13 @@
     document.querySelector<HTMLElement>('[data-submission-alert]')?.focus();
   }
   async function nextStep(): Promise<void> {
+    if (pending || availability.checking || resolving) return;
     const validation = validateSubmissionStep(action, form, currentStep, contact);
     if (!validation.valid) {
       await presentError(validation.message);
       return;
     }
-    if (
-      action === 'CREATE' &&
-      currentStep === 0 &&
-      siteDetailsStep &&
-      !(await siteDetailsStep.confirmAvailability())
-    ) {
+    if (detailAction && currentStep === 0 && !(await confirmAvailability())) {
       return;
     }
     clearError();
@@ -147,8 +150,18 @@
     furthestStep = Math.max(furthestStep, currentStep);
     document.querySelector<HTMLElement>('[data-submission-workspace]')?.focus();
   }
+  async function confirmAvailability(force = false): Promise<boolean> {
+    const available = await availability.check(addressContext, force);
+    if (!available) {
+      currentStep = 0;
+      await tick();
+      document.getElementById('site-address-availability')?.focus();
+    }
+    return available;
+  }
   async function handleSubmit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (pending || availability.checking || resolving) return;
     for (let step = 0; step < stepCount; step += 1) {
       const validation = validateSubmissionStep(action, form, step, contact);
       if (!validation.valid) {
@@ -161,16 +174,16 @@
     pending = true;
     clearError();
     try {
+      if (detailAction && !(await confirmAvailability(true))) return;
       result = await submitForm(action, form, { accountEndpoint, signal: controller.signal });
     } catch (caught) {
       if (
-        action === 'CREATE' &&
+        detailAction &&
         caught instanceof SiteSubmissionProblem &&
         caught.code === 'site_address_conflict'
       ) {
         currentStep = 0;
-        await tick();
-        if (siteDetailsStep && !(await siteDetailsStep.confirmAvailability(true))) return;
+        if (!(await confirmAvailability(true))) return;
       }
       await presentError(
         caught instanceof SiteSubmissionProblem || (!accountEndpoint && caught instanceof Error)
@@ -203,6 +216,7 @@
       current={currentStep}
       furthest={furthestStep}
       onchange={(step) => {
+        if (pending || availability.checking || resolving) return;
         currentStep = step;
         clearError();
       }}
@@ -210,7 +224,8 @@
     <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
       <fieldset
         class="grid min-w-0 gap-6 rounded-md border border-line bg-surface p-5 sm:p-6"
-        disabled={Boolean(accountEndpoint) && resolving}
+        disabled={pending || availability.checking || (Boolean(accountEndpoint) && resolving)}
+        aria-busy={pending || availability.checking}
         tabindex="-1"
         data-submission-workspace
       >
@@ -221,15 +236,17 @@
               {resolving}
               onresolve={resolveSite}
               onclear={() => {
+                availability.clear();
                 form.siteShortId = '';
+                furthestStep = 0;
               }}
             />{/if}
           {#if detailAction && (action === 'CREATE' || form.siteShortId)}
             <SiteDetailsStep
-              bind:this={siteDetailsStep}
               bind:form
-              checkDuplicates={action === 'CREATE'}
-              oncheckingchange={(checking) => (checkingSiteAddress = checking)}
+              {availability}
+              purpose={action === 'CREATE' ? 'CREATE' : 'UPDATE'}
+              oncheck={() => confirmAvailability(true)}
             />
           {/if}
         {:else if currentStep === 1 && detailAction}<FeedEditor bind:form />
@@ -260,7 +277,7 @@
           {currentStep}
           {stepCount}
           {pending}
-          checking={checkingSiteAddress}
+          checking={availability.checking}
           onnext={nextStep}
           onback={() => {
             currentStep -= 1;
