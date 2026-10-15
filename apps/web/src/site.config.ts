@@ -62,6 +62,7 @@ export const siteConfig: SiteConfig = {
     friendLinks: [
       { label: '开往', href: 'https://www.travellings.cn/', external: true },
       { label: '博友圈', href: 'https://www.boyouquan.com/', external: true },
+      { label: '博客汇', href: 'https://bkh.jyblog.com/', external: true },
       { label: 'BlogsClub', href: 'https://www.blogsclub.org/', external: true },
       { label: 'BlogFinder', href: 'https://bf.zzxworld.com/', external: true },
       {
