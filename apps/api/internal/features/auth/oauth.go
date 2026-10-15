@@ -77,37 +77,37 @@ func (service *Service) OAuthStart(ctx context.Context, request *http.Request, p
 	return OAuthStartResult{AuthorizationURL: target, State: token}, nil
 }
 
-func (service *Service) OAuthCallback(ctx context.Context, request *http.Request, provider OAuthProvider, code, token, cookie, denied string) (OAuthResult, []string, error) {
+func (service *Service) OAuthCallback(ctx context.Context, request *http.Request, provider OAuthProvider, code, token, cookie, denied string) (OAuthCompletion, error) {
 	if token == "" || cookie == "" || token != cookie {
-		return OAuthResult{}, nil, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
+		return OAuthCompletion{}, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
 	}
 	value, err := service.redis.GetDel(ctx, oauthStateKey(provider, token)).Result()
 	if errors.Is(err, redis.Nil) {
-		return OAuthResult{}, nil, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
+		return OAuthCompletion{}, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
 	}
 	if err != nil {
-		return OAuthResult{}, nil, repositoryError("consume OAuth state", err)
+		return OAuthCompletion{}, repositoryError("consume OAuth state", err)
 	}
 	var state oauthState
 	if err := json.Unmarshal([]byte(value), &state); err != nil || state.Provider != provider || !time.Now().Before(state.ExpiresAt) {
-		return OAuthResult{}, nil, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
+		return OAuthCompletion{}, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
 	}
 	result := OAuthResult{Provider: provider.slug(), State: token, Intent: state.Intent, Mode: state.Mode, Next: state.Next, ClaimID: state.ClaimID, Outcome: "error"}
 	if denied != "" {
 		result.ErrorCode = "oauth_denied"
-		return result, nil, nil
+		return OAuthCompletion{Result: result}, nil
 	}
 	if code == "" {
 		result.ErrorCode = "oauth_code_required"
-		return result, nil, nil
+		return OAuthCompletion{Result: result}, nil
 	}
 	cookies, err := service.completeOAuth(ctx, request, provider, code, state, &result)
 	if err != nil {
 		result.ErrorCode = oauthErrorCode(err)
-		return result, cookies, nil
+		return OAuthCompletion{Result: result, Cookies: cookies, Failure: err}, nil
 	}
 	result.Outcome = "success"
-	return result, cookies, nil
+	return OAuthCompletion{Result: result, Cookies: cookies}, nil
 }
 
 func (service *Service) completeOAuth(ctx context.Context, request *http.Request, provider OAuthProvider, code string, state oauthState, result *OAuthResult) ([]string, error) {

@@ -49,6 +49,14 @@ type OAuthResult struct {
 	ClaimID   string `json:"claim_id,omitempty"`
 }
 
+// OAuthCompletion keeps server-only failure details separate from the wire result.
+// A Failure is reported by the route while Result still completes the popup/redirect flow.
+type OAuthCompletion struct {
+	Result  OAuthResult
+	Cookies []string
+	Failure error
+}
+
 type OAuthSiteProof struct {
 	Subject, BlogURL string
 	Verified         bool

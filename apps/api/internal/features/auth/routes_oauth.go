@@ -66,11 +66,15 @@ func registerOAuthRoutes(api huma.API, service *Service, build authOperationBuil
 			if len(input.State) <= 128 {
 				httpapi.NativeContext(ctx).Writer.Header().Add("Set-Cookie", authCookie(service.config, name, "", "/", -1, time.Unix(1, 0)).String())
 			}
-			result, cookies, err := service.OAuthCallback(ctx, request, provider, input.Code, input.State, cookie, input.Error)
+			completion, err := service.OAuthCallback(ctx, request, provider, input.Code, input.State, cookie, input.Error)
 			if err != nil {
 				return nil, mapError(err)
 			}
-			output := &oauthOutput[OAuthResult]{Status: 200, CacheControl: "no-store", Body: result, SetCookie: cookieValues(cookies, service.config)}
+			if completion.Failure != nil {
+				httpapi.LogError(ctx, mapError(completion.Failure))
+			}
+			result := completion.Result
+			output := &oauthOutput[OAuthResult]{Status: 200, CacheControl: "no-store", Body: result, SetCookie: cookieValues(completion.Cookies, service.config)}
 			if !strings.Contains(input.Accept, "application/json") {
 				next := result.Next
 				if result.Outcome == "error" {

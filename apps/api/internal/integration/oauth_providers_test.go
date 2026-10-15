@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,12 +19,21 @@ import (
 
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/features/sitemanagement"
+	"heyblog-api/internal/platform/config"
 	"heyblog-api/internal/platform/httpapi"
 )
 
 func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 	fixture := newCredentialFixture(t)
 	ctx := t.Context()
+	router, err := httpapi.NewRouter(httpapi.Options{
+		Mode:   config.ModeDevelopment,
+		HTTP:   config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: credentialWebToken,
+		HealthcheckToken: "oauth-integration-health-token",
+	})
+	require.NoError(t, err)
+	fixture.router = router
 	client := &http.Client{Transport: githubRoundTripFunc(func(request *http.Request) (*http.Response, error) {
 		body := ""
 		switch {
@@ -74,9 +84,9 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		return result
 	}
 	callback := func(provider auth.OAuthProvider, state auth.OAuthStartResult, code string) auth.OAuthResult {
-		result, _, err := service.OAuthCallback(ctx, request(), provider, code, state.State, state.State, "")
+		completion, err := service.OAuthCallback(ctx, request(), provider, code, state.State, state.State, "")
 		require.NoError(t, err)
-		return result
+		return completion.Result
 	}
 	t.Run("JSON start returns a path-wide HttpOnly cookie", func(t *testing.T) {
 		response := httptest.NewRecorder()
@@ -127,11 +137,11 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		results := make(chan auth.OAuthResult, 2)
 		for i := range providers {
 			group.Go(func() {
-				result, _, err := service.OAuthCallback(ctx, request(), providers[i], "good", states[i].State, states[i].State, "")
+				completion, err := service.OAuthCallback(ctx, request(), providers[i], "good", states[i].State, states[i].State, "")
 				if err != nil {
 					t.Error(err)
 				}
-				results <- result
+				results <- completion.Result
 			})
 		}
 		group.Wait()
@@ -161,14 +171,14 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		require.Len(t, cookies, 1)
 		require.Equal(t, -1, cookies[0].MaxAge)
 		require.Equal(t, "/", cookies[0].Path)
-		_, _, err := service.OAuthCallback(ctx, request(), auth.ProviderBlogsClub, "good", state.State, state.State, "")
+		_, err := service.OAuthCallback(ctx, request(), auth.ProviderBlogsClub, "good", state.State, state.State, "")
 		require.Error(t, err)
 	})
 	t.Run("provider and cookie mismatch cannot consume another attempt", func(t *testing.T) {
 		state := start(auth.ProviderBlogsClub, "bind", "")
-		_, _, err := service.OAuthCallback(ctx, request(), auth.ProviderGitHub, "good", state.State, state.State, "")
+		_, err := service.OAuthCallback(ctx, request(), auth.ProviderGitHub, "good", state.State, state.State, "")
 		require.Error(t, err)
-		_, _, err = service.OAuthCallback(ctx, request(), auth.ProviderBlogsClub, "good", state.State, "wrong", "")
+		_, err = service.OAuthCallback(ctx, request(), auth.ProviderBlogsClub, "good", state.State, "wrong", "")
 		require.Error(t, err)
 		require.Equal(t, "success", callback(auth.ProviderBlogsClub, state, "good").Outcome)
 	})
@@ -204,10 +214,10 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		require.NoError(t, err)
 		other := httptest.NewRequest("GET", "/", nil)
 		other.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: tokens[0]})
-		result, _, err := service.OAuthCallback(ctx, other, auth.ProviderBlogsClub, "good", state.State, state.State, "")
+		completion, err := service.OAuthCallback(ctx, other, auth.ProviderBlogsClub, "good", state.State, state.State, "")
 		require.NoError(t, err)
-		require.Equal(t, "oauth_actor_changed", result.ErrorCode)
-		require.Equal(t, "error", result.Outcome)
+		require.Equal(t, "oauth_actor_changed", completion.Result.ErrorCode)
+		require.Equal(t, "error", completion.Result.Outcome)
 	})
 	t.Run("account changes during exchange prevent final identity write", func(t *testing.T) {
 		state := start(auth.ProviderBlogsClub, "bind", "")

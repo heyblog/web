@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -10,25 +11,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func blogsClubTestService() *Service {
+	return NewService(Dependencies{Config: Config{
+		WebBaseURL: "https://web.example.test", BlogsClubClientID: "client", BlogsClubClientSecret: "secret",
+	}})
+}
+
 func TestBlogsClubAdapter_when_ExchangingAuthorization(t *testing.T) {
-	// Given BlogsClub's ordinary redirect protocol and server-only credentials.
-	service := NewService(Dependencies{Config: Config{WebBaseURL: "https://web.example.test", BlogsClubClientID: "client", BlogsClubClientSecret: "secret"}})
+	service := blogsClubTestService()
 	adapter := blogsClubAdapter{service}
 	service.httpClient = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
-		body := `{"status":200,"access_token":"token","openid":"42"}`
+		require.Equal(t, "HeyBlog-OAuth", request.Header.Get("User-Agent"))
+		body := `{"status":200,"access_token":"token","openid":42}`
 		if request.URL.Query().Get("action") == "token" {
 			require.NoError(t, request.ParseForm())
+			require.Equal(t, "authorization_code", request.Form.Get("grant_type"))
+			require.Equal(t, "client", request.Form.Get("client_id"))
 			require.Equal(t, "secret", request.Form.Get("client_secret"))
 			require.Equal(t, "https://web.example.test/auth/blogsclub/callback", request.Form.Get("redirect_uri"))
 		} else {
 			require.Equal(t, "token", request.URL.Query().Get("access_token"))
-			body = `{"status":200,"data":{"openid":"42","blog_name":"Example","verified":1,"blog_url":"https://example.test/blog/","email":"Reader@Example.test"}}`
+			body = `{"status":200,"data":{"openid":42,"blog_name":"Example","verified":1,"blog_url":"https://example.test/blog/","email":"Reader@Example.test"}}`
 		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 	})}
-	// When the code is exchanged and its current profile is read.
+
 	identity, err := adapter.identity(t.Context(), "code")
-	// Then the adapter exposes trusted normalized identity and site proof only.
 	require.NoError(t, err)
 	require.Equal(t, "42", identity.Subject)
 	require.Equal(t, "reader@example.test", identity.Email)
@@ -36,33 +44,39 @@ func TestBlogsClubAdapter_when_ExchangingAuthorization(t *testing.T) {
 	require.NotContains(t, string(identity.Profile), "token")
 }
 
-func TestBlogsClubAdapter_when_ProviderRejectsOrChangesSubject(t *testing.T) {
-	for _, response := range []string{`{"status":403,"msg":"secret upstream failure"}`, `{"status":200,"data":{"openid":"99","email":"reader@example.test"}}`, `{"status":200,"data":{"openid":"42","email":""}}`} {
-		t.Run(response, func(t *testing.T) {
-			// Given a valid token but an unsuccessful or inconsistent profile response.
-			service := NewService(Dependencies{})
+//nolint:gosec // Test payloads intentionally exercise OAuth protocol fields.
+func TestBlogsClubAdapter_when_ProviderResponseIsInvalid(t *testing.T) {
+	for _, test := range []struct {
+		name, tokenBody, profileBody, wantCode string
+	}{
+		{name: "transport", wantCode: "blogsclub_exchange_failed"},
+		{name: "http rejection", tokenBody: `{"status":403}`, wantCode: "blogsclub_exchange_failed"},
+		{name: "malformed JSON", tokenBody: `not-json`, wantCode: "blogsclub_exchange_failed"},
+		{name: "missing token", tokenBody: `{"status":200,"openid":"42"}`, wantCode: "blogsclub_exchange_failed"},
+		{name: "subject mismatch", tokenBody: `{"status":200,"access_token":"token","openid":"42"}`, profileBody: `{"status":200,"data":{"openid":"99","email":"reader@example.test"}}`, wantCode: "blogsclub_identity_failed"},
+		{name: "missing email", tokenBody: `{"status":200,"access_token":"token","openid":"42"}`, profileBody: `{"status":200,"data":{"openid":"42"}}`, wantCode: "blogsclub_email_required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := blogsClubTestService()
 			service.httpClient = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
-				body := response
-				if request.URL.Query().Get("action") == "token" {
-					body = `{"status":200,"access_token":"token","openid":"42"}`
+				if test.name == "transport" {
+					return nil, errors.New("upstream transport failure")
 				}
-				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+				body := test.tokenBody
+				if request.URL.Query().Get("action") == "userinfo" {
+					body = test.profileBody
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 			})}
-			// When authorization is resolved.
 			_, err := (blogsClubAdapter{service}).identity(t.Context(), "code")
-			// Then no inconsistent identity or upstream diagnostic escapes.
-			require.Error(t, err)
-			require.NotContains(t, err.Error(), "secret upstream")
+			require.Equal(t, test.wantCode, oauthErrorCode(err))
 		})
 	}
 }
 
 func TestBlogsClubAuthorization_when_UsingPopupBridge(t *testing.T) {
-	// Given the shared popup bridge uses the registered callback.
-	service := NewService(Dependencies{Config: Config{WebBaseURL: "https://web.example.test", BlogsClubClientID: "client", BlogsClubClientSecret: "secret"}})
-	// When an authorization URL is created.
+	service := blogsClubTestService()
 	target, err := (blogsClubAdapter{service}).authorizationURL("state")
-	// Then it returns through our callback rather than the provider's native message mode.
 	require.NoError(t, err)
 	parsed, err := url.Parse(target)
 	require.NoError(t, err)

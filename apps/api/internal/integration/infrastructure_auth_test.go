@@ -190,8 +190,9 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	}
 	firstGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/github/callback", nil)
 	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_oauth_github_" + firstStateToken, Value: firstStateToken})
-	firstResult, githubTokens, err := service.OAuthCallback(ctx, firstGithubRequest, auth.ProviderGitHub, "oauth-code", firstStateToken, firstStateToken, "")
-	if err != nil || firstResult.Outcome != "success" || len(githubTokens) != 2 {
+	firstResult, err := service.OAuthCallback(ctx, firstGithubRequest, auth.ProviderGitHub, "oauth-code", firstStateToken, firstStateToken, "")
+	githubTokens := firstResult.Cookies
+	if err != nil || firstResult.Result.Outcome != "success" || len(githubTokens) != 2 {
 		t.Fatalf("complete first GitHub login = (%+v,%v)", firstResult, err)
 	}
 	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: githubTokens[0]})
@@ -204,7 +205,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 	}
 	secondGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/github/callback", nil)
 	secondGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_oauth_github_" + secondStateToken, Value: secondStateToken})
-	if result, _, err := service.OAuthCallback(ctx, secondGithubRequest, auth.ProviderGitHub, "oauth-code", secondStateToken, secondStateToken, ""); err != nil || result.Outcome != "success" {
+	if result, err := service.OAuthCallback(ctx, secondGithubRequest, auth.ProviderGitHub, "oauth-code", secondStateToken, secondStateToken, ""); err != nil || result.Result.Outcome != "success" {
 		t.Fatalf("complete second GitHub login: %v", err)
 	}
 	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/api/web/auth/password", nil)

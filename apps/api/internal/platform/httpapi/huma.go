@@ -153,13 +153,21 @@ func NativeContext(ctx context.Context) *gin.Context {
 	return request.gin
 }
 
-func HTTPError(ctx context.Context, err error) error {
-	descriptor := describeError(err)
+// LogError records a handled failure without writing or replacing its response.
+// Callers must not also return the error through Register or attach it to Gin.
+func LogError(ctx context.Context, err error) {
+	if err == nil {
+		return
+	}
 	request, _ := ctx.Value(requestContextKey{}).(requestContext)
 	if request.gin != nil && request.logger != nil {
-		logRequestError(request.gin, request.logger, descriptor, err)
+		logRequestError(request.gin, request.logger, describeError(err), err)
 	}
-	return problemFromDescriptor(request.gin, descriptor)
+}
+
+func HTTPError(ctx context.Context, err error) error {
+	LogError(ctx, err)
+	return problemFromDescriptor(NativeContext(ctx), describeError(err))
 }
 
 func newHumaProblem(ctx huma.Context, status int, message string, errs ...error) *Problem {

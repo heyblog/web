@@ -273,3 +273,8 @@ GitHub and BlogsClub. BlogsClub credentials use `API_BLOGSCLUB_CLIENT_ID` and
 `/api/web/auth/github/callback`. JSON OAuth start/callback responses support the Web popup bridge.
 BlogsClub site claims require fresh server-fetched verified profiles and exact normalized addresses,
 with no stored access tokens or challenge regeneration.
+OAuth callback completion separates the public result from server-only failures. Routes report
+those failures once through `httpapi.LogError` while preserving JSON/popup or redirect delivery.
+BlogsClub upstream failures, malformed responses and identity mismatches map to stable business
+error codes; raw upstream bodies, URLs, authorization codes and tokens never enter diagnostics or
+user-facing responses.
