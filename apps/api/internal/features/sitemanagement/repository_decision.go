@@ -11,6 +11,26 @@ import (
 
 func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) {
 	err := r.transaction(ctx, func(q *dbgen.Queries) error {
+		if input.Status == "VERIFIED" && input.Claim.Method == BlogsClub {
+			if input.OAuthActor == nil || input.OAuthActor.ID != input.Claim.UserID {
+				return failure("oauth_authorization_required", "Fresh BlogsClub authorization is required", 409)
+			}
+			applicantID, err := uuid(input.Claim.UserID)
+			if err != nil {
+				return err
+			}
+			actor, err := q.GetUserForUpdate(ctx, applicantID)
+			if err != nil {
+				return repositoryError(err)
+			}
+			if actor.AuthVersion != input.OAuthActor.AuthVersion || actor.AccessStatus != "ACTIVE" || actor.DeletedAt.Valid || actor.DeletionRequestedAt.Valid {
+				return failure("oauth_actor_changed", "The account changed; restart authorization", 409)
+			}
+			identity, err := q.GetUserProviderIdentity(ctx, dbgen.GetUserProviderIdentityParams{UserID: applicantID, Provider: "BLOGSCLUB"})
+			if err != nil || identity.ProviderUserID != input.OAuthSubject {
+				return failure("blogsclub_account_conflict", "The BlogsClub identity changed; restart authorization", 409)
+			}
+		}
 		target, err := q.LockClaimSite(ctx, input.Claim.ShortID)
 		if err != nil {
 			return repositoryError(err)
@@ -33,13 +53,13 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 		if claim.UserID != input.Claim.UserID || claim.Address != input.Claim.Address || claim.Method != input.Claim.Method {
 			return failure("proof_changed", "The verification application changed; reload it before checking", 409)
 		}
-		if input.Status == "VERIFIED" && claim.Method != Manual && claim.TokenHash != input.Claim.TokenHash {
+		if input.Status == "VERIFIED" && claim.Method != Manual && claim.Method != BlogsClub && claim.TokenHash != input.Claim.TokenHash {
 			return failure("proof_changed", "The verification proof changed; use the latest challenge", 409)
 		}
 		if input.Status == "VERIFIED" && target.Visibility == "REMOVED" {
 			return failure("site_removed", "Removed sites cannot be verified", 409)
 		}
-		if input.Status == "VERIFIED" && claim.Method != Manual && (claim.ExpiresAt == nil || !input.Now.Before(*claim.ExpiresAt)) {
+		if input.Status == "VERIFIED" && claim.Method != Manual && claim.Method != BlogsClub && (claim.ExpiresAt == nil || !input.Now.Before(*claim.ExpiresAt)) {
 			return failure("claim_expired", "This verification challenge has expired", 409)
 		}
 		siteID, err := uuid(claim.SiteID)
@@ -54,6 +74,7 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 		if err != nil {
 			return err
 		}
+
 		consumed := false
 		if input.Status == "VERIFIED" {
 			if _, err := q.ResolveOwnershipUser(ctx, userID); err != nil {

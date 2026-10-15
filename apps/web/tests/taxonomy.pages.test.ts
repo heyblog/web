@@ -28,7 +28,7 @@ test('management pages render taxonomy DTOs privately and enforce role permissio
             deletion_pending: false,
             email_verified: true,
             has_password: true,
-            has_github: false,
+            oauth_providers: [],
             auth_version: 1,
             profile_confirmation_required: false,
             username_changes_remaining: 1,

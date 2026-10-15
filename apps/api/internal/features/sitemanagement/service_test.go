@@ -30,6 +30,7 @@ func (s *claimStore) Decide(_ context.Context, d Decision) (Claim, error) {
 }
 func (s *claimStore) Create(_ context.Context, input StoredClaim) (Claim, error) {
 	s.creates = append(s.creates, input)
+	input.Claim.CurrentAddress = s.target.Address
 	return input.Claim, nil
 }
 

@@ -34,7 +34,11 @@ func (repo *repository) managedUsers(ctx context.Context, filter ManagedUsersFil
 		for i, p := range row.Permissions {
 			permissions[i] = Permission(p)
 		}
-		users = append(users, userDTO(mapUser(row.IdentityUser), permissions, row.HasGithub))
+		providers := make([]OAuthProvider, len(row.OauthProviders))
+		for i, p := range row.OauthProviders {
+			providers[i] = OAuthProvider(p)
+		}
+		users = append(users, userDTO(mapUser(row.IdentityUser), permissions, providers))
 	}
 	return ManagedUsersPage{Users: users, Total: total, Page: filter.Page, PageSize: filter.PageSize}, nil
 }
@@ -60,7 +64,7 @@ func lockedActor(ctx context.Context, queries *dbgen.Queries, actor User) (User,
 	for i, p := range permissions {
 		keys[i] = Permission(p)
 	}
-	current := userDTO(record, keys, false)
+	current := userDTO(record, keys, nil)
 	if !canManageUsers(current) {
 		return User{}, newAuthError("forbidden", 403, "user management permission is required")
 	}

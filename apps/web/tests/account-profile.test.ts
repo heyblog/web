@@ -20,7 +20,7 @@ const user: SessionUser = {
   deletion_pending: false,
   email_verified: true,
   has_password: false,
-  has_github: true,
+  oauth_providers: ['GITHUB'],
   auth_version: 1,
   created_at: '2026-10-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z',

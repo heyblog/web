@@ -1,10 +1,11 @@
 ---
-import { IconBrandGithub, IconLogin2 } from '@tabler/icons-svelte';
+import { IconLogin2 } from '@tabler/icons-svelte';
 
 import { safeNext } from '@/application/auth/auth.server';
 import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
 import { confirmationLocation } from '@/application/auth/profile-routing';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
+import OAuthButton from '@/components/auth/OAuthButton.svelte';
 import AuthLayout from '@/layouts/AuthLayout.astro';
 
 export const prerender = false;
@@ -17,7 +18,7 @@ const error = authErrorMessage(Astro.url.searchParams.get('error'));
 const status = authStatusMessage(Astro.url.searchParams.get('status'));
 ---
 
-<AuthLayout title="登录 | HeyBlog" heading="登录" description="使用 HeyBlog 账号或 GitHub 继续。">
+<AuthLayout title="登录 | HeyBlog" heading="登录" description="使用 HeyBlog 账号或第三方账号继续。">
   <AuthNotice message={error} />
   <AuthNotice message={status} kind="success" />
   <form class="grid gap-4" method="post" action="/api/web/auth/login">
@@ -53,13 +54,10 @@ const status = authStatusMessage(Astro.url.searchParams.get('status'));
   <div class="my-5 flex items-center gap-3 text-xs text-fg-subtle before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
     或
   </div>
-  <a
-    class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm border border-line-strong bg-surface px-4 text-sm font-semibold text-fg transition-colors hover:bg-subtle"
-    href={`/api/web/auth/github/start?next=${encodeURIComponent(next)}`}
-    data-astro-prefetch="false"
-  >
-    <IconBrandGithub size={18} stroke={1.8} aria-hidden="true" /> 使用 GitHub 登录
-  </a>
+  <div class="grid gap-3">
+    <OAuthButton provider="github" {next} client:load />
+    <OAuthButton provider="blogsclub" {next} client:load />
+  </div>
   <nav class="mt-6 flex flex-wrap justify-between gap-3 text-sm" aria-label="账号帮助">
     <a class="text-tint-fg hover:underline" href={`/register?next=${encodeURIComponent(next)}`}>
       创建账号

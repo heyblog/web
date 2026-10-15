@@ -176,9 +176,9 @@ and focused tests referenced below, not additional package-level AGENTS files.
   outcomes remain unknown. Cancellation cannot interrupt a commit already started. Private
   temporary files are removed after request completion or the accepted restore terminates.
   Bootstrap cancels and joins restore workers before closing the database pool.
-- Backup protocol version 1, schema version 4 covers all 33 identity/directory/content tables and complete AGE
+- Backup protocol version 1, schema version 5 covers all 33 identity/directory/content tables and complete AGE
   logical vertices and edges. The baseline freezes the schema inventory; schema evolution
-  requires an explicit backup compatibility change. Schema versions 3 and 4 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns
+  requires an explicit backup compatibility change. Schema versions 3, 4, and 5 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns
   use decimal strings. Never decode row JSON through floating-point numbers.
 - Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
   and maps structured actor references to the retained target administrator. It accepts only
@@ -194,7 +194,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   VISIBLE and have no resources, taxonomy, or components. Its all-status edge reader is a
   runtime-granted database function; do not reconcile through visibility-filtered public reads.
 
-- The migration session lock checks `migration.baseline` before changing Goose history. Only a fresh database or the marked current baseline may initialize or resume. The clean-seeds baseline uses versions 1–14; databases initialized with previous numbering or seeds require export and restore into a fresh database. Migration 14 installs cross-feature foreign keys and logical initialization seeds after their dependencies exist.
+- The migration session lock checks `migration.baseline` before changing Goose history. Only a fresh database or the marked current baseline may initialize or resume. The clean-seeds baseline uses versions 1–14, followed by additive migrations; databases initialized with previous numbering or seeds require export and restore into a fresh database. Migration 14 installs cross-feature foreign keys and logical initialization seeds after their dependencies exist.
 - Fresh seeds contain 71 tags, 142 classification paths and 81 TAG import identities with only `id` and `name` in their snapshots. LABEL mappings are created only for real historical data, not synthesized on initialization. Preserve import system keys, merged-tag UUID resolution and historical LABEL lookup. Schema-version-3 backups retain their original historical JSON, including obsolete fields; the clean seed contract does not restrict restored snapshots.
 - Apply Goose migrations before opening runtime PostgreSQL/Redis connections. Initialize one
   application pool, inject it, and close it during graceful shutdown; runtime connections disable
@@ -262,7 +262,14 @@ cleanup during test-file splits. Consult the affected package's source contracts
 report any required gate that could not run instead of treating build-tag compilation as a real
 container integration pass.
 
-Database backup exports use format version 1 and schema version 4. Schema version 3 inputs are
+Database backup exports use format version 1 and schema version 5. Schema version 3 inputs are
 verified against their original manifest before shared inspect/restore conversion initializes account
 profile confirmation from OAuth bindings and grants one optional username change. New backups
 preserve confirmation and usage state. The consolidated baseline owns these identity fields.
+
+OAuth authentication shares provider adapters, one-use Redis state and account mutations for
+GitHub and BlogsClub. BlogsClub credentials use `API_BLOGSCLUB_CLIENT_ID` and
+`API_BLOGSCLUB_CLIENT_SECRET`. Its public callback is `/auth/blogsclub/callback`; GitHub retains
+`/api/web/auth/github/callback`. JSON OAuth start/callback responses support the Web popup bridge.
+BlogsClub site claims require fresh server-fetched verified profiles and exact normalized addresses,
+with no stored access tokens or challenge regeneration.

@@ -21,6 +21,7 @@ type Config struct {
 	AccessTTL, RefreshTTL, VerificationTTL, PasswordResetTTL time.Duration
 	WebBaseURL, CookieDomain                                 string
 	GithubClientID, GithubClientSecret, GithubScope          string
+	BlogsClubClientID, BlogsClubClientSecret                 string
 	MailFrom                                                 string
 }
 
@@ -29,7 +30,7 @@ type Dependencies struct {
 	Redis              *redis.Client
 	MailSender         mail.Sender
 	VerificationMailer *mail.VerificationMailer
-	GithubHTTPClient   *http.Client
+	OAuthHTTPClient    *http.Client
 	Config             Config
 }
 
@@ -40,6 +41,7 @@ type Service struct {
 	sender     mail.Sender
 	config     Config
 	httpClient *http.Client
+	claims     OAuthClaims
 }
 
 type sessionRecord struct {
@@ -51,7 +53,7 @@ type sessionRecord struct {
 var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
 
 func NewService(deps Dependencies) *Service {
-	httpClient := deps.GithubHTTPClient
+	httpClient := deps.OAuthHTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}

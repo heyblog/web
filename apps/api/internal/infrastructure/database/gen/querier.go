@@ -61,7 +61,6 @@ type Querier interface {
 	DeleteSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) error
 	DeleteSiteResource(ctx context.Context, arg DeleteSiteResourceParams) error
 	DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) error
-	DeleteUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) error
 	DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error
 	DirectoryIsEmpty(ctx context.Context) (bool, error)
 	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
@@ -79,12 +78,12 @@ type Querier interface {
 	GetCanonicalTag(ctx context.Context, id pgtype.UUID) (DirectoryTag, error)
 	GetCurrentSiteOwner(ctx context.Context, arg GetCurrentSiteOwnerParams) (DirectorySiteOwnership, error)
 	GetDirectoryTaxonomyRevision(ctx context.Context) (int64, error)
-	GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error)
 	GetHistoricalTagLabel(ctx context.Context, aliasID pgtype.UUID) (DirectoryTag, error)
 	GetIncrementalSource(ctx context.Context, sourceKey string) (GetIncrementalSourceRow, error)
 	GetLatestActiveAPIKey(ctx context.Context, arg GetLatestActiveAPIKeyParams) (IdentityApiKey, error)
 	GetLatestEmailVerificationCode(ctx context.Context, email string) (IdentityEmailVerificationCode, error)
 	GetLeadingActiveMainAnnouncement(ctx context.Context) (ContentAnnouncement, error)
+	GetOAuthIdentity(ctx context.Context, arg GetOAuthIdentityParams) (IdentityOauthIdentity, error)
 	GetOwnerFriendRequestForAudit(ctx context.Context, arg GetOwnerFriendRequestForAuditParams) (pgtype.UUID, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (IdentityPasswordResetToken, error)
 	GetPublicAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
@@ -111,7 +110,7 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserByUsername(ctx context.Context, username string) (IdentityUser, error)
 	GetUserForUpdate(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
-	GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error)
+	GetUserProviderIdentity(ctx context.Context, arg GetUserProviderIdentityParams) (IdentityOauthIdentity, error)
 	HasOwnerAddressProof(ctx context.Context, arg HasOwnerAddressProofParams) (bool, error)
 	ImportLockCapacity(ctx context.Context) (int32, error)
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
@@ -188,6 +187,7 @@ type Querier interface {
 	LockFriendEndpointSites(ctx context.Context, arg LockFriendEndpointSitesParams) ([]pgtype.UUID, error)
 	LockIncrementalHosts(ctx context.Context, hosts []string) error
 	LockIncrementalSites(ctx context.Context) error
+	LockOAuthMutation(ctx context.Context) error
 	LockOwnerSubmissionHost(ctx context.Context, host string) error
 	LockPasswordResetToken(ctx context.Context, id pgtype.UUID) (IdentityPasswordResetToken, error)
 	LockPendingCreateAuditForHost(ctx context.Context, host string) (DirectorySiteAudit, error)
@@ -240,7 +240,7 @@ type Querier interface {
 	UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSiteDirectoryProfileParams) (DirectorySite, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (IdentityUser, error)
 	UpsertFriendLink(ctx context.Context, arg UpsertFriendLinkParams) error
-	UpsertGitHubIdentity(ctx context.Context, arg UpsertGitHubIdentityParams) (IdentityOauthIdentity, error)
+	UpsertOAuthIdentity(ctx context.Context, arg UpsertOAuthIdentityParams) (IdentityOauthIdentity, error)
 	UpsertSiteFeed(ctx context.Context, arg UpsertSiteFeedParams) (DirectorySiteFeed, error)
 	UpsertSiteIcon(ctx context.Context, arg UpsertSiteIconParams) (DirectorySiteIcon, error)
 	UpsertSiteResource(ctx context.Context, arg UpsertSiteResourceParams) (DirectorySiteResource, error)

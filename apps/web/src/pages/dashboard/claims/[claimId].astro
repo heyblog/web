@@ -1,6 +1,7 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
 import { parseClaim } from '@/api/site-management/claims.types';
+import { authErrorMessage } from '@/application/auth/auth-page';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import ClaimDetail from '@/components/site-management/ClaimDetail.svelte';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
@@ -19,6 +20,7 @@ const claim = response.ok ? parseClaim(await response.json()) : null;
 
 <DashboardLayout title="认领申请" heading="认领申请" {user} currentPath="/dashboard/claims">
   <div class="max-w-4xl">
+    <AuthNotice message={authErrorMessage(Astro.url.searchParams.get('error'))} />
     <AuthNotice message={claim ? null : '申请暂时无法加载，请刷新重试。'} />
     {claim && <ClaimDetail client:load initial={claim} />}
   </div>

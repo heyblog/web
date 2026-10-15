@@ -40,7 +40,7 @@ func (s *Service) Regenerate(ctx context.Context, user auth.User, id string) (Cr
 	if err != nil {
 		return CreateResult{}, err
 	}
-	if claim.Status != "PENDING" || claim.Method == Manual {
+	if claim.Status != "PENDING" || claim.Method == Manual || claim.Method == BlogsClub {
 		return CreateResult{}, failure("claim_finished", "This application cannot issue a new challenge", 409)
 	}
 	token, err := challengeToken()

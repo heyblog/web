@@ -88,3 +88,19 @@ func TestRowContractRejectsUnknownFieldsAndUnsafeBigints(t *testing.T) {
 		}
 	}
 }
+
+func TestDocumentAcceptsSupportedSchemaVersions(t *testing.T) {
+	// Given a valid transfer with no schema-specific rows.
+	valid := fixtureDocument(t)
+	for _, version := range []string{"3", "4", "5"} {
+		t.Run(version, func(t *testing.T) {
+			// When its source schema is a supported version.
+			data := strings.Replace(string(valid), `"schema_version":3`, `"schema_version":`+version, 1)
+			_, err := readDocument(strings.NewReader(data), nil)
+			// Then integrity validation still accepts it.
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}

@@ -71,9 +71,9 @@ func TestGitHubCallbackURLUsesPublicWebOrigin(t *testing.T) {
 	}
 }
 
-func TestGitHubUsernameFitsLocalConstraint(t *testing.T) {
-	username := githubUsername(strings.Repeat("a", 80), "12345678901234567890")
+func TestOAuthUsernameFitsLocalConstraint(t *testing.T) {
+	username := oauthUsername(strings.Repeat("a", 80), "12345678901234567890")
 	if len(username) > 32 || !usernamePattern.MatchString(username) {
-		t.Fatalf("githubUsername() = %q, want valid local username", username)
+		t.Fatalf("oauthUsername() = %q, want valid local username", username)
 	}
 }

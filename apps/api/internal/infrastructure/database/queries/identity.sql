@@ -126,14 +126,14 @@ RETURNING id, email, username, display_name, password_hash, role, access_status,
           email_verified_at, auth_version, profile, settings, last_login_at,
           deletion_requested_at, deletion_scheduled_for, deleted_at, created_at, updated_at, profile_confirmation_status, username_changes_used;
 
--- name: UpsertGitHubIdentity :one
+-- name: UpsertOAuthIdentity :one
 INSERT INTO identity.oauth_identities (
     user_id,
     provider,
     provider_user_id,
     provider_login,
     profile
-) SELECT user_account.id, 'GITHUB', sqlc.arg(provider_user_id)::text,
+) SELECT user_account.id, sqlc.arg(provider)::text, sqlc.arg(provider_user_id)::text,
          sqlc.narg(provider_login)::text, sqlc.arg(profile)::jsonb
     FROM identity.users AS user_account
    WHERE user_account.id = sqlc.arg(user_id)::uuid
@@ -146,10 +146,10 @@ ON CONFLICT (provider, provider_user_id) DO UPDATE
  WHERE identity.oauth_identities.user_id = EXCLUDED.user_id
 RETURNING id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at;
 
--- name: GetGitHubIdentity :one
+-- name: GetOAuthIdentity :one
 SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
   FROM identity.oauth_identities
- WHERE provider = 'GITHUB' AND provider_user_id = $1;
+ WHERE provider = $1 AND provider_user_id = $2;
 
 -- name: ListUserOAuthIdentities :many
 SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
@@ -256,15 +256,6 @@ DELETE FROM identity.user_management_permissions
 INSERT INTO identity.user_management_permissions (user_id, permission_key, granted_by)
 VALUES (sqlc.arg(user_id)::uuid, sqlc.arg(permission_key)::text, sqlc.arg(granted_by)::uuid);
 
--- name: GetUserGitHubIdentity :one
-SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
-  FROM identity.oauth_identities
- WHERE provider = 'GITHUB' AND user_id = sqlc.arg(user_id)::uuid;
-
--- name: DeleteUserGitHubIdentity :exec
-DELETE FROM identity.oauth_identities
- WHERE provider = 'GITHUB' AND user_id = sqlc.arg(user_id)::uuid;
-
 -- name: GetUserForUpdate :one
 SELECT * FROM identity.users WHERE id = $1 FOR UPDATE;
 
@@ -283,7 +274,7 @@ UPDATE identity.users SET display_name = $2, email = $3 WHERE id = $1 RETURNING 
 -- name: ListManagedUsersPage :many
 SELECT sqlc.embed(u),
        ARRAY(SELECT p.permission_key FROM identity.user_management_permissions p WHERE p.user_id = u.id ORDER BY p.permission_key)::text[] AS permissions,
-       EXISTS(SELECT 1 FROM identity.oauth_identities o WHERE o.user_id = u.id AND o.provider = 'GITHUB') AS has_github
+       ARRAY(SELECT o.provider FROM identity.oauth_identities o WHERE o.user_id = u.id ORDER BY o.provider)::text[] AS oauth_providers
 FROM identity.users u
 WHERE u.deleted_at IS NULL
   AND (sqlc.arg(search)::text = '' OR u.username ILIKE '%' || sqlc.arg(search)::text || '%' OR u.email ILIKE '%' || sqlc.arg(search)::text || '%' OR u.display_name ILIKE '%' || sqlc.arg(search)::text || '%')
@@ -304,3 +295,9 @@ SELECT * FROM identity.email_verification_codes WHERE id = $1 AND consumed_at IS
 
 -- name: LockPasswordResetToken :one
 SELECT * FROM identity.password_reset_tokens WHERE id = $1 AND consumed_at IS NULL FOR UPDATE;
+
+-- name: LockOAuthMutation :exec
+SELECT pg_advisory_xact_lock(78231002);
+
+-- name: GetUserProviderIdentity :one
+SELECT * FROM identity.oauth_identities WHERE user_id=$1 AND provider=$2;

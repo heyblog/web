@@ -30,23 +30,6 @@ type noContentOutput struct {
 	SetCookie    []string `header:"Set-Cookie"`
 }
 
-type redirectOutput struct {
-	Status       int      `status:"302"`
-	Location     string   `header:"Location"`
-	CacheControl string   `header:"Cache-Control"`
-	SetCookie    []string `header:"Set-Cookie"`
-}
-
-type githubStartInput struct {
-	Next   string `query:"next"`
-	Intent string `query:"intent" enum:"login,bind"`
-}
-
-type githubCallbackInput struct {
-	Code  string `query:"code" required:"true"`
-	State string `query:"state" required:"true"`
-}
-
 type userPathInput[T any] struct {
 	ID   string `path:"id"`
 	Body T

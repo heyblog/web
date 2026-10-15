@@ -8,17 +8,18 @@ import (
 )
 
 type AuthConfig struct {
-	AccessSecret       string
-	RefreshSecret      string
-	AccessTTL          time.Duration
-	RefreshTTL         time.Duration
-	VerificationTTL    time.Duration
-	PasswordResetTTL   time.Duration
-	WebBaseURL         string
-	CookieDomain       string
-	GithubClientID     string
-	GithubClientSecret string
-	GithubScope        string
+	AccessSecret                             string
+	RefreshSecret                            string
+	AccessTTL                                time.Duration
+	RefreshTTL                               time.Duration
+	VerificationTTL                          time.Duration
+	PasswordResetTTL                         time.Duration
+	WebBaseURL                               string
+	CookieDomain                             string
+	GithubClientID                           string
+	GithubClientSecret                       string
+	GithubScope                              string
+	BlogsClubClientID, BlogsClubClientSecret string
 }
 
 type fileAuthConfig struct {
@@ -37,17 +38,19 @@ type fileGithubConfig struct {
 
 func resolveAuthConfig(mode Mode, values fileAuthConfig, getenv getenvFunc) AuthConfig {
 	return AuthConfig{
-		AccessSecret:       resolveAuthSecret(getenv, "API_AUTH_ACCESS_SECRET", mode),
-		RefreshSecret:      resolveAuthSecret(getenv, "API_AUTH_REFRESH_SECRET", mode),
-		AccessTTL:          time.Duration(values.AccessTTL),
-		RefreshTTL:         time.Duration(values.RefreshTTL),
-		VerificationTTL:    time.Duration(values.VerificationTTL),
-		PasswordResetTTL:   time.Duration(values.PasswordResetTTL),
-		WebBaseURL:         strings.TrimRight(strings.TrimSpace(values.WebBaseURL), "/"),
-		CookieDomain:       strings.TrimSpace(values.CookieDomain),
-		GithubClientID:     strings.TrimSpace(getenv("API_GITHUB_CLIENT_ID")),
-		GithubClientSecret: strings.TrimSpace(getenv("API_GITHUB_CLIENT_SECRET")),
-		GithubScope:        strings.TrimSpace(values.Github.Scope),
+		AccessSecret:          resolveAuthSecret(getenv, "API_AUTH_ACCESS_SECRET", mode),
+		RefreshSecret:         resolveAuthSecret(getenv, "API_AUTH_REFRESH_SECRET", mode),
+		AccessTTL:             time.Duration(values.AccessTTL),
+		RefreshTTL:            time.Duration(values.RefreshTTL),
+		VerificationTTL:       time.Duration(values.VerificationTTL),
+		PasswordResetTTL:      time.Duration(values.PasswordResetTTL),
+		WebBaseURL:            strings.TrimRight(strings.TrimSpace(values.WebBaseURL), "/"),
+		CookieDomain:          strings.TrimSpace(values.CookieDomain),
+		GithubClientID:        strings.TrimSpace(getenv("API_GITHUB_CLIENT_ID")),
+		GithubClientSecret:    strings.TrimSpace(getenv("API_GITHUB_CLIENT_SECRET")),
+		GithubScope:           strings.TrimSpace(values.Github.Scope),
+		BlogsClubClientID:     strings.TrimSpace(getenv("API_BLOGSCLUB_CLIENT_ID")),
+		BlogsClubClientSecret: strings.TrimSpace(getenv("API_BLOGSCLUB_CLIENT_SECRET")),
 	}
 }
 

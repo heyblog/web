@@ -1,0 +1,68 @@
+---
+import type { OAuthCompletion } from '@/api/auth/oauth.types';
+import { authErrorMessage } from '@/application/auth/auth-page';
+
+import '@/styles/global.css';
+
+interface Props {
+  result: OAuthCompletion;
+}
+const { result } = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>{result.outcome === 'success' ? '授权完成' : '授权未完成'} | HeyBlog</title>
+  </head>
+  <body class="bg-canvas text-fg">
+    <main
+      class="mx-auto grid min-h-dvh max-w-lg content-center gap-5 p-6"
+      data-oauth-result={JSON.stringify(result)}
+    >
+      <h1 class="text-xl font-semibold">
+        {result.outcome === 'success' ? '授权完成' : '授权未完成'}
+      </h1>
+      <p class="text-sm text-fg-muted" role={result.outcome === 'success' ? 'status' : 'alert'}>
+        {result.outcome === 'success'
+          ? '可以返回原页面继续。'
+          : authErrorMessage(result.error_code ?? 'request_failed')}
+      </p>
+      <a
+        class="min-h-11 text-sm text-tint-fg underline"
+        href={result.next}
+        data-astro-prefetch="false"
+      >
+        返回 HeyBlog
+      </a>
+    </main>
+    <script>
+      import { parseOAuthCompletion } from '@/api/auth/oauth.types';
+      import { oauthChannelName, oauthMessageType } from '@/application/auth/oauth-popup.browser';
+
+      const root = document.querySelector<HTMLElement>('[data-oauth-result]');
+      const raw = root?.dataset.oauthResult;
+      const result = raw ? parseOAuthCompletion(JSON.parse(raw)) : null;
+      history.replaceState(null, '', location.pathname);
+      if (result) {
+        const message = { ...result, type: oauthMessageType };
+        let delivered = false;
+        if (window.opener) {
+          window.opener.postMessage(message, location.origin);
+          delivered = true;
+        }
+        if (typeof BroadcastChannel !== 'undefined') {
+          const channel = new BroadcastChannel(oauthChannelName(result.state));
+          channel.postMessage(message);
+          channel.close();
+          delivered = true;
+        }
+        if (delivered) window.close();
+      }
+    </script>
+  </body>
+</html>

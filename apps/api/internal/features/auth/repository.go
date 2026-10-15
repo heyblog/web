@@ -32,11 +32,6 @@ type dbUser struct {
 	LastLoginAt               *time.Time
 }
 
-type dbOAuth struct {
-	ID, UserID, ProviderID string
-	ProviderLogin          *string
-}
-
 type repository struct {
 	pool    *pgxpool.Pool
 	queries *dbgen.Queries
@@ -76,13 +71,6 @@ func (repo *repository) recordLogin(ctx context.Context, id string) (dbUser, err
 	}
 	row, err := repo.queries.RecordUserLogin(ctx, parsed)
 	return mapUser(row), err
-}
-func (repo *repository) verifyEmail(ctx context.Context, id string) error {
-	parsed, err := parseUUID(id)
-	if err != nil {
-		return err
-	}
-	return repo.queries.SetUserEmailVerified(ctx, parsed)
 }
 func (repo *repository) updatePassword(ctx context.Context, id, hash string) error {
 	parsed, err := parseUUID(id)

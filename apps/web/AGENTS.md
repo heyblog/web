@@ -57,14 +57,17 @@ layer and browser-module boundaries.
 ## Rendering and Same-Origin Safety
 
 - Browser/API endpoints live under `/api/web/{public,auth,submissions,account,management}`;
-  HTML page URLs remain separate. Auth callbacks use `/api/web/auth/github/callback`.
+  HTML page URLs remain separate. Browser OAuth callbacks use `/api/web/auth/github/callback` and `/auth/blogsclub/callback`.
+  `application/auth` owns the common popup lifecycle; `api/auth` validates provider results.
+  Popups receive only completed results after server-side exchange. Explicit redirect links recover
+  blocked popups. Session DTOs expose `oauth_providers` rather than provider-specific flags.
   Each adapter retains its business-specific method/path allowlist; no unrestricted proxy.
 
 - Database backup transport lives in `src/api/database-backup`; file selection, confirmation and
   safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
   Purpose-built native HTTP(S) forwarding streams attachments and multipart files without parsing backup data
   in Web. Keep Cookie/Web-token authorization, same-origin metadata, private no-store, 512 MiB file
-  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Backup version 1 supports schema versions 3 and 4 with 33 datasets. Exports use schema 4;
+  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Backup version 1 supports schema versions 3, 4 and 5 with 33 datasets. Exports use schema 5;
   legacy schema 3 restores initialize account confirmation and username allowances. Inspection contains
   counts and administrator mapping only. Never retry restoration automatically; an uncertain result
   is resolved through the current restore task. The one-off restore runs as an API-owned in-memory task;
@@ -116,6 +119,8 @@ layer and browser-module boundaries.
 - `/dashboard` owns the user workbench, with separate sites, claims, submissions, profile, and security
   routes. `apps/web/src/api/site-management` owns account/claim DTOs and the bounded, authenticated
   route whitelist for `/api/web/account` and `/api/web/management`; never widen it to arbitrary paths.
+- BlogsClub quick claims require an explicit fresh authorization, bind the current account if needed,
+  and resume the pending claim. They expose no challenge or proof regeneration.
 - Site claims use authenticated context and detail reads, explicit proof regeneration and bounded
   verification checks. Keep proof values only in the current page; refreshing can resume checking or
   explicitly regenerate. Dashboard owns applicant flows; management owns manual review and versioned

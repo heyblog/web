@@ -522,13 +522,13 @@ type IdentityEmailVerificationCode struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-// GitHub OAuth login identities without provider access or refresh tokens.
+// External OAuth login identities linked to local accounts.
 type IdentityOauthIdentity struct {
 	// UUIDv7 OAuth identity primary key.
 	ID pgtype.UUID
 	// Owning local user account.
 	UserID pgtype.UUID
-	// External authentication provider currently limited to GITHUB.
+	// External authentication provider: GITHUB or BLOGSCLUB.
 	Provider string
 	// Stable provider-side subject identifier.
 	ProviderUserID string

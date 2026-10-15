@@ -1,3 +1,5 @@
+import type { OAuthIdentityProvider } from './oauth.types.ts';
+
 export const userRoles = ['USER', 'ADMIN', 'SYS_ADMIN'] as const;
 export type UserRole = (typeof userRoles)[number];
 
@@ -28,7 +30,7 @@ export interface SessionUser {
   readonly username_changes_remaining: number;
   readonly email_verified: boolean;
   readonly has_password: boolean;
-  readonly has_github: boolean;
+  readonly oauth_providers: readonly OAuthIdentityProvider[];
   readonly auth_version: number;
   readonly created_at: string;
   readonly updated_at: string;

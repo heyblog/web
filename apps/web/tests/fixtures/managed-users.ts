@@ -10,7 +10,7 @@ export const systemActor: ManagedUser = {
   active: true,
   email_verified: true,
   has_password: true,
-  has_github: false,
+  oauth_providers: [],
   created_at: '2026-10-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z',
   last_login_at: null,

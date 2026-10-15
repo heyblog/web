@@ -1,8 +1,10 @@
 ---
-import { IconBrandGithub, IconKey, IconLogout2 } from '@tabler/icons-svelte';
+import { IconKey, IconLogout2 } from '@tabler/icons-svelte';
 
+import { oauthProviders } from '@/api/auth/oauth.types';
 import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
+import OAuthButton from '@/components/auth/OAuthButton.svelte';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
 
 export const prerender = false;
@@ -44,8 +46,12 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fsecurity');
         <dd class="mt-1 font-medium">{user.has_password ? '已设置' : '未设置'}</dd>
       </div>
       <div class="bg-surface p-4">
-        <dt class="text-xs text-fg-muted">GitHub</dt>
-        <dd class="mt-1 font-medium">{user.has_github ? '已绑定' : '未绑定'}</dd>
+        <dt class="text-xs text-fg-muted">第三方登录</dt>
+        <dd class="mt-1 font-medium">
+          {user.oauth_providers
+            .map((provider) => (provider === 'GITHUB' ? 'GitHub' : 'BlogsClub'))
+            .join('、') || '未绑定'}
+        </dd>
       </div>
     </dl>
     <div class="grid gap-10 lg:grid-cols-2">
@@ -99,33 +105,45 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fsecurity');
           </button>
         </form>
       </section>
-      <section aria-labelledby="github-heading">
-        <h2 class="mb-5 flex items-center gap-2 text-xl font-semibold" id="github-heading">
-          <IconBrandGithub size={20} stroke={1.8} aria-hidden="true" />
-          GitHub 登录
+      <section aria-labelledby="oauth-heading">
+        <h2 class="mb-5 text-xl font-semibold" id="oauth-heading">
+          第三方登录
         </h2>
-        <p class="mb-5 text-sm/normal text-fg-muted">
-          绑定后可使用 GitHub 登录；解绑前必须保留本地密码。
-        </p>
-        {user.has_github ? (
-          <form method="post" action="/api/web/auth/github/unbind">
-            <button
-              class="min-h-11 rounded-sm border border-danger px-4 text-sm font-semibold text-danger-fg hover:bg-danger-bg"
-              disabled={!user.has_password}
-              type="submit"
-            >
-              解绑 GitHub
-            </button>
-          </form>
-        ) : (
-          <a
-            class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 text-sm font-semibold hover:bg-subtle"
-            href="/api/web/auth/github/start?intent=bind&next=%2Fdashboard%2Fsecurity"
-            data-astro-prefetch="false"
-          >
-            绑定 GitHub
-          </a>
-        )}
+        <p class="mb-5 text-sm/normal text-fg-muted">绑定后可用于登录；解绑前请先设置本地密码。</p>
+        <div class="grid gap-5">
+          {oauthProviders.map((provider) => {
+            const name = provider === 'github' ? 'GitHub' : 'BlogsClub';
+            const bound = user.oauth_providers.includes(
+              provider === 'github' ? 'GITHUB' : 'BLOGSCLUB',
+            );
+            return (
+              <div class="grid gap-3 rounded-md border border-line p-4">
+                <h3 class="text-sm font-semibold">
+                  {name} · {bound ? '已绑定' : '未绑定'}
+                </h3>
+                {bound ? (
+                  <form method="post" action={`/api/web/auth/${provider}/unbind`}>
+                    <button
+                      class="min-h-11 rounded-sm bg-danger-bg px-4 text-sm font-semibold text-danger-fg disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!user.has_password}
+                      type="submit"
+                    >
+                      解绑 {name}
+                    </button>
+                  </form>
+                ) : (
+                  <OAuthButton
+                    {provider}
+                    intent="bind"
+                    next="/dashboard/security"
+                    label={`绑定 ${name}`}
+                    client:load
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   </section>

@@ -5,6 +5,7 @@ import {
   type UserRole,
   userRoles,
 } from './auth.types.ts';
+import { isOAuthIdentityProvider } from './oauth.types.ts';
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -36,7 +37,9 @@ export function parseSessionResponse(payload: unknown): SessionUser | null {
     (value.access_status !== 'ACTIVE' && value.access_status !== 'SUSPENDED') ||
     typeof value.email_verified !== 'boolean' ||
     typeof value.has_password !== 'boolean' ||
-    typeof value.has_github !== 'boolean' ||
+    !Array.isArray(value.oauth_providers) ||
+    !value.oauth_providers.every(isOAuthIdentityProvider) ||
+    new Set(value.oauth_providers).size !== value.oauth_providers.length ||
     typeof value.auth_version !== 'number' ||
     !Number.isSafeInteger(value.auth_version) ||
     value.auth_version < 1 ||
@@ -60,7 +63,7 @@ export function parseSessionResponse(payload: unknown): SessionUser | null {
     access_status: value.access_status,
     email_verified: value.email_verified,
     has_password: value.has_password,
-    has_github: value.has_github,
+    oauth_providers: value.oauth_providers,
     auth_version: value.auth_version,
     profile_confirmation_required: value.profile_confirmation_required,
     username_changes_remaining: value.username_changes_remaining,

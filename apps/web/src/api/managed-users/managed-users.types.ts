@@ -11,7 +11,7 @@ export type ManagedUser = Pick<
   | 'active'
   | 'email_verified'
   | 'has_password'
-  | 'has_github'
+  | 'oauth_providers'
   | 'created_at'
   | 'last_login_at'
 > & {

@@ -9,6 +9,7 @@
     claimLabel,
   } from '@/application/site-management/claims.model';
   import { claimMethodLabels } from '@/application/site-management/messages';
+  import OAuthButton from '@/components/auth/OAuthButton.svelte';
   import {
     buttonClass,
     dangerClass,
@@ -90,6 +91,11 @@
       >
         申请已提交，等待管理员审核。
       </p>
+    {:else if claim.status === 'PENDING' && claim.method === 'BLOGSCLUB'}<p
+        class="text-sm text-fg-muted"
+      >
+        授权后会核对 BlogsClub 的最新博客认证信息；尚未绑定时会先引导绑定。
+      </p>
     {:else if claim.status === 'PENDING' && claimExpired(claim, now)}<p
         class="text-sm text-fg-muted"
       >
@@ -113,7 +119,16 @@
         验证记录已完成，当前账号暂无此站点的管理权限。
       </p>{/if}
     <div class="flex flex-wrap gap-3">
-      {#if claim.can_check}<button
+      {#if claim.can_check && claim.method === 'BLOGSCLUB'}
+        <OAuthButton
+          provider="blogsclub"
+          intent="site-claim"
+          claimId={claim.id}
+          next={`/dashboard/claims/${claim.id}`}
+          label="使用 BlogsClub 认证"
+          disabled={controller.busy !== null}
+        />
+      {:else if claim.can_check}<button
           type="button"
           class={primaryClass}
           disabled={controller.busy !== null || claimExpired(claim, now)}

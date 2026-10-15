@@ -3,11 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { copySetCookie, requestAuthAPI } from '../src/api/auth/auth.server.ts';
-import {
-  readSessionUser,
-  resolveOAuthLocation,
-  safeNext,
-} from '../src/application/auth/auth.server.ts';
+import { oauthAuthorizationURL } from '../src/api/auth/oauth.types.ts';
+import { readSessionUser, safeNext } from '../src/application/auth/auth.server.ts';
 
 const authEnvironment = {
   WEB_API_BASE_URL: 'http://api.internal:10201',
@@ -193,42 +190,21 @@ test('copySetCookie preserves multiple upstream cookie headers', () => {
   assert.deepEqual(target.getSetCookie(), ['one=1; Path=/', 'two=2; Path=/']);
 });
 
-test('OAuth start accepts only the GitHub authorization origin', () => {
-  const request = new Request('http://127.0.0.1:10101/api/web/auth/github/start');
-
+test('OAuth start accepts only the GitHub authorization endpoint', () => {
   assert.equal(
-    resolveOAuthLocation(
-      request,
-      'github/start',
-      'https://github.com/login/oauth/authorize?state=state-token',
-    ),
+    oauthAuthorizationURL('github', 'https://github.com/login/oauth/authorize?state=state-token'),
     'https://github.com/login/oauth/authorize?state=state-token',
   );
-  assert.equal(
-    resolveOAuthLocation(request, 'github/start', 'https://attacker.example/authorize'),
-    null,
-  );
+  assert.equal(oauthAuthorizationURL('github', 'https://attacker.example/authorize'), null);
 });
 
-test('OAuth callback maps the API redirect back to the current Web origin', () => {
-  const request = new Request(
-    'http://127.0.0.1:10101/api/web/auth/github/callback?code=code&state=state',
+test('OAuth entry components avoid prefetching authorization flows', async () => {
+  const source = await readFile(
+    new URL('../src/components/auth/OAuthButton.svelte', import.meta.url),
+    'utf8',
   );
-
-  assert.equal(
-    resolveOAuthLocation(request, 'github/callback', 'http://api.internal:10201/dashboard'),
-    'http://127.0.0.1:10101/dashboard',
-  );
-});
-
-test('OAuth entry links opt out of Astro prefetch', async () => {
-  const [loginSource, dashboardSource] = await Promise.all([
-    readFile(new URL('../src/pages/login.astro', import.meta.url), 'utf8'),
-    readFile(new URL('../src/pages/dashboard/security.astro', import.meta.url), 'utf8'),
-  ]);
-
-  assert.match(loginSource, /data-astro-prefetch="false"/u);
-  assert.match(dashboardSource, /data-astro-prefetch="false"/u);
+  assert.match(source, /type="button"/u);
+  assert.match(source, /data-astro-prefetch="false"/u);
 });
 
 test('user management routes share the guarded page loader', async () => {

@@ -29,7 +29,7 @@ SELECT id::text FROM identity.users WHERE id=$1::uuid AND access_status='ACTIVE'
 -- name: FinishSiteClaim :execrows
 UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
 WHERE id=$1::uuid AND status='PENDING'
-AND ($2 <> 'VERIFIED' OR method='MANUAL' OR expires_at > clock_timestamp());
+AND ($2 <> 'VERIFIED' OR method IN ('MANUAL','BLOGSCLUB') OR expires_at > clock_timestamp());
 -- name: SiteOwnershipEvent :exec
 INSERT INTO directory.site_ownership_events(site_id,user_id,actor_id,action,reason,evidence) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6);
 
@@ -38,7 +38,7 @@ SELECT o.id::text,o.site_id::text,o.user_id::text,o.address,o.revision FROM dire
 -- name: FindPendingSiteClaim :one
 SELECT id::text FROM directory.site_claims WHERE site_id=$1::uuid AND user_id=$2::uuid AND address=$3 AND method=$4 AND status='PENDING' ORDER BY created_at DESC,id DESC LIMIT 1;
 -- name: RegenerateSiteClaim :exec
-UPDATE directory.site_claims SET token_hash=$2,expires_at=$3 WHERE id=$1::uuid AND status='PENDING' AND method<>'MANUAL';
+UPDATE directory.site_claims SET token_hash=$2,expires_at=$3 WHERE id=$1::uuid AND status='PENDING' AND method IN ('DNS_TXT','META','FILE');
 -- name: InvalidateSiteClaims :exec
 UPDATE directory.site_claims SET status='CANCELLED' WHERE site_id=$1::uuid AND (status='PENDING' OR (status='VERIFIED' AND consumed_at IS NULL));
 -- name: ListSiteOwnershipEvents :many

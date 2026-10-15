@@ -133,17 +133,28 @@ func (service *Service) toUser(ctx context.Context, record dbUser) (User, error)
 	if err != nil {
 		return User{}, repositoryError("read user permissions", err)
 	}
-	_, oauthErr := service.repo.oauthByUser(ctx, record.ID)
-	if oauthErr != nil && !isNotFound(oauthErr) {
-		return User{}, repositoryError("read GitHub identity", oauthErr)
+	id, err := parseUUID(record.ID)
+	if err != nil {
+		return User{}, err
 	}
-	return userDTO(record, permissions, oauthErr == nil), nil
+	identities, err := service.repo.queries.ListUserOAuthIdentities(ctx, id)
+	if err != nil {
+		return User{}, repositoryError("read OAuth identities", err)
+	}
+	providers := make([]OAuthProvider, 0, len(identities))
+	for _, identity := range identities {
+		providers = append(providers, OAuthProvider(identity.Provider))
+	}
+	return userDTO(record, permissions, providers), nil
 }
 
-func userDTO(record dbUser, permissions []Permission, hasGitHub bool) User {
+func userDTO(record dbUser, permissions []Permission, providers []OAuthProvider) User {
+	if providers == nil {
+		providers = []OAuthProvider{}
+	}
 	return User{DeletionPending: record.DeletionRequestedAt != nil, AccessStatus: record.AccessStatus, ProfileConfirmationRequired: record.ProfileConfirmationStatus == "PENDING", UsernameChangesRemaining: 1 - record.UsernameChangesUsed, UpdatedAt: record.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: record.ID, Email: record.Email, Username: record.Username, DisplayName: record.DisplayName,
 		AvatarURL: record.AvatarURL, Role: Role(record.Role), Permissions: permissions, Active: isActive(record),
-		EmailVerified: record.VerifiedAt != nil, HasPassword: record.PasswordHash != nil, HasGitHub: hasGitHub,
+		EmailVerified: record.VerifiedAt != nil, HasPassword: record.PasswordHash != nil, OAuthProviders: providers,
 		AuthVersion: record.AuthVersion, CreatedAt: record.CreatedAt.UTC().Format(time.RFC3339), LastLoginAt: formatTime(record.LastLoginAt)}
 }
 

@@ -110,8 +110,12 @@
       <dd class="mt-1">{user.has_password ? '已设置密码' : '尚未设置密码'}</dd>
     </div>
     <div>
-      <dt class="text-fg-muted">GitHub 登录</dt>
-      <dd class="mt-1">{user.has_github ? '已绑定' : '尚未绑定'}</dd>
+      <dt class="text-fg-muted">第三方登录</dt>
+      <dd class="mt-1">
+        {user.oauth_providers
+          .map((provider) => (provider === 'GITHUB' ? 'GitHub' : 'BlogsClub'))
+          .join('、') || '尚未绑定'}
+      </dd>
     </div>
   </dl>
   {#if reason}<p class="mb-4 text-sm text-fg-muted">{reason}</p>{/if}

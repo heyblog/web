@@ -12,10 +12,11 @@ import (
 type Method string
 
 const (
-	DNS    Method = "DNS_TXT"
-	Meta   Method = "META"
-	File   Method = "FILE"
-	Manual Method = "MANUAL"
+	DNS       Method = "DNS_TXT"
+	Meta      Method = "META"
+	File      Method = "FILE"
+	Manual    Method = "MANUAL"
+	BlogsClub Method = "BLOGSCLUB"
 )
 
 type Claim struct {
@@ -101,7 +102,7 @@ type ClaimList struct {
 
 type SiteClaimCreateInput struct {
 	ShortID     string `json:"short_id" minLength:"9" maxLength:"9"`
-	Method      Method `json:"method" enum:"DNS_TXT,META,FILE,MANUAL"`
+	Method      Method `json:"method" enum:"DNS_TXT,META,FILE,MANUAL,BLOGSCLUB"`
 	Address     string `json:"address,omitempty" maxLength:"2048"`
 	Evidence    string `json:"evidence,omitempty" maxLength:"4000"`
 	EvidenceURL string `json:"evidence_url,omitempty" maxLength:"2048"`
@@ -132,6 +133,8 @@ type Decision struct {
 	Claim                   Claim
 	Status, ActorID, Reason string
 	Now                     time.Time
+	OAuthActor              *auth.User
+	OAuthSubject            string
 }
 type StoredClaim struct {
 	Claim  Claim

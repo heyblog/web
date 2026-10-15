@@ -70,7 +70,7 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 		address = parsed.CanonicalURL()
 	}
 	switch input.Method {
-	case DNS, Meta, File, Manual:
+	case DNS, Meta, File, Manual, BlogsClub:
 	default:
 		return CreateResult{}, failure("invalid_method", "The verification method is invalid", 422)
 	}
@@ -93,7 +93,7 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 			value := input.EvidenceURL
 			claim.EvidenceURL = &value
 		}
-	} else {
+	} else if input.Method != BlogsClub {
 		token, err = challengeToken()
 		if err != nil {
 			return CreateResult{}, err
@@ -119,6 +119,9 @@ func (s *Service) Check(ctx context.Context, user auth.User, id string) (Claim, 
 	}
 	if claim.Status != "PENDING" {
 		return Claim{}, failure("claim_finished", "This verification application is already finished", 409)
+	}
+	if claim.Method == BlogsClub {
+		return Claim{}, failure("oauth_authorization_required", "Authorize BlogsClub to verify this site", 409)
 	}
 	if claim.Method == Manual {
 		return Claim{}, failure("manual_review_required", "This verification application requires human review", 409)

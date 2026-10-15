@@ -15,11 +15,6 @@ type profileMutation struct {
 	Confirm                       bool
 }
 
-func (repo *repository) createOAuthUser(ctx context.Context, username, email, name string) (dbUser, error) {
-	row, err := repo.queries.CreateOAuthUser(ctx, dbgen.CreateOAuthUserParams{Email: &email, Username: username, DisplayName: name})
-	return mapUser(row), identityError(err)
-}
-
 func (repo *repository) changeProfile(ctx context.Context, change profileMutation) (dbUser, bool, error) {
 	id, err := parseUUID(change.UserID)
 	if err != nil {

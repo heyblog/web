@@ -96,7 +96,6 @@ test('a duplicate pending creation enters existing detail without requiring a ne
   assert.equal(creator.created?.token, undefined);
   creator.dispose();
 });
-
 test('an occupied new address prevents creation of verification instructions', async () => {
   // Given: an owner can verify addresses but another site owns the new address.
   let writes = 0;
@@ -160,6 +159,31 @@ test('ordinary ownership claims do not perform homepage availability checks', as
   // Then: only ownership semantics apply; availability was not queried.
   assert.equal(checks, 0);
   assert.equal(creator.created?.claim.id, claimFixture.id);
+  creator.dispose();
+});
+
+test('quick certification returns the pending claim while keeping its popup owner mounted', async () => {
+  const claim = {
+    ...claimFixture,
+    method: 'BLOGSCLUB',
+    can_regenerate: false,
+    expires_at: undefined,
+  };
+  const creator = createClaimCreator(
+    createClaimsTransport(async (_path, options) =>
+      Response.json(options?.method === 'POST' ? { claim } : contextFixture),
+    ),
+  );
+  await creator.select(claimFixture.short_id);
+  const result = await creator.create(
+    { method: 'BLOGSCLUB', newAddress: false, address: '', evidence: '', evidenceURL: '' },
+    false,
+  );
+  assert.equal(result?.claim.id, claimFixture.id);
+  assert.equal(result?.claim.method, 'BLOGSCLUB');
+  assert.equal(result?.token, undefined);
+  assert.equal(creator.created, null);
+  assert.equal(creator.busy, false);
   creator.dispose();
 });
 test('refresh resumes an existing claim without regenerating proof and expiry clears obsolete instructions', async () => {

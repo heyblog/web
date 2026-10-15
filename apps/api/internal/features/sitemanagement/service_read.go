@@ -24,8 +24,8 @@ func (s *Service) present(claim Claim, viewer string, management bool) Claim {
 	claim.OwnershipState = ownershipState(viewer, claim.OwnerUserID, claim.OwnerAddress, claim.CurrentAddress, claim.Visibility)
 	claim.CanManage = claim.OwnershipState == "mine"
 	applicable := claim.UserID == viewer && claim.Status == "PENDING" && claim.Visibility != "REMOVED" && claim.OwnershipState != "other" && (claim.OwnerUserID == viewer || claim.Address == claim.CurrentAddress)
-	claim.CanRegenerate = applicable && claim.Method != Manual
-	claim.CanCheck = claim.CanRegenerate && claim.ExpiresAt != nil && s.now().Before(*claim.ExpiresAt)
+	claim.CanRegenerate = applicable && claim.Method != Manual && claim.Method != BlogsClub
+	claim.CanCheck = applicable && (claim.Method == BlogsClub || (claim.CanRegenerate && claim.ExpiresAt != nil && s.now().Before(*claim.ExpiresAt)))
 	claim.CanCancel = claim.UserID == viewer && claim.Status == "PENDING"
 	if !management {
 		claim.Applicant = nil
@@ -51,7 +51,7 @@ func (s *Service) List(ctx context.Context, user auth.User, filter ClaimFilter, 
 	if management && !canReview(user) {
 		return ClaimList{}, failure("forbidden", "Site verification review permission is required", 403)
 	}
-	if !slices.Contains([]string{"", "PENDING", "VERIFIED", "REJECTED", "CANCELLED"}, filter.Status) || !slices.Contains([]string{"", "DNS_TXT", "META", "FILE", "MANUAL"}, filter.Method) {
+	if !slices.Contains([]string{"", "PENDING", "VERIFIED", "REJECTED", "CANCELLED"}, filter.Status) || !slices.Contains([]string{"", "DNS_TXT", "META", "FILE", "MANUAL", "BLOGSCLUB"}, filter.Method) {
 		return ClaimList{}, failure("invalid_filter", "The claim status or method filter is invalid", 422)
 	}
 	filter.UserID = user.ID

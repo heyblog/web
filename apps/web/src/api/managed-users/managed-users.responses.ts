@@ -4,6 +4,7 @@ import {
   type UserRole,
   userRoles,
 } from '../auth/auth.types.ts';
+import { isOAuthIdentityProvider } from '../auth/oauth.types.ts';
 
 import type { ManagedUser, ManagedUsersPage } from './managed-users.types.ts';
 
@@ -34,7 +35,9 @@ export function parseManagedUser(value: unknown): ManagedUser | null {
     typeof value.active !== 'boolean' ||
     typeof value.email_verified !== 'boolean' ||
     typeof value.has_password !== 'boolean' ||
-    typeof value.has_github !== 'boolean' ||
+    !Array.isArray(value.oauth_providers) ||
+    !value.oauth_providers.every(isOAuthIdentityProvider) ||
+    new Set(value.oauth_providers).size !== value.oauth_providers.length ||
     typeof value.created_at !== 'string' ||
     typeof value.updated_at !== 'string' ||
     typeof value.access_status !== 'string' ||
@@ -52,7 +55,7 @@ export function parseManagedUser(value: unknown): ManagedUser | null {
     active: value.active,
     email_verified: value.email_verified,
     has_password: value.has_password,
-    has_github: value.has_github,
+    oauth_providers: value.oauth_providers,
     created_at: value.created_at,
     updated_at: value.updated_at,
     last_login_at: value.last_login_at,

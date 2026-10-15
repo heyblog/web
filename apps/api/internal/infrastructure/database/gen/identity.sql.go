@@ -358,16 +358,6 @@ func (q *Queries) DeletePasswordResetTokens(ctx context.Context, userID pgtype.U
 	return err
 }
 
-const deleteUserGitHubIdentity = `-- name: DeleteUserGitHubIdentity :exec
-DELETE FROM identity.oauth_identities
- WHERE provider = 'GITHUB' AND user_id = $1::uuid
-`
-
-func (q *Queries) DeleteUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteUserGitHubIdentity, userID)
-	return err
-}
-
 const deleteUserManagementPermissions = `-- name: DeleteUserManagementPermissions :exec
 DELETE FROM identity.user_management_permissions
  WHERE user_id = $1::uuid
@@ -376,28 +366,6 @@ DELETE FROM identity.user_management_permissions
 func (q *Queries) DeleteUserManagementPermissions(ctx context.Context, userID pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUserManagementPermissions, userID)
 	return err
-}
-
-const getGitHubIdentity = `-- name: GetGitHubIdentity :one
-SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
-  FROM identity.oauth_identities
- WHERE provider = 'GITHUB' AND provider_user_id = $1
-`
-
-func (q *Queries) GetGitHubIdentity(ctx context.Context, providerUserID string) (IdentityOauthIdentity, error) {
-	row := q.db.QueryRow(ctx, getGitHubIdentity, providerUserID)
-	var i IdentityOauthIdentity
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Provider,
-		&i.ProviderUserID,
-		&i.ProviderLogin,
-		&i.Profile,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
 
 const getLatestEmailVerificationCode = `-- name: GetLatestEmailVerificationCode :one
@@ -420,6 +388,33 @@ func (q *Queries) GetLatestEmailVerificationCode(ctx context.Context, email stri
 		&i.ExpiresAt,
 		&i.ConsumedAt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getOAuthIdentity = `-- name: GetOAuthIdentity :one
+SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
+  FROM identity.oauth_identities
+ WHERE provider = $1 AND provider_user_id = $2
+`
+
+type GetOAuthIdentityParams struct {
+	Provider       string
+	ProviderUserID string
+}
+
+func (q *Queries) GetOAuthIdentity(ctx context.Context, arg GetOAuthIdentityParams) (IdentityOauthIdentity, error) {
+	row := q.db.QueryRow(ctx, getOAuthIdentity, arg.Provider, arg.ProviderUserID)
+	var i IdentityOauthIdentity
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Provider,
+		&i.ProviderUserID,
+		&i.ProviderLogin,
+		&i.Profile,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -581,14 +576,17 @@ func (q *Queries) GetUserForUpdate(ctx context.Context, id pgtype.UUID) (Identit
 	return i, err
 }
 
-const getUserGitHubIdentity = `-- name: GetUserGitHubIdentity :one
-SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
-  FROM identity.oauth_identities
- WHERE provider = 'GITHUB' AND user_id = $1::uuid
+const getUserProviderIdentity = `-- name: GetUserProviderIdentity :one
+SELECT id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at FROM identity.oauth_identities WHERE user_id=$1 AND provider=$2
 `
 
-func (q *Queries) GetUserGitHubIdentity(ctx context.Context, userID pgtype.UUID) (IdentityOauthIdentity, error) {
-	row := q.db.QueryRow(ctx, getUserGitHubIdentity, userID)
+type GetUserProviderIdentityParams struct {
+	UserID   pgtype.UUID
+	Provider string
+}
+
+func (q *Queries) GetUserProviderIdentity(ctx context.Context, arg GetUserProviderIdentityParams) (IdentityOauthIdentity, error) {
+	row := q.db.QueryRow(ctx, getUserProviderIdentity, arg.UserID, arg.Provider)
 	var i IdentityOauthIdentity
 	err := row.Scan(
 		&i.ID,
@@ -617,7 +615,7 @@ func (q *Queries) IncrementEmailVerificationAttempts(ctx context.Context, id pgt
 const listManagedUsersPage = `-- name: ListManagedUsersPage :many
 SELECT u.id, u.email, u.username, u.display_name, u.password_hash, u.role, u.access_status, u.email_verified_at, u.auth_version, u.profile, u.settings, u.last_login_at, u.deletion_requested_at, u.deletion_scheduled_for, u.deleted_at, u.created_at, u.updated_at, u.profile_confirmation_status, u.username_changes_used,
        ARRAY(SELECT p.permission_key FROM identity.user_management_permissions p WHERE p.user_id = u.id ORDER BY p.permission_key)::text[] AS permissions,
-       EXISTS(SELECT 1 FROM identity.oauth_identities o WHERE o.user_id = u.id AND o.provider = 'GITHUB') AS has_github
+       ARRAY(SELECT o.provider FROM identity.oauth_identities o WHERE o.user_id = u.id ORDER BY o.provider)::text[] AS oauth_providers
 FROM identity.users u
 WHERE u.deleted_at IS NULL
   AND ($1::text = '' OR u.username ILIKE '%' || $1::text || '%' OR u.email ILIKE '%' || $1::text || '%' OR u.display_name ILIKE '%' || $1::text || '%')
@@ -636,9 +634,9 @@ type ListManagedUsersPageParams struct {
 }
 
 type ListManagedUsersPageRow struct {
-	IdentityUser IdentityUser
-	Permissions  []string
-	HasGithub    bool
+	IdentityUser   IdentityUser
+	Permissions    []string
+	OauthProviders []string
 }
 
 func (q *Queries) ListManagedUsersPage(ctx context.Context, arg ListManagedUsersPageParams) ([]ListManagedUsersPageRow, error) {
@@ -677,7 +675,7 @@ func (q *Queries) ListManagedUsersPage(ctx context.Context, arg ListManagedUsers
 			&i.IdentityUser.ProfileConfirmationStatus,
 			&i.IdentityUser.UsernameChangesUsed,
 			&i.Permissions,
-			&i.HasGithub,
+			&i.OauthProviders,
 		); err != nil {
 			return nil, err
 		}
@@ -770,6 +768,15 @@ func (q *Queries) LockEmailVerificationCode(ctx context.Context, id pgtype.UUID)
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const lockOAuthMutation = `-- name: LockOAuthMutation :exec
+SELECT pg_advisory_xact_lock(78231002)
+`
+
+func (q *Queries) LockOAuthMutation(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockOAuthMutation)
+	return err
 }
 
 const lockPasswordResetToken = `-- name: LockPasswordResetToken :one
@@ -1131,17 +1138,17 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 	return i, err
 }
 
-const upsertGitHubIdentity = `-- name: UpsertGitHubIdentity :one
+const upsertOAuthIdentity = `-- name: UpsertOAuthIdentity :one
 INSERT INTO identity.oauth_identities (
     user_id,
     provider,
     provider_user_id,
     provider_login,
     profile
-) SELECT user_account.id, 'GITHUB', $1::text,
-         $2::text, $3::jsonb
+) SELECT user_account.id, $1::text, $2::text,
+         $3::text, $4::jsonb
     FROM identity.users AS user_account
-   WHERE user_account.id = $4::uuid
+   WHERE user_account.id = $5::uuid
      AND user_account.access_status = 'ACTIVE'
      AND user_account.deletion_requested_at IS NULL
      AND user_account.deleted_at IS NULL
@@ -1152,15 +1159,17 @@ ON CONFLICT (provider, provider_user_id) DO UPDATE
 RETURNING id, user_id, provider, provider_user_id, provider_login, profile, created_at, updated_at
 `
 
-type UpsertGitHubIdentityParams struct {
+type UpsertOAuthIdentityParams struct {
+	Provider       string
 	ProviderUserID string
 	ProviderLogin  *string
 	Profile        []byte
 	UserID         pgtype.UUID
 }
 
-func (q *Queries) UpsertGitHubIdentity(ctx context.Context, arg UpsertGitHubIdentityParams) (IdentityOauthIdentity, error) {
-	row := q.db.QueryRow(ctx, upsertGitHubIdentity,
+func (q *Queries) UpsertOAuthIdentity(ctx context.Context, arg UpsertOAuthIdentityParams) (IdentityOauthIdentity, error) {
+	row := q.db.QueryRow(ctx, upsertOAuthIdentity,
+		arg.Provider,
 		arg.ProviderUserID,
 		arg.ProviderLogin,
 		arg.Profile,

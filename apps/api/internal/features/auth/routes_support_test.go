@@ -49,36 +49,19 @@ func TestAuthCookieUsesConfiguredLifetimeAndDomain(t *testing.T) {
 	}
 }
 
-func TestGithubStateCookieNameIsScopedToState(t *testing.T) {
-	first := githubStateCookieName("first-state")
-	second := githubStateCookieName("second-state")
-
-	if first == second {
-		t.Fatalf("state cookie names collide: %q", first)
+func TestOAuthCookieNamesIsolateProvidersAndAttempts(t *testing.T) {
+	// Given concurrent authorization attempts for two providers.
+	names := []string{oauthStateCookieName(ProviderGitHub, "first"), oauthStateCookieName(ProviderGitHub, "second"), oauthStateCookieName(ProviderBlogsClub, "first")}
+	// When cookies are parsed from the same browser request.
+	request := httptest.NewRequest(http.MethodGet, "/auth/blogsclub/callback", nil)
+	for _, name := range names {
+		request.AddCookie(authCookie(Config{}, name, name, "/", 600, time.Now().Add(10*time.Minute)))
 	}
-	if first != "heyblog_github_state_first-state" || second != "heyblog_github_state_second-state" {
-		t.Fatalf("state cookie names = (%q, %q), want state-scoped names", first, second)
-	}
-}
-
-func TestReadGithubStateCookiePrefersMatchingStateCookie(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/api/web/auth/github/callback?state=first-state", nil)
-	request.Header.Set("Cookie", githubStateCookieName("first-state")+"=first-state; "+githubStateCookieName("second-state")+"=second-state")
-
-	value, legacy := readGithubStateCookie(request, "first-state")
-
-	if value != "first-state" || legacy {
-		t.Fatalf("readGithubStateCookie() = (%q, %t), want matching state cookie", value, legacy)
-	}
-}
-
-func TestReadGithubStateCookieFallsBackToLegacyCookie(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/api/web/auth/github/callback?state=state", nil)
-	request.Header.Set("Cookie", legacyGithubStateCookieName+"=state")
-
-	value, legacy := readGithubStateCookie(request, "state")
-
-	if value != "state" || !legacy {
-		t.Fatalf("readGithubStateCookie() = (%q, %t), want legacy cookie", value, legacy)
+	// Then all attempts remain independently readable.
+	for _, name := range names {
+		cookie, err := request.Cookie(name)
+		if err != nil || cookie.Value != name {
+			t.Fatalf("cookie %s: %v", name, err)
+		}
 	}
 }

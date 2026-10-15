@@ -1,0 +1,44 @@
+import { oauthAuthorizationURL, type OAuthRequest, oauthStartPath } from './oauth.types.ts';
+
+export class OAuthProblem extends Error {
+  readonly code: string;
+  constructor(code: string) {
+    super(code);
+    this.name = 'OAuthProblem';
+    this.code = code;
+  }
+}
+
+export async function requestOAuthStart(input: OAuthRequest, signal: AbortSignal) {
+  let response: Response;
+  try {
+    response = await fetch(oauthStartPath(input, 'popup'), {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+    });
+  } catch {
+    throw new OAuthProblem(signal.aborted ? 'oauth_cancelled' : 'bad_gateway');
+  }
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new OAuthProblem('request_failed');
+  }
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload))
+    throw new OAuthProblem('request_failed');
+  const item: Record<string, unknown> = Object.fromEntries(Object.entries(payload));
+  if (!response.ok)
+    throw new OAuthProblem(typeof item.code === 'string' ? item.code : 'request_failed');
+  const authorizationURL = oauthAuthorizationURL(input.provider, item.authorization_url);
+  if (
+    !authorizationURL ||
+    typeof item.state !== 'string' ||
+    !item.state ||
+    new URL(authorizationURL).searchParams.get('state') !== item.state
+  )
+    throw new OAuthProblem('request_failed');
+  return { authorizationURL, state: item.state };
+}

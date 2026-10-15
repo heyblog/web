@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
 
+  import type { OAuthRequest } from '@/api/auth/oauth.types';
   import { type ClaimMethod, claimMethods } from '@/api/site-management/claims.types';
   import { createClaimCreator } from '@/application/site-management/claim-create.controller.svelte';
   import { claimCanCreate, claimLabel } from '@/application/site-management/claims.model';
   import { claimMethodLabels } from '@/application/site-management/messages';
+  import OAuthButton from '@/components/auth/OAuthButton.svelte';
   import {
     buttonClass,
     inputClass,
@@ -19,11 +21,12 @@
     purpose = 'claim',
   }: { initialShortId?: string; purpose?: 'claim' | 'address' } = $props();
   const controller = createClaimCreator();
-  let method = $state<ClaimMethod>('DNS_TXT');
+  let method = $state<ClaimMethod>('BLOGSCLUB');
   let address = $state('');
   let addressInput = $state<HTMLInputElement>();
   let evidence = $state('');
   let evidenceURL = $state('');
+  let quickAuth = $state<{ authorize(): void }>();
   const newAddress = $derived(purpose === 'address');
   const addressContext = $derived({
     url: address,
@@ -36,6 +39,10 @@
   onDestroy(() => controller.dispose());
   async function submit(event: SubmitEvent) {
     event.preventDefault();
+    if (method === 'BLOGSCLUB') {
+      quickAuth?.authorize();
+      return;
+    }
     await controller.create({ method, newAddress, address, evidence, evidenceURL });
     if (newAddress && !controller.created && controller.availability.state !== 'idle') {
       await tick();
@@ -46,6 +53,21 @@
       await tick();
       document.getElementById('claim-detail-heading')?.focus();
     }
+  }
+  async function prepareQuickVerification(): Promise<OAuthRequest | null> {
+    const result = await controller.create(
+      { method: 'BLOGSCLUB', newAddress, address, evidence: '', evidenceURL: '' },
+      false,
+    );
+    const claim = result?.claim;
+    if (!claim) return null;
+    history.replaceState(null, '', `/dashboard/claims/${claim.id}`);
+    return {
+      provider: 'blogsclub',
+      intent: 'site-claim',
+      claimId: claim.id,
+      next: `/dashboard/claims/${claim.id}`,
+    };
   }
 </script>
 
@@ -140,12 +162,24 @@
               disabled={controller.busy}
             /></label
           >{/if}
-        <button
-          class={primaryClass}
-          type="submit"
-          disabled={controller.busy || controller.availability.checking}
-          >{method === 'MANUAL' ? '提交人工审核' : '生成验证配置'}</button
-        >
+        {#if method === 'BLOGSCLUB'}
+          <p class="text-sm text-fg-muted">
+            使用 BlogsClub 已认证的博客地址验证；尚未绑定时会先引导绑定。
+          </p>
+          <OAuthButton
+            bind:this={quickAuth}
+            provider="blogsclub"
+            intent="site-claim"
+            label="使用 BlogsClub 快速认证"
+            disabled={controller.busy || (newAddress && !URL.canParse(address))}
+            prepare={prepareQuickVerification}
+          />
+        {:else}<button
+            class={primaryClass}
+            type="submit"
+            disabled={controller.busy || controller.availability.checking}
+            >{method === 'MANUAL' ? '提交人工审核' : '生成验证配置'}</button
+          >{/if}
       {/if}
     {/if}
     <a class="{buttonClass} w-fit" href="/dashboard/sites/new">站点未收录，提交新增申请</a>

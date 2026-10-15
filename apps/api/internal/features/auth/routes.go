@@ -28,6 +28,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		"/api/web/auth/password/forgot":                 {Name: "auth-forgot", Capacity: 3, RefillTokens: 3, RefillInterval: 10 * time.Minute},
 		"/api/web/auth/password/reset":                  {Name: "auth-reset", Capacity: 5, RefillTokens: 5, RefillInterval: 10 * time.Minute},
 		"/api/web/auth/refresh":                         {Name: "auth-refresh", Capacity: 30, RefillTokens: 30, RefillInterval: time.Minute},
+		"/api/web/auth/blogsclub/start":                 {Name: "auth-blogsclub", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
 		"/api/web/auth/github/start":                    {Name: "auth-github", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
 	}
 	build := func(operation huma.Operation) huma.Operation {
@@ -44,7 +45,7 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		return operation
 	}
 	registerSessionRoutes(api, service, limiter, build)
-	registerGithubRoutes(api, service, build)
+	registerOAuthRoutes(api, service, build)
 	registerManagementRoutes(api, service, build)
 	registerProfileRoutes(api, service, build)
 	return nil

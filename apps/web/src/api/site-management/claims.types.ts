@@ -1,4 +1,4 @@
-export const claimMethods = ['DNS_TXT', 'META', 'FILE', 'MANUAL'] as const;
+export const claimMethods = ['BLOGSCLUB', 'DNS_TXT', 'META', 'FILE', 'MANUAL'] as const;
 export type ClaimMethod = (typeof claimMethods)[number];
 export const claimStatuses = ['PENDING', 'VERIFIED', 'REJECTED', 'CANCELLED'] as const;
 export type ClaimStatus = (typeof claimStatuses)[number];

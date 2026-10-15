@@ -81,7 +81,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		}, nil
 	})}
 	service := auth.NewService(auth.Dependencies{Pool: pool, Redis: redisClient, MailSender: recorder,
-		VerificationMailer: mail.NewVerificationMailer(recorder, "verify@example.test", 10*time.Minute), GithubHTTPClient: githubClient, Config: auth.Config{
+		VerificationMailer: mail.NewVerificationMailer(recorder, "verify@example.test", 10*time.Minute), OAuthHTTPClient: githubClient, Config: auth.Config{
 			AccessSecret: "integration-access-secret", RefreshSecret: "integration-refresh-secret",
 			AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, VerificationTTL: 10 * time.Minute,
 			PasswordResetTTL: 30 * time.Minute, WebBaseURL: "http://web.example.test", MailFrom: "verify@example.test",
@@ -178,26 +178,33 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("login with reset password: %v", err)
 	}
 
-	_, firstStateToken, err := service.GithubStart(ctx, "/dashboard", false)
+	firstStart, err := service.OAuthStart(ctx, nil, auth.ProviderGitHub, auth.OAuthStartOptions{Next: "/dashboard"})
+	firstStateToken := firstStart.State
 	if err != nil {
 		t.Fatalf("start first GitHub login: %v", err)
 	}
-	_, secondStateToken, err := service.GithubStart(ctx, "/dashboard", false)
+	secondStart, err := service.OAuthStart(ctx, nil, auth.ProviderGitHub, auth.OAuthStartOptions{Next: "/dashboard"})
+	secondStateToken := secondStart.State
 	if err != nil {
 		t.Fatalf("start second GitHub login: %v", err)
 	}
 	firstGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/github/callback", nil)
-	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_github_state_" + firstStateToken, Value: firstStateToken})
-	githubUser, githubTokens, _, err := service.GithubCallback(ctx, firstGithubRequest, "oauth-code", firstStateToken, firstStateToken)
-	if err != nil {
-		t.Fatalf("complete first GitHub login: %v", err)
+	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_oauth_github_" + firstStateToken, Value: firstStateToken})
+	firstResult, githubTokens, err := service.OAuthCallback(ctx, firstGithubRequest, auth.ProviderGitHub, "oauth-code", firstStateToken, firstStateToken, "")
+	if err != nil || firstResult.Outcome != "success" || len(githubTokens) != 2 {
+		t.Fatalf("complete first GitHub login = (%+v,%v)", firstResult, err)
+	}
+	firstGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_access_token", Value: githubTokens[0]})
+	githubUser, currentErr := service.CurrentSession(ctx, firstGithubRequest)
+	if currentErr != nil {
+		t.Fatal(currentErr)
 	}
 	if !githubUser.EmailVerified {
 		t.Fatal("new GitHub user email was not marked verified")
 	}
 	secondGithubRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.example.test/api/web/auth/github/callback", nil)
-	secondGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_github_state_" + secondStateToken, Value: secondStateToken})
-	if _, _, _, err := service.GithubCallback(ctx, secondGithubRequest, "oauth-code", secondStateToken, secondStateToken); err != nil {
+	secondGithubRequest.AddCookie(&http.Cookie{Name: "heyblog_oauth_github_" + secondStateToken, Value: secondStateToken})
+	if result, _, err := service.OAuthCallback(ctx, secondGithubRequest, auth.ProviderGitHub, "oauth-code", secondStateToken, secondStateToken, ""); err != nil || result.Outcome != "success" {
 		t.Fatalf("complete second GitHub login: %v", err)
 	}
 	setPasswordRequest, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.example.test/api/web/auth/password", nil)
@@ -271,7 +278,7 @@ func verifyUserDeletionSemantics(
 		t.Fatal("REMOVED access status unexpectedly succeeded")
 	}
 
-	if _, err := queries.UpsertGitHubIdentity(ctx, dbgen.UpsertGitHubIdentityParams{
+	if _, err := queries.UpsertOAuthIdentity(ctx, dbgen.UpsertOAuthIdentityParams{Provider: "GITHUB",
 		UserID:         user.ID,
 		ProviderUserID: "deletion-provider-user",
 		Profile:        []byte(`{}`),
@@ -510,7 +517,7 @@ func verifyUserDeletionSemantics(
 	if err != nil {
 		t.Fatalf("reuse deleted user email: %v", err)
 	}
-	if _, err := queries.UpsertGitHubIdentity(ctx, dbgen.UpsertGitHubIdentityParams{
+	if _, err := queries.UpsertOAuthIdentity(ctx, dbgen.UpsertOAuthIdentityParams{Provider: "GITHUB",
 		UserID:         replacement.ID,
 		ProviderUserID: "due-deletion-provider-user",
 		Profile:        []byte(`{}`),

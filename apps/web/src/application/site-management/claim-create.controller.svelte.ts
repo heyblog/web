@@ -56,13 +56,16 @@ class ClaimCreator {
       if (sequence === this.sequence) this.busy = false;
     }
   }
-  async create(input: {
-    readonly method: ClaimMethod;
-    readonly newAddress: boolean;
-    readonly address: string;
-    readonly evidence: string;
-    readonly evidenceURL: string;
-  }) {
+  async create(
+    input: {
+      readonly method: ClaimMethod;
+      readonly newAddress: boolean;
+      readonly address: string;
+      readonly evidence: string;
+      readonly evidenceURL: string;
+    },
+    present = true,
+  ) {
     if (
       !this.context ||
       this.busy ||
@@ -97,7 +100,8 @@ class ClaimCreator {
         },
         operation.signal,
       );
-      if (sequence === this.sequence && !operation.signal.aborted) this.created = created;
+      if (present) this.created = created;
+      return created;
     } catch (error) {
       if (sequence !== this.sequence || operation.signal.aborted) return;
       if (error instanceof ClaimProblem) {

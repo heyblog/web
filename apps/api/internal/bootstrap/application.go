@@ -184,6 +184,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		AccessSecret: configuration.Auth.AccessSecret, RefreshSecret: configuration.Auth.RefreshSecret, AccessTTL: configuration.Auth.AccessTTL, RefreshTTL: configuration.Auth.RefreshTTL,
 		VerificationTTL: configuration.Auth.VerificationTTL, PasswordResetTTL: configuration.Auth.PasswordResetTTL, WebBaseURL: configuration.Auth.WebBaseURL, CookieDomain: configuration.Auth.CookieDomain,
 		GithubClientID: configuration.Auth.GithubClientID, GithubClientSecret: configuration.Auth.GithubClientSecret, GithubScope: configuration.Auth.GithubScope,
+		BlogsClubClientID: configuration.Auth.BlogsClubClientID, BlogsClubClientSecret: configuration.Auth.BlogsClubClientSecret,
 		MailFrom: configuration.Mail.Senders.Verification.Address,
 	}})
 	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
@@ -211,6 +212,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	}
 	siteaudit.RegisterAccountRoutes(router.API, siteaudit.NewAccountService(siteaudit.NewRepository(dependencies.DatabasePool()), auditService), options.WebToken, dependencies.RedisClient())
 	claimService := sitemanagement.NewService(sitemanagement.NewRepository(dependencies.DatabasePool()), authService, sitemanagement.NewNetworkVerifier())
+	authService.SetOAuthClaims(claimService)
 	if err := sitemanagement.RegisterRoutes(router.API, claimService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err
 	}

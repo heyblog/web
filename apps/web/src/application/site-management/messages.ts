@@ -1,4 +1,5 @@
 export const claimMethodLabels = {
+  BLOGSCLUB: 'BlogsClub 快速认证',
   DNS_TXT: 'DNS TXT',
   META: '页面 meta',
   FILE: '验证文件',

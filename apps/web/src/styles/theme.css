@@ -1,6 +1,9 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme {
+  --color-blogsclub: #0e4195;
+  --color-blogsclub-hover: #0b3477;
+  --color-blogsclub-fg: #fff;
   --font-sans: Inter, 'Noto Sans SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --radius-xs: 2px;

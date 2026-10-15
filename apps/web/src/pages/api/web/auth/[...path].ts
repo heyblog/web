@@ -2,7 +2,9 @@ import type { APIRoute } from 'astro';
 
 import { parseSessionResponse } from '@/api/auth/auth.responses.ts';
 import { copySetCookie, readProblemCode, requestAuthAPI } from '@/api/auth/auth.server.ts';
-import { pageLocation, resolveOAuthLocation, safeNext } from '@/application/auth/auth.server.ts';
+import { isOAuthProvider } from '@/api/auth/oauth.types.ts';
+import { pageLocation, safeNext } from '@/application/auth/auth.server.ts';
+import { startOAuth } from '@/application/auth/oauth.server.ts';
 import { confirmationLocation } from '@/application/auth/profile-routing.ts';
 
 export const prerender = false;
@@ -64,10 +66,15 @@ const actions: Readonly<Record<string, FormAction>> = {
     success: () => '/dashboard/security?status=password-updated',
   },
   logout: { upstream: '/api/web/auth/logout', body: () => ({}), success: () => '/login' },
+  'blogsclub/unbind': {
+    upstream: '/api/web/auth/blogsclub/unbind',
+    body: () => ({}),
+    success: () => '/dashboard/security?status=oauth-updated',
+  },
   'github/unbind': {
     upstream: '/api/web/auth/github/unbind',
     body: () => ({}),
-    success: () => '/dashboard/security?status=github-updated',
+    success: () => '/dashboard/security?status=oauth-updated',
   },
 };
 
@@ -100,7 +107,7 @@ export const POST: APIRoute = async ({ params, request }) => {
             ? '/forgot-password'
             : path.startsWith('password/reset')
               ? '/reset-password'
-              : path === 'password' || path === 'github/unbind'
+              : path === 'password' || path.endsWith('/unbind')
                 ? '/dashboard/security'
                 : path.includes('verify')
                   ? '/verify-email'
@@ -124,33 +131,10 @@ export const POST: APIRoute = async ({ params, request }) => {
 };
 
 export const GET: APIRoute = async ({ params, request }) => {
-  const path = params.path ?? '';
-  if (path !== 'github/start' && path !== 'github/callback')
+  const [provider, action, extra] = (params.path ?? '').split('/');
+  if (!isOAuthProvider(provider) || action !== 'start' || extra !== undefined)
     return new Response('Not Found', { status: 404 });
-  const incoming = new URL(request.url);
-  const upstreamPath = `/api/web/auth/${path}${incoming.search}` as `/${string}`;
-  const response = await requestAuthAPI(request, upstreamPath);
-  if (response.status !== 302) {
-    const code = await readProblemCode(response);
-    const fallback =
-      path === 'github/callback' && incoming.searchParams.get('intent') === 'bind'
-        ? '/dashboard/security'
-        : '/login';
-    return Response.redirect(
-      pageLocation(request, `${fallback}?error=${encodeURIComponent(code)}`),
-      302,
-    );
-  }
-  const location = response.headers.get('location');
-  if (!location)
-    return Response.redirect(pageLocation(request, '/login?error=request_failed'), 302);
-  const target = resolveOAuthLocation(request, path, location);
-  if (!target) {
-    return Response.redirect(pageLocation(request, '/login?error=request_failed'), 302);
-  }
-  const headers = new Headers({ Location: target });
-  copySetCookie(response, headers);
-  return new Response(null, { status: 302, headers });
+  return startOAuth(request, provider);
 };
 
 function field(form: FormData, name: string): string {

@@ -124,7 +124,7 @@ func (q *Queries) FindPendingSiteClaim(ctx context.Context, arg FindPendingSiteC
 const finishSiteClaim = `-- name: FinishSiteClaim :execrows
 UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
 WHERE id=$1::uuid AND status='PENDING'
-AND ($2 <> 'VERIFIED' OR method='MANUAL' OR expires_at > clock_timestamp())
+AND ($2 <> 'VERIFIED' OR method IN ('MANUAL','BLOGSCLUB') OR expires_at > clock_timestamp())
 `
 
 type FinishSiteClaimParams struct {
@@ -506,7 +506,7 @@ func (q *Queries) RefreshSiteOwnership(ctx context.Context, arg RefreshSiteOwner
 }
 
 const regenerateSiteClaim = `-- name: RegenerateSiteClaim :exec
-UPDATE directory.site_claims SET token_hash=$2,expires_at=$3 WHERE id=$1::uuid AND status='PENDING' AND method<>'MANUAL'
+UPDATE directory.site_claims SET token_hash=$2,expires_at=$3 WHERE id=$1::uuid AND status='PENDING' AND method IN ('DNS_TXT','META','FILE')
 `
 
 type RegenerateSiteClaimParams struct {

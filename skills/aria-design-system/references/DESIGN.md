@@ -103,6 +103,8 @@ Dark 模式 focus ring 使用 teal-400，在中性深灰上清晰可见。注意
 
 ### 2.5 对比度要求 Contrast Requirements
 
+第三方授权使用独立品牌色，不替换 HeyBlog 主色。BlogsClub 的 `brand.blogsclub.default` 为 `#0E4195`，hover 为 `#0B3477`，前景白色；明暗主题保持品牌色一致。该配色只用于明确标注 BlogsClub 的登录、绑定及快速认证入口。沿用 Button 的命中区、键盘焦点和禁用态；加载时显示授权状态，失败时提供重试及用户主动选择的整页授权入口。
+
 - 正文 Body text: **≥ 4.5:1**（WCAG AA）
 - 大字（≥18px semibold）与图形 Large text & graphics: **≥ 3:1**
 - 已验证组合 Verified pairs: `slate-900/slate-50` ≈ 17:1；`slate-500/white` ≈ 4.8:1；`slate-500/slate-50` ≈ 4.6:1；`white/#0F7B80`（light 主按钮）≈ 5.0:1；`white/#158187`（dark 主按钮）≈ 4.6:1；`zinc-100/zinc-950` ≈ 18:1；`zinc-400/zinc-900` ≈ 6.9:1；`zinc-500/zinc-900` ≈ 3.7:1（dark 控件边界）。

@@ -24,25 +24,25 @@ const (
 )
 
 type User struct {
-	DeletionPending             bool         `json:"deletion_pending"`
-	AccessStatus                string       `json:"access_status"`
-	ProfileConfirmationRequired bool         `json:"profile_confirmation_required"`
-	UsernameChangesRemaining    int32        `json:"username_changes_remaining"`
-	UpdatedAt                   string       `json:"updated_at"`
-	ID                          string       `json:"id"`
-	Email                       *string      `json:"email"`
-	Username                    string       `json:"username"`
-	DisplayName                 string       `json:"display_name"`
-	AvatarURL                   *string      `json:"avatar_url"`
-	Role                        Role         `json:"role"`
-	Permissions                 []Permission `json:"permissions"`
-	Active                      bool         `json:"active"`
-	EmailVerified               bool         `json:"email_verified"`
-	HasPassword                 bool         `json:"has_password"`
-	HasGitHub                   bool         `json:"has_github"`
-	AuthVersion                 int32        `json:"auth_version"`
-	CreatedAt                   string       `json:"created_at"`
-	LastLoginAt                 *string      `json:"last_login_at"`
+	DeletionPending             bool            `json:"deletion_pending"`
+	AccessStatus                string          `json:"access_status"`
+	ProfileConfirmationRequired bool            `json:"profile_confirmation_required"`
+	UsernameChangesRemaining    int32           `json:"username_changes_remaining"`
+	UpdatedAt                   string          `json:"updated_at"`
+	ID                          string          `json:"id"`
+	Email                       *string         `json:"email"`
+	Username                    string          `json:"username"`
+	DisplayName                 string          `json:"display_name"`
+	AvatarURL                   *string         `json:"avatar_url"`
+	Role                        Role            `json:"role"`
+	Permissions                 []Permission    `json:"permissions"`
+	Active                      bool            `json:"active"`
+	EmailVerified               bool            `json:"email_verified"`
+	HasPassword                 bool            `json:"has_password"`
+	OAuthProviders              []OAuthProvider `json:"oauth_providers"`
+	AuthVersion                 int32           `json:"auth_version"`
+	CreatedAt                   string          `json:"created_at"`
+	LastLoginAt                 *string         `json:"last_login_at"`
 }
 
 type AuthError struct {

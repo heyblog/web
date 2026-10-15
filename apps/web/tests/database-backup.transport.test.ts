@@ -36,8 +36,10 @@ test('inspection parsing validates the dataset inventory and restoration readine
   assert.equal(inspectionFixture.datasets.length, 33);
   // When / Then
   assert.deepEqual(parseBackupInspection(inspectionFixture), inspectionFixture);
-  const current = { ...inspectionFixture, schema_version: 4 };
-  assert.deepEqual(parseBackupInspection(current), current);
+  for (const schema_version of [4, 5]) {
+    const current = { ...inspectionFixture, schema_version };
+    assert.deepEqual(parseBackupInspection(current), current);
+  }
   for (const input of cases) assert.equal(parseBackupInspection(input), null);
   assert.equal(parseBackupRestoration({ ...restorationFixture, admin_mapping: {} }), null);
 });

@@ -83,6 +83,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/api/web/auth/register", "/api/web/auth/login", "/api/web/auth/me", "/api/web/auth/refresh", "/api/web/auth/logout",
 		"/api/web/auth/verify-email", "/api/web/auth/verify-email/resend", "/api/web/auth/password/forgot",
 		"/api/web/auth/password/reset", "/api/web/auth/password", "/api/web/auth/github/start", "/api/web/auth/github/callback",
+		"/api/web/auth/blogsclub/start", "/api/web/auth/blogsclub/callback", "/api/web/auth/blogsclub/unbind",
 		"/api/web/auth/github/unbind", "/api/web/management/users", "/api/web/management/users/{id}/role",
 		"/api/web/management/users/{id}/permissions", "/api/web/submissions",
 		"/api/web/submissions/{shortId}/updates", "/api/web/submissions/{shortId}/deletions",
@@ -210,8 +211,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 118 {
-		t.Fatalf("documented operation count = %d, want 118", operationCount)
+	if operationCount != 121 {
+		t.Fatalf("documented operation count = %d, want 121", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||
