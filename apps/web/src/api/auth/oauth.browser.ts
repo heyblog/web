@@ -11,8 +11,9 @@ export class OAuthProblem extends Error {
 
 export async function requestOAuthStart(input: OAuthRequest, signal: AbortSignal) {
   let response: Response;
+  const path = oauthStartPath(input, 'popup');
   try {
-    response = await fetch(oauthStartPath(input, 'popup'), {
+    response = await fetch(path, {
       credentials: 'same-origin',
       headers: { Accept: 'application/json' },
       cache: 'no-store',

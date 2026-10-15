@@ -1,0 +1,66 @@
+---
+import {
+  claimViewHref,
+  claimViews,
+  claimWorkspaceView,
+} from '@/application/site-management/claims-view';
+
+const view = claimWorkspaceView(Astro.url.searchParams);
+const labels = { create: '发起认领', records: '认领记录' };
+---
+
+<div class="grid w-full max-w-5xl min-w-0 gap-6" data-claims-workspace data-view={view}>
+  <nav
+    class="relative grid grid-cols-2 border-b border-line"
+    aria-label="站点认领"
+    role="tablist"
+    data-claim-tabs
+  >
+    {claimViews.map((value) => (
+      <a
+        id={`claim-tab-${value}`}
+        href={claimViewHref(Astro.url.searchParams, value)}
+        data-claim-view={value}
+        data-selected={view === value}
+        data-astro-prefetch="false"
+        aria-current={view === value ? 'page' : undefined}
+        aria-selected={view === value ? 'true' : 'false'}
+        aria-controls={`claim-panel-${value}`}
+        role="tab"
+        tabindex={view === value ? 0 : -1}
+        class="flex min-h-11 items-center justify-center px-4 text-sm font-medium text-fg-muted hover:text-fg data-[selected=true]:text-fg sm:min-h-10"
+      >
+        {labels[value]}
+      </a>
+    ))}
+    <span
+      class:list={[
+        'pointer-events-none absolute bottom-0 left-0 h-0.5 w-1/2 bg-primary ease-standard motion-reduce:transition-none',
+        { 'translate-x-full': view === 'records' },
+      ]}
+      aria-hidden="true"
+      data-claim-indicator
+    />
+  </nav>
+  <div class="grid min-w-0 items-start">
+    {claimViews.map((value) => (
+      <section
+        id={`claim-panel-${value}`}
+        class:list={['min-w-0', { hidden: view !== value }]}
+        aria-label={labels[value]}
+        aria-labelledby={`claim-tab-${value}`}
+        role="tabpanel"
+        tabindex={0}
+        data-claim-panel={value}
+      >
+        {value === 'create' ? <slot name="create" /> : <slot name="records" />}
+      </section>
+    ))}
+  </div>
+</div>
+
+<script>
+  import { setupClaimsWorkspace } from '@/application/site-management/claims-workspace.browser';
+
+  document.querySelectorAll<HTMLElement>('[data-claims-workspace]').forEach(setupClaimsWorkspace);
+</script>

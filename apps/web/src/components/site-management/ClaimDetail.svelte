@@ -44,31 +44,49 @@
     dialog?.showModal();
     dismiss?.focus();
   }
+  function statusClass(status: Claim['status']) {
+    return status === 'VERIFIED'
+      ? 'bg-success-bg text-success-fg'
+      : status === 'REJECTED' || status === 'CANCELLED'
+        ? 'bg-danger-bg text-danger-fg'
+        : 'bg-tint text-tint-fg';
+  }
 </script>
 
 {#if controller.claim}
   {@const claim = controller.claim}
   {@const destination = claimDestination(claim)}
   <section class="grid gap-5" aria-label="认领申请详情">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 id="claim-detail-heading" tabindex="-1" class="text-xl font-semibold">
-          {claim.site_name}
-        </h2>
-        <p class="mt-2 text-sm break-all text-fg-muted">{claim.address}</p>
+    <header class="grid gap-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">认证申请</p>
+          <h2 id="claim-detail-heading" tabindex="-1" class="mt-1 text-xl font-semibold">
+            {claim.site_name}
+          </h2>
+          <p class="mt-2 text-sm break-all text-fg-muted">{claim.address}</p>
+        </div>
+        <span class="shrink-0 rounded-full px-3 py-1 text-sm {statusClass(claim.status)}"
+          >{claimLabel(claim, now)}</span
+        >
       </div>
-      <span class="rounded-full bg-tint px-3 py-1 text-sm text-tint-fg"
-        >{claimLabel(claim, now)}</span
+      <dl
+        class="grid grid-cols-2 gap-3 rounded-lg border border-line bg-subtle p-4 text-sm sm:grid-cols-3"
       >
-    </div>
-    <p class="text-sm text-fg-muted">
-      {claimMethodLabels[claim.method]} · 提交于 {new Date(claim.created_at).toLocaleString(
-        'zh-CN',
-      )}
-    </p>
-    {#if claim.expires_at}<p class="text-sm text-fg-muted">
-        配置有效期至 {new Date(claim.expires_at).toLocaleString('zh-CN')}
-      </p>{/if}
+        <div>
+          <dt class="text-xs text-fg-muted">认证方式</dt>
+          <dd class="mt-1 font-medium">{claimMethodLabels[claim.method]}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-fg-muted">提交时间</dt>
+          <dd class="mt-1">{new Date(claim.created_at).toLocaleDateString('zh-CN')}</dd>
+        </div>
+        {#if claim.expires_at}<div>
+            <dt class="text-xs text-fg-muted">配置有效期</dt>
+            <dd class="mt-1">{new Date(claim.expires_at).toLocaleDateString('zh-CN')}</dd>
+          </div>{/if}
+      </dl>
+    </header>
     {#if controller.error}<p
         class="rounded-md bg-danger-bg p-4 text-sm text-danger-fg"
         role="alert"
@@ -86,20 +104,18 @@
         <h3 class="text-sm font-medium">审核意见</h3>
         <p class="mt-2 text-sm whitespace-pre-wrap">{claim.review_reason}</p>
       </div>{/if}
-    {#if claim.status === 'PENDING' && claim.method === 'MANUAL'}<p
-        class="rounded-md bg-subtle p-4 text-sm"
+    {#if claim.status === 'PENDING' && claimExpired(claim, now)}<p class="text-sm text-fg-muted">
+        配置已过期，请重新生成后替换站点上的配置。
+      </p>
+    {:else if claim.status === 'PENDING' && claim.method === 'MANUAL'}<p
+        class="rounded-md border border-line bg-subtle p-4 text-sm"
       >
         申请已提交，等待管理员审核。
       </p>
     {:else if claim.status === 'PENDING' && claim.method === 'BLOGSCLUB'}<p
         class="text-sm text-fg-muted"
       >
-        授权后会核对 BlogsClub 的最新博客认证信息；尚未绑定时会先引导绑定。
-      </p>
-    {:else if claim.status === 'PENDING' && claimExpired(claim, now)}<p
-        class="text-sm text-fg-muted"
-      >
-        配置已过期，请重新生成后替换站点上的配置。
+        授权后会核对 BlogsClub 的最新博客认证信息。
       </p>
     {:else if claim.status === 'PENDING' && controller.challenge?.instructions}<ClaimProof
         challenge={controller.challenge}
@@ -118,40 +134,46 @@
       >{:else if claim.status === 'VERIFIED'}<p class="text-sm text-fg-muted">
         验证记录已完成，当前账号暂无此站点的管理权限。
       </p>{/if}
-    <div class="flex flex-wrap gap-3">
-      {#if claim.can_check && claim.method === 'BLOGSCLUB'}
-        <OAuthButton
-          provider="blogsclub"
-          intent="site-claim"
-          claimId={claim.id}
-          next={`/dashboard/claims/${claim.id}`}
-          label="使用 BlogsClub 认证"
-          disabled={controller.busy !== null}
-        />
-      {:else if claim.can_check}<button
-          type="button"
-          class={primaryClass}
-          disabled={controller.busy !== null || claimExpired(claim, now)}
-          onclick={() => void controller.run('check')}>检查验证</button
-        >{/if}
-      {#if claim.can_regenerate}<button
+    <div class="grid gap-3 rounded-lg border border-line p-4">
+      <div>
+        <h3 class="text-sm font-semibold">下一步</h3>
+        <p class="mt-1 text-sm text-fg-muted">根据当前状态选择需要执行的操作。</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        {#if claim.can_check && claim.method === 'BLOGSCLUB'}
+          <OAuthButton
+            provider="blogsclub"
+            intent="site-claim"
+            claimId={claim.id}
+            next={`/dashboard/claims/${claim.id}`}
+            label="使用 BlogsClub 认证"
+            disabled={controller.busy !== null}
+          />
+        {:else if claim.can_check}<button
+            type="button"
+            class={primaryClass}
+            disabled={controller.busy !== null || claimExpired(claim, now)}
+            onclick={() => void controller.run('check')}>检查验证</button
+          >{/if}
+        {#if claim.can_regenerate}<button
+            type="button"
+            class={buttonClass}
+            disabled={controller.busy !== null}
+            onclick={() => confirm('regenerate')}>重新生成配置</button
+          >{/if}
+        <button
           type="button"
           class={buttonClass}
           disabled={controller.busy !== null}
-          onclick={() => confirm('regenerate')}>重新生成配置</button
-        >{/if}
-      <button
-        type="button"
-        class={buttonClass}
-        disabled={controller.busy !== null}
-        onclick={() => void controller.run('refresh')}>刷新状态</button
-      >
-      {#if claim.can_cancel}<button
-          type="button"
-          class={dangerClass}
-          disabled={controller.busy !== null}
-          onclick={() => confirm('cancel')}>取消申请</button
-        >{/if}
+          onclick={() => void controller.run('refresh')}>刷新状态</button
+        >
+        {#if claim.can_cancel}<button
+            type="button"
+            class={dangerClass}
+            disabled={controller.busy !== null}
+            onclick={() => confirm('cancel')}>取消申请</button
+          >{/if}
+      </div>
     </div>
     {#if controller.busy}<p class="text-sm text-fg-muted" role="status">
         {loading[controller.busy]}

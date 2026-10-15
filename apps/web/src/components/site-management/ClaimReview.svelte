@@ -21,32 +21,47 @@
   const controller = createClaimReview(initial, ownership);
   let reason = $state('');
   onDestroy(() => controller.dispose());
+  function statusClass(status: Claim['status']) {
+    return status === 'VERIFIED'
+      ? 'bg-success-bg text-success-fg'
+      : status === 'REJECTED' || status === 'CANCELLED'
+        ? 'bg-danger-bg text-danger-fg'
+        : 'bg-tint text-tint-fg';
+  }
 </script>
 
 {#if controller.claim}
   {@const claim = controller.claim}
   <section class="grid max-w-4xl gap-5">
-    <div class="flex flex-wrap justify-between gap-3">
-      <h2 class="text-xl font-semibold">{claim.site_name}</h2>
-      <span class="text-sm text-fg-muted">{claimLabel(claim)}</span>
+    <header class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">审核申请</p>
+        <h2 class="mt-1 text-xl font-semibold">{claim.site_name}</h2>
+        <p class="mt-1 text-sm break-all text-fg-muted">{claim.address}</p>
+      </div>
+      <span class="shrink-0 rounded-full px-3 py-1 text-sm {statusClass(claim.status)}"
+        >{claimLabel(claim)}</span
+      >
+    </header>
+    <div
+      class="grid grid-cols-2 gap-3 rounded-lg border border-line bg-subtle p-4 text-sm sm:grid-cols-3"
+    >
+      <div>
+        <p class="text-xs text-fg-muted">验证方式</p>
+        <p class="mt-1 font-medium">{claimMethodLabels[claim.method]}</p>
+      </div>
+      <div>
+        <p class="text-xs text-fg-muted">提交时间</p>
+        <p class="mt-1">{new Date(claim.created_at).toLocaleDateString('zh-CN')}</p>
+      </div>
+      <div>
+        <p class="text-xs text-fg-muted">申请用户</p>
+        <p class="mt-1 break-all">
+          {claim.applicant ? `@${claim.applicant.username}` : '账号已不可用'}
+        </p>
+      </div>
     </div>
-    <dl class="grid gap-4 rounded-md border border-line p-5">
-      <div>
-        <dt class="text-xs text-fg-muted">验证地址</dt>
-        <dd class="mt-1 text-sm break-all">{claim.address}</dd>
-      </div>
-      <div>
-        <dt class="text-xs text-fg-muted">申请用户</dt>
-        <dd class="mt-1 text-sm">
-          {claim.applicant
-            ? `${claim.applicant.display_name} (@${claim.applicant.username})`
-            : '账号已不可用'}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-xs text-fg-muted">验证方式</dt>
-        <dd class="mt-1 text-sm">{claimMethodLabels[claim.method]}</dd>
-      </div>
+    <dl class="grid gap-4 rounded-lg border border-line p-5">
       {#if claim.evidence}<div>
           <dt class="text-xs text-fg-muted">归属说明</dt>
           <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.evidence}</dd>
@@ -74,37 +89,53 @@
         {controller.notice}
       </p>{/if}
     {#if claim.status === 'PENDING' && claim.method === 'MANUAL'}
-      {#if claim.user_id === reviewerId}<p class="rounded-md bg-subtle p-4 text-sm">
-          自己的申请需要由其他审核者处理。
-        </p>{:else}<label class="grid gap-2 text-sm"
-          >审核意见<textarea
-            class="{inputClass} min-h-28 py-3"
-            bind:value={reason}
-            required
-            maxlength="2000"
-            disabled={controller.busy}></textarea></label
-        >
-        <div class="flex flex-wrap gap-3">
-          <button
-            type="button"
-            class={primaryClass}
-            disabled={controller.busy || !reason.trim()}
-            onclick={() => void controller.review(true, reason)}>批准认领</button
-          ><button
-            type="button"
-            class={dangerClass}
-            disabled={controller.busy || !reason.trim()}
-            onclick={() => void controller.review(false, reason)}>驳回申请</button
+      <section
+        class="grid gap-4 rounded-lg border border-line p-5"
+        aria-labelledby="review-action-heading"
+      >
+        <div>
+          <h3 id="review-action-heading" class="text-base font-semibold">处理人工审核</h3>
+          <p class="mt-1 text-sm text-fg-muted">
+            填写处理意见后，选择批准或驳回。意见会保存到申请记录中。
+          </p>
+        </div>
+        {#if claim.user_id === reviewerId}<p class="rounded-md bg-subtle p-4 text-sm">
+            自己的申请需要由其他审核者处理。
+          </p>{:else}<label class="grid gap-2 text-sm"
+            >审核意见<textarea
+              class="{inputClass} min-h-28 py-3"
+              bind:value={reason}
+              required
+              maxlength="2000"
+              disabled={controller.busy}></textarea></label
           >
-        </div>{/if}
+          <div class="flex flex-wrap gap-3">
+            <button
+              type="button"
+              class={primaryClass}
+              disabled={controller.busy || !reason.trim()}
+              onclick={() => void controller.review(true, reason)}>批准认领</button
+            ><button
+              type="button"
+              class={dangerClass}
+              disabled={controller.busy || !reason.trim()}
+              onclick={() => void controller.review(false, reason)}>驳回申请</button
+            >
+          </div>{/if}
+      </section>
     {/if}
-    <button
-      type="button"
-      class="{buttonClass} w-fit"
-      disabled={controller.busy}
-      onclick={() => void controller.refresh()}
-      >{controller.busy ? '正在处理…' : '刷新最新状态'}</button
-    >
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        class={buttonClass}
+        disabled={controller.busy}
+        onclick={() => void controller.refresh()}
+        >{controller.busy ? '正在处理…' : '刷新最新状态'}</button
+      >
+      {#if controller.busy}<span class="text-sm text-fg-muted" role="status"
+          >正在更新申请和归属信息…</span
+        >{/if}
+    </div>
     {#if controller.ownership}<OwnershipPanel
         ownership={controller.ownership}
         busy={controller.busy}

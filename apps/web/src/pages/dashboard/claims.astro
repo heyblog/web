@@ -5,6 +5,7 @@ import { claimListQuery } from '@/application/site-management/claims-query';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import ClaimList from '@/components/site-management/ClaimList.astro';
 import ClaimManager from '@/components/site-management/ClaimManager.svelte';
+import ClaimWorkspace from '@/components/site-management/ClaimWorkspace.astro';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
@@ -19,17 +20,16 @@ const shortId = /^[a-zA-Z0-9]{9}$/u.test(rawID) ? rawID : '';
 ---
 
 <DashboardLayout title="站点认领" heading="站点认领" {user} currentPath={Astro.url.pathname}>
-  <div class="grid max-w-4xl gap-10">
+  <ClaimWorkspace>
     <ClaimManager
+      slot="create"
       client:load
       initialShortId={shortId}
       purpose={Astro.url.searchParams.get('purpose') === 'address' ? 'address' : 'claim'}
     />
-    <AuthNotice message={data ? null : '认领记录暂时无法加载，请刷新重试。'} />
-    {data && (
-      <div class="border-t border-line pt-8">
-        <ClaimList {data} {page} {query} />
-      </div>
-    )}
-  </div>
+    <div slot="records">
+      <AuthNotice message={data ? null : '认领记录暂时无法加载，请刷新重试。'} />
+      {data && <ClaimList {data} {page} {query} />}
+    </div>
+  </ClaimWorkspace>
 </DashboardLayout>

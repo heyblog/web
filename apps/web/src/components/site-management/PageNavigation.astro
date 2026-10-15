@@ -3,12 +3,13 @@ interface Props {
   page: number;
   hasNext: boolean;
   query?: URLSearchParams;
+  pathname?: string;
 }
-const { page, hasNext, query: currentQuery = Astro.url.searchParams } = Astro.props;
+const { page, hasNext, query: currentQuery = Astro.url.searchParams, pathname = '' } = Astro.props;
 const href = (value: number) => {
   const query = new URLSearchParams(currentQuery);
   query.set('page', String(value));
-  return `?${query}`;
+  return `${pathname}?${query}`;
 };
 ---
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { IconBrandGithub, IconWorld } from '@tabler/icons-svelte';
+  import { IconBrandGithub } from '@tabler/icons-svelte';
   import { onDestroy } from 'svelte';
 
   import type {
@@ -11,6 +11,7 @@
   import { authErrorMessage } from '@/application/auth/auth-page';
   import { safeNext } from '@/application/auth/auth-routing';
   import { createOAuthPopup } from '@/application/auth/oauth-popup.browser';
+  import blogsclubIcon from '@/assets/brands/blogsclub.png?url';
 
   let {
     provider,
@@ -73,7 +74,14 @@
     onclick={authorize}
   >
     {#if provider === 'github'}<IconBrandGithub size={18} stroke={1.8} aria-hidden="true" />
-    {:else}<IconWorld size={18} stroke={1.8} aria-hidden="true" />{/if}
+    {:else}
+      <span
+        class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm bg-blogsclub-fg"
+        aria-hidden="true"
+      >
+        <img src={blogsclubIcon} alt="" width="18" height="18" class="size-4.5 object-contain" />
+      </span>
+    {/if}
     {busy ? '正在授权…' : (label ?? `使用 ${name} 登录`)}
   </button>
   {#if error}<p class="text-sm text-danger-fg" role="alert">{error}</p>{/if}

@@ -14,16 +14,42 @@ const { data, page, query, management = false } = Astro.props;
 const filters = new URLSearchParams(query);
 filters.set('status', query.get('status') ?? '');
 filters.set('method', query.get('method') ?? '');
+if (!management) filters.set('view', 'records');
+const hasFilters = Boolean(filters.get('status') || filters.get('method'));
+const statusClass = (status: (typeof claimStatuses)[number]) =>
+  status === 'VERIFIED'
+    ? 'bg-success-bg text-success-fg'
+    : status === 'REJECTED' || status === 'CANCELLED'
+      ? 'bg-danger-bg text-danger-fg'
+      : 'bg-tint text-tint-fg';
 ---
 
 <section class="grid gap-5" aria-labelledby="claims-list-heading">
-  <h2 class="text-xl font-semibold" id="claims-list-heading">
-    {management ? '认领申请' : '我的认领记录'}
-  </h2>
-  <form method="GET" class="flex flex-wrap items-end gap-3">
-    <label class="grid gap-2 text-sm">
-      申请状态
-      <select name="status" class="min-h-11 rounded-md border border-line-strong bg-surface px-3">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">
+        {management ? '审核工作台' : '认证记录'}
+      </p>
+      <h2 class="mt-1 text-xl font-semibold" id="claims-list-heading">
+        {management ? '站点认证申请' : '我的认领记录'}
+      </h2>
+    </div>
+    {hasFilters && (
+      <span class="rounded-full bg-subtle px-3 py-1 text-xs text-fg-muted">已应用筛选</span>
+    )}
+  </div>
+  <form
+    method="GET"
+    action={management ? '/management/site-claims' : '/dashboard/claims'}
+    class="grid gap-3 rounded-lg border border-line bg-subtle p-4 sm:flex sm:flex-wrap sm:items-end"
+  >
+    {!management && <input type="hidden" name="view" value="records" />}
+    <label class="grid min-w-40 gap-2 text-sm">
+      <span class="font-medium">申请状态</span>
+      <select
+        name="status"
+        class="min-h-11 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
+      >
         <option value="">全部状态</option>
         {claimStatuses.map((status) => (
           <option value={status} selected={filters.get('status') === status}>
@@ -32,9 +58,12 @@ filters.set('method', query.get('method') ?? '');
         ))}
       </select>
     </label>
-    <label class="grid gap-2 text-sm">
-      验证方式
-      <select name="method" class="min-h-11 rounded-md border border-line-strong bg-surface px-3">
+    <label class="grid min-w-40 gap-2 text-sm">
+      <span class="font-medium">验证方式</span>
+      <select
+        name="method"
+        class="min-h-11 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
+      >
         <option value="">全部方式</option>
         {claimMethods.map((method) => (
           <option value={method} selected={filters.get('method') === method}>
@@ -43,38 +72,64 @@ filters.set('method', query.get('method') ?? '');
         ))}
       </select>
     </label>
-    <button
-      type="submit"
-      class="min-h-11 rounded-md border border-line-strong px-4 text-sm font-medium"
-    >
-      筛选
-    </button>
-  </form>
-  <ul class="divide-y divide-line">
-    {data.items.map((claim) => (
-      <li>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="submit"
+        class="min-h-11 rounded-md border border-line-strong px-4 text-sm font-medium sm:min-h-10"
+      >
+        应用筛选
+      </button>
+      {hasFilters && (
         <a
-          class="grid gap-2 py-5"
+          class="inline-flex min-h-11 items-center px-2 text-sm text-tint-fg underline sm:min-h-10"
+          href={management ? '/management/site-claims' : '/dashboard/claims?view=records'}
+        >
+          清除筛选
+        </a>
+      )}
+    </div>
+  </form>
+  <ul class="grid gap-3">
+    {data.items.map((claim) => (
+      <li class="min-w-0">
+        <a
+          class="grid gap-3 rounded-lg border border-line p-4 transition-colors hover:border-line-strong hover:bg-subtle sm:p-5"
           href={`${management ? '/management/site-claims' : '/dashboard/claims'}/${claim.id}`}
         >
-          <div class="flex flex-wrap justify-between gap-3">
-            <strong class="text-sm">{claim.site_name}</strong>
-            <span class="text-sm text-fg-muted">{claimLabel(claim)}</span>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <strong class="block truncate text-sm sm:text-base">{claim.site_name}</strong>
+              <span class="mt-1 block text-sm break-all text-fg-muted">{claim.address}</span>
+            </div>
+            <span
+              class={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusClass(claim.status)}`}
+            >
+              {claimLabel(claim)}
+            </span>
           </div>
-          <span class="text-sm break-all text-fg-muted">{claim.address}</span>
-          <span class="text-sm text-fg-muted">
+          <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-fg-muted">
             {claimMethodLabels[claim.method]}
             {claim.applicant
               ? ` · ${claim.applicant.display_name} (@${claim.applicant.username})`
               : ''}
-          </span>
-          <time datetime={claim.created_at} class="text-xs text-fg-muted">
-            {new Date(claim.created_at).toLocaleString('zh-CN')}
-          </time>
+            <span aria-hidden="true">·</span>
+            <time datetime={claim.created_at} class="text-xs text-fg-muted">
+              {new Date(claim.created_at).toLocaleString('zh-CN')}
+            </time>
+          </div>
         </a>
       </li>
     ))}
   </ul>
-  {data.items.length === 0 && <p class="py-5 text-sm text-fg-muted">暂无符合条件的申请。</p>}
-  <PageNavigation {page} hasNext={data.has_more} query={filters} />
+  {data.items.length === 0 && (
+    <p class="rounded-lg border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
+      暂无符合条件的申请。
+    </p>
+  )}
+  <PageNavigation
+    {page}
+    hasNext={data.has_more}
+    query={filters}
+    pathname={management ? '/management/site-claims' : '/dashboard/claims'}
+  />
 </section>
