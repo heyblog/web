@@ -154,3 +154,56 @@ test('a recovered result with a different administrator mapping does not display
   assert.equal(controller.acceptanceUnknown, true);
   controller.dispose();
 });
+
+test('inspection conflicts query and resume an active restore without repeating the upload', async () => {
+  // Given
+  const calls: string[] = [];
+  let reads = 0;
+  const controller = module.createBackupController(
+    createBackupTransport(async (input) => {
+      calls.push(String(input));
+      if (String(input).endsWith('/current'))
+        return Response.json({ job: ++reads === 1 ? null : jobFixture });
+      return Response.json({ code: 'database_backup_busy' }, { status: 409 });
+    }),
+  );
+  await controller.refresh();
+  controller.select(new File(['{}'], 'fixture.json'));
+  try {
+    // When
+    await controller.inspect();
+    // Then
+    assert.equal(controller.active, true);
+    assert.equal(reads, 2);
+    assert.equal(calls.filter((call) => call.endsWith('/inspect')).length, 1);
+  } finally {
+    controller.dispose();
+  }
+});
+
+test('a null current restore preserves the inspection conflict instead of implying an idle service', async () => {
+  // Given
+  let reads = 0;
+  const controller = module.createBackupController(
+    createBackupTransport(async (input) => {
+      if (String(input).endsWith('/current')) {
+        reads++;
+        return Response.json({ job: null });
+      }
+      return Response.json({ code: 'database_backup_busy' }, { status: 409 });
+    }),
+  );
+  await controller.refresh();
+  controller.select(new File(['{}'], 'fixture.json'));
+  try {
+    // When
+    await controller.inspect();
+    // Then
+    assert.equal(reads, 2);
+    assert.equal(controller.job, null);
+    assert.equal(controller.error, backupMessage('database_backup_busy'));
+    assert.equal(controller.acceptanceUnknown, false);
+  } finally {
+    controller.dispose();
+  }
+});

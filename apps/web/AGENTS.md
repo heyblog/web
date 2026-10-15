@@ -27,6 +27,11 @@ All file references are repository-root-relative. This file refines `AGENTS.md` 
 - Build provenance belongs to `apps/web/src/integrations/build/build-metadata.ts` and
   `apps/web/Dockerfile`. Build-time inputs are not runtime environment configuration. Preserve
   repository-root discovery and the dist-only Node standalone deployment.
+- Production starts with `node dist/server/start.mjs`, emitted by the standalone startup
+  integration. It disables adapter autostart before importing the generated entry, then applies
+  a finite 30-minute Node request-receive timeout and 60-second header timeout. Docker uses this
+  launcher; do not start production through the adapter's bare `entry.mjs` (300-second default).
+  Startup logs report the effective values with `event=http_server_configured`.
 - Development loads `qrcode` through Node's CommonJS interop; production keeps it bundled for
   dist-only deployment. Do not enable SSR dependency prebundling: Vite version queries can split
   Astro's development environment registry. `apps/web/tests/dev-server.test.ts` covers fresh dev
@@ -73,6 +78,9 @@ layer and browser-module boundaries.
   is resolved through the current restore task. The one-off restore runs as an API-owned in-memory task;
   the page polls status and exposes explicit cancellation. Navigation stops polling without cancelling
   an accepted task. Browser state holds selected files only until navigation.
+  Inspection stays synchronous and its loading state includes upload. Conflicts query the latest
+  restore without treating `job:null` as proof that no upload or inspection owns the shared slot.
+  Empty gateway timeouts preserve restore uncertainty; no mutation is retried automatically.
 
 - Site homepage navigation uses `application/site-outbound` and `/site/out/{shortId}`; external
   resources and management snapshots use the same link attributes without click tracking. Links

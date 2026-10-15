@@ -62,6 +62,15 @@ class BackupController {
       this.inspection = await this.transport.inspect(this.file, this.operation.signal);
     } catch (error) {
       this.report(error);
+      if (
+        !this.disposed &&
+        error instanceof BackupTransportError &&
+        error.code === 'database_backup_busy'
+      ) {
+        await this.refresh();
+        if (!this.active && !this.acceptanceUnknown && !this.error)
+          this.error = backupMessage('database_backup_busy');
+      }
     } finally {
       this.busy = null;
       this.operation = null;

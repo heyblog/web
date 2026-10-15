@@ -14,5 +14,8 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
 - `apps/web/src/integrations/build/build-metadata.ts` reads compile-time environment/Git metadata.
   Preserve its repository-root resolution after moves, version validation, fallback precedence,
   and virtual build constants; do not route build-only inputs through runtime configuration.
+- `apps/web/src/integrations/build/standalone-startup.ts` emits the dist-only production launcher
+  beside the configured adapter entry. Preserve dynamic import after disabling autostart and
+  apply the finite request/header receive deadlines before the next event-loop turn.
 - Validation evidence lives in `apps/web/tests/github-avatar.server.test.ts`,
   `apps/web/tests/github-contributors.test.ts`, and `apps/web/tests/build-metadata.test.ts`.

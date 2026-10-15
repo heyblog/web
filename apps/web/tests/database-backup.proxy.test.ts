@@ -70,7 +70,8 @@ test('backup forwarding requires SYS_ADMIN rather than delegated management perm
 
 test('multipart backup data is streamed unchanged with private authorization and refreshed cookies', async () => {
   // Given
-  const incoming = request();
+  const requestID = 'bde13be95ed916d65081cf6fb9f481ed';
+  const incoming = request({ 'X-Request-ID': requestID });
   const expected = await incoming.clone().text();
   // When
   const response = await forwardDatabaseBackup(incoming, 'inspect', {
@@ -86,6 +87,7 @@ test('multipart backup data is streamed unchanged with private authorization and
         configuration.apiWebToken,
       );
       assert.equal(new Headers(init?.headers).get('Cookie'), headers.Cookie);
+      assert.equal(new Headers(init?.headers).get('X-Request-ID'), requestID);
       assert.equal(new Headers(init?.headers).get('Content-Type'), headers['Content-Type']);
       const upstream = new Request(input, init);
       assert.equal(await upstream.text(), expected);
@@ -101,6 +103,38 @@ test('multipart backup data is streamed unchanged with private authorization and
   assert.equal(response.headers.get('Location'), null);
   assert.equal(response.headers.get('Retry-After'), '10');
   assert.equal(response.headers.getSetCookie().length, 1);
+  assert.equal(response.headers.get('X-Request-ID'), requestID);
+});
+
+test('backup failure diagnostics correlate requests and distinguish a completed upload from response waits', async (t) => {
+  // Given
+  const records: string[] = [];
+  t.mock.method(console, 'error', (value: string) => records.push(value));
+  const incoming = request({ 'X-Request-ID': 'untrusted invalid request ID' });
+  const expectedBytes = (await incoming.clone().arrayBuffer()).byteLength;
+  // When
+  const response = await forwardDatabaseBackup(incoming, 'inspect', {
+    configuration,
+    authenticate,
+    fetcher: async (input, init) => {
+      await new Request(input, init).arrayBuffer();
+      throw new TypeError('private transport details');
+    },
+  });
+  // Then
+  const requestID = response.headers.get('X-Request-ID');
+  assert.match(requestID ?? '', /^[a-f0-9]{32}$/u);
+  const diagnostic: unknown = JSON.parse(records[0] ?? 'null');
+  assert.ok(diagnostic && typeof diagnostic === 'object');
+  assert.equal(Reflect.get(diagnostic, 'request_id'), requestID);
+  assert.equal(Reflect.get(diagnostic, 'stage'), 'response');
+  assert.equal(Reflect.get(diagnostic, 'received_bytes'), expectedBytes);
+  assert.equal(
+    records.some(
+      (record) => record.includes('private transport details') || record.includes(headers.Cookie),
+    ),
+    false,
+  );
 });
 
 test('export streams the file as an attachment without buffering or allowing upstream filenames', async () => {

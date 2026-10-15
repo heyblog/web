@@ -19,6 +19,7 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
     signal: AbortSignal,
   ): Promise<Response> {
     let response: Response;
+    const operationSignal = AbortSignal.any([signal, AbortSignal.timeout(backupTimeoutMs)]);
     try {
       response = await fetcher(`/api/web/management/database-backup/${action}`, {
         method: form || action.endsWith('/cancel') ? 'POST' : 'GET',
@@ -26,19 +27,24 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
         credentials: 'same-origin',
         cache: 'no-store',
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.any([signal, AbortSignal.timeout(backupTimeoutMs)]),
+        signal: operationSignal,
       });
     } catch (error) {
       if (error instanceof Error) {
         if (signal.aborted) throw new BackupTransportError('cancelled');
         throw new BackupTransportError(
-          action === 'restore' ? 'restore_outcome_unknown' : 'network_error',
+          action === 'restore'
+            ? 'restore_outcome_unknown'
+            : operationSignal.aborted
+              ? 'request_timeout'
+              : 'network_error',
         );
       }
       throw error;
     }
     if (!response.ok) {
-      let code = 'request_failed';
+      const timedOut = [408, 504, 524].includes(response.status);
+      let code = timedOut ? 'request_timeout' : 'request_failed';
       try {
         const problem: unknown = await response.json();
         if (isRecord(problem) && typeof problem.code === 'string') code = problem.code;
@@ -46,7 +52,9 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
         if (!(error instanceof Error)) throw error;
       }
       throw new BackupTransportError(
-        action === 'restore' && response.status >= 500 ? 'restore_outcome_unknown' : code,
+        action === 'restore' && (timedOut || response.status >= 500)
+          ? 'restore_outcome_unknown'
+          : code,
         response.status,
       );
     }

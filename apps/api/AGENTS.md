@@ -169,7 +169,12 @@ and focused tests referenced below, not additional package-level AGENTS files.
   `/api/web/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
   and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
   these operations. Export and inspection remain request-bound. Restore uploads reserve the sole
-  process-local slot before reading; accepted restores return 202 and execute independently of
+  process-local slot before reading, as does inspection. Upload errors retain their causes:
+  interrupted transfers and temporary-file I/O failures use the existing unavailable response,
+  malformed fields remain validation failures and size limits remain 413. Safe diagnostics carry
+  stage and received byte count; upload/inspection stage events use the existing request ID and
+  structured logger. Never log backup contents, filenames, temporary paths or raw I/O errors.
+  Accepted restores return 202 and execute independently of
   the request. `/restore-jobs/current`, `/restore-jobs/{id}`, and `/restore-jobs/{id}/cancel`
   expose the latest in-memory task with the same authorization. No task survives API restart.
   Explicit cancellation reports completion only after rollback; uncertain commit or rollback

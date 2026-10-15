@@ -16,7 +16,7 @@
   let confirmed = $state(false);
   let confirmation = $state<'restore' | 'cancel'>('restore');
   const loadingLabels = {
-    inspect: '正在检查文件…',
+    inspect: '正在上传并检查文件…',
     restore: '正在上传恢复文件，请保持页面打开…',
     cancel: '正在请求取消恢复…',
   } as const;

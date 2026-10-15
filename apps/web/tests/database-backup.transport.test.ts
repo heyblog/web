@@ -175,3 +175,26 @@ test('restore server failures and malformed acceptance responses require task re
     assert.equal(calls, 1);
   }
 });
+
+test('empty and HTML gateway timeouts remain timeouts for inspection and uncertain for restore', async () => {
+  // Given
+  for (const status of [408, 504, 524]) {
+    for (const body of ['', '<html>private gateway diagnostics</html>']) {
+      const transport = createBackupTransport(async () => new Response(body, { status }));
+      const file = new File(['{}'], 'fixture.json');
+      // When / Then
+      await assert.rejects(
+        transport.inspect(file, new AbortController().signal),
+        (error: unknown) =>
+          error instanceof BackupTransportError &&
+          error.code === 'request_timeout' &&
+          error.status === status,
+      );
+      await assert.rejects(
+        transport.restore(file, inspectionFixture.sha256, new AbortController().signal),
+        (error: unknown) =>
+          error instanceof BackupTransportError && error.code === 'restore_outcome_unknown',
+      );
+    }
+  }
+});

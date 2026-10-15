@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
 import { requestAuthAPI } from '../auth/auth.server.ts';
 import { forwardClientAddress } from '../transport/client-ip.server.ts';
@@ -13,10 +15,11 @@ interface ProxyDependencies {
 class BackupBodyLimitError extends Error {
   readonly name = 'BackupBodyLimitError';
 }
-function failure(status: number, code: string): Response {
+const validRequestID = /^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$/u;
+function backupFailure(status: number, code: string, requestID: string): Response {
   return Response.json(
     { status, code, detail: '数据操作无法完成' },
-    { status, headers: { 'Cache-Control': 'private, no-store' } },
+    { status, headers: { 'Cache-Control': 'private, no-store', 'X-Request-ID': requestID } },
   );
 }
 
@@ -25,6 +28,9 @@ export async function forwardDatabaseBackup(
   action: string,
   dependencies?: ProxyDependencies,
 ): Promise<Response> {
+  const candidate = request.headers.get('X-Request-ID') ?? '';
+  const requestID = validRequestID.test(candidate) ? candidate : randomBytes(16).toString('hex');
+  const failure = (status: number, code: string) => backupFailure(status, code, requestID);
   const fileAction = ['export', 'inspect', 'restore'].includes(action);
   const jobAction =
     /^restore-jobs\/(?:current|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?:\/cancel)?$/iu.test(
@@ -75,12 +81,14 @@ export async function forwardDatabaseBackup(
   const headers = new Headers({
     Accept: 'application/json',
     'X-HeyBlog-Web-Token': configuration.apiWebToken,
+    'X-Request-ID': requestID,
   });
   const cookie = request.headers.get('cookie');
   if (cookie) headers.set('Cookie', cookie);
   forwardClientAddress(request, headers);
   let oversized = false;
   let received = 0;
+  let uploadComplete = action !== 'inspect' && action !== 'restore';
   const body =
     action === 'export'
       ? '{}'
@@ -95,6 +103,9 @@ export async function forwardDatabaseBackup(
                   throw new BackupBodyLimitError();
                 }
                 controller.enqueue(chunk);
+              },
+              flush() {
+                uploadComplete = true;
               },
             }),
           );
@@ -138,7 +149,10 @@ export async function forwardDatabaseBackup(
       console.error(
         JSON.stringify({
           event: 'database_backup_proxy_failed',
+          request_id: requestID,
           action,
+          stage: uploadComplete ? 'response' : 'upload',
+          received_bytes: received,
           reason: request.signal.aborted
             ? 'client_cancelled'
             : signal.aborted
@@ -159,6 +173,7 @@ export async function forwardDatabaseBackup(
   const responseHeaders = new Headers({
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
+    'X-Request-ID': requestID,
   });
   for (const name of ['content-type', 'retry-after']) {
     const value = upstream.headers.get(name);

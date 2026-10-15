@@ -5,13 +5,11 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/platform/apperror"
@@ -53,6 +51,16 @@ func RegisterRoutes(api huma.API, service Operations, jobs *Jobs, authenticator 
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	jobs.logger = logger
+	receive := func(ctx context.Context, action string) (uploadedBackup, error) {
+		phaseLogger := logger.With("request_id", httpapi.RequestID(httpapi.NativeContext(ctx)), "action", action)
+		started := time.Now()
+		phaseLogger.InfoContext(ctx, "database backup upload started", "event", "database_backup_upload_started")
+		uploaded, err := upload(httpapi.Request(ctx))
+		if err == nil {
+			phaseLogger.InfoContext(ctx, "database backup upload completed", "event", "database_backup_upload_completed", "received_bytes", uploaded.bytes, "duration_ms", time.Since(started).Milliseconds())
+		}
+		return uploaded, err
+	}
 	cleanup := func(file *os.File) {
 		if err := errorsWithCleanup(nil, file); err != nil {
 			logger.Warn("database backup temporary file cleanup failed", "event", "database_backup_cleanup_failed")
@@ -86,18 +94,22 @@ func RegisterRoutes(api huma.API, service Operations, jobs *Jobs, authenticator 
 			return nil, httpError(err)
 		}
 		defer jobs.release()
-		file, _, err := upload(httpapi.Request(ctx))
+		uploaded, err := receive(ctx, "inspect")
 		if err != nil {
 			return nil, httpError(err)
 		}
-		defer cleanup(file)
+		defer cleanup(uploaded.file)
 		actor, _ := ctx.Value(actorKey{}).(string)
 		work, cancel := context.WithTimeout(ctx, Timeout)
 		defer cancel()
-		preview, err := service.Inspect(work, file, actor)
+		phaseLogger := logger.With("request_id", httpapi.RequestID(httpapi.NativeContext(ctx)), "action", "inspect")
+		started := time.Now()
+		phaseLogger.InfoContext(ctx, "database backup inspection started", "event", "database_backup_inspection_started", "received_bytes", uploaded.bytes)
+		preview, err := service.Inspect(work, uploaded.file, actor)
 		if err != nil {
-			return nil, httpError(err)
+			return nil, httpError(&transferError{cause: err, stage: "inspect", bytes: uploaded.bytes})
 		}
+		phaseLogger.InfoContext(ctx, "database backup inspection completed", "event", "database_backup_inspection_completed", "received_bytes", uploaded.bytes, "duration_ms", time.Since(started).Milliseconds())
 		return &output[Inspection]{CacheControl: "private, no-store", Body: preview}, nil
 	})
 	restoreOperation := operation("restore")
@@ -112,20 +124,20 @@ func RegisterRoutes(api huma.API, service Operations, jobs *Jobs, authenticator 
 				jobs.release()
 			}
 		}()
-		file, fields, err := upload(httpapi.Request(ctx))
+		uploaded, err := receive(ctx, "restore")
 		if err != nil {
 			return nil, httpError(err)
 		}
 		defer func() {
 			if !accepted {
-				cleanup(file)
+				cleanup(uploaded.file)
 			}
 		}()
-		if fields["confirmation"] != "RESTORE" || len(fields["sha256"]) != 64 {
+		if uploaded.fields["confirmation"] != "RESTORE" || len(uploaded.fields["sha256"]) != 64 {
 			return nil, httpError(ErrInvalid)
 		}
 		actor, _ := ctx.Value(actorKey{}).(string)
-		job, err := jobs.start(ctx, file, actor, fields["sha256"])
+		job, err := jobs.start(ctx, uploaded.file, actor, uploaded.fields["sha256"])
 		if err != nil {
 			return nil, httpError(err)
 		}
@@ -173,51 +185,5 @@ func authorize(service Authenticator) func(huma.Context, func(huma.Context)) {
 			return
 		}
 		next(huma.WithValue(ctx, actorKey{}, actor.ID))
-	}
-}
-
-func httpError(err error) error {
-	var databaseError *pgconn.PgError
-	var networkError net.Error
-	reason := "dependency_failure"
-	switch {
-	case errors.Is(err, context.Canceled):
-		reason = "request_cancelled"
-	case errors.Is(err, context.DeadlineExceeded):
-		reason = "deadline_exceeded"
-	case errors.As(err, &networkError) && networkError.Timeout():
-		reason = "network_timeout"
-	case errors.As(err, &databaseError):
-		reason = "database_error"
-	}
-	diagnostics := []apperror.Diagnostic{{Key: "reason", Value: reason}}
-	if databaseError != nil {
-		diagnostics = append(diagnostics, apperror.Diagnostic{Key: "sqlstate", Value: databaseError.Code})
-	}
-	wrap := func(kind apperror.Kind, code, detail string) error {
-		return apperror.Wrap(err, kind, code, detail, "database backup").WithDiagnostics(diagnostics)
-	}
-	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return wrap(apperror.KindUnavailable, "database_backup_unavailable", "database backup is temporarily unavailable")
-	case errors.Is(err, ErrBusy):
-		return wrap(apperror.KindConflict, "database_backup_busy", "a database restore is already active")
-	case errors.Is(err, ErrJobNotFound):
-		return wrap(apperror.KindNotFound, "database_backup_job_not_found", "the database restore task was not found")
-	case errors.Is(err, ErrOutcomeUnknown):
-		return wrap(apperror.KindUnavailable, "restore_outcome_unknown", "the database restore outcome could not be confirmed")
-	case errors.Is(err, ErrTooLarge):
-		return wrap(apperror.KindTooLarge, "database_backup_too_large", "the backup exceeds the upload limit")
-	case errors.Is(err, ErrInvalid):
-		return wrap(apperror.KindValidation, "database_backup_invalid", "the backup file or confirmation is invalid")
-	case errors.Is(err, ErrTarget):
-		return wrap(apperror.KindConflict, "database_backup_target_not_ready", "restore requires an initialized database")
-	case errors.As(err, &databaseError):
-		if databaseError.Code == "55000" || databaseError.Code == "55P03" {
-			return wrap(apperror.KindConflict, "database_backup_target_not_ready", "the database is not ready for restoration")
-		}
-		return wrap(apperror.KindValidation, "database_backup_restore_failed", "the backup could not be restored; no changes were saved")
-	default:
-		return wrap(apperror.KindUnavailable, "database_backup_unavailable", "database backup is temporarily unavailable")
 	}
 }
