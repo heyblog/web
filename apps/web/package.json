@@ -2,7 +2,7 @@
   "name": "heyblog-web",
   "type": "module",
   "engines": {
-    "node": ">=24.21.0"
+    "node": ">=24.22.0"
   },
   "scripts": {
     "dev": "astro dev",
@@ -22,20 +22,20 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
-    "@astrojs/mdx": "^8.0.2",
-    "@astrojs/node": "^11.1.6",
+    "@astrojs/mdx": "^8.0.3",
+    "@astrojs/node": "^11.1.7",
     "@astrojs/svelte": "^9.0.1",
     "@heyblog/configs": "workspace:*",
     "@resvg/resvg-wasm": "2.6.2",
-    "@tabler/icons-svelte": "^3.48.0",
+    "@tabler/icons-svelte": "^3.49.0",
     "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.3.5",
+    "astro": "^7.3.7",
     "d3-force-3d": "^3.0.6",
     "graphology": "^0.26.0",
     "graphology-shortest-path": "^2.1.0",
-    "marked": "^18.0.14",
+    "marked": "^18.1.0",
     "qrcode": "1.5.4",
-    "svelte": "^5.57.1",
+    "svelte": "^5.57.2",
     "tailwindcss": "^4.3.3",
     "three": "^0.186.1",
     "typescript": "6.0.3"
@@ -45,10 +45,10 @@
     "@types/pngjs": "6.0.5",
     "@types/qrcode": "1.5.6",
     "@types/three": "^0.186.0",
-    "@typescript-eslint/parser": "^8.70.1",
+    "@typescript-eslint/parser": "^8.71.1",
     "astro-eslint-parser": "^3.2.0",
     "eslint-plugin-astro": "^3.2.1",
-    "eslint-plugin-better-tailwindcss": "^4.7.0",
+    "eslint-plugin-better-tailwindcss": "^4.9.0",
     "eslint-plugin-no-unsanitized": "^4.1.5",
     "eslint-plugin-svelte": "^3.23.0",
     "jsqr": "1.4.0",
@@ -56,7 +56,7 @@
     "postcss-html": "^2.0.0",
     "prettier-plugin-astro": "^1.1.0",
     "prettier-plugin-svelte": "^4.1.1",
-    "stylelint": "^17.15.0",
+    "stylelint": "^17.16.0",
     "stylelint-config-standard": "^40.0.0"
   }
 }
