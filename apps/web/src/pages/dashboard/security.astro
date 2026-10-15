@@ -1,5 +1,5 @@
 ---
-import { IconKey, IconLogout2 } from '@tabler/icons-svelte';
+import { IconKey } from '@tabler/icons-svelte';
 
 import { oauthProviders } from '@/api/auth/oauth.types';
 import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
@@ -15,20 +15,11 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fsecurity');
 
 <DashboardLayout title="账号安全" heading="账号安全" {user} currentPath={Astro.url.pathname}>
   <section class="grid gap-6">
-    <header class="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-line pb-6">
+    <header class="mb-8 border-b border-line pb-6">
       <div>
         <p class="mb-2 text-sm text-fg-muted">{user.email}</p>
         <p class="text-lg font-semibold">{user.display_name}</p>
       </div>
-      <form method="post" action="/api/web/auth/logout">
-        <button
-          class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-line-strong px-4 text-sm font-medium hover:bg-subtle"
-          type="submit"
-        >
-          <IconLogout2 size={18} stroke={1.8} aria-hidden="true" />
-          退出登录
-        </button>
-      </form>
     </header>
     <AuthNotice message={authErrorMessage(Astro.url.searchParams.get('error'))} />
     <AuthNotice message={authStatusMessage(Astro.url.searchParams.get('status'))} kind="success" />

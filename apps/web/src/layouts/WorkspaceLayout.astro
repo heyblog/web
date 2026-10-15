@@ -1,5 +1,5 @@
 ---
-import { IconChevronDown } from '@tabler/icons-svelte';
+import { IconChevronDown, IconLogout2 } from '@tabler/icons-svelte';
 
 import { siteConfig } from '@/site.config';
 
@@ -47,11 +47,11 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
 
 <BaseLayout {title} robots="noindex, nofollow" enableAnalytics={false} bodyClass="min-h-dvh">
   <header
-    class="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-line px-4"
+    class="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-4"
     data-page-header
   >
     <a
-      class="inline-flex min-w-0 items-center gap-3 text-base font-semibold"
+      class="inline-flex min-w-0 flex-1 items-center gap-3 text-base font-semibold"
       href="/"
       aria-label={`${siteConfig.name} 首页`}
     >
@@ -64,30 +64,55 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
       />
       <span>{siteConfig.name}</span>
     </a>
-    <nav class="flex gap-2 text-sm" aria-label="工作区切换">
-      <a
-        class:list={[
-          'inline-flex min-h-11 items-center rounded-md px-3 hover:bg-subtle',
-          { 'bg-tint text-tint-fg': workspace === 'personal' },
-        ]}
-        href="/dashboard"
-        aria-current={workspace === 'personal' ? 'true' : undefined}
-      >
-        个人工作区
-      </a>
-      {canManage && (
+    <div class="flex w-full min-w-0 items-center justify-end gap-1 sm:w-auto sm:gap-2">
+      <nav class="flex min-w-0 gap-1 text-sm sm:gap-2" aria-label="工作区切换">
         <a
           class:list={[
-            'inline-flex min-h-11 items-center rounded-md px-3 hover:bg-subtle',
-            { 'bg-tint text-tint-fg': workspace === 'management' },
+            'inline-flex min-h-11 min-w-0 items-center rounded-md px-2 hover:bg-subtle sm:px-3',
+            { 'bg-tint text-tint-fg': workspace === 'personal' },
           ]}
-          href="/management"
-          aria-current={workspace === 'management' ? 'true' : undefined}
+          href="/dashboard"
+          aria-current={workspace === 'personal' ? 'true' : undefined}
+          aria-label="个人工作区"
         >
-          管理工作区
+          <span class="sm:hidden" aria-hidden="true">
+            个人
+          </span>
+          <span class="hidden sm:inline" aria-hidden="true">
+            个人工作区
+          </span>
         </a>
-      )}
-    </nav>
+        {canManage && (
+          <a
+            class:list={[
+              'inline-flex min-h-11 min-w-0 items-center rounded-md px-2 hover:bg-subtle sm:px-3',
+              { 'bg-tint text-tint-fg': workspace === 'management' },
+            ]}
+            href="/management"
+            aria-current={workspace === 'management' ? 'true' : undefined}
+            aria-label="管理工作区"
+          >
+            <span class="sm:hidden" aria-hidden="true">
+              管理
+            </span>
+            <span class="hidden sm:inline" aria-hidden="true">
+              管理工作区
+            </span>
+          </a>
+        )}
+      </nav>
+      <form method="post" action="/api/web/auth/logout" class="shrink-0">
+        <button
+          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-2 text-sm font-medium hover:bg-subtle sm:px-3"
+          type="submit"
+          aria-label="退出登录"
+          title="退出登录"
+        >
+          <IconLogout2 size={18} stroke={1.8} aria-hidden="true" />
+          <span class="hidden sm:inline">退出登录</span>
+        </button>
+      </form>
+    </div>
   </header>
 
   <div class="grid min-h-[calc(100dvh-4rem)] grid-rows-[auto_1fr] lg:grid-cols-[17rem_minmax(0,1fr)] lg:grid-rows-1">
