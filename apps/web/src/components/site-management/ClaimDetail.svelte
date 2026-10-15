@@ -18,7 +18,10 @@
 
   import ClaimProof from './ClaimProof.svelte';
   let { initial, challenge }: { initial: Claim; challenge?: ClaimChallenge } = $props();
-  const controller = createClaimDetail(initial, challenge);
+  const controller = createClaimDetail(
+    () => initial,
+    () => challenge,
+  );
   let now = $state(Date.now());
   let dialog = $state<HTMLDialogElement>();
   let dismiss = $state<HTMLButtonElement>();

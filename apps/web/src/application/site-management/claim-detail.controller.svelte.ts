@@ -3,12 +3,22 @@ import type { Claim, ClaimChallenge } from '../../api/site-management/claims.typ
 
 import { claimMessage } from './claims.model.ts';
 
+type Value<T> = T | (() => T);
+
+function readValue<T>(value: Value<T>): T {
+  return typeof value === 'function' ? (value as () => T)() : value;
+}
+
 export function createClaimDetail(
-  initial: Claim,
-  challenge?: ClaimChallenge,
+  initial: Value<Claim>,
+  challenge?: Value<ClaimChallenge | undefined>,
   transport = createClaimsTransport(),
 ) {
-  return new ClaimDetail(initial, challenge, transport);
+  return new ClaimDetail(
+    readValue(initial),
+    challenge === undefined ? undefined : readValue(challenge),
+    transport,
+  );
 }
 class ClaimDetail {
   claim = $state<Claim>();
