@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { registerHooks, stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
+
+import { compileModule } from 'svelte/compiler';
 
 import { saveProfile } from '../src/api/account-profile/profile.browser.ts';
 import { forwardProfile } from '../src/api/account-profile/profile.server.ts';
@@ -28,6 +32,64 @@ const user: SessionUser = {
   profile_confirmation_required: true,
   username_changes_remaining: 1,
 };
+
+const controllerURL = new URL(
+  '../src/application/auth/profile.controller.svelte.ts',
+  import.meta.url,
+);
+const compiled = compileModule(stripTypeScriptTypes(await readFile(controllerURL, 'utf8')), {
+  filename: controllerURL.pathname,
+  generate: 'client',
+}).js.code;
+const hooks = registerHooks({
+  load(url, context, next) {
+    return url === controllerURL.href
+      ? { source: compiled, format: 'module', shortCircuit: true }
+      : next(url, context);
+  },
+});
+const { createProfileController } =
+  await import('../src/application/auth/profile.controller.svelte.ts');
+hooks.deregister();
+
+for (const code of ['unauthenticated', 'session_expired', 'invalid_token']) {
+  test(`profile confirmation offers login recovery when the API returns ${code}`, async () => {
+    // Given: an OAuth profile whose session can no longer authorize a save.
+    const original = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ code }, { status: 401 });
+    const controller = createProfileController(user);
+    try {
+      // When: the user confirms the profile.
+      const saved = await controller.submit('confirm');
+      // Then: the form exposes login recovery without treating the outcome as uncertain.
+      assert.equal(saved, false);
+      assert.equal(controller.signIn, true);
+      assert.equal(controller.error, '登录已过期，请重新登录后查看资料。');
+      assert.equal(controller.uncertain, false);
+      assert.equal(controller.busy, false);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+}
+
+test('profile confirmation asks for refresh when the request is forbidden', async () => {
+  // Given: the Web boundary rejects the profile request.
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ code: 'forbidden' }, { status: 403 });
+  const controller = createProfileController(user);
+  try {
+    // When: the user confirms the profile.
+    const saved = await controller.submit('confirm');
+    // Then: recovery describes refreshing the page rather than changing valid input.
+    assert.equal(saved, false);
+    assert.equal(controller.error, '暂时无法保存，请刷新页面后重试。');
+    assert.equal(controller.signIn, false);
+    assert.equal(controller.uncertain, false);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 
 test('pending profiles return to the requested workspace after confirmation', () => {
   const url = new URL('https://web.example.test/management/tags?view=paths');

@@ -34,7 +34,10 @@ export function createProfileController(initial: SessionUser) {
       const result = await saveProfile(action);
       if (!result.ok) {
         uncertain = result.uncertain;
-        signIn = result.code === 'unauthenticated' || result.code === 'session_expired';
+        signIn =
+          result.code === 'unauthenticated' ||
+          result.code === 'session_expired' ||
+          result.code === 'invalid_token';
         error = profileError(result.code, result.uncertain);
         confirming = false;
         return false;

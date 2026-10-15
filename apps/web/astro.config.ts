@@ -27,7 +27,8 @@ export default defineConfig({
     defaultStrategy: 'hover',
   },
   security: {
-    allowedDomains: [{ protocol: 'https', hostname: 'www.heyblog.net', port: '443' }],
+    // HTTPS default ports normalize to an empty string in Astro's URL matching.
+    allowedDomains: [{ protocol: 'https', hostname: 'www.heyblog.net' }],
     csp: {
       directives: [
         "default-src 'self'",

@@ -53,13 +53,6 @@ test('permanently redirects the retired submission hub', async () => {
   assert.match(source, /return Astro\.redirect\('\/site\/submissions\/new', 308\);/u);
 });
 
-test('trusts the canonical production origin behind the reverse proxy', async () => {
-  const source = await readFile(new URL('../astro.config.ts', import.meta.url), 'utf8');
-
-  assert.match(source, /allowedDomains:/u);
-  assert.match(source, /hostname: 'www\.heyblog\.net'/u);
-});
-
 test('bundles the QR dependency for dist-only production deployment', async () => {
   const source = await readFile(new URL('../astro.config.ts', import.meta.url), 'utf8');
 

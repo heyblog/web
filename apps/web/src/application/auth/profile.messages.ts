@@ -5,8 +5,10 @@ const messages: Readonly<Record<string, string>> = {
   username_changes_exhausted: '用户名修改次数已用完。',
   profile_already_confirmed: '资料已确认，请刷新后查看。',
   profile_confirmation_required: '请先完成首次资料确认。',
+  forbidden: '暂时无法保存，请刷新页面后重试。',
   unauthenticated: '登录已过期，请重新登录后查看资料。',
   session_expired: '登录已过期，请重新登录后查看资料。',
+  invalid_token: '登录已过期，请重新登录后查看资料。',
   rate_limited: '操作较频繁，请稍后再试。',
 };
 
