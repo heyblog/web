@@ -53,7 +53,7 @@ services:
       - '127.0.0.1:${API_HOST_PORT:-10201}:10201'
     volumes:
       - type: bind
-        source: ${API_CONFIG_FILE:-../../apps/api/config/conf.yaml}
+        source: ${API_CONFIG_FILE:-./.conf.yaml}
         target: /app/config/conf.yaml
         read_only: true
         bind:
