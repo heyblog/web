@@ -29,16 +29,16 @@ const actionIcons: Readonly<Record<string, typeof IconEdit>> = {
   '/site/submissions/query': IconSearch,
 };
 const segmentClass =
-  'inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-sm text-sm font-medium whitespace-nowrap transition-[color,scale] duration-(--motion-fast) ease-out hover:text-tint-fg active:scale-96 focus-visible:scale-100 focus-visible:text-tint-fg motion-reduce:transform-none sm:min-h-10 sm:min-w-10';
-const primarySegmentClass = `${segmentClass} justify-end pr-1 sm:pl-3`;
-const menuSegmentClass = `${segmentClass} justify-start pl-1 sm:pr-3`;
+  'min-w-11 items-center gap-1.5 rounded-sm text-sm font-medium whitespace-nowrap transition-[color,scale] duration-(--motion-fast) ease-out hover:text-tint-fg active:scale-96 focus-visible:scale-100 focus-visible:text-tint-fg motion-reduce:transform-none sm:min-w-10';
+const primarySegmentClass = `${segmentClass} inline-flex min-h-11 justify-end pr-1 sm:min-h-10 sm:pl-3`;
+const menuSegmentClass = `${segmentClass} flex min-h-16 justify-start pl-1 sm:pr-3`;
 const panelClass =
   'absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-5rem)] origin-top-right overflow-y-auto overscroll-contain border-b border-line bg-surface p-2 shadow-sm transition-[translate,scale,opacity] duration-(--motion-base) ease-out group-data-[details-state=opening]:pointer-events-none group-data-[details-state=opening]:-translate-y-1 group-data-[details-state=opening]:scale-97 group-data-[details-state=opening]:opacity-0 group-data-[details-state=closing]:pointer-events-none group-data-[details-state=closing]:-translate-y-0.5 group-data-[details-state=closing]:scale-99 group-data-[details-state=closing]:opacity-0 group-data-[details-state=closing]:duration-(--motion-fast) motion-reduce:translate-none! motion-reduce:scale-100! motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast) xs:inset-x-auto xs:right-0 xs:mt-2 xs:w-56 xs:rounded-md xs:border xs:p-1';
 const itemClass =
   'relative z-10 flex min-h-11 items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium wrap-anywhere transition-colors duration-(--motion-fast) hover:text-fg focus-visible:text-fg sm:min-h-10';
 ---
 
-<div class="flex items-stretch">
+<div class="flex min-h-16 items-center">
   <a
     class:list={[
       primarySegmentClass,
@@ -52,7 +52,7 @@ const itemClass =
     <IconPlus class="shrink-0" size={18} stroke={1.8} aria-hidden="true" />
     <span class="hidden sm:inline">{primary.label}</span>
   </a>
-  <details class="group static xs:relative" data-public-menu>
+  <details class="group static min-h-16 xs:relative" data-public-menu>
     <summary
       class:list={[
         menuSegmentClass,

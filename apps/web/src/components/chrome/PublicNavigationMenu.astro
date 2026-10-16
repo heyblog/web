@@ -40,14 +40,14 @@ const navigationIcons: Readonly<Record<string, typeof IconList>> = {
   '/members': IconUsers,
 };
 const triggerClass =
-  "relative inline-flex min-h-16 min-w-11 cursor-pointer list-none items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium whitespace-nowrap transition-[color,scale] duration-(--motion-fast) ease-out hover:text-fg active:scale-96 focus-visible:scale-100 motion-reduce:transform-none sm:min-w-10 sm:px-3 sm:after:absolute sm:after:inset-x-3 sm:after:-bottom-px sm:after:h-0.5 sm:after:bg-primary sm:after:opacity-0 sm:after:content-[''] [&::-webkit-details-marker]:hidden";
+  "relative flex min-h-16 min-w-11 cursor-pointer list-none items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium whitespace-nowrap transition-[color,scale] duration-(--motion-fast) ease-out hover:text-fg active:scale-96 focus-visible:scale-100 motion-reduce:transform-none sm:min-w-10 sm:px-3 sm:after:absolute sm:after:inset-x-3 sm:after:-bottom-px sm:after:h-0.5 sm:after:bg-primary sm:after:opacity-0 sm:after:content-[''] [&::-webkit-details-marker]:hidden";
 const panelClass =
   'absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-5rem)] origin-top-right overflow-y-auto overscroll-contain border-b border-line bg-surface p-2 shadow-sm transition-[translate,scale,opacity] duration-(--motion-base) ease-out group-data-[details-state=opening]:pointer-events-none group-data-[details-state=opening]:-translate-y-1 group-data-[details-state=opening]:scale-97 group-data-[details-state=opening]:opacity-0 group-data-[details-state=closing]:pointer-events-none group-data-[details-state=closing]:-translate-y-0.5 group-data-[details-state=closing]:scale-99 group-data-[details-state=closing]:opacity-0 group-data-[details-state=closing]:duration-(--motion-fast) motion-reduce:translate-none! motion-reduce:scale-100! motion-reduce:transition-opacity motion-reduce:duration-(--motion-fast) sm:inset-x-auto sm:left-0 sm:mt-2 sm:w-52 sm:origin-top-left sm:rounded-md sm:border sm:p-1';
 const itemClass =
   'relative z-10 flex min-h-11 items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium wrap-anywhere transition-colors duration-(--motion-fast) hover:text-fg focus-visible:text-fg sm:min-h-10';
 ---
 
-<details class="group static order-2 sm:relative sm:order-0 lg:hidden" data-public-menu>
+<details class="group static order-2 shrink-0 sm:relative sm:order-0 lg:hidden" data-public-menu>
   <summary
     class:list={[
       triggerClass,
