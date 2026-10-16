@@ -1,6 +1,14 @@
 # Deploy as config/conf.yaml beside the production binary.
 mode: production
 
+backup_cos:
+  # Set true after replacing bucket/region, injecting API credentials and configuring CORS.
+  # When false, database export works but import is unavailable in production.
+  enabled: false
+  bucket: your-backup-bucket-1250000000
+  region: ap-singapore
+  prefix: heyblog-database-uploads/
+
 http:
   # Trust only the private Compose subnet used by the Web reverse proxy.
   # Keep this synchronized with HEYBLOG_NETWORK_SUBNET.

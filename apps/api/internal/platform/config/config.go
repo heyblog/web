@@ -37,6 +37,7 @@ type Config struct {
 	HTTP                 HTTPConfig
 	Health               HealthConfig
 	Auth                 AuthConfig
+	BackupCOS            BackupCOSConfig
 }
 
 type ServerConfig struct {
@@ -98,16 +99,17 @@ type HealthConfig struct {
 }
 
 type fileConfig struct {
-	Mode     Mode               `yaml:"mode"`
-	Version  int                `yaml:"version"`
-	Server   fileServerConfig   `yaml:"server"`
-	Database fileDatabaseConfig `yaml:"database"`
-	Redis    fileRedisConfig    `yaml:"redis"`
-	Mail     fileMailConfig     `yaml:"mail"`
-	Logging  fileLoggingConfig  `yaml:"logging"`
-	HTTP     fileHTTPConfig     `yaml:"http"`
-	Health   fileHealthConfig   `yaml:"health"`
-	Auth     fileAuthConfig     `yaml:"auth"`
+	Mode      Mode                `yaml:"mode"`
+	Version   int                 `yaml:"version"`
+	Server    fileServerConfig    `yaml:"server"`
+	Database  fileDatabaseConfig  `yaml:"database"`
+	Redis     fileRedisConfig     `yaml:"redis"`
+	Mail      fileMailConfig      `yaml:"mail"`
+	Logging   fileLoggingConfig   `yaml:"logging"`
+	HTTP      fileHTTPConfig      `yaml:"http"`
+	Health    fileHealthConfig    `yaml:"health"`
+	Auth      fileAuthConfig      `yaml:"auth"`
+	BackupCOS fileBackupCOSConfig `yaml:"backup_cos"`
 }
 
 type fileServerConfig struct {

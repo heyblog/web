@@ -227,3 +227,5 @@ func (server *stubHTTPServer) Close() error {
 func (dependencies *stubRuntimeDependencies) BackupJobs() *databasebackup.Jobs {
 	return databasebackup.NewJobs(nil, nil)
 }
+
+func (dependencies *stubRuntimeDependencies) BackupUploads() *databasebackup.Uploads { return nil }

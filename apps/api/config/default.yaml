@@ -22,6 +22,16 @@ redis:
   read_timeout: 2s
   write_timeout: 2s
 
+backup_cos:
+  # Disabled: development uploads to the API; production import is unavailable.
+  enabled: false
+  # Required when enabled. Use a private bucket in the API server's region.
+  bucket: ""
+  region: ""
+  # Dedicated staging prefix; do not share it with retained backups.
+  prefix: heyblog-database-uploads/
+  # Credentials: API_BACKUP_COS_SECRET_ID and API_BACKUP_COS_SECRET_KEY (API only).
+
 mail:
   # auto selects local SMTP in development and AWS SES in production.
   transport: auto

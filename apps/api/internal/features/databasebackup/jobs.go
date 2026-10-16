@@ -27,6 +27,7 @@ type RestoreProgress struct {
 }
 
 type RestoreJob struct {
+	UploadID  string          `json:"upload_id,omitempty"`
 	ID        string          `json:"id" format:"uuid"`
 	Status    string          `json:"status" enum:"running,cancelling,succeeded,failed,cancelled,unknown"`
 	Progress  RestoreProgress `json:"progress"`
@@ -79,6 +80,10 @@ func (jobs *Jobs) release() {
 
 // start transfers file ownership after upload and confirmation have succeeded.
 func (jobs *Jobs) start(ctx context.Context, file *os.File, actor, checksum string) (RestoreJob, error) {
+	return jobs.startOwned(ctx, file, actor, checksum, "", uuid.NewString(), nil)
+}
+
+func (jobs *Jobs) startOwned(ctx context.Context, file *os.File, actor, checksum, uploadID, jobID string, completed func(RestoreJob)) (RestoreJob, error) {
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 	if jobs.closed {
@@ -89,14 +94,15 @@ func (jobs *Jobs) start(ctx context.Context, file *os.File, actor, checksum stri
 	}
 	work, cancel := context.WithTimeout(context.WithoutCancel(ctx), Timeout)
 	jobs.cancel = cancel
-	jobs.current = &RestoreJob{ID: uuid.NewString(), Status: "running", Progress: RestoreProgress{Stage: "validating"}}
+	jobs.current = &RestoreJob{ID: jobID, Status: "running", Progress: RestoreProgress{Stage: "validating"}}
+	jobs.current.UploadID = uploadID
 	initial := *jobs.current
 	jobs.worker.Add(1)
-	go jobs.run(work, cancel, file, actor, checksum)
+	go jobs.run(work, cancel, file, actor, checksum, completed)
 	return initial, nil
 }
 
-func (jobs *Jobs) run(ctx context.Context, cancel context.CancelFunc, file *os.File, actor, checksum string) {
+func (jobs *Jobs) run(ctx context.Context, cancel context.CancelFunc, file *os.File, actor, checksum string, completed func(RestoreJob)) {
 	defer jobs.worker.Done()
 	defer cancel()
 	result, err := jobs.service.RestoreWithProgress(ctx, file, actor, checksum, func(progress RestoreProgress) error {
@@ -116,7 +122,13 @@ func (jobs *Jobs) run(ctx context.Context, cancel context.CancelFunc, file *os.F
 		jobs.logger.Warn("database backup temporary file cleanup failed", "event", "database_backup_cleanup_failed")
 	}
 	jobs.mu.Lock()
-	defer jobs.mu.Unlock()
+	defer func() {
+		result := jobs.snapshot()
+		jobs.mu.Unlock()
+		if completed != nil {
+			completed(*result)
+		}
+	}()
 	jobs.busy = false
 	jobs.cancel = nil
 	switch {

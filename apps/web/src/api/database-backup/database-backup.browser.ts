@@ -1,5 +1,10 @@
 import { parseCurrentRestoreJob, parseRestoreJob } from './database-backup.jobs.ts';
 import { backupTimeoutMs, isRecord, parseBackupInspection } from './database-backup.types.ts';
+import {
+  parseBackupUpload,
+  parseCurrentBackupUpload,
+  parsePartURL,
+} from './database-backup.uploads.ts';
 
 export class BackupTransportError extends Error {
   readonly name = 'BackupTransportError';
@@ -15,18 +20,19 @@ export class BackupTransportError extends Error {
 export function createBackupTransport(fetcher: typeof fetch = fetch) {
   async function upload(
     action: string,
-    form: FormData | undefined,
+    body: object | undefined,
     signal: AbortSignal,
+    method = body || action.endsWith('/cancel') ? 'POST' : 'GET',
   ): Promise<Response> {
     let response: Response;
     const operationSignal = AbortSignal.any([signal, AbortSignal.timeout(backupTimeoutMs)]);
     try {
       response = await fetcher(`/api/web/management/database-backup/${action}`, {
-        method: form || action.endsWith('/cancel') ? 'POST' : 'GET',
-        body: form,
+        method,
+        body: body === undefined ? undefined : JSON.stringify(body),
         credentials: 'same-origin',
         cache: 'no-store',
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         signal: operationSignal,
       });
     } catch (error) {
@@ -91,25 +97,55 @@ export function createBackupTransport(fetcher: typeof fetch = fetch) {
         parseRestoreJob,
       );
     },
-    async inspect(file: File, signal: AbortSignal) {
-      const form = new FormData();
-      form.set('file', file);
-      return decode(await upload('inspect', form, signal), parseBackupInspection);
+    async uploads(signal: AbortSignal) {
+      return decode(await upload('uploads/current', undefined, signal), parseCurrentBackupUpload);
     },
-    async restore(file: File, sha256: string, signal: AbortSignal) {
-      const form = new FormData();
-      form.set('file', file);
-      form.set('sha256', sha256);
-      form.set('confirmation', 'RESTORE');
+    async upload(id: string, signal: AbortSignal) {
+      return decode(
+        await upload(`uploads/${encodeURIComponent(id)}`, undefined, signal),
+        parseBackupUpload,
+      );
+    },
+    async createUpload(size: number, part_sha256: readonly string[], signal: AbortSignal) {
+      return decode(await upload('uploads', { size, part_sha256 }, signal), parseBackupUpload);
+    },
+    async part(id: string, number: number, signal: AbortSignal) {
+      return decode(
+        await upload(`uploads/${encodeURIComponent(id)}/parts/${number}`, {}, signal),
+        parsePartURL,
+      );
+    },
+    async complete(id: string, signal: AbortSignal) {
+      return decode(
+        await upload(`uploads/${encodeURIComponent(id)}/complete`, {}, signal),
+        parseBackupUpload,
+      );
+    },
+    async discard(id: string, signal: AbortSignal) {
+      return decode(
+        await upload(`uploads/${encodeURIComponent(id)}`, undefined, signal, 'DELETE'),
+        parseBackupUpload,
+      );
+    },
+    async inspect(id: string, signal: AbortSignal) {
+      return decode(await upload('inspect', { upload_id: id }, signal), parseBackupInspection);
+    },
+    async restore(id: string, sha256: string, signal: AbortSignal) {
       let result;
       try {
-        result = await decode(await upload('restore', form, signal), parseRestoreJob);
+        result = await decode(
+          await upload('restore', { upload_id: id, sha256, confirmation: 'RESTORE' }, signal),
+          parseRestoreJob,
+        );
       } catch (error) {
         if (error instanceof BackupTransportError && error.code === 'invalid_response')
           throw new BackupTransportError('restore_outcome_unknown');
         throw error;
       }
-      if (result.status === 'succeeded' && result.result.sha256 !== sha256)
+      if (
+        result.upload_id !== id ||
+        (result.status === 'succeeded' && result.result.sha256 !== sha256)
+      )
         throw new BackupTransportError('restore_outcome_unknown');
       return result;
     },

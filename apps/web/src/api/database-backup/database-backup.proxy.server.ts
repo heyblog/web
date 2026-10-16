@@ -5,7 +5,8 @@ import { requestAuthAPI } from '../auth/auth.server.ts';
 import { forwardClientAddress } from '../transport/client-ip.server.ts';
 
 import { requestBackup } from './database-backup.http.server.ts';
-import { backupBodyLimit, backupTimeoutMs, isRecord } from './database-backup.types.ts';
+import { backupControlLimit, backupTimeoutMs, isRecord } from './database-backup.types.ts';
+import { backupPartSize } from './database-backup.uploads.ts';
 
 interface ProxyDependencies {
   readonly configuration: WebServerConfig;
@@ -31,13 +32,26 @@ export async function forwardDatabaseBackup(
   const candidate = request.headers.get('X-Request-ID') ?? '';
   const requestID = validRequestID.test(candidate) ? candidate : randomBytes(16).toString('hex');
   const failure = (status: number, code: string) => backupFailure(status, code, requestID);
-  const fileAction = ['export', 'inspect', 'restore'].includes(action);
+  const backupAction = ['export', 'inspect', 'restore'].includes(action);
+  const id = '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}';
   const jobAction =
-    /^restore-jobs\/(?:current|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?:\/cancel)?$/iu.test(
-      action,
-    ) && action !== 'restore-jobs/current/cancel';
-  if (!fileAction && !jobAction) return failure(404, 'not_found');
-  const method = fileAction || action.endsWith('/cancel') ? 'POST' : 'GET';
+    new RegExp(`^restore-jobs/(?:current|${id})(?:/cancel)?$`, 'iu').test(action) &&
+    action !== 'restore-jobs/current/cancel';
+  const uploadRead =
+    action === 'uploads/current' || new RegExp(`^uploads/${id}$`, 'iu').test(action);
+  const uploadWrite =
+    action === 'uploads' ||
+    new RegExp(`^uploads/${id}/(?:complete|parts/[1-9][0-9]{0,2})$`, 'iu').test(action);
+  const uploadPart = new RegExp(`^uploads/${id}/parts/[1-9][0-9]{0,2}$`, 'iu').test(action);
+  const binaryPart = uploadPart && request.method === 'PUT';
+  if (!backupAction && !jobAction && !uploadRead && !uploadWrite) return failure(404, 'not_found');
+  const method = binaryPart
+    ? 'PUT'
+    : backupAction || uploadWrite || action.endsWith('/cancel')
+      ? 'POST'
+      : request.method === 'DELETE' && action !== 'uploads/current' && uploadRead
+        ? 'DELETE'
+        : 'GET';
   if (request.method !== method) return failure(405, 'method_not_allowed');
   const url = new URL(request.url);
   if (url.search !== '') return failure(400, 'bad_request');
@@ -49,12 +63,15 @@ export async function forwardDatabaseBackup(
   )
     return failure(403, 'forbidden');
   if (!request.headers.get('cookie')) return failure(401, 'unauthorized');
+  const bodyLimit = binaryPart ? backupPartSize : backupControlLimit;
   const length = request.headers.get('content-length');
-  if (length !== null && (!/^\d+$/u.test(length) || Number(length) > backupBodyLimit))
+  if (length !== null && (!/^\d+$/u.test(length) || Number(length) > bodyLimit))
     return failure(413, 'request_too_large');
   if (
-    (action === 'inspect' || action === 'restore') &&
-    !/^multipart\/form-data\s*;/iu.test(request.headers.get('content-type') ?? '')
+    binaryPart
+      ? !/^application\/octet-stream(?:\s*;|$)/iu.test(request.headers.get('content-type') ?? '')
+      : (action === 'inspect' || action === 'restore' || uploadWrite) &&
+        !/^application\/json(?:\s*;|$)/iu.test(request.headers.get('content-type') ?? '')
   )
     return failure(415, 'unsupported_media_type');
   const configuration = dependencies?.configuration ?? loadWebServerConfig();
@@ -88,17 +105,18 @@ export async function forwardDatabaseBackup(
   forwardClientAddress(request, headers);
   let oversized = false;
   let received = 0;
-  let uploadComplete = action !== 'inspect' && action !== 'restore';
+  const hasBody = method === 'POST' || binaryPart;
+  let uploadComplete = !hasBody || jobAction;
   const body =
     action === 'export'
       ? '{}'
-      : jobAction
+      : jobAction || !hasBody
         ? undefined
         : request.body?.pipeThrough(
             new TransformStream<Uint8Array, Uint8Array>({
               transform(chunk, controller) {
                 received += chunk.byteLength;
-                if (received > backupBodyLimit) {
+                if (received > bodyLimit) {
                   oversized = true;
                   throw new BackupBodyLimitError();
                 }

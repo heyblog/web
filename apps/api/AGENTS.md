@@ -165,22 +165,47 @@ and focused tests referenced below, not additional package-level AGENTS files.
 
 ## Data Access and Lifecycle
 
-- `features/databasebackup` owns versioned full-database JSON transfer at
-  `/api/web/management/database-backup/{export,inspect,restore}`. All operations require both the Web token
-  and an active SYS_ADMIN session. The 512 MiB file limit and 30-minute deadline apply only to
-  these operations. Export and inspection remain request-bound. Restore uploads reserve the sole
-  process-local slot before reading, as does inspection. Upload errors retain their causes:
-  interrupted transfers and temporary-file I/O failures use the existing unavailable response,
-  malformed fields remain validation failures and size limits remain 413. Safe diagnostics carry
-  stage and received byte count; upload/inspection stage events use the existing request ID and
-  structured logger. Never log backup contents, filenames, temporary paths or raw I/O errors.
-  Accepted restores return 202 and execute independently of
-  the request. `/restore-jobs/current`, `/restore-jobs/{id}`, and `/restore-jobs/{id}/cancel`
-  expose the latest in-memory task with the same authorization. No task survives API restart.
-  Explicit cancellation reports completion only after rollback; uncertain commit or rollback
-  outcomes remain unknown. Cancellation cannot interrupt a commit already started. Private
-  temporary files are removed after request completion or the accepted restore terminates.
-  Bootstrap cancels and joins restore workers before closing the database pool.
+- `features/databasebackup` owns full-database export and staged import under
+  `/api/web/management/database-backup`. Every route requires the Web token and an active SYS_ADMIN.
+  `/uploads` creates a 512 MiB maximum immutable SHA-256 manifest. COS uses browser-only presigned
+  UploadPart requests; development direct uploads use authenticated octet-stream
+  `PUT /uploads/{id}/parts/{number}` with a 4 MiB route-specific limit and at most two writers.
+  The API alone reconciles and completes uploads. The official COS Go SDK
+  owns signing, XML contracts, conditional version downloads and exact-key resource deletion.
+  `/inspect` receives JSON `{upload_id}`; `/restore` receives `{upload_id,sha256,confirmation:"RESTORE"}`.
+  Export and inspection remain request-bound with 30-minute deadlines; accepted restores remain
+  detached, mutually exclusive with inspection, cancellable before commit, and joined before the
+  database pool closes. Restore jobs include `upload_id`; restart marks an interrupted restore unknown
+  and never automatically executes it again.
+- Backup COS is disabled by default. With API `mode: development`, disabled COS selects local
+  server upload; in production it disables import while preserving export. `/uploads/current`
+  reports `transport: cos|direct|disabled`; `enabled` describes upload capability, not the COS flag.
+  YAML `backup_cos` in the default and scenario examples owns `enabled`, `bucket`, `region`,
+  and `prefix` (default `heyblog-database-uploads/`); only
+  `API_BACKUP_COS_SECRET_ID` and `API_BACKUP_COS_SECRET_KEY` supply credentials. Use a private standard
+  storage bucket in the API server's region. Browser uploads and backend traffic use the regional
+  endpoint; `/uploads/current` returns that upload origin. Keep exactly
+  one API instance per staging namespace. Redis AOF and its volume must persist upload metadata;
+  changing transport/bucket/region/prefix while unresolved resources remain fails closed.
+- Upload sessions idle-expire after one hour and hard-expire after six hours. Preparation downloads
+  the fixed COS version/ETag into private API-container `/tmp/heyblog-database-uploads/*.partial`,
+  verifies every part digest and size, then atomically publishes the complete file. Inspection and
+  restoration lease that file; they never upload it again. Startup revalidates the local cache against
+  COS before allowing inspection. Retain COS until terminal/expiry so the cache can be recovered.
+  Cancellation joins preparation before deleting its resources. Cleanup removes only the session's
+  exact key, unfinished UploadIds, versions, delete markers and local files, retries every minute,
+  retains unresolved intent without Redis expiry, and retains completed tombstones for seven days.
+  Uncertain remote calls keep a grace deadline across retries before cleanup can be confirmed.
+  Direct parts are verified before atomic publication and assembled in order with full verification.
+  Their private part directories and complete files survive ordinary process restart. Startup and
+  resume reconcile actual validated local bytes; missing files reset to uploading and clear stale
+  inspection/hash. Container recreation may lose `/tmp`, requiring file re-selection and reupload.
+  Cancellation waits for tracked part writes before cleanup. Terminal/expiry cleanup removes parts,
+  partial files and assembled files; direct mode never signs URLs or contacts COS.
+  Restore results and cleanup status are independent. Deployment must also apply a dedicated-prefix
+  COS lifecycle: delete current/noncurrent versions and delete markers after one day and abort
+  incomplete multipart uploads after one day. Never log backup content, signed URLs, credentials,
+  temporary paths or raw upstream errors; lifecycle workers receive the structured bootstrap logger.
 - Backup protocol version 1, schema version 5 covers all 33 identity/directory/content tables and complete AGE
   logical vertices and edges. The baseline freezes the schema inventory; schema evolution
   requires an explicit backup compatibility change. Schema versions 3, 4, and 5 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns

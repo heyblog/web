@@ -11,7 +11,12 @@ import {
 } from '../src/api/database-backup/database-backup.types.ts';
 import { managementNavigation } from '../src/application/management/navigation.ts';
 
-import { inspectionFixture, jobFixture, restorationFixture } from './database-backup.fixture.ts';
+import {
+  inspectionFixture,
+  jobFixture,
+  restorationFixture,
+  uploadFixture,
+} from './database-backup.fixture.ts';
 
 test('inspection parsing validates the dataset inventory and restoration readiness', () => {
   // Given
@@ -46,7 +51,7 @@ test('inspection parsing validates the dataset inventory and restoration readine
 
 test('restore upload binds the reviewed checksum and confirmation to the original file', async () => {
   // Given
-  const file = new File(['{"synthetic":true}'], 'fixture.json', { type: 'application/json' });
+  const id = uploadFixture.id;
   let calls = 0;
   const transport = createBackupTransport(async (input, init) => {
     calls += 1;
@@ -54,17 +59,16 @@ test('restore upload binds the reviewed checksum and confirmation to the origina
     assert.equal(init?.method, 'POST');
     assert.equal(init?.credentials, 'same-origin');
     assert.equal(init?.cache, 'no-store');
-    assert.ok(init?.body instanceof FormData);
-    assert.equal(init.body.get('sha256'), inspectionFixture.sha256);
-    assert.equal(init.body.get('confirmation'), 'RESTORE');
-    const uploaded = init.body.get('file');
-    assert.ok(uploaded instanceof File);
-    assert.equal(await uploaded.text(), await file.text());
+    assert.deepEqual(JSON.parse(String(init?.body)), {
+      upload_id: id,
+      sha256: inspectionFixture.sha256,
+      confirmation: 'RESTORE',
+    });
     return Response.json(jobFixture, { status: 202 });
   });
   // When
   const result = await transport.restore(
-    file,
+    id,
     inspectionFixture.sha256,
     new AbortController().signal,
   );
@@ -82,11 +86,7 @@ test('failed restore is never automatically retried and preserves unknown outcom
   });
   // When / Then
   await assert.rejects(
-    transport.restore(
-      new File(['{}'], 'fixture.json'),
-      inspectionFixture.sha256,
-      new AbortController().signal,
-    ),
+    transport.restore(uploadFixture.id, inspectionFixture.sha256, new AbortController().signal),
     (error: unknown) =>
       error instanceof BackupTransportError && error.code === 'restore_outcome_unknown',
   );
@@ -104,7 +104,7 @@ test('inspection failures never display server diagnostics and malformed success
   const invalid = createBackupTransport(async () =>
     Response.json({ ...inspectionFixture, datasets: [] }),
   );
-  const file = new File(['{}'], 'fixture.json');
+  const file = uploadFixture.id;
   // When / Then
   await assert.rejects(
     transport.inspect(file, new AbortController().signal),
@@ -157,6 +157,10 @@ test('restore server failures and malformed acceptance responses require task re
   for (const response of [
     Response.json({ code: 'bad_gateway' }, { status: 502 }),
     Response.json({ accepted: true }, { status: 202 }),
+    Response.json(
+      { ...jobFixture, upload_id: '019f033c-2111-7000-9000-000000000005' },
+      { status: 202 },
+    ),
   ]) {
     let calls = 0;
     const transport = createBackupTransport(async () => {
@@ -164,11 +168,7 @@ test('restore server failures and malformed acceptance responses require task re
       return response;
     });
     await assert.rejects(
-      transport.restore(
-        new File(['{}'], 'fixture.json'),
-        inspectionFixture.sha256,
-        new AbortController().signal,
-      ),
+      transport.restore(uploadFixture.id, inspectionFixture.sha256, new AbortController().signal),
       (error: unknown) =>
         error instanceof BackupTransportError && error.code === 'restore_outcome_unknown',
     );
@@ -181,7 +181,7 @@ test('empty and HTML gateway timeouts remain timeouts for inspection and uncerta
   for (const status of [408, 504, 524]) {
     for (const body of ['', '<html>private gateway diagnostics</html>']) {
       const transport = createBackupTransport(async () => new Response(body, { status }));
-      const file = new File(['{}'], 'fixture.json');
+      const file = uploadFixture.id;
       // When / Then
       await assert.rejects(
         transport.inspect(file, new AbortController().signal),

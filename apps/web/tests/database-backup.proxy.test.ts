@@ -1,29 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { requestAuthAPI } from '../src/api/auth/auth.server.ts';
 import { forwardDatabaseBackup } from '../src/api/database-backup/database-backup.proxy.server.ts';
 import { backupBodyLimit } from '../src/api/database-backup/database-backup.types.ts';
 
-const configuration = { apiBaseUrl: 'https://internal.example.test', apiWebToken: 't'.repeat(32) };
-const headers = {
-  Cookie: 'heyblog_access_token=synthetic',
-  Origin: 'https://web.example.test',
-  'Sec-Fetch-Site': 'same-origin',
-  'Content-Type': 'multipart/form-data; boundary=synthetic',
-};
-function request(overrides: Readonly<Record<string, string>> = {}) {
-  return new Request('https://web.example.test/api/web/management/database-backup/inspect', {
-    method: 'POST',
-    headers: { ...headers, ...overrides },
-    body: '--synthetic\r\n--synthetic--',
-  });
-}
-const authenticate: typeof requestAuthAPI = async () =>
-  Response.json(
-    { user: { role: 'SYS_ADMIN' } },
-    { headers: { 'Set-Cookie': 'heyblog_access_token=renewed; HttpOnly; Path=/' } },
-  );
+import { authenticate, configuration, headers, request } from './database-backup.proxy-fixture.ts';
 
 test('cross-origin backup requests are rejected before credentials or file data are forwarded', async () => {
   // Given
@@ -68,7 +49,7 @@ test('backup forwarding requires SYS_ADMIN rather than delegated management perm
   assert.equal(forwarded, false);
 });
 
-test('multipart backup data is streamed unchanged with private authorization and refreshed cookies', async () => {
+test('JSON backup controls are forwarded unchanged with private authorization and refreshed cookies', async () => {
   // Given
   const requestID = 'bde13be95ed916d65081cf6fb9f481ed';
   const incoming = request({ 'X-Request-ID': requestID });

@@ -1,13 +1,11 @@
 package databasebackup
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,53 +25,34 @@ type routeAuth struct {
 
 type slowRouteOperation struct{ routeOperation }
 
-func (operation *slowRouteOperation) RestoreWithProgress(ctx context.Context, file *os.File, actor, checksum string, report func(RestoreProgress) error) (Restoration, error) {
+func (operation *slowRouteOperation) Inspect(ctx context.Context, file *os.File, actor string) (Inspection, error) {
 	select {
 	case <-time.After(200 * time.Millisecond):
-		return operation.routeOperation.RestoreWithProgress(ctx, file, actor, checksum, report)
+		return operation.routeOperation.Inspect(ctx, file, actor)
 	case <-ctx.Done():
-		return Restoration{}, ctx.Err()
+		return Inspection{}, ctx.Err()
 	}
 }
-
-func TestBackupRestoreOutlivesServerWriteTimeout(t *testing.T) {
+func TestBackupInspectionOutlivesServerWriteTimeout(t *testing.T) {
 	t.Parallel()
 	operation := &slowRouteOperation{}
 	server := httptest.NewUnstartedServer(backupRouter(t, operation, routeAuth{user: auth.User{ID: "actor", Role: auth.RoleSysAdmin, Active: true}}))
 	server.Config.WriteTimeout = 50 * time.Millisecond
 	server.Start()
 	defer server.Close()
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile("file", "backup.json")
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+Path+"/inspect", strings.NewReader(`{"upload_id":"00000000-0000-4000-8000-000000000001"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = io.WriteString(part, `{"synthetic":true}`); err != nil {
-		t.Fatal(err)
-	}
-	if err = writer.WriteField("sha256", strings.Repeat("a", 64)); err != nil {
-		t.Fatal(err)
-	}
-	if err = writer.WriteField("confirmation", "RESTORE"); err != nil {
-		t.Fatal(err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+Path+"/restore", io.NopCloser(&body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	request.Header.Set("Content-Type", writer.FormDataContentType())
+	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set(httpapi.WebTokenHeader, "backup-test-web-token")
 	response, err := server.Client().Do(request)
 	if err != nil {
-		t.Fatalf("restore connection closed before its operation deadline: %v", err)
+		t.Fatal(err)
 	}
 	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode != http.StatusAccepted {
-		t.Fatalf("restore status = %d", response.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("inspection status=%d", response.StatusCode)
 	}
 }
 
@@ -102,7 +81,7 @@ func (operation *routeOperation) Export(context.Context) (*os.File, error) {
 func (operation *routeOperation) Inspect(_ context.Context, file *os.File, actor string) (Inspection, error) {
 	operation.calls++
 	operation.filePath = file.Name()
-	return Inspection{RetainedSystemAdminID: actor, Issues: []Issue{}, Datasets: []Dataset{}}, nil
+	return Inspection{SHA256: fixtureChecksum, CanRestore: true, RetainedSystemAdminID: actor, Issues: []Issue{}, Datasets: []Dataset{}}, nil
 }
 func (operation *routeOperation) RestoreWithProgress(_ context.Context, file *os.File, actor, checksum string, _ func(RestoreProgress) error) (Restoration, error) {
 	operation.calls++
@@ -110,15 +89,21 @@ func (operation *routeOperation) RestoreWithProgress(_ context.Context, file *os
 	return Restoration{Status: "restored", SHA256: checksum, AdminMapping: AdminMapping{TargetID: actor}}, nil
 }
 
-func backupRouter(t *testing.T, operation Operations, authenticator Authenticator) *httpapi.Router {
+func backupRouter(t *testing.T, operation Operations, authenticator Authenticator, staged ...*Uploads) *httpapi.Router {
 	t.Helper()
 	router, err := httpapi.NewRouter(httpapi.Options{Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1024, TrustedProxies: []string{}}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), WebToken: "backup-test-web-token", HealthcheckToken: "health-test-token", BodyLimitOverrides: BodyLimitOverrides()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	jobs := NewJobs(operation, nil)
+	var uploads *Uploads
+	if len(staged) > 0 {
+		uploads = staged[0]
+	} else {
+		uploads = fixtureUploads(t)
+	}
 	t.Cleanup(jobs.Close)
-	RegisterRoutes(router.API, operation, jobs, authenticator, "backup-test-web-token", nil)
+	RegisterRoutes(router.API, operation, jobs, authenticator, "backup-test-web-token", nil, uploads)
 	return router
 }
 
@@ -144,6 +129,12 @@ func TestBackupRoutesRequireBothWebAndActiveAdministrator(t *testing.T) {
 				{http.MethodPost, "export"}, {http.MethodPost, "inspect"}, {http.MethodPost, "restore"},
 				{http.MethodGet, "restore-jobs/current"}, {http.MethodGet, "restore-jobs/00000000-0000-4000-8000-000000000000"},
 				{http.MethodPost, "restore-jobs/00000000-0000-4000-8000-000000000000/cancel"},
+				{http.MethodPost, "uploads"}, {http.MethodGet, "uploads/current"},
+				{http.MethodGet, "uploads/00000000-0000-4000-8000-000000000000"},
+				{http.MethodPost, "uploads/00000000-0000-4000-8000-000000000000/parts/1"},
+				{http.MethodPut, "uploads/00000000-0000-4000-8000-000000000000/parts/1"},
+				{http.MethodPost, "uploads/00000000-0000-4000-8000-000000000000/complete"},
+				{http.MethodDelete, "uploads/00000000-0000-4000-8000-000000000000"},
 			} {
 				request := httptest.NewRequest(endpoint.method, Path+"/"+endpoint.path, strings.NewReader("invalid"))
 				request.Header.Set(httpapi.WebTokenHeader, test.token)
@@ -157,49 +148,48 @@ func TestBackupRoutesRequireBothWebAndActiveAdministrator(t *testing.T) {
 	}
 }
 
-func TestBackupRoutesStreamFilesAndRemovePrivateTemporaries(t *testing.T) {
+func TestBackupRoutesReuseStagedFileForInspectionAndRestore(t *testing.T) {
 	t.Parallel()
 	operation := &routeOperation{}
 	router := backupRouter(t, operation, routeAuth{user: auth.User{ID: "actor", Role: auth.RoleSysAdmin, Active: true}})
 	for _, action := range []string{"export", "inspect", "restore"} {
-		var body bytes.Buffer
-		writer := multipart.NewWriter(&body)
-		part, err := writer.CreateFormFile("file", "backup.json")
-		if err != nil {
-			t.Fatal(err)
+		body := `{"upload_id":"00000000-0000-4000-8000-000000000001","sha256":"` + fixtureChecksum + `","confirmation":"RESTORE"}`
+		if action == "export" {
+			body = `{}`
 		}
-		if _, err = io.WriteString(part, `{"synthetic":true}`); err != nil {
-			t.Fatal(err)
+		if action == "inspect" {
+			body = `{"upload_id":"00000000-0000-4000-8000-000000000001"}`
 		}
-		if err = writer.WriteField("sha256", strings.Repeat("a", 64)); err != nil {
-			t.Fatal(err)
-		}
-		if err = writer.WriteField("confirmation", "RESTORE"); err != nil {
-			t.Fatal(err)
-		}
-		if err = writer.Close(); err != nil {
-			t.Fatal(err)
-		}
-		request := httptest.NewRequest(http.MethodPost, Path+"/"+action, &body)
-		request.Header.Set("Content-Type", writer.FormDataContentType())
+		request := httptest.NewRequest(http.MethodPost, Path+"/"+action, strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set(httpapi.WebTokenHeader, "backup-test-web-token")
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
-		wantStatus := http.StatusOK
+		want := http.StatusOK
 		if action == "restore" {
-			wantStatus = http.StatusAccepted
+			want = http.StatusAccepted
 		}
-		if response.Code != wantStatus {
+		if response.Code != want {
 			t.Fatalf("%s status=%d body=%s", action, response.Code, response.Body.String())
 		}
 		if response.Header().Get("Cache-Control") != "private, no-store" {
 			t.Fatal("missing no-store")
+		}
+		if action == "inspect" {
+			if _, err := os.Stat(operation.filePath); err != nil {
+				t.Fatalf("staged file removed by inspect: %v", err)
+			}
 		}
 		if action == "restore" {
 			var accepted RestoreJob
 			if err := json.Unmarshal(response.Body.Bytes(), &accepted); err != nil {
 				t.Fatal(err)
 			}
+			if accepted.UploadID != "00000000-0000-4000-8000-000000000001" {
+				t.Fatal("missing upload association")
+			}
+			deadline := time.NewTimer(time.Second)
+			defer deadline.Stop()
 			for {
 				request := httptest.NewRequest(http.MethodGet, Path+"/restore-jobs/"+accepted.ID, nil)
 				request.Header.Set(httpapi.WebTokenHeader, "backup-test-web-token")
@@ -213,17 +203,16 @@ func TestBackupRoutesStreamFilesAndRemovePrivateTemporaries(t *testing.T) {
 					break
 				}
 				select {
-				case <-t.Context().Done():
+				case <-deadline.C:
 					t.Fatal("restore did not complete")
 				case <-time.After(time.Millisecond):
 				}
 			}
 		}
-		if _, err = os.Stat(operation.filePath); !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("temporary retained: %v", err)
-		}
-		if action == "export" && (!strings.Contains(response.Header().Get("Content-Disposition"), "attachment") || response.Body.String() != `{"format":"synthetic"}`) {
-			t.Fatal("invalid downloaded file")
+		if action != "inspect" {
+			if _, err := os.Stat(operation.filePath); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("temporary retained: %v", err)
+			}
 		}
 	}
 }

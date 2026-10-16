@@ -71,6 +71,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/api/web/management/users/{id}/sessions/revoke", "/api/web/management/users/{id}/password-reset", "/api/web/management/users/{id}/verification",
 		"/api/web/management/database-backup/restore-jobs/current", "/api/web/management/database-backup/restore-jobs/{id}", "/api/web/management/database-backup/restore-jobs/{id}/cancel",
 		"/api/web/management/database-backup/export", "/api/web/management/database-backup/inspect", "/api/web/management/database-backup/restore",
+		"/api/web/management/database-backup/uploads", "/api/web/management/database-backup/uploads/current", "/api/web/management/database-backup/uploads/{id}",
+		"/api/web/management/database-backup/uploads/{id}/parts/{number}", "/api/web/management/database-backup/uploads/{id}/complete",
 		"/api/web/public/sitemap",
 		"/api/web/public/sites/id/{shortId}/outbound", "/api/web/public/site-metrics/impressions",
 		"/api/web/public/announcements", "/api/web/public/announcements/banner", "/api/web/public/announcements/{id}",
@@ -211,8 +213,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 121 {
-		t.Fatalf("documented operation count = %d, want 121", operationCount)
+	if operationCount != 128 {
+		t.Fatalf("documented operation count = %d, want 128", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

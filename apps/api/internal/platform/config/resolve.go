@@ -50,6 +50,10 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	backupCOS, err := resolveBackupCOS(values.BackupCOS, getenv)
+	if err != nil {
+		return Config{}, err
+	}
 
 	configuration := Config{
 		Mode:                 values.Mode,
@@ -102,7 +106,8 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 			ReadinessTimeout: time.Duration(values.Health.ReadinessTimeout),
 			DrainDelay:       time.Duration(values.Health.DrainDelay),
 		},
-		Auth: resolveAuthConfig(values.Mode, values.Auth, getenv),
+		Auth:      resolveAuthConfig(values.Mode, values.Auth, getenv),
+		BackupCOS: backupCOS,
 	}
 	if err := configuration.validate(); err != nil {
 		return Config{}, err

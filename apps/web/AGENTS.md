@@ -27,11 +27,9 @@ All file references are repository-root-relative. This file refines `AGENTS.md` 
 - Build provenance belongs to `apps/web/src/integrations/build/build-metadata.ts` and
   `apps/web/Dockerfile`. Build-time inputs are not runtime environment configuration. Preserve
   repository-root discovery and the dist-only Node standalone deployment.
-- Production starts with `node dist/server/start.mjs`, emitted by the standalone startup
-  integration. It disables adapter autostart before importing the generated entry, then applies
-  a finite 30-minute Node request-receive timeout and 60-second header timeout. Docker uses this
-  launcher; do not start production through the adapter's bare `entry.mjs` (300-second default).
-  Startup logs report the effective values with `event=http_server_configured`.
+- Production runs the adapter's standard `node dist/server/entry.mjs` entry. Production backup file
+  bytes upload directly to COS; API development mode also supports same-origin 4 MiB part uploads.
+  Web streams those bounded parts, JSON controls and exports without buffering whole files.
 - Development loads `qrcode` through Node's CommonJS interop; production keeps it bundled for
   dist-only deployment. Do not enable SSR dependency prebundling: Vite version queries can split
   Astro's development environment registry. `apps/web/tests/dev-server.test.ts` covers fresh dev
@@ -70,17 +68,19 @@ layer and browser-module boundaries.
 
 - Database backup transport lives in `src/api/database-backup`; file selection, confirmation and
   safe messages in `src/application/database-backup`. `/management/database-backup` is SYS_ADMIN-only.
-  Purpose-built native HTTP(S) forwarding streams attachments and multipart files without parsing backup data
-  in Web. Keep Cookie/Web-token authorization, same-origin metadata, private no-store, 512 MiB file
-  bounds, 513 MiB multipart bounds, 30-minute cancellation and refresh cookies. Backup version 1 supports schema versions 3, 4 and 5 with 33 datasets. Exports use schema 5;
-  legacy schema 3 restores initialize account confirmation and username allowances. Inspection contains
-  counts and administrator mapping only. Never retry restoration automatically; an uncertain result
-  is resolved through the current restore task. The one-off restore runs as an API-owned in-memory task;
-  the page polls status and exposes explicit cancellation. Navigation stops polling without cancelling
-  an accepted task. Browser state holds selected files only until navigation.
-  Inspection stays synchronous and its loading state includes upload. Conflicts query the latest
-  restore without treating `job:null` as proof that no upload or inspection owns the shared slot.
-  Empty gateway timeouts preserve restore uncertainty; no mutation is retried automatically.
+  Purpose-built native HTTP(S) forwarding streams exports and bounded JSON controls, preserving
+  Cookie/Web-token authorization, same-origin metadata, private no-store, cancellation and refresh
+  cookies. Browser files upload in 4 MiB parts to an API-owned private COS session, or through the
+  same-origin binary PUT part route when the API selects development-only direct transport;
+  SHA-256 manifests bind refresh/resume to the same file. Only the backup page adds the exact
+  validated COS origin to its CSP via Astro's runtime CSP API in COS mode. A transport or origin
+  change requires page reload before uploading. No COS configuration or signing
+  secret belongs to Web. Preparation, inspection and restoration reuse the API's staged file.
+  Backup version 1 supports schema versions 3, 4 and 5 with 33 datasets; exports use schema 5.
+  Inspection stays synchronous. Restore remains an API-owned task; never retry automatically.
+  Resolve uncertain acceptance through a task associated with the same upload ID. Navigation
+  stops polling without cancelling accepted work. Cleanup status remains independent of restore
+  outcome; retain safe diagnostics and do not expose COS signed URLs in messages or logs.
 
 - Site homepage navigation uses `application/site-outbound` and `/site/out/{shortId}`; external
   resources and management snapshots use the same link attributes without click tracking. Links

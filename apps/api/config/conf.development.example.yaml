@@ -1,2 +1,10 @@
 # Optional development overrides. Copy to config/conf.yaml only when needed.
 mode: development
+
+backup_cos:
+  # Upload 4 MiB parts through the Web server to API /tmp for local debugging.
+  # Enable COS and set bucket/region plus API credentials to test browser-to-COS uploads.
+  enabled: false
+  bucket: ""
+  region: ""
+  prefix: heyblog-database-uploads/

@@ -1,23 +1,27 @@
 <script lang="ts">
-  import { IconDownload, IconUpload } from '@tabler/icons-svelte';
+  import { IconDownload } from '@tabler/icons-svelte';
   import { onDestroy, onMount } from 'svelte';
 
+  import type { CurrentBackupUpload } from '../../../api/database-backup/database-backup.uploads.ts';
   import { createBackupController } from '../../../application/database-backup/database-backup.controller.svelte.ts';
-  import { buttonClass, inputClass, primaryClass } from '../api-keys/api-keys.styles.ts';
+  import { buttonClass, primaryClass } from '../api-keys/api-keys.styles.ts';
 
   import BackupInspection from './BackupInspection.svelte';
   import BackupProgress from './BackupProgress.svelte';
+  import BackupUpload from './BackupUpload.svelte';
 
-  let { initialError = null }: { initialError?: string | null } = $props();
-  const controller = createBackupController();
+  let {
+    initialError = null,
+    initialUploads = null,
+  }: { initialError?: string | null; initialUploads?: CurrentBackupUpload | null } = $props();
+  const controller = createBackupController(undefined, initialUploads);
   let hydrated = $state(false);
   let dialog = $state<HTMLDialogElement>();
   let cancelButton = $state<HTMLButtonElement>();
   let confirmed = $state(false);
   let confirmation = $state<'restore' | 'cancel'>('restore');
   const loadingLabels = {
-    inspect: '正在上传并检查文件…',
-    restore: '正在上传恢复文件，请保持页面打开…',
+    restore: '正在提交恢复任务…',
     cancel: '正在请求取消恢复…',
   } as const;
   onMount(() => {
@@ -36,7 +40,7 @@
     dialog?.close();
   });
   function confirmRestore() {
-    if (!controller.inspection?.can_restore || controller.blocked) return;
+    if (!controller.upload.inspection?.can_restore || controller.blocked) return;
     confirmation = 'restore';
     confirmed = false;
     dialog?.showModal();
@@ -77,43 +81,21 @@
     <p class="mt-2 text-sm/relaxed text-fg-muted">
       恢复到仅配置系统管理员的新数据库。业务 ID 和凭证标识保持不变。
     </p>
-    <form
-      class="mt-5 grid gap-4"
-      onsubmit={(event) => {
-        event.preventDefault();
-        void controller.inspect();
+    <BackupUpload
+      upload={controller.upload}
+      canDiscard={hydrated &&
+        !controller.active &&
+        !controller.busy &&
+        !controller.checking &&
+        !controller.acceptanceUnknown &&
+        !controller.upload.busy}
+      disabled={!hydrated || controller.blocked}
+      start={() => {
+        void controller.startUpload();
       }}
-    >
-      <label for="backup-file" class="text-sm font-medium"
-        >JSON 文件 <span class="font-normal text-fg-muted">（最大 512 MiB）</span></label
-      >
-      <input
-        id="backup-file"
-        type="file"
-        accept=".json,application/json"
-        class="{inputClass} py-2 file:mr-3 file:rounded-sm file:border-0 file:bg-subtle file:px-3 file:py-1 file:text-sm file:text-fg"
-        disabled={!hydrated || controller.blocked}
-        onchange={(event) => controller.select(event.currentTarget.files?.item(0) ?? null)}
-      />
-      <div class="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          class={buttonClass}
-          disabled={!hydrated ||
-            !controller.file ||
-            controller.file.size === 0 ||
-            controller.file.size > 512 * 1024 * 1024 ||
-            controller.blocked}><IconUpload size={18} aria-hidden="true" />检查文件</button
-        >
-        {#if controller.busy === 'inspect'}<button
-            type="button"
-            class={buttonClass}
-            onclick={() => controller.cancelInspection()}>取消检查</button
-          >{/if}
-      </div>
-    </form>
+    />
     {#if controller.checking}<p class="mt-4 text-sm text-fg-muted" role="status">
-        正在查询恢复任务…
+        正在查询文件和恢复任务…
       </p>{/if}
     {#if controller.job}<BackupProgress job={controller.job} />{/if}
     {#if controller.job?.status === 'running'}
@@ -155,11 +137,11 @@
           >返回工作台</a
         >
       </div>{/if}
-    {#if controller.inspection}<BackupInspection inspection={controller.inspection} />
+    {#if controller.upload.inspection}<BackupInspection inspection={controller.upload.inspection} />
       <button
         type="button"
         class="{primaryClass} mt-5"
-        disabled={!controller.inspection.can_restore || controller.blocked}
+        disabled={!controller.upload.inspection.can_restore || controller.blocked}
         onclick={confirmRestore}>恢复数据</button
       >
     {/if}

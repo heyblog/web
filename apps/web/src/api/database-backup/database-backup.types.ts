@@ -1,4 +1,5 @@
 export const backupFileLimit = 512 * 1024 * 1024;
+export const backupControlLimit = 32 * 1024;
 export const backupBodyLimit = backupFileLimit + 1024 * 1024;
 export const backupTimeoutMs = 30 * 60 * 1000;
 

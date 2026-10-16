@@ -26,6 +26,12 @@ func httpError(err error) error {
 	errors.As(err, &databaseError)
 	reason := "dependency_failure"
 	switch {
+	case errors.Is(err, ErrUploadUnavailable):
+		reason = "uploads_not_configured"
+	case errors.Is(err, ErrUploadNotFound):
+		reason = "upload_not_found"
+	case errors.Is(err, ErrUploadState):
+		reason = "upload_not_ready"
 	case errors.Is(err, context.Canceled):
 		reason = "request_cancelled"
 	case errors.Is(err, context.DeadlineExceeded):
@@ -64,10 +70,16 @@ func httpError(err error) error {
 		return apperror.Wrap(err, kind, code, detail, "database backup").WithDiagnostics(diagnostics)
 	}
 	switch {
+	case errors.Is(err, ErrUploadUnavailable):
+		return wrap(apperror.KindUnavailable, "database_backup_upload_unavailable", "backup uploads are not configured")
+	case errors.Is(err, ErrUploadNotFound):
+		return wrap(apperror.KindNotFound, "database_backup_upload_not_found", "the backup upload was not found")
+	case errors.Is(err, ErrUploadState):
+		return wrap(apperror.KindConflict, "database_backup_upload_not_ready", "the backup upload is not ready for this operation")
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return wrap(apperror.KindUnavailable, "database_backup_unavailable", "database backup is temporarily unavailable")
 	case errors.Is(err, ErrBusy):
-		return wrap(apperror.KindConflict, "database_backup_busy", "a database backup inspection or restore is already active")
+		return wrap(apperror.KindConflict, "database_backup_busy", "a database backup operation is already active")
 	case errors.Is(err, ErrJobNotFound):
 		return wrap(apperror.KindNotFound, "database_backup_job_not_found", "the database restore task was not found")
 	case errors.Is(err, ErrOutcomeUnknown):

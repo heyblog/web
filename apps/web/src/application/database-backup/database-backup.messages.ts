@@ -39,6 +39,13 @@ export const backupDatasetLabels: Readonly<Record<BackupDatasetName, string>> = 
   'content.article_tags': '文章标签关联',
 };
 const messages: Readonly<Record<string, string>> = {
+  upload_settings_changed: '上传配置已更新，请刷新页面后继续。',
+  upload_failed: '上传未完成，请继续上传或稍后重试。',
+  different_file: '所选文件与之前的文件不同，请重新选择原文件。',
+  upload_exists: '请先继续或放弃当前文件。',
+  secure_context_required: '请通过 HTTPS 打开此页面后上传文件。',
+  database_backup_upload_expired: '上传已过期，请重新选择文件。',
+  database_backup_upload_unavailable: '文件上传暂时不可用，请稍后重试。',
   database_backup_invalid: '文件内容无效，请选择完整的数据库导出文件。',
   database_backup_too_large: '文件超过 512 MiB，请选择较小的文件。',
   database_backup_target_not_ready: '目标数据库尚未满足初始化恢复条件，请重新检查。',

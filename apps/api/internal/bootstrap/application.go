@@ -34,6 +34,7 @@ type runtimeDependencies interface {
 	PublicViews() publicview.Reader
 	DatabasePool() *pgxpool.Pool
 	BackupJobs() *databasebackup.Jobs
+	BackupUploads() *databasebackup.Uploads
 	RedisClient() *redis.Client
 	Mail() mail.Sender
 	Verification() *mail.VerificationMailer
@@ -57,7 +58,7 @@ func Run(ctx context.Context, configuration config.Config, logger *slog.Logger) 
 	return run(ctx, configuration, logger, applicationOperations{
 		listen: net.Listen,
 		openDependencies: func(ctx context.Context, configuration config.Config) (runtimeDependencies, error) {
-			return Open(ctx, configuration)
+			return Open(ctx, configuration, logger)
 		},
 		newHandler: func(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config) (http.Handler, error) {
 			return newApplicationHandler(options, dependencies, configuration)
@@ -190,7 +191,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	if err := auth.RegisterRoutes(router.API, authService, options.WebToken); err != nil {
 		return nil, err
 	}
-	databasebackup.RegisterRoutes(router.API, databasebackup.New(dependencies.DatabasePool()), dependencies.BackupJobs(), authService, options.WebToken, options.Logger)
+	databasebackup.RegisterRoutes(router.API, databasebackup.New(dependencies.DatabasePool()), dependencies.BackupJobs(), authService, options.WebToken, options.Logger, dependencies.BackupUploads())
 	if err := announcement.RegisterRoutes(router.API, announcement.NewService(announcement.NewRepository(dependencies.DatabasePool()), authService), options.WebToken); err != nil {
 		return nil, err
 	}

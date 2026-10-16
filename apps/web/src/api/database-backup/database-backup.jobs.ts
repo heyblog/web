@@ -13,6 +13,7 @@ export interface RestoreProgress {
 }
 interface JobBase {
   readonly id: string;
+  readonly upload_id?: string;
   readonly progress: RestoreProgress;
 }
 export type RestoreJob = JobBase &
@@ -41,6 +42,9 @@ export function parseRestoreJob(value: unknown): RestoreJob | null {
     !isRecord(value) ||
     typeof value.id !== 'string' ||
     !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value.id) ||
+    (value.upload_id !== undefined &&
+      (typeof value.upload_id !== 'string' ||
+        !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value.upload_id))) ||
     !isRecord(value.progress)
   )
     return null;
@@ -69,6 +73,7 @@ export function parseRestoreJob(value: unknown): RestoreJob | null {
     return null;
   const base = {
     id: value.id,
+    ...(value.upload_id === undefined ? {} : { upload_id: value.upload_id }),
     progress: { stage: p.stage, dataset: p.dataset, completed: p.completed, total: p.total },
   } satisfies JobBase;
   if (value.status === 'succeeded') {

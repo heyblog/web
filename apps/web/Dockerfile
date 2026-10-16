@@ -49,4 +49,4 @@ HEALTHCHECK --interval=15s --timeout=5s --retries=6 \
 
 STOPSIGNAL SIGTERM
 
-ENTRYPOINT ["tini", "-e", "143", "--", "node", "dist/server/start.mjs"]
+ENTRYPOINT ["tini", "-e", "143", "--", "node", "dist/server/entry.mjs"]

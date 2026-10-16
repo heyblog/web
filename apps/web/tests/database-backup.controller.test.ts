@@ -1,35 +1,27 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { registerHooks, stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
-
-import { compileModule } from 'svelte/compiler';
 
 import { createBackupTransport } from '../src/api/database-backup/database-backup.browser.ts';
 import { backupMessage } from '../src/application/database-backup/database-backup.messages.ts';
 
-import { inspectionFixture, jobFixture, restorationFixture } from './database-backup.fixture.ts';
+import { createTestBackupController } from './database-backup.controller-loader.ts';
+import {
+  inspectionFixture,
+  jobFixture,
+  restorationFixture,
+  uploadsFixture,
+} from './database-backup.fixture.ts';
 
-const sourceURL = new URL(
-  '../src/application/database-backup/database-backup.controller.svelte.ts',
-  import.meta.url,
-);
-const source = stripTypeScriptTypes(await readFile(sourceURL, 'utf8'));
-const compiled = compileModule(source, { filename: sourceURL.pathname, generate: 'client' }).js
-  .code;
-const hooks = registerHooks({
-  load(url, context, next) {
-    if (url === sourceURL.href) return { format: 'module', shortCircuit: true, source: compiled };
-    return next(url, context);
-  },
-});
-const module =
-  await import('../src/application/database-backup/database-backup.controller.svelte.ts');
-hooks.deregister();
+function testTransport(fetcher: typeof fetch) {
+  return createBackupTransport(async (input, init) => {
+    if (String(input).includes('/uploads/')) return Response.json(uploadsFixture);
+    return fetcher(input, init);
+  });
+}
 
 test('an unknown outcome retains uncertainty even when its error code describes a failed restore', async () => {
-  const controller = module.createBackupController(
-    createBackupTransport(async () =>
+  const controller = createTestBackupController(
+    testTransport(async () =>
       Response.json({
         job: { ...jobFixture, status: 'unknown', error_code: 'database_backup_restore_failed' },
       }),
@@ -38,21 +30,22 @@ test('an unknown outcome retains uncertainty even when its error code describes 
   await controller.refresh();
   assert.equal(controller.error, backupMessage('restore_outcome_unknown'));
   assert.equal(controller.restoration, null);
+  assert.equal(controller.acceptanceUnknown, true);
   controller.dispose();
 });
 
 test('leaving an accepted restore stops polling without sending cancellation', async () => {
   const calls: string[] = [];
-  const transport = createBackupTransport(async (input, init) => {
+  const transport = testTransport(async (input, init) => {
     calls.push(`${init?.method} ${String(input)}`);
     if (String(input).endsWith('/current')) return Response.json({ job: null });
     if (String(input).endsWith('/inspect')) return Response.json(inspectionFixture);
     return Response.json(jobFixture, { status: 202 });
   });
-  const controller = module.createBackupController(transport);
+  const controller = createTestBackupController(transport);
   await controller.refresh();
-  controller.select(new File(['{}'], 'fixture.json'));
-  await controller.inspect();
+  controller.upload.select(new File(['{}'], 'fixture.json'));
+  await controller.upload.inspect();
   await controller.restore();
   assert.equal(controller.active, true);
   controller.dispose();
@@ -64,8 +57,8 @@ test('leaving an accepted restore stops polling without sending cancellation', a
 });
 test('page reentry retrieves a completed task without uploading a file', async () => {
   const result = { ...jobFixture, status: 'succeeded', result: restorationFixture };
-  const controller = module.createBackupController(
-    createBackupTransport(async (input) => {
+  const controller = createTestBackupController(
+    testTransport(async (input) => {
       assert.ok(String(input).endsWith('/current'));
       return Response.json({ job: result });
     }),
@@ -78,8 +71,8 @@ test('page reentry retrieves a completed task without uploading a file', async (
 test('uncertain restore acceptance is recovered through current task instead of repeating upload', async () => {
   let uploads = 0;
   let currentReads = 0;
-  const controller = module.createBackupController(
-    createBackupTransport(async (input) => {
+  const controller = createTestBackupController(
+    testTransport(async (input) => {
       if (String(input).endsWith('/current')) {
         currentReads += 1;
         return Response.json({ job: currentReads === 1 ? null : jobFixture });
@@ -90,8 +83,8 @@ test('uncertain restore acceptance is recovered through current task instead of 
     }),
   );
   await controller.refresh();
-  controller.select(new File(['{}'], 'fixture.json'));
-  await controller.inspect();
+  controller.upload.select(new File(['{}'], 'fixture.json'));
+  await controller.upload.inspect();
   await controller.restore();
   assert.equal(uploads, 1);
   assert.equal(currentReads, 2);
@@ -102,16 +95,16 @@ test('uncertain restore acceptance is recovered through current task instead of 
 
 test('an older completed task cannot resolve uncertainty about a newly uploaded restore', async () => {
   const previous = { ...jobFixture, status: 'succeeded', result: restorationFixture };
-  const controller = module.createBackupController(
-    createBackupTransport(async (input) => {
+  const controller = createTestBackupController(
+    testTransport(async (input) => {
       if (String(input).endsWith('/current')) return Response.json({ job: previous });
       if (String(input).endsWith('/inspect')) return Response.json(inspectionFixture);
       throw new TypeError('connection interrupted');
     }),
   );
   await controller.refresh();
-  controller.select(new File(['{}'], 'fixture.json'));
-  await controller.inspect();
+  controller.upload.select(new File(['{}'], 'fixture.json'));
+  await controller.upload.inspect();
   await controller.restore();
   assert.equal(controller.acceptanceUnknown, true);
   assert.equal(controller.restoration, null);
@@ -121,8 +114,8 @@ test('an older completed task cannot resolve uncertainty about a newly uploaded 
 
 test('a recovered result with a different administrator mapping does not display success', async () => {
   let reads = 0;
-  const controller = module.createBackupController(
-    createBackupTransport(async (input) => {
+  const controller = createTestBackupController(
+    testTransport(async (input) => {
       if (String(input).endsWith('/current')) {
         reads += 1;
         return Response.json({
@@ -147,8 +140,8 @@ test('a recovered result with a different administrator mapping does not display
     }),
   );
   await controller.refresh();
-  controller.select(new File(['{}'], 'fixture.json'));
-  await controller.inspect();
+  controller.upload.select(new File(['{}'], 'fixture.json'));
+  await controller.upload.inspect();
   await controller.restore();
   assert.equal(controller.restoration, null);
   assert.equal(controller.acceptanceUnknown, true);
@@ -159,8 +152,8 @@ test('inspection conflicts query and resume an active restore without repeating 
   // Given
   const calls: string[] = [];
   let reads = 0;
-  const controller = module.createBackupController(
-    createBackupTransport(async (input) => {
+  const controller = createTestBackupController(
+    testTransport(async (input) => {
       calls.push(String(input));
       if (String(input).endsWith('/current'))
         return Response.json({ job: ++reads === 1 ? null : jobFixture });
@@ -168,10 +161,10 @@ test('inspection conflicts query and resume an active restore without repeating 
     }),
   );
   await controller.refresh();
-  controller.select(new File(['{}'], 'fixture.json'));
+  controller.upload.select(new File(['{}'], 'fixture.json'));
   try {
     // When
-    await controller.inspect();
+    await controller.upload.inspect();
     // Then
     assert.equal(controller.active, true);
     assert.equal(reads, 2);
@@ -184,8 +177,8 @@ test('inspection conflicts query and resume an active restore without repeating 
 test('a null current restore preserves the inspection conflict instead of implying an idle service', async () => {
   // Given
   let reads = 0;
-  const controller = module.createBackupController(
-    createBackupTransport(async (input) => {
+  const controller = createTestBackupController(
+    testTransport(async (input) => {
       if (String(input).endsWith('/current')) {
         reads++;
         return Response.json({ job: null });
@@ -194,14 +187,14 @@ test('a null current restore preserves the inspection conflict instead of implyi
     }),
   );
   await controller.refresh();
-  controller.select(new File(['{}'], 'fixture.json'));
+  controller.upload.select(new File(['{}'], 'fixture.json'));
   try {
     // When
-    await controller.inspect();
+    await controller.upload.inspect();
     // Then
     assert.equal(reads, 2);
     assert.equal(controller.job, null);
-    assert.equal(controller.error, backupMessage('database_backup_busy'));
+    assert.equal(controller.upload.error, backupMessage('database_backup_busy'));
     assert.equal(controller.acceptanceUnknown, false);
   } finally {
     controller.dispose();

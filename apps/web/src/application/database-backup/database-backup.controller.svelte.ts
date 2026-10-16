@@ -3,21 +3,22 @@ import {
   createBackupTransport,
 } from '../../api/database-backup/database-backup.browser.ts';
 import { isActiveJob, type RestoreJob } from '../../api/database-backup/database-backup.jobs.ts';
-import {
-  backupFileLimit,
-  type BackupInspection,
-} from '../../api/database-backup/database-backup.types.ts';
+import { type BackupInspection } from '../../api/database-backup/database-backup.types.ts';
+import type { CurrentBackupUpload } from '../../api/database-backup/database-backup.uploads.ts';
 
 import { backupMessage } from './database-backup.messages.ts';
+import { BackupUploadController } from './database-backup.upload-controller.svelte.ts';
 
-export function createBackupController(transport = createBackupTransport()) {
-  return new BackupController(transport);
+export function createBackupController(
+  transport = createBackupTransport(),
+  initial: CurrentBackupUpload | null = null,
+) {
+  return new BackupController(transport, initial);
 }
 class BackupController {
-  file = $state<File | null>(null);
-  inspection = $state<BackupInspection | null>(null);
+  readonly upload: BackupUploadController;
   job = $state<RestoreJob | null>(null);
-  busy = $state<'inspect' | 'restore' | 'cancel' | null>(null);
+  busy = $state<'restore' | 'cancel' | null>(null);
   error = $state<string | null>(null);
   checking = $state(true);
   acceptanceUnknown = $state(false);
@@ -29,63 +30,49 @@ class BackupController {
   private latestJobID: string | null = null;
   private reviewed: BackupInspection | null = null;
   private readonly transport: ReturnType<typeof createBackupTransport>;
-  constructor(transport: ReturnType<typeof createBackupTransport>) {
+  constructor(
+    transport: ReturnType<typeof createBackupTransport>,
+    initial: CurrentBackupUpload | null,
+  ) {
     this.transport = transport;
+    this.upload = new BackupUploadController(transport, initial, () => this.refresh());
   }
   get active() {
     return isActiveJob(this.job);
   }
   get blocked() {
-    return this.busy !== null || this.active || this.checking || this.acceptanceUnknown;
+    return (
+      this.busy !== null ||
+      this.upload.blocked ||
+      this.active ||
+      this.checking ||
+      this.acceptanceUnknown
+    );
   }
   get restoration() {
     return this.job?.status === 'succeeded' ? this.job.result : null;
   }
-  select(file: File | null) {
+  async startUpload() {
     if (this.blocked) return;
-    this.file = file;
-    this.inspection = null;
     this.job = null;
+    this.reviewed = null;
     this.error = null;
-    if (file?.size === 0) this.error = backupMessage('empty_file');
-    if (file && file.size > backupFileLimit) this.error = backupMessage('request_too_large');
-  }
-  async inspect() {
-    if (!this.file || this.blocked || this.file.size === 0 || this.file.size > backupFileLimit)
-      return;
-    this.busy = 'inspect';
-    this.error = null;
-    this.inspection = null;
-    this.job = null;
-    this.operation = new AbortController();
-    try {
-      this.inspection = await this.transport.inspect(this.file, this.operation.signal);
-    } catch (error) {
-      this.report(error);
-      if (
-        !this.disposed &&
-        error instanceof BackupTransportError &&
-        error.code === 'database_backup_busy'
-      ) {
-        await this.refresh();
-        if (!this.active && !this.acceptanceUnknown && !this.error)
-          this.error = backupMessage('database_backup_busy');
-      }
-    } finally {
-      this.busy = null;
-      this.operation = null;
-    }
+    await this.upload.start();
   }
   async restore() {
-    if (!this.file || !this.inspection?.can_restore || this.blocked) return;
-    this.reviewed = this.inspection;
+    if (!this.upload.session || !this.upload.inspection?.can_restore || this.blocked) return;
+    this.reviewed = this.upload.inspection;
     this.busy = 'restore';
     this.error = null;
     this.job = null;
     this.operation = new AbortController();
     try {
       this.accept(
-        await this.transport.restore(this.file, this.inspection.sha256, this.operation.signal),
+        await this.transport.restore(
+          this.upload.session.id,
+          this.upload.inspection.sha256,
+          this.operation.signal,
+        ),
       );
     } catch (error) {
       this.report(error);
@@ -99,7 +86,7 @@ class BackupController {
         await this.refresh();
       }
     } finally {
-      this.inspection = null;
+      this.upload.inspection = null;
       this.busy = null;
       this.operation = null;
     }
@@ -111,17 +98,32 @@ class BackupController {
     this.poll = new AbortController();
     this.checking = true;
     try {
-      const result = await this.transport.current(this.poll.signal);
+      const [result] = await Promise.all([
+        this.transport.current(this.poll.signal),
+        this.upload.refresh(this.poll.signal),
+      ]);
       if (this.disposed) return;
-      if (this.uncertainUpload && (!result.job || result.job.id === this.latestJobID)) {
+      if (
+        this.uncertainUpload &&
+        (!result.job ||
+          result.job.upload_id !== this.upload.session?.id ||
+          result.job.id === this.latestJobID)
+      ) {
         this.error = backupMessage('restore_outcome_unknown');
         return;
       }
       this.uncertainUpload = false;
       this.acceptanceUnknown = false;
       this.error = null;
-      if (result.job) this.accept(result.job);
-      else this.job = null;
+      const upload = this.upload.session;
+      if (result.job && (!upload || result.job.upload_id === upload.id)) this.accept(result.job);
+      else {
+        this.job = null;
+        if (upload?.state === 'unknown' || upload?.state === 'restoring') {
+          this.acceptanceUnknown = true;
+          this.error = backupMessage('restore_outcome_unknown');
+        }
+      }
     } catch (error) {
       this.report(error);
       this.acceptanceUnknown = true;
@@ -162,9 +164,14 @@ class BackupController {
       return;
     }
     this.job = job;
+    const upload = this.upload.session;
+    if (isActiveJob(job) && upload && upload.id === job.upload_id)
+      this.upload.session = { ...upload, state: 'restoring', job_id: job.id };
     this.latestJobID = job.id;
-    if (job.status === 'unknown') this.error = backupMessage('restore_outcome_unknown');
-    else if (job.status === 'failed') this.error = backupMessage(job.error_code);
+    if (job.status === 'unknown') {
+      this.acceptanceUnknown = true;
+      this.error = backupMessage('restore_outcome_unknown');
+    } else if (job.status === 'failed') this.error = backupMessage(job.error_code);
     this.schedule();
   }
   private schedule() {
@@ -183,6 +190,7 @@ class BackupController {
       if (!poll.signal.aborted) {
         this.error = null;
         this.accept(job);
+        if (!isActiveJob(job)) await this.upload.refresh(poll.signal);
       }
     } catch (error) {
       if (!poll.signal.aborted) {
@@ -198,11 +206,9 @@ class BackupController {
       if (!this.disposed) this.error = backupMessage(error.code);
     } else throw error;
   }
-  cancelInspection() {
-    if (this.busy === 'inspect') this.operation?.abort();
-  }
   dispose() {
     this.disposed = true;
+    this.upload.dispose();
     clearTimeout(this.timer);
     this.operation?.abort();
     this.poll?.abort();

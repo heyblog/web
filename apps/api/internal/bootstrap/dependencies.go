@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,6 +28,7 @@ type Dependencies struct {
 	views              publicview.Reader
 	metrics            *sitestats.Service
 	backupJobs         *databasebackup.Jobs
+	backupUploads      *databasebackup.Uploads
 
 	pingDatabase  func(context.Context) error
 	pingRedis     func(context.Context) error
@@ -37,6 +39,7 @@ type Dependencies struct {
 }
 
 type dependencyOperations struct {
+	logger        *slog.Logger
 	migrate       func(context.Context, string) error
 	openDatabase  func(context.Context, config.DatabaseConfig) (*pgxpool.Pool, error)
 	closeDatabase func(*pgxpool.Pool)
@@ -50,8 +53,9 @@ type ReadinessError struct {
 	cause     error
 }
 
-func Open(ctx context.Context, configuration config.Config) (*Dependencies, error) {
+func Open(ctx context.Context, configuration config.Config, logger *slog.Logger) (*Dependencies, error) {
 	return open(ctx, configuration, dependencyOperations{
+		logger:        logger,
 		migrate:       database.Migrate,
 		openDatabase:  database.OpenPool,
 		closeDatabase: func(pool *pgxpool.Pool) { pool.Close() },
@@ -98,6 +102,12 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		)
 	}
 
+	backupUploads, err := databasebackup.NewUploads(ctx, redisClient, configuration, operations.logger)
+	if err != nil {
+		closeErr := operations.closeRedis(redisClient)
+		operations.closeDatabase(pool)
+		return nil, errors.Join(withStage("backup_uploads_open", err), withStage("redis_close", closeErr))
+	}
 	metrics := sitestats.New(pool, nil)
 	return &Dependencies{
 		Database:           pool,
@@ -107,6 +117,7 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		views:              publicview.New(dbgen.New(pool), metrics),
 		metrics:            metrics,
 		backupJobs:         databasebackup.NewJobs(databasebackup.New(pool), nil),
+		backupUploads:      backupUploads,
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},
@@ -121,6 +132,9 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 }
 
 func (dependencies *Dependencies) BackupJobs() *databasebackup.Jobs { return dependencies.backupJobs }
+func (dependencies *Dependencies) BackupUploads() *databasebackup.Uploads {
+	return dependencies.backupUploads
+}
 
 func (dependencies *Dependencies) PublicViews() publicview.Reader {
 	return dependencies.views
@@ -174,6 +188,9 @@ func (dependencies *Dependencies) Close() error {
 	dependencies.closeOnce.Do(func() {
 		if dependencies.backupJobs != nil {
 			dependencies.backupJobs.Close()
+		}
+		if dependencies.backupUploads != nil {
+			dependencies.backupUploads.Close()
 		}
 		if dependencies.metrics != nil {
 			dependencies.metrics.Close()

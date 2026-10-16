@@ -6,7 +6,6 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 
 import { buildMetadataIntegration } from './src/integrations/build/build-metadata';
-import { standaloneStartupIntegration } from './src/integrations/build/standalone-startup';
 import { siteConfig } from './src/site.config';
 
 // https://astro.build/config
@@ -78,5 +77,5 @@ export default defineConfig({
       noExternal: ['@resvg/resvg-wasm', 'qrcode', 'pngjs', 'marked'],
     },
   },
-  integrations: [buildMetadataIntegration(), standaloneStartupIntegration(), svelte(), mdx()],
+  integrations: [buildMetadataIntegration(), svelte(), mdx()],
 });
