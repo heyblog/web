@@ -91,13 +91,15 @@ their nearest `AGENTS.md`.
 
 The pre-commit hook checks Node dependencies only when staged changes affect workspace
 `package.json` files, `pnpm-workspace.yaml`, or `pnpm-lock.yaml`, including deletions and renames.
-Dependency inputs must have no unstaged changes so the scan matches the staged inputs. The hook
+Dependency inputs must have no unstaged changes so the scan matches the staged inputs. The lockfile
+must remain in the Git index; missing, deleted or renamed lockfiles fail before pnpm runs. The hook
 validates the frozen lockfile, warns on development audit failures, and blocks on production
 audit failures. Ordinary code commits do not run network-backed audits; Go hook checks are
 unchanged.
 
-CI validates PRs and main independently of the Container workflow. Container builds consume
-the exact SHA and Web artifact of a successful main CI run with a successful CI gate.
+CI validates PRs and main independently of the Container workflow. Its Check job runs version and
+Git-hook regression tests; both local `verify` and `verify:full` include these tests. Container builds
+consume the exact SHA and Web artifact of a successful main CI run with a successful CI gate.
 Automatic builds skip merged PRs authored by `renovate[bot]`; explicit Container dispatches
 require a verified main CI run ID and default to build-and-scan only. Do not add publication
 queues, standalone workflow validation scripts, or disable actionlint diagnostics.

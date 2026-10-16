@@ -30,11 +30,18 @@ test('does not classify unrelated TOML files as mise configuration', () => {
   }
 });
 
-test('root prettier classification no longer includes Task configuration', () => {
-  // Given: removed Task paths and supported root source files.
-
-  // When/Then: Task YAML is excluded while root JavaScript remains supported.
-  assert.equal(isRootPrettierFile('Taskfile.yaml'), false);
-  assert.equal(isRootPrettierFile('taskfiles/project.yaml'), false);
-  assert.equal(isRootPrettierFile('scripts/version.mjs'), true);
+test('routes supported root files and script modules to Prettier', () => {
+  // Given / When / Then: root files and script modules use the root formatter.
+  for (const file of [
+    '.golangci.yaml',
+    'commitlint.config.cjs',
+    'package.json',
+    'pnpm-workspace.yaml',
+    'scripts/version.mjs',
+  ]) {
+    assert.equal(isRootPrettierFile(file), true, file);
+  }
+  for (const file of ['README.md', 'apps/web/package.json', 'scripts/fixture.json']) {
+    assert.equal(isRootPrettierFile(file), false, file);
+  }
 });

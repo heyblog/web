@@ -131,11 +131,14 @@ for (const input of [
   'apps/web/package.json',
   'packages/node/configs/package.json',
   'pnpm-workspace.yaml',
+  'pnpm-lock.yaml',
 ]) {
   test(`staged changes to ${input} trigger dependency checks`, (t) => {
     // Given: a staged dependency input compatible with the frozen lockfile.
     const f = fixture(t);
     if (input.endsWith('.json')) f.manifest(input, 'updated');
+    else if (input === 'pnpm-lock.yaml')
+      writeFileSync(join(f.root, input), readFileSync(join(f.root, input), 'utf8') + '# updated\n');
     else
       writeFileSync(
         join(f.root, input),
@@ -178,13 +181,12 @@ for (const change of ['delete', 'rename', 'delete-retained']) {
     else f.git('mv', 'pnpm-lock.yaml', 'previous-lock.yaml');
     // When: the pre-commit hook executes.
     const result = f.run();
-    // Then: the removed lockfile is rejected, before validation if a worktree copy remains.
-    assert.notEqual(result.status, 0);
-    assert.equal(
-      f.calls().some((args) => args[0] === 'exec'),
-      !retained,
-    );
-    assert.ok(f.calls().every((args) => !args[1]?.startsWith('security:')));
+    // Then: the index is rejected before pnpm can regenerate an untracked lockfile or audit.
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /pnpm-lock\.yaml.*Git index/u);
+    assert.match(result.stderr, /stage it before committing/u);
+    assert.ok(f.calls().every((args) => args[0] !== 'exec' && !args[1]?.startsWith('security:')));
+    assert.equal(existsSync(join(f.root, 'pnpm-lock.yaml')), retained);
   });
 }
 

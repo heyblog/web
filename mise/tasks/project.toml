@@ -172,6 +172,8 @@ run = [{ task = "check" }, { task = "test" }, { task = "build" }]
 description = "Run all checks, extended tests, builds, and scans"
 run = [
   { task = "check" },
+  { task = "version:test" },
+  { task = "hooks:test" },
   { task = "test:race" },
   { task = "test:integration" },
   { task = "//apps/web:test" },

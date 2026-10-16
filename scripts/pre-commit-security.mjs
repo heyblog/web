@@ -40,6 +40,14 @@ export function main() {
   ]);
   if (stagedInputs.length === 0) return 0;
 
+  if (readChangedFiles(['ls-files', '--cached', '--', 'pnpm-lock.yaml']).length === 0) {
+    console.error('Dependency checks aborted: pnpm-lock.yaml is missing from the Git index.');
+    console.error(
+      'Restore it, or regenerate it with pnpm install --lockfile-only, then stage it before committing.',
+    );
+    return 1;
+  }
+
   const unstagedInputs = [
     ...readChangedFiles(['diff', '--name-only', '--no-renames']),
     ...readChangedFiles(['ls-files', '--others', '--', ...dependencyInputs]),

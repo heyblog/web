@@ -54,6 +54,10 @@ jobs:
           shellcheck: 'true'
       - name: Check repository
         run: mise run check
+      - name: Test repository scripts
+        run: |
+          mise run version:test
+          mise run hooks:test
   api-race:
     name: API race test
     runs-on: ubuntu-latest
