@@ -62,6 +62,7 @@ test('account notifications use the session email without editable contact field
   assert.deepEqual(validateSubmissionStep('CREATE', form, 3, { email: null }), {
     valid: false,
     message: '账号尚未绑定邮箱，暂时无法接收审核邮件。',
+    field: 'notifyByEmail',
   });
 });
 
@@ -79,6 +80,7 @@ test('reports malformed feed addresses without throwing', () => {
   assert.deepEqual(validateSubmissionStep('CREATE', form, 1), {
     valid: false,
     message: '请填写有效的 HTTP、HTTPS 或站内相对 Feed 地址。',
+    field: 'feed-url-feed',
   });
 });
 
@@ -103,6 +105,7 @@ test('rejects every auxiliary URL when it resolves to the homepage', () => {
         form.sitemap = '/blog';
       },
       message: 'Sitemap 地址不能与主页地址相同。',
+      field: 'sitemap',
     },
     {
       name: 'link page',
@@ -120,7 +123,16 @@ test('rejects every auxiliary URL when it resolves to the homepage', () => {
 
     assert.deepEqual(
       validateSubmissionStep('CREATE', form, 1),
-      { valid: false, message: testCase.message },
+      {
+        valid: false,
+        message: testCase.message,
+        field:
+          testCase.name === 'feed'
+            ? 'feed-url-feed'
+            : testCase.name === 'sitemap'
+              ? 'sitemap'
+              : 'linkPage',
+      },
       testCase.name,
     );
   }
@@ -135,6 +147,7 @@ test('rejects sitemap and link-page URLs that normalize to the same resource', (
   assert.deepEqual(validateSubmissionStep('CREATE', form, 1), {
     valid: false,
     message: 'Sitemap 和友链页不能使用同一地址。',
+    field: 'sitemap',
   });
 });
 
@@ -147,6 +160,7 @@ test('rejects duplicate external resources whose hosts differ only by a trailing
   assert.deepEqual(validateSubmissionStep('CREATE', form, 1), {
     valid: false,
     message: 'Sitemap 和友链页不能使用同一地址。',
+    field: 'sitemap',
   });
 });
 
@@ -158,6 +172,7 @@ test('rejects an auxiliary URL when the homepage host differs only by a trailing
   assert.deepEqual(validateSubmissionStep('CREATE', form, 1), {
     valid: false,
     message: 'Sitemap 地址不能与主页地址相同。',
+    field: 'sitemap',
   });
 });
 
@@ -177,4 +192,30 @@ test('allows omitted or distinct auxiliary URLs', () => {
     isDefault: true,
   });
   assert.equal(validateSubmissionStep('CREATE', form, 1).valid, true);
+});
+
+test('reports the site-name field when multibyte text exceeds the API byte limit', () => {
+  // Given: a site name that is fewer than 160 characters but more than 160 UTF-8 bytes.
+  const form = emptySubmission();
+  form.url = 'https://example.test';
+  form.name = '站'.repeat(54);
+  // When: the details step is validated.
+  const result = validateSubmissionStep('CREATE', form, 0);
+  // Then: the invalid field can be focused before any submission.
+  assert.equal(result.valid, false);
+  assert.equal(result.field, 'name');
+});
+
+test('identifies a dynamic Feed name by its stable draft identifier', () => {
+  // Given: an overlong multibyte name on an otherwise valid Feed.
+  const form = emptySubmission();
+  form.url = 'https://example.test';
+  form.feeds = [
+    { id: 'stable-feed', name: '订'.repeat(34), url: '/feed.xml', format: 'RSS', isDefault: true },
+  ];
+  // When: the resources step is validated.
+  const result = validateSubmissionStep('CREATE', form, 1);
+  // Then: feedback targets this Feed rather than an array index.
+  assert.equal(result.valid, false);
+  assert.equal(result.field, 'feed-name-stable-feed');
 });

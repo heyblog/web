@@ -169,6 +169,23 @@ test('development keeps page scripts and QR images working after graph workers l
       assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, follow');
       assert.equal(await response.text(), '');
     }
+    const mismatch = await fetch(origin + '/api/web/auth/password/reset', {
+      method: 'POST',
+      headers: { Origin: origin },
+      body: new URLSearchParams({
+        token: 'synthetic-reset-token',
+        password: 'new-password',
+        confirm_password: 'different-password',
+      }),
+      redirect: 'manual',
+    });
+    assert.equal(mismatch.status, 303);
+    const mismatchLocation = new URL(mismatch.headers.get('Location') ?? '', origin);
+    assert.equal(mismatchLocation.pathname, '/reset-password');
+    assert.equal(mismatchLocation.searchParams.get('error'), 'password_mismatch');
+    assert.equal(mismatchLocation.searchParams.get('token'), 'synthetic-reset-token');
+    assert.equal(await mismatch.text(), '');
+
     const logout = await fetch(origin + '/api/web/auth/logout', {
       method: 'POST',
       headers: { Origin: origin },

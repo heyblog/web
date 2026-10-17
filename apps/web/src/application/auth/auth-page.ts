@@ -32,7 +32,7 @@ const messages: Readonly<Record<string, string>> = {
   username_taken: '该用户名已被使用。',
   invalid_username: '用户名需为 3 至 32 位小写字母、数字或下划线。',
   invalid_email: '请输入有效的邮箱地址。',
-  invalid_password: '密码长度需为 8 至 128 个字符。',
+  invalid_password: '密码需为 8–128 字节，中文和表情占多个字节。',
   invalid_current_password: '当前密码不正确，请重新输入。',
   password_mismatch: '两次输入的密码不一致。',
   validation_failed: '提交内容校验失败，请刷新页面后重试。',

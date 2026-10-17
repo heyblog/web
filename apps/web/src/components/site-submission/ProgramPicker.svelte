@@ -106,7 +106,7 @@
   }
 </script>
 
-<section class="grid min-w-0 gap-4">
+<section data-field-group="program" class="grid min-w-0 gap-4">
   <div>
     <h2 class="text-xl font-semibold">站点程序</h2>
     <p class="mt-1 text-sm text-pretty text-fg-muted">搜索已有程序，或选择程序类型。</p>
@@ -181,17 +181,28 @@
               onclick={returnToSearch}>返回选择已有程序</button
             >
           </div>
-          <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+          <p id="program-name-help" class="text-xs text-fg-muted">
+            程序名称必填，最多 128 个字符。
+          </p>
+          <p id="program-links-help" class="text-xs text-fg-muted">
+            官网和代码仓库至少填写一个有效的 HTTP 或 HTTPS 地址。
+          </p>
+          <div class="grid min-w-0 gap-4 sm:grid-cols-2" data-field-group="program.links">
             <label class="grid min-w-0 gap-2 text-sm"
               >程序名称<input
                 class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 bind:value={form.program.name}
-                maxlength="128"
+                name="program.name"
+                required
+                data-max-characters="128"
+                aria-describedby="program-name-help"
               /></label
             >
             <label class="grid min-w-0 gap-2 text-sm"
               >开源状态<select
                 class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
+                name="program.openSource"
+                required
                 value={form.program.isOpenSource === null ? '' : String(form.program.isOpenSource)}
                 onchange={(event) => setOpenSource(event.currentTarget.value)}
                 ><option value="">请选择</option><option value="true">开源</option><option
@@ -203,12 +214,18 @@
               >官网<input
                 class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 bind:value={form.program.homepageURL}
+                name="program.homepageURL"
+                data-validation="http-url"
+                aria-describedby="program-links-help"
               /></label
             >
             <label class="grid min-w-0 gap-2 text-sm"
               >代码仓库<input
                 class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
                 bind:value={form.program.repositoryURL}
+                name="program.repositoryURL"
+                data-validation="http-url"
+                aria-describedby="program-links-help"
               /></label
             >
           </div>

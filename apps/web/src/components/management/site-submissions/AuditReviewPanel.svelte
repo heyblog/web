@@ -21,6 +21,8 @@
   let pending = $state(false);
   $effect(() => protectReviewRequest(() => pending));
   let error = $state('');
+  let commentError = $state('');
+  let commentInput: HTMLTextAreaElement;
   let reloadRequired = $state(false);
   let pendingAction = $state<PendingAction | null>(null);
   let confirmDialog: HTMLDialogElement;
@@ -46,8 +48,10 @@
   function requestAction(action: PendingAction): void {
     if (pending || availability.checking || reloadRequired) return;
     error = '';
+    commentError = '';
     if (action === 'REJECTED' && !comment.trim()) {
-      error = '驳回申请时必须填写审核意见。';
+      commentError = '驳回申请时必须填写审核意见。';
+      commentInput.focus();
       return;
     }
     pendingAction = action;
@@ -169,8 +173,20 @@
     >审核意见<textarea
       class="min-h-28 rounded-sm border border-line-strong bg-surface p-3"
       bind:value={comment}
+      bind:this={commentInput}
+      oninput={() => {
+        if (commentError) commentError = comment.trim() ? '' : '驳回申请时必须填写审核意见。';
+      }}
       disabled={pending || availability.checking || reloadRequired}
-      placeholder="通过可不填，驳回时必填。"></textarea></label
+      aria-invalid={commentError ? 'true' : undefined}
+      aria-describedby={`review-comment-help${commentError ? ' review-comment-error' : ''}`}
+    ></textarea><span id="review-comment-help" class="text-xs text-fg-muted"
+      >通过可不填，驳回时必须填写审核意见。</span
+    >{#if commentError}<span
+        id="review-comment-error"
+        class="text-xs text-danger-fg"
+        aria-live="polite">{commentError}</span
+      >{/if}</label
   >
 
   {#if error}<div class="grid gap-2" role="alert">

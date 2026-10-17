@@ -17,6 +17,7 @@
     defaultExpiry,
     expirationPayload,
   } from '@/application/api-keys/api-keys.model';
+  import { formFeedback, showFieldIssue } from '@/application/forms/field-feedback.browser';
 
   import { buttonClass, errorClass, inputClass, primaryClass } from './api-keys.styles';
   import ApiKeyExpiryFields from './ApiKeyExpiryFields.svelte';
@@ -45,6 +46,7 @@
   let expiresAt = $state(defaultExpiry(initial.audience));
   let neverExpires = $state(false);
   let validationError = $state<string | null>(null);
+  let formElement: HTMLFormElement;
 
   function changeAudience(event: Event): void {
     if (!(event.currentTarget instanceof HTMLSelectElement)) return;
@@ -60,10 +62,12 @@
     validationError = null;
     if (scopes.length === 0) {
       validationError = '请至少选择一项调用权限。';
+      showFieldIssue(formElement, 'scopes', validationError);
       return;
     }
     if (!name.trim()) {
       validationError = '请输入调用方名称。';
+      showFieldIssue(formElement, 'name', validationError);
       return;
     }
     const fields = { name: name.trim(), description: description.trim(), scopes: [...scopes] };
@@ -86,6 +90,7 @@
     if (expiration === null) {
       validationError =
         audience === 'INTERNAL' ? '到期时间必须在未来 90 天内。' : '请选择未来的到期时间。';
+      showFieldIssue(formElement, 'expires_at', validationError);
       return;
     }
     await onsubmit({ kind: 'create', payload: { ...fields, audience, ...expiration } });
@@ -93,6 +98,8 @@
 </script>
 
 <form
+  bind:this={formElement}
+  use:formFeedback
   class="flex min-h-0 flex-1 flex-col"
   onsubmit={submit}
   oninput={() => ondirty(true)}
@@ -103,10 +110,13 @@
       >名称<input
         class={inputClass}
         name="name"
-        maxlength="128"
         required
         bind:value={name}
-      /></label
+        data-max-bytes="128"
+        aria-describedby="field-name-help"
+      /><span id="field-name-help" class="text-xs/normal font-normal text-fg-muted"
+        >最多 128 字节，中文和表情占多个字节。</span
+      ></label
     >
     <label class="grid gap-2 text-sm font-medium"
       >调用类型
@@ -126,13 +136,14 @@
       >用途说明<textarea
         class={`${inputClass} min-h-24 py-3`}
         name="description"
-        maxlength="512"
-        bind:value={description}></textarea></label
+        bind:value={description}
+        data-max-bytes="512"
+        aria-describedby="field-description-help"></textarea><span
+        id="field-description-help"
+        class="text-xs/normal font-normal text-fg-muted">选填，最多 512 字节。</span
+      ></label
     >
-    <fieldset
-      class="grid gap-2"
-      aria-describedby={validationError ? 'client-form-error' : undefined}
-    >
+    <fieldset class="grid gap-2" data-field-group="scopes">
       <legend class="mb-2 text-sm font-medium">调用权限</legend>
       {#each apiClientScopesByAudience[audience] as scope (scope)}
         <label

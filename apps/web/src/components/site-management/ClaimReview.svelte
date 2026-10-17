@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
 
   import type { Claim, OwnershipDetail } from '@/api/site-management/claims.types';
+  import { formFeedback } from '@/application/forms/field-feedback.browser';
   import { createClaimReview } from '@/application/site-management/claim-review.controller.svelte';
   import { claimLabel } from '@/application/site-management/claims.model';
   import { claimMethodLabels } from '@/application/site-management/messages';
@@ -20,6 +21,7 @@
   }: { initial: Claim; ownership: OwnershipDetail | null; reviewerId: string } = $props();
   const controller = createClaimReview(initial, ownership);
   let reason = $state('');
+  let approve = true;
   onDestroy(() => controller.dispose());
   function statusClass(status: Claim['status']) {
     return status === 'VERIFIED'
@@ -101,27 +103,42 @@
         </div>
         {#if claim.user_id === reviewerId}<p class="rounded-md bg-subtle p-4 text-sm">
             自己的申请需要由其他审核者处理。
-          </p>{:else}<label class="grid gap-2 text-sm"
-            >审核意见<textarea
-              class="{inputClass} min-h-28 py-3"
-              bind:value={reason}
-              required
-              maxlength="2000"
-              disabled={controller.busy}></textarea></label
+          </p>{:else}<form
+            use:formFeedback
+            class="grid gap-4"
+            onsubmit={(event) => {
+              event.preventDefault();
+              void controller.review(approve, reason);
+            }}
           >
-          <div class="flex flex-wrap gap-3">
-            <button
-              type="button"
-              class={primaryClass}
-              disabled={controller.busy || !reason.trim()}
-              onclick={() => void controller.review(true, reason)}>批准认领</button
-            ><button
-              type="button"
-              class={dangerClass}
-              disabled={controller.busy || !reason.trim()}
-              onclick={() => void controller.review(false, reason)}>驳回申请</button
+            <label class="grid gap-2 text-sm"
+              >审核意见<textarea
+                class="{inputClass} min-h-28 py-3"
+                bind:value={reason}
+                required
+                name="reason"
+                data-max-bytes="2000"
+                aria-describedby="claim-review-reason-help"
+                disabled={controller.busy}></textarea><span
+                id="claim-review-reason-help"
+                class="text-xs text-fg-muted"
+                >批准或驳回均须填写审核意见，最多 2000 字节，中文和表情占多个字节。</span
+              ></label
             >
-          </div>{/if}
+            <div class="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                class={primaryClass}
+                disabled={controller.busy}
+                onclick={() => (approve = true)}>批准认领</button
+              ><button
+                type="submit"
+                class={dangerClass}
+                disabled={controller.busy}
+                onclick={() => (approve = false)}>驳回申请</button
+              >
+            </div>
+          </form>{/if}
       </section>
     {/if}
     <div class="flex flex-wrap items-center gap-3">

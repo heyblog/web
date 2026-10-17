@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
 
   import type { OwnershipDetail } from '@/api/site-management/claims.types';
+  import { formFeedback } from '@/application/forms/field-feedback.browser';
   import {
     buttonClass,
     dangerClass,
@@ -76,6 +77,7 @@
   aria-describedby="revoke-description"
 >
   <form
+    use:formFeedback
     class="grid gap-4"
     onsubmit={(event) => {
       event.preventDefault();
@@ -92,13 +94,25 @@
         class="{inputClass} min-h-24 py-3"
         bind:value={reason}
         required
-        maxlength="2000"></textarea></label
+        name="reason"
+        data-max-bytes="2000"
+        data-field-label="处理理由"
+        aria-describedby="reason-requirements"></textarea><span
+        id="reason-requirements"
+        class="text-xs/normal text-fg-muted">必填，最多 2000 字节。</span
+      ></label
     ><label class="grid gap-2 text-sm"
       >处理证据<textarea
         class="{inputClass} min-h-24 py-3"
         bind:value={evidence}
         required
-        maxlength="4000"></textarea></label
+        name="evidence"
+        data-max-bytes="4000"
+        data-field-label="归属说明"
+        aria-describedby="evidence-requirements"></textarea><span
+        id="evidence-requirements"
+        class="text-xs/normal text-fg-muted">必填，最多 4000 字节。</span
+      ></label
     >
     <div class="flex flex-wrap justify-end gap-3">
       <button bind:this={dismiss} class={buttonClass} type="button" onclick={() => dialog?.close()}

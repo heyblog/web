@@ -1,0 +1,86 @@
+---
+import { authErrorField } from '@/application/auth/auth-fields';
+import { authErrorMessage } from '@/application/auth/auth-page';
+
+interface Props {
+  name: string;
+  label: string;
+  type?: 'text' | 'email' | 'password';
+  autocomplete?: string;
+  value?: string;
+  help?: string;
+  validation?: string;
+  match?: string;
+  pattern?: string;
+  formatMessage?: string;
+  inputmode?: 'numeric';
+  maxlength?: number;
+}
+const {
+  name,
+  label,
+  type = 'text',
+  autocomplete,
+  value,
+  help,
+  validation,
+  match,
+  pattern,
+  formatMessage,
+  inputmode,
+  maxlength,
+} = Astro.props;
+const code = Astro.url.searchParams.get('error');
+const errorField = authErrorField(code);
+const error =
+  errorField === name || (errorField === 'password' && name === 'next_password')
+    ? authErrorMessage(code)
+    : null;
+const description = [help && `${name}-help`, error && `${name}-feedback`].filter(Boolean).join(' ');
+---
+
+<div class="grid min-w-0 gap-1.5">
+  <label class="text-sm font-medium" for={name}>
+    {label}
+  </label>
+  <input
+    id={name}
+    class="min-h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-base outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:min-h-10"
+    {name}
+    {type}
+    {autocomplete}
+    {value}
+    {pattern}
+    {inputmode}
+    {maxlength}
+    required
+    autocapitalize={name === 'username' ? 'none' : undefined}
+    spellcheck={name === 'username' ? 'false' : undefined}
+    data-field-label={label}
+    data-validation={validation}
+    data-match={match}
+    data-format-message={formatMessage}
+    data-server-error={error}
+    data-length-counter={validation === 'new-password' ? `${name}-length` : undefined}
+    aria-invalid={error ? 'true' : undefined}
+    aria-describedby={description || undefined}
+  />
+  <p
+    id={`${name}-feedback`}
+    class="text-xs/normal text-danger-fg"
+    aria-live="polite"
+    hidden={!error}
+  >
+    {error}
+  </p>
+  {help && (
+    <p id={`${name}-help`} class="text-xs/normal text-fg-muted">
+      {help}
+    </p>
+  )}
+  {validation === 'new-password' && (
+    <p id={`${name}-length`} class="text-xs text-fg-muted">
+      当前 0 字节
+    </p>
+  )}
+</div>

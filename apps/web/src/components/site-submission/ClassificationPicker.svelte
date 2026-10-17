@@ -48,7 +48,7 @@
   }
 </script>
 
-<fieldset class="grid min-w-0 gap-3">
+<fieldset class="grid min-w-0 gap-3" data-field-group="classification">
   <legend class="text-sm font-semibold">固定分类</legend>
   <div class="grid min-w-0 gap-4 sm:grid-cols-2">
     <label class="grid min-w-0 gap-1.5 text-sm">
@@ -56,6 +56,8 @@
       <select
         class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
         value={selectedLevel1 ? tagOptionKey(selectedLevel1) : ''}
+        name="classification.primary"
+        required
         onchange={changeLevel1}
       >
         <option value="">请选择一级分类</option>
@@ -74,6 +76,8 @@
         class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 disabled:cursor-not-allowed disabled:border-line disabled:bg-subtle disabled:text-fg-muted sm:min-h-10"
         value={selectedLevel2 ? tagOptionKey(selectedLevel2) : ''}
         disabled={!selectedLevel1}
+        name="classification.secondary"
+        required
         onchange={changeLevel2}
       >
         <option value="">{selectedLevel1 ? '请选择二级分类' : '请先选择一级分类'}</option>

@@ -138,11 +138,15 @@
         selected = id;
       }}
     />
+    {#if selected === shortId}<p id="friend-self-help" class="text-xs text-fg-muted">
+        不能把当前站点添加为自己的友链。
+      </p>{/if}
     {#if selected}<p class="text-sm text-fg-muted">所选站点：{selected}</p>
       <button
         class="min-h-11 w-fit rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
         type="button"
         disabled={busy || selected === shortId}
+        aria-describedby={selected === shortId ? 'friend-self-help' : undefined}
         onclick={() => mutate(selected, 'add')}>添加友链</button
       >{/if}
     <button

@@ -31,7 +31,7 @@ const navigationLinkClass =
   data-public-header
   data-home={isHome ? 'true' : 'false'}
 >
-  <div class="mx-auto flex min-h-16 w-[min(calc(100%-0.5rem),80rem)] items-center gap-0 xs:w-[min(calc(100%-2rem),80rem)] xs:gap-2 sm:w-[min(calc(100%-3rem),80rem)] sm:gap-3">
+  <div class="mx-auto flex min-h-16 w-full max-w-332 items-center gap-0 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] xs:gap-2 sm:gap-3 sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))]">
     <a
       class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm text-sm font-semibold xs:text-base sm:min-h-10 sm:min-w-10"
       href="/"
@@ -45,7 +45,7 @@ const navigationLinkClass =
         height="40"
       />
       <span
-        class="ml-2 max-w-0 min-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-(--motion-base) ease-standard motion-reduce:transition-none xs:data-[visible=true]:max-w-18 xs:data-[visible=true]:opacity-100"
+        class="ml-2 hidden max-w-0 min-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-(--motion-base) ease-standard motion-reduce:transition-none xs:inline-flex xs:data-[visible=true]:max-w-18 xs:data-[visible=true]:opacity-100"
         data-public-brand
         data-visible={isHome ? 'false' : 'true'}
         aria-hidden="true"

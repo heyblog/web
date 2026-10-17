@@ -7,6 +7,7 @@
     ManagedUser,
     ManagedUserMutation,
   } from '@/api/managed-users/managed-users.types';
+  import { formFeedback, showFieldIssue } from '@/application/forms/field-feedback.browser';
   import { authorizationError } from '@/application/management/users.messages';
   import {
     accountManagementReason,
@@ -35,6 +36,7 @@
   let email = $state(untrack(() => user.email ?? ''));
   let busy = $state(false);
   let error = $state('');
+  let formElement: HTMLFormElement;
   let notice = $state('');
   let reloadRequired = $state(false);
   let confirmation = $state<AccountOperation | null>(null);
@@ -72,7 +74,16 @@
     const result = await mutateManagedUser(user.id, change);
     busy = false;
     if (!result.ok) {
-      error = authorizationError(result.code, result.status);
+      const field =
+        result.code === 'invalid_username' || result.code === 'username_taken'
+          ? 'username'
+          : result.code === 'invalid_display_name'
+            ? 'display_name'
+            : result.code === 'invalid_email' || result.code === 'email_taken'
+              ? 'email'
+              : '';
+      const message = authorizationError(result.code, result.status);
+      if (!field || !showFieldIssue(formElement, field, message)) error = message;
       reloadRequired =
         userMutationNeedsReload(result.code, result.status) ||
         [401, 403, 404].includes(result.status);
@@ -120,6 +131,8 @@
   </dl>
   {#if reason}<p class="mb-4 text-sm text-fg-muted">{reason}</p>{/if}
   <form
+    bind:this={formElement}
+    use:formFeedback
     class="grid gap-4"
     onsubmit={(event) => {
       event.preventDefault();
@@ -132,9 +145,13 @@
           class={inputClass}
           bind:value={displayName}
           required
-          maxlength="128"
           autocomplete="off"
-        /></label
+          name="display_name"
+          data-validation="display-name"
+          aria-describedby="field-display_name-help"
+        /><span id="field-display_name-help" class="text-xs/normal font-normal text-fg-muted"
+          >1–128 个字符，不能只填写空格。</span
+        ></label
       >
       <label class="grid gap-2 text-sm font-medium"
         >邮箱<input
@@ -144,6 +161,7 @@
           required
           maxlength="320"
           autocomplete="off"
+          name="email"
         /></label
       >
     </fieldset>

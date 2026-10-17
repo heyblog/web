@@ -223,3 +223,33 @@ test('profile transport reports ambiguous failures without retrying a mutation',
     globalThis.fetch = original;
   }
 });
+
+test('invalid usernames do not enter the one-time rename confirmation', async () => {
+  // Given: a user editing a username outside the allowed format.
+  const controller = createProfileController({ ...user, profile_confirmation_required: false });
+  controller.username = 'Invalid Name';
+  // When: the rename is submitted.
+  const saved = await controller.submit('username');
+  // Then: validation stays on the username and no irreversible-action confirmation opens.
+  assert.equal(saved, false);
+  assert.equal(controller.confirming, false);
+  assert.ok(controller.fieldErrors.username);
+});
+
+test('username conflicts produce field feedback without a generic form failure', async () => {
+  // Given: the server rejects a claimed username.
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ code: 'username_taken' }, { status: 409 });
+  const controller = createProfileController(user);
+  try {
+    // When: the profile is confirmed.
+    const saved = await controller.submit('confirm');
+    // Then: only the username needs correction.
+    assert.equal(saved, false);
+    assert.ok(controller.fieldErrors.username);
+    assert.equal(controller.error, '');
+    assert.equal(controller.uncertain, false);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

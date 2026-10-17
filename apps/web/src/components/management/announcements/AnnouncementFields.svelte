@@ -46,7 +46,12 @@
         </select>{/snippet}
     </AnnouncementField>
     {#if draft.kind === 'MAIN'}
-      <AnnouncementField label="优先级" validated error={issue('priority')}>
+      <AnnouncementField
+        label="优先级"
+        validated
+        error={issue('priority')}
+        help="整数；数值越大，排序越靠前。"
+      >
         {#snippet children(id, error)}<input
             {id}
             class={inputClass(error)}
@@ -57,7 +62,7 @@
             bind:value={draft.priority}
             required
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? `${id}-error` : undefined}
+            aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
             onblur={() => {
               touched.priority = true;
             }}
@@ -65,14 +70,14 @@
       </AnnouncementField>
     {/if}
   </div>
-  <AnnouncementField label="标题" validated error={issue('title')}>
+  <AnnouncementField label="标题" validated error={issue('title')} help="必填，最多 256 个字符。">
     {#snippet children(id, error)}<input
         {id}
         class={inputClass(error)}
         bind:value={draft.title}
         required
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
         onblur={() => {
           touched.title = true;
         }}
@@ -94,14 +99,19 @@
         </select>{/snippet}
     </AnnouncementField>
     {#if draft.actionType !== 'NONE'}
-      <AnnouncementField label="链接文字" validated error={issue('actionLabel')}>
+      <AnnouncementField
+        label="链接文字"
+        validated
+        error={issue('actionLabel')}
+        help="启用链接时必填。"
+      >
         {#snippet children(id, error)}<input
             {id}
             class={inputClass(error)}
             bind:value={draft.actionLabel}
             required
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? `${id}-error` : undefined}
+            aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
             onblur={() => {
               touched.actionLabel = true;
             }}
@@ -114,6 +124,7 @@
       label={draft.actionType === 'INTERNAL' ? '站内路径' : '外部地址'}
       validated
       error={issue('actionTarget')}
+      help="站内路径以 / 开头；外部地址使用 HTTP 或 HTTPS。"
     >
       {#snippet children(id, error)}<input
           {id}
@@ -123,7 +134,7 @@
           bind:value={draft.actionTarget}
           required
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
           onblur={() => {
             touched.actionTarget = true;
           }}
@@ -131,7 +142,12 @@
     </AnnouncementField>
   {/if}
   <div class="grid gap-4 sm:grid-cols-2">
-    <AnnouncementField label="开始时间" validated error={issue('startsAt')}>
+    <AnnouncementField
+      label="开始时间"
+      validated
+      error={issue('startsAt')}
+      help="设置结束时间时必填；定时发布需选择未来时间。"
+    >
       {#snippet children(id, error)}<input
           {id}
           class={inputClass(error)}
@@ -140,13 +156,18 @@
           bind:value={draft.startsAt}
           disabled={identityLocked}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
           onblur={() => {
             touched.startsAt = true;
           }}
         />{/snippet}
     </AnnouncementField>
-    <AnnouncementField label="结束时间" validated error={issue('endsAt')}>
+    <AnnouncementField
+      label="结束时间"
+      validated
+      error={issue('endsAt')}
+      help="选填，必须晚于开始时间。"
+    >
       {#snippet children(id, error)}<input
           {id}
           class={inputClass(error)}
@@ -154,7 +175,7 @@
           step="1"
           bind:value={draft.endsAt}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
           onblur={() => {
             touched.endsAt = true;
           }}

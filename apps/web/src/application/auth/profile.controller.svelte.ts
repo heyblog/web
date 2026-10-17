@@ -2,6 +2,7 @@ import { saveProfile } from '../../api/account-profile/profile.browser.ts';
 import type { ProfileAction } from '../../api/account-profile/profile.types.ts';
 import type { SessionUser } from '../../api/auth/auth.types.ts';
 
+import { displayNameIssue, usernameIssue } from './auth-fields.ts';
 import { profileError } from './profile.messages.ts';
 
 export function createProfileController(initial: SessionUser) {
@@ -14,11 +15,22 @@ export function createProfileController(initial: SessionUser) {
   let status = $state('');
   let uncertain = $state(false);
   let signIn = $state(false);
+  let fieldErrors = $state<Record<string, string>>({});
 
   async function submit(kind: ProfileAction['kind']): Promise<boolean> {
     if (busy || uncertain) return false;
     error = '';
     status = '';
+    fieldErrors = {};
+    if (kind !== 'display') {
+      const issue = usernameIssue(username);
+      if (issue) fieldErrors.username = issue;
+    }
+    if (kind !== 'username') {
+      const issue = displayNameIssue(displayName);
+      if (issue) fieldErrors.display_name = issue;
+    }
+    if (Object.keys(fieldErrors).length) return false;
     if (kind === 'username' && !confirming) {
       confirming = true;
       return false;
@@ -38,7 +50,15 @@ export function createProfileController(initial: SessionUser) {
           result.code === 'unauthenticated' ||
           result.code === 'session_expired' ||
           result.code === 'invalid_token';
-        error = profileError(result.code, result.uncertain);
+        const field =
+          !result.uncertain &&
+          (result.code === 'invalid_username' || result.code === 'username_taken'
+            ? 'username'
+            : result.code === 'invalid_display_name'
+              ? 'display_name'
+              : null);
+        if (field) fieldErrors = { [field]: profileError(result.code, false) };
+        else error = profileError(result.code, result.uncertain);
         confirming = false;
         return false;
       }
@@ -77,6 +97,9 @@ export function createProfileController(initial: SessionUser) {
     },
     get error() {
       return error;
+    },
+    get fieldErrors() {
+      return fieldErrors;
     },
     get status() {
       return status;

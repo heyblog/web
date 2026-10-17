@@ -107,7 +107,7 @@
 
 <svelte:document onclick={closeOutside} onfocusin={closeOutside} />
 
-<div class="grid min-w-0 gap-3" bind:this={picker}>
+<div data-field-group="tags" class="grid min-w-0 gap-3" bind:this={picker}>
   <div class="flex items-end justify-between gap-3">
     <div>
       <h3 class="text-sm font-semibold">三级标签</h3>

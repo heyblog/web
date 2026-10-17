@@ -92,7 +92,10 @@ export const POST: APIRoute = async ({ params, request }) => {
         : path === 'password'
           ? '/dashboard/security'
           : '/reset-password';
-    return Response.redirect(pageLocation(request, `${fallback}?error=password_mismatch`), 303);
+    const parameters = new URLSearchParams({ error: 'password_mismatch' });
+    const token = optionalField(form, 'token');
+    if (token) parameters.set('token', token);
+    return Response.redirect(pageLocation(request, `${fallback}?${parameters}`), 303);
   }
   const body = action.body(form);
   const response = await requestAuthAPI(request, action.upstream, { method: 'POST', body });

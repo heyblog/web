@@ -3,6 +3,7 @@
 
   import { mutateManagedUser } from '@/api/managed-users/managed-users.browser';
   import type { ManagedUser } from '@/api/managed-users/managed-users.types';
+  import { formFeedback, showFieldIssue } from '@/application/forms/field-feedback.browser';
   import { authorizationError } from '@/application/management/users.messages';
   import { userMutationNeedsReload } from '@/application/management/users.model';
   import { protectFormDraft } from '@/application/navigation/form-navigation.browser';
@@ -13,6 +14,7 @@
   let email = $state('');
   let pending = $state(false);
   let error = $state('');
+  let formElement: HTMLFormElement;
   let created = $state<ManagedUser | null>(null);
   let mailSent = $state(false);
   let uncertain = $state(false);
@@ -39,7 +41,16 @@
     );
     pending = false;
     if (!result.ok) {
-      error = authorizationError(result.code, result.status);
+      const field =
+        result.code === 'invalid_username' || result.code === 'username_taken'
+          ? 'username'
+          : result.code === 'invalid_display_name'
+            ? 'display_name'
+            : result.code === 'invalid_email' || result.code === 'email_taken'
+              ? 'email'
+              : '';
+      const message = authorizationError(result.code, result.status);
+      if (!field || !showFieldIssue(formElement, field, message)) error = message;
       uncertain = userMutationNeedsReload(result.code, result.status);
       return;
     }
@@ -69,6 +80,8 @@
   {:else}
     <p class="mb-5 text-sm text-fg-muted">新账号为普通用户，创建后将向邮箱发送密码设置链接。</p>
     <form
+      bind:this={formElement}
+      use:formFeedback
       class="grid max-w-lg gap-5"
       onsubmit={(event) => {
         event.preventDefault();
@@ -85,16 +98,27 @@
             maxlength="32"
             required
             autocomplete="off"
-          /><span class="text-xs text-fg-muted">3–32 位小写字母、数字或下划线。</span></label
+            name="username"
+            aria-describedby="create-username-help"
+            data-validation="username"
+            autocapitalize="none"
+            spellcheck="false"
+          /><span id="create-username-help" class="text-xs text-fg-muted"
+            >3–32 位小写字母、数字或下划线。</span
+          ></label
         >
         <label class="grid gap-2 text-sm font-medium"
           >显示名称<input
             class={inputClass}
             bind:value={displayName}
-            maxlength="128"
             required
             autocomplete="off"
-          /></label
+            name="display_name"
+            data-validation="display-name"
+            aria-describedby="field-display_name-help"
+          /><span id="field-display_name-help" class="text-xs/normal font-normal text-fg-muted"
+            >1–128 个字符，不能只填写空格。</span
+          ></label
         >
         <label class="grid gap-2 text-sm font-medium"
           >邮箱<input
@@ -104,6 +128,7 @@
             maxlength="320"
             required
             autocomplete="off"
+            name="email"
           /></label
         >
       </fieldset>

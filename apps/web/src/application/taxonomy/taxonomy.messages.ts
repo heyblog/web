@@ -22,7 +22,7 @@ const messages: Readonly<Record<string, string>> = {
   tag_unavailable: '标签已不可用，请刷新后重新选择。',
   fallback_protected: '默认“其他”分类必须保留。',
   primary_parent_required: '请选择有效的一级分类。',
-  invalid_tag_name: '请填写标签名称。',
+  invalid_tag_name: '标签名称需为 1–120 个字符，不能只填写空格。',
   bad_gateway: '服务暂时不可用，请稍后重试。',
 };
 

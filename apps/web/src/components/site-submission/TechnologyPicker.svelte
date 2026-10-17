@@ -85,7 +85,13 @@
               onclick={() => remove(index)}><IconX size={16} aria-hidden="true" /></button
             ></span
           >
-          {#if !dependency.id}<div class="grid gap-3 sm:grid-cols-2">
+          {#if !dependency.id}<div
+              class="grid gap-3 sm:grid-cols-2"
+              data-field-group={`program.dependencies.${dependency.role}:${dependency.name}`}
+            >
+              <p class="text-xs text-fg-muted sm:col-span-2">
+                请选择开源状态，并至少填写一个有效的 HTTP 或 HTTPS 主页或代码仓库地址。
+              </p>
               <label class="grid gap-2 text-xs"
                 >主页<input
                   class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-sm"

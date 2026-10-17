@@ -2,7 +2,9 @@
 import { IconKey } from '@tabler/icons-svelte';
 
 import { oauthProviders } from '@/api/auth/oauth.types';
+import { authErrorField } from '@/application/auth/auth-fields';
 import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
+import AuthField from '@/components/auth/AuthField.astro';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import OAuthButton from '@/components/auth/OAuthButton.svelte';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
@@ -21,7 +23,13 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fsecurity');
         <p class="text-lg font-semibold">{user.display_name}</p>
       </div>
     </header>
-    <AuthNotice message={authErrorMessage(Astro.url.searchParams.get('error'))} />
+    <AuthNotice
+      message={
+        authErrorField(Astro.url.searchParams.get('error'))
+          ? null
+          : authErrorMessage(Astro.url.searchParams.get('error'))
+      }
+    />
     <AuthNotice message={authStatusMessage(Astro.url.searchParams.get('status'))} kind="success" />
     <dl class="mb-10 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
       <div class="bg-surface p-4">
@@ -51,43 +59,31 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fsecurity');
           <IconKey size={20} stroke={1.8} aria-hidden="true" />
           {user.has_password ? '修改密码' : '设置密码'}
         </h2>
-        <form class="grid gap-4" method="post" action="/api/web/auth/password">
+        <form class="grid gap-4" method="post" action="/api/web/auth/password" data-field-feedback>
           {user.has_password ? (
-            <label class="grid gap-1.5 text-sm font-medium">
-              当前密码
-              <input
-                class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
-                name="current_password"
-                type="password"
-                autocomplete="current-password"
-                required
-              />
-            </label>
+            <AuthField
+              name="current_password"
+              label="当前密码"
+              autocomplete="current-password"
+              type="password"
+            />
           ) : null}
-          <label class="grid gap-1.5 text-sm font-medium">
-            新密码
-            <input
-              class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
-              name="next_password"
-              type="password"
-              autocomplete="new-password"
-              minlength="8"
-              maxlength="128"
-              required
-            />
-          </label>
-          <label class="grid gap-1.5 text-sm font-medium">
-            确认新密码
-            <input
-              class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
-              name="confirm_password"
-              type="password"
-              autocomplete="new-password"
-              minlength="8"
-              maxlength="128"
-              required
-            />
-          </label>
+          <AuthField
+            name="next_password"
+            label="新密码"
+            autocomplete="new-password"
+            type="password"
+            validation="new-password"
+            help="8–128 字节；中文和表情占多个字节。"
+          />
+          <AuthField
+            name="confirm_password"
+            label="确认新密码"
+            autocomplete="new-password"
+            type="password"
+            match="next_password"
+            help="再次输入相同的密码。"
+          />
           <button
             class="min-h-11 rounded-sm bg-primary px-4 text-sm font-semibold text-primary-fg hover:bg-primary-hover"
             type="submit"
@@ -139,3 +135,8 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fsecurity');
     </div>
   </section>
 </DashboardLayout>
+
+<script>
+  import { initFormFeedback } from '@/application/forms/field-feedback.browser';
+  initFormFeedback();
+</script>

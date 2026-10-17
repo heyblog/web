@@ -33,8 +33,14 @@
       <textarea
         class="min-h-28 min-w-0 rounded-sm border border-line-strong bg-surface p-3"
         bind:value={form.reason}
-        maxlength="2000"
-        oninput={onchange}></textarea>
+        oninput={onchange}
+        name="reason"
+        required
+        data-max-bytes="2000"
+        aria-describedby="submission-reason-help"></textarea><span
+        id="submission-reason-help"
+        class="text-xs/normal font-normal text-fg-muted">必填，最多 2000 字节。</span
+      >
     </label>
   {/if}
 
@@ -58,11 +64,14 @@
             class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3 sm:min-h-10"
             class:border-danger={contactInvalid}
             bind:value={form.contactName}
-            maxlength="100"
             aria-invalid={contactInvalid}
             aria-describedby="contact-requirements"
             oninput={onchange}
-          />
+            name="contactName"
+            data-max-bytes="100"
+          /><span id="submission-contactName-help" class="text-xs/normal font-normal text-fg-muted"
+            >最多 100 字节。</span
+          >
         </label>
         <label class="grid min-w-0 gap-1.5 text-sm">
           邮箱
@@ -75,6 +84,7 @@
             aria-invalid={contactInvalid}
             aria-describedby="contact-requirements"
             oninput={onchange}
+            name="contactEmail"
           />
         </label>
       </div>
@@ -85,6 +95,7 @@
       class="size-4 accent-primary"
       type="checkbox"
       bind:checked={form.notifyByEmail}
+      name="notifyByEmail"
       disabled={Boolean(accountContact && !accountContact.email)}
       {onchange}
     />

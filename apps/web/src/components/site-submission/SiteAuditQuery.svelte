@@ -1,6 +1,7 @@
 <script lang="ts">
   import { requestAuditLookup } from '@/api/site-submission/site-submission.browser';
   import type { PublicAuditResult } from '@/api/site-submission/site-submission.types';
+  import { formFeedback } from '@/application/forms/field-feedback.browser';
   import { problemDetail } from '@/application/site-submission/site-submission.api.browser';
 
   let lookupToken = $state('');
@@ -26,7 +27,7 @@
   const statusLabels = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '未通过' } as const;
 </script>
 
-<form class="grid gap-6" onsubmit={submit}>
+<form use:formFeedback class="grid gap-6" onsubmit={submit}>
   <header class="border-b border-line pb-5">
     <p class="font-mono text-xs text-tint-fg">audit lookup</p>
     <h1 class="mt-3 text-3xl font-bold">查询提交进度</h1>
@@ -41,7 +42,12 @@
     autocapitalize="none"
     spellcheck="false"
     required
-  />
+    name="lookup_token"
+    data-field-label="查询凭证"
+    aria-describedby="lookup_token-requirements"
+  /><span id="lookup_token-requirements" class="text-xs/normal text-fg-muted"
+    >填写提交成功时获得的查询凭证。</span
+  >
   <button
     class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
     type="submit"

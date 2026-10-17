@@ -24,6 +24,9 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
 - `apps/web/src/application/site-notice` owns notice display behavior.
 - Preserve existing form state sequencing, error messages, URL behavior, and sensitive-result
   lifetime. Keep mutable SSR request state out of shared module scope.
+- `apps/web/src/application/forms` adds browser field feedback to native forms. Feature validators
+  retain their own rules; byte and Unicode-character measurements live in `src/shared/text-length.ts`.
+  Preserve native POST fallbacks and keep field errors separate from uncertain mutation outcomes.
 
 ## State and Lifecycle Boundaries
 

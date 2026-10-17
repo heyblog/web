@@ -7,6 +7,7 @@
     ReviewSiteInput,
     SubmissionOptions,
   } from '@/api/site-submission/site-submission.types';
+  import { formFeedback, showFieldIssue } from '@/application/forms/field-feedback.browser';
   import { protectReviewRequest } from '@/application/site-submission/review-navigation.browser';
   import { createSiteAvailability } from '@/application/site-submission/site-availability.controller.svelte';
   import { submissionProblem } from '@/application/site-submission/site-submission.api.browser';
@@ -41,6 +42,7 @@
   let pending = $state(false);
   $effect(() => protectReviewRequest(() => pending));
   let error = $state('');
+  let formElement: HTMLFormElement;
   let reloadRequired = $state(false);
   let addressInput: HTMLInputElement;
   const availability = createSiteAvailability();
@@ -63,6 +65,8 @@
       const result = validateSubmissionStep(detail.action, form, step);
       if (!result.valid) {
         error = result.message;
+        await tick();
+        if (result.field) showFieldIssue(formElement, result.field, result.message);
         return;
       }
     }
@@ -108,93 +112,116 @@
     href={typeof window !== 'undefined' ? window.location.href : returnPath}>重新加载并核实结果</a
   >{/if}
 
-<fieldset
-  class="grid min-w-0 gap-6"
-  disabled={pending || availability.checking}
-  aria-busy={pending || availability.checking}
+<form
+  bind:this={formElement}
+  use:formFeedback
+  onsubmit={(event) => {
+    event.preventDefault();
+    void save();
+  }}
 >
-  <section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
-    <header class="border-b border-line pb-4">
-      <p class="text-xs font-medium text-tint-fg">批准前修正</p>
-      <h2 class="mt-2 text-xl font-semibold">站点资料</h2>
-    </header>
-    <label class="grid min-w-0 gap-2 text-sm"
-      >站点名称<input
-        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
-        bind:value={form.name}
-        maxlength="160"
-      /></label
-    >
-    <label class="grid min-w-0 gap-2 text-sm"
-      >主页地址<input
-        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
-        bind:value={form.url}
-        bind:this={addressInput}
-        aria-invalid={availability.state === 'duplicate' || availability.state === 'invalid'}
-        aria-describedby={availability.state !== 'idle'
-          ? 'correction-address-availability'
-          : undefined}
-        oninput={() => availability.clear()}
-      /></label
-    >
-    <SiteAddressAvailability
-      id="correction-address-availability"
-      {availability}
-      purpose="CORRECT"
-      onretry={() => availability.check(addressContext, true)}
-      onedit={() => addressInput.focus()}
-    />
-    <label class="grid min-w-0 gap-2 text-sm"
-      >站点简介<textarea
-        class="min-h-28 min-w-0 rounded-sm border border-line-strong bg-surface p-3 text-sm text-pretty sm:text-base"
-        bind:value={form.summary}
-        maxlength="2000"></textarea></label
-    >
-    <label class="grid min-w-0 gap-2 text-sm">
-      访问范围
-      <select
-        class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
-        bind:value={accessScope}
+  <fieldset
+    class="grid min-w-0 gap-6"
+    disabled={pending || availability.checking}
+    aria-busy={pending || availability.checking}
+  >
+    <section class="grid min-w-0 gap-5 rounded-md border border-line bg-surface p-5 sm:p-6">
+      <header class="border-b border-line pb-4">
+        <p class="text-xs font-medium text-tint-fg">批准前修正</p>
+        <h2 class="mt-2 text-xl font-semibold">站点资料</h2>
+      </header>
+      <label class="grid min-w-0 gap-2 text-sm"
+        >站点名称<input
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
+          bind:value={form.name}
+          name="name"
+          required
+          data-max-bytes="160"
+          aria-describedby="submission-name-help"
+        /><span id="submission-name-help" class="text-xs/normal font-normal text-fg-muted"
+          >必填，最多 160 字节。</span
+        ></label
       >
-        <option value="ALL">全球可访问</option>
-        <option value="CN_ONLY">仅中国大陆可访问</option>
-        <option value="GLOBAL_ONLY">仅中国大陆以外可访问</option>
-      </select>
-    </label>
-  </section>
-
-  <section class="min-w-0 rounded-md border border-line bg-surface p-5 sm:p-6">
-    <FeedEditor bind:form />
-  </section>
-
-  <section class="grid min-w-0 gap-6 rounded-md border border-line bg-surface p-5 sm:p-6">
-    <TagPicker bind:form options={options.tags} {canManageTaxonomy} disabled={pending} />
-    <div class="border-t border-line pt-6">
-      <ProgramPicker
-        bind:form
-        options={options.components}
-        dependencyRelations={options.program_dependencies}
-        privateProgramID={options.private_program_id}
+      <label class="grid min-w-0 gap-2 text-sm"
+        >主页地址<input
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
+          bind:value={form.url}
+          name="url"
+          required
+          data-validation="http-url"
+          bind:this={addressInput}
+          aria-invalid={availability.state === 'duplicate' || availability.state === 'invalid'}
+          aria-describedby={availability.state !== 'idle'
+            ? 'correction-address-availability'
+            : undefined}
+          oninput={() => availability.clear()}
+        /></label
+      >
+      <SiteAddressAvailability
+        id="correction-address-availability"
+        {availability}
+        purpose="CORRECT"
+        onretry={() => availability.check(addressContext, true)}
+        onedit={() => addressInput.focus()}
       />
+      <label class="grid min-w-0 gap-2 text-sm"
+        >站点简介<textarea
+          class="min-h-28 min-w-0 rounded-sm border border-line-strong bg-surface p-3 text-sm text-pretty sm:text-base"
+          bind:value={form.summary}
+          name="summary"
+          data-max-bytes="2000"
+          aria-describedby="submission-summary-help"></textarea><span
+          id="submission-summary-help"
+          class="text-xs/normal font-normal text-fg-muted"
+          >选填，最多 2000 字节，中文和表情占多个字节。</span
+        ></label
+      >
+      <label class="grid min-w-0 gap-2 text-sm">
+        访问范围
+        <select
+          class="min-h-11 min-w-0 rounded-md border border-line-strong bg-surface px-3 sm:min-h-10"
+          bind:value={accessScope}
+        >
+          <option value="ALL">全球可访问</option>
+          <option value="CN_ONLY">仅中国大陆可访问</option>
+          <option value="GLOBAL_ONLY">仅中国大陆以外可访问</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="min-w-0 rounded-md border border-line bg-surface p-5 sm:p-6">
+      <FeedEditor bind:form />
+    </section>
+
+    <section class="grid min-w-0 gap-6 rounded-md border border-line bg-surface p-5 sm:p-6">
+      <TagPicker bind:form options={options.tags} {canManageTaxonomy} disabled={pending} />
+      <div class="border-t border-line pt-6">
+        <ProgramPicker
+          bind:form
+          options={options.components}
+          dependencyRelations={options.program_dependencies}
+          privateProgramID={options.private_program_id}
+        />
+      </div>
+    </section>
+
+    {#if error}<InlineAlert tone="danger">{error}</InlineAlert>{/if}
+
+    <div class="flex flex-wrap justify-end gap-3 border-t border-line pt-5">
+      <a
+        class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 font-medium hover:bg-subtle"
+        href={returnPath}
+        aria-disabled={pending}
+        onclick={(event) => {
+          if (pending) event.preventDefault();
+        }}>取消</a
+      >
+      <button
+        class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
+        type="submit"
+        disabled={pending || availability.checking || reloadRequired}
+        >{pending ? '保存中…' : '保存修正并返回'}</button
+      >
     </div>
-  </section>
-
-  {#if error}<InlineAlert tone="danger">{error}</InlineAlert>{/if}
-
-  <div class="flex flex-wrap justify-end gap-3 border-t border-line pt-5">
-    <a
-      class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4 font-medium hover:bg-subtle"
-      href={returnPath}
-      aria-disabled={pending}
-      onclick={(event) => {
-        if (pending) event.preventDefault();
-      }}>取消</a
-    >
-    <button
-      class="min-h-11 rounded-sm bg-primary px-5 font-semibold text-primary-fg disabled:opacity-50"
-      type="button"
-      disabled={pending || availability.checking || reloadRequired}
-      onclick={save}>{pending ? '保存中…' : '保存修正并返回'}</button
-    >
-  </div>
-</fieldset>
+  </fieldset>
+</form>

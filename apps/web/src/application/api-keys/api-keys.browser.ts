@@ -26,7 +26,7 @@ function messageForFailure(status: number, code: string): string {
   if (status === 403) return '当前账号没有管理调用凭证的权限。';
   if (status === 404) return '调用方或密钥已不存在，请刷新列表。';
   if (status === 409) return '状态已发生变化，请刷新后重试。';
-  if (status === 422) return '请检查名称、调用权限和到期时间。';
+  if (status === 422) return '请检查名称、用途说明、调用权限和到期时间。';
   if (code === 'invalid_response') return '返回结果无法识别，请刷新列表确认操作结果。';
   return '请求未完成，请刷新列表确认结果后再操作。';
 }

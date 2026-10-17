@@ -4,6 +4,7 @@
   import type { ProfileAction } from '../../api/account-profile/profile.types';
   import type { SessionUser } from '../../api/auth/auth.types';
   import { createProfileController } from '../../application/auth/profile.controller.svelte';
+  import { formFeedback } from '../../application/forms/field-feedback.browser';
 
   let {
     user,
@@ -42,7 +43,12 @@
 
 <svelte:window onbeforeunload={beforeUnload} />
 
-<form class="grid gap-5" onsubmit={submit} aria-busy={form.busy}>
+<form
+  class="grid gap-5"
+  use:formFeedback={form.fieldErrors}
+  onsubmit={submit}
+  aria-busy={form.busy}
+>
   {#if form.error}
     <div class="rounded-md bg-danger-bg p-3 text-sm/normal text-danger-fg" role="alert">
       <p>{form.error}</p>
@@ -70,6 +76,7 @@
           class={inputClass}
           id={`${kind}-username`}
           name="username"
+          data-validation="username"
           autocomplete="username"
           autocapitalize="none"
           spellcheck="false"
@@ -96,6 +103,7 @@
           class={inputClass}
           id={`${kind}-display`}
           name="display_name"
+          data-validation="display-name"
           autocomplete="nickname"
           required
           aria-describedby={`${kind}-display-help`}

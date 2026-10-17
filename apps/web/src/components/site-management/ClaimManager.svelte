@@ -3,6 +3,7 @@
 
   import type { OAuthRequest } from '@/api/auth/oauth.types';
   import { type ClaimMethod, claimMethods } from '@/api/site-management/claims.types';
+  import { formFeedback } from '@/application/forms/field-feedback.browser';
   import { createClaimCreator } from '@/application/site-management/claim-create.controller.svelte';
   import { claimCanCreate, claimLabel } from '@/application/site-management/claims.model';
   import { claimMethodLabels } from '@/application/site-management/messages';
@@ -75,7 +76,7 @@
 {#if controller.created}
   <ClaimDetail initial={controller.created.claim} challenge={controller.created} />
 {:else}
-  <form class="grid gap-6" onsubmit={submit}>
+  <form use:formFeedback class="grid gap-6" onsubmit={submit}>
     <header class="grid gap-2">
       <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">站点认证流程</p>
       <h2 class="text-xl font-semibold">{newAddress ? '验证新地址' : '认领站点'}</h2>
@@ -183,7 +184,6 @@
                 disabled={controller.busy}
                 placeholder="https://example.com/"
               />
-              <span class="text-xs text-fg-muted">请输入准备认证的完整 HTTP 或 HTTPS 地址。</span>
             </label>
             <SiteAddressAvailability
               id="claim-address-availability"
@@ -228,9 +228,16 @@
                   class="{inputClass} min-h-28 py-3"
                   bind:value={evidence}
                   required
-                  maxlength="4000"
                   disabled={controller.busy}
-                  placeholder="说明你与该站点的关系，以及管理员可以核对的线索。"></textarea>
+                  placeholder="说明你与该站点的关系，以及管理员可以核对的线索。"
+                  name="evidence"
+                  data-max-bytes="4000"
+                  data-field-label="归属说明"
+                  aria-describedby="evidence-requirements"></textarea><span
+                  id="evidence-requirements"
+                  class="text-xs/normal text-fg-muted"
+                  >必填，最多 4000 字节。说明你与站点的关系及可核对的线索。</span
+                >
               </label>
               <label class="grid gap-2 text-sm">
                 <span class="font-medium">公开证据链接（可选）</span>
@@ -238,10 +245,16 @@
                   class={inputClass}
                   type="url"
                   bind:value={evidenceURL}
-                  maxlength="2048"
                   disabled={controller.busy}
                   placeholder="https://example.com/about"
-                />
+                  name="evidence_url"
+                  data-validation="proof-url"
+                  data-max-bytes="2048"
+                  data-field-label="证据链接"
+                  aria-describedby="evidence_url-requirements"
+                /><span id="evidence_url-requirements" class="text-xs/normal text-fg-muted"
+                  >选填，最多 2048 字节；使用公开 HTTP 或 HTTPS 地址，不能包含登录信息。</span
+                >
               </label>
             </div>
           {:else if method === 'BLOGSCLUB'}

@@ -1,10 +1,12 @@
 import type { AuditAction } from '../../api/site-submission/site-submission.types.ts';
+import { characterLength, utf8Length } from '../../shared/text-length.ts';
 
 import type { EditableSubmission } from './site-submission.browser.ts';
 
 export interface StepValidation {
   readonly valid: boolean;
   readonly message: string;
+  readonly field?: string;
 }
 
 export interface AccountSubmissionContact {
@@ -150,74 +152,105 @@ export function validateSubmissionStep(
 ): StepValidation {
   if (step === 0) {
     if (action !== 'CREATE' && !isSiteShortID(form.siteShortId))
-      return { valid: false, message: '请先选择目标站点。' };
+      return { valid: false, message: '请先选择目标站点。', field: 'siteShortId' };
     if (action === 'DELETE' || action === 'RESTORE') return { valid: true, message: '' };
-    if (!form.name.trim()) return { valid: false, message: '请填写站点名称。' };
+    if (utf8Length(form.name.trim()) > 160)
+      return { valid: false, message: '站点名称最多 160 字节。', field: 'name' };
+    if (utf8Length(form.summary.trim()) > 2000)
+      return { valid: false, message: '站点简介最多 2000 字节。', field: 'summary' };
+    if (!form.name.trim()) return { valid: false, message: '请填写站点名称。', field: 'name' };
     if (!isHTTPURL(form.url.trim()))
-      return { valid: false, message: '请填写有效的 HTTP 或 HTTPS 主页地址。' };
+      return { valid: false, message: '请填写有效的 HTTP 或 HTTPS 主页地址。', field: 'url' };
   }
   if (step === 1 && (action === 'CREATE' || action === 'UPDATE')) {
     const feeds = form.feeds.filter((feed) => feed.url.trim());
-    if (feeds.some((feed) => !feed.name.trim()))
-      return { valid: false, message: '请补全每个 Feed 的名称和有效地址。' };
+    if (feeds.length > 8) return { valid: false, message: '最多添加 8 条 Feed。', field: 'feeds' };
+    for (const feed of feeds) {
+      if (!feed.name.trim() || utf8Length(feed.name.trim()) > 100)
+        return {
+          valid: false,
+          message: 'Feed 名称必填，最多 100 字节。',
+          field: `feed-name-${feed.id}`,
+        };
+    }
     const auxiliaryURLs = validateAuxiliaryURLs(form);
     for (const feed of feeds) {
       const message = auxiliaryURLs.feedMessages[feed.id];
-      if (message) return { valid: false, message };
+      if (message) return { valid: false, message, field: `feed-url-${feed.id}` };
     }
     if (auxiliaryURLs.sitemapMessage)
-      return { valid: false, message: auxiliaryURLs.sitemapMessage };
+      return { valid: false, message: auxiliaryURLs.sitemapMessage, field: 'sitemap' };
     if (auxiliaryURLs.linkPageMessage)
-      return { valid: false, message: auxiliaryURLs.linkPageMessage };
+      return { valid: false, message: auxiliaryURLs.linkPageMessage, field: 'linkPage' };
     if (feeds.length > 0 && feeds.filter((feed) => feed.isDefault).length !== 1)
-      return { valid: false, message: '请选择且仅选择一个默认 Feed。' };
+      return { valid: false, message: '请选择且仅选择一个默认 Feed。', field: 'feeds' };
   }
   if (step === 2 && (action === 'CREATE' || action === 'UPDATE')) {
     const level1Tags = form.tags.filter((tag) => tag.level === 1 && tag.role === 'PRIMARY');
     const level2Tags = form.tags.filter((tag) => tag.level === 2 && tag.role === 'SECONDARY');
     if (level1Tags.length !== 1 || level2Tags.length !== 1)
-      return { valid: false, message: '请选择完整的一级和二级分类。' };
+      return { valid: false, message: '请选择完整的一级和二级分类。', field: 'classification' };
     if (level2Tags[0]?.parent_id !== level1Tags[0]?.id)
-      return { valid: false, message: '所选二级分类不属于当前一级分类。' };
+      return { valid: false, message: '所选二级分类不属于当前一级分类。', field: 'classification' };
     if (form.tags.filter((tag) => tag.role === 'TERTIARY').length > 20)
-      return { valid: false, message: '三级标签最多选择 20 个。' };
-    if (form.program.kind === 'none') return { valid: false, message: '请选择站点程序。' };
+      return { valid: false, message: '三级标签最多选择 20 个。', field: 'tags' };
+    if (form.program.kind === 'none')
+      return { valid: false, message: '请选择站点程序。', field: 'program' };
     if (form.program.kind === 'custom') {
-      if (!form.program.name.trim() || form.program.name.trim().length > 128)
-        return { valid: false, message: '请填写不超过 128 个字符的程序名称。' };
+      if (!form.program.name.trim() || characterLength(form.program.name.trim()) > 128)
+        return {
+          valid: false,
+          message: '请填写不超过 128 个字符的程序名称。',
+          field: 'program.name',
+        };
       if (form.program.isOpenSource === null)
-        return { valid: false, message: '请选择程序是否开源。' };
+        return { valid: false, message: '请选择程序是否开源。', field: 'program.openSource' };
       if (
         !isHTTPURL(form.program.homepageURL.trim()) &&
         !isHTTPURL(form.program.repositoryURL.trim())
       )
-        return { valid: false, message: '请填写程序官网或代码仓库。' };
-      if (
-        form.program.dependencies.some(
-          (dependency) =>
-            !dependency.id &&
-            (dependency.isOpenSource === null ||
-              (!isHTTPURL(dependency.homepageURL?.trim() ?? '') &&
-                !isHTTPURL(dependency.repositoryURL?.trim() ?? ''))),
-        )
-      )
-        return { valid: false, message: '请补全自定义技术的链接和开源状态。' };
+        return {
+          valid: false,
+          message: '请填写程序官网或代码仓库。',
+          field: 'program.homepageURL',
+        };
+      const invalidDependency = form.program.dependencies.find(
+        (dependency) =>
+          !dependency.id &&
+          (dependency.isOpenSource === null ||
+            (!isHTTPURL(dependency.homepageURL?.trim() ?? '') &&
+              !isHTTPURL(dependency.repositoryURL?.trim() ?? ''))),
+      );
+      if (invalidDependency)
+        return {
+          valid: false,
+          message: '请补全自定义技术的链接和开源状态。',
+          field: `program.dependencies.${invalidDependency.role}:${invalidDependency.name}`,
+        };
     }
   }
   const isFinalStep = step === submissionStepCount(action) - 1;
+  if (isFinalStep && utf8Length(form.reason.trim()) > 2000)
+    return { valid: false, message: '申请原因最多 2000 字节。', field: 'reason' };
+  if (isFinalStep && !accountContact && utf8Length(form.contactName.trim()) > 100)
+    return { valid: false, message: '称呼最多 100 字节。', field: 'contactName' };
   if (isFinalStep && action !== 'CREATE' && !form.reason.trim())
-    return { valid: false, message: '请填写申请原因。' };
+    return { valid: false, message: '请填写申请原因。', field: 'reason' };
   if (accountContact) {
     if (isFinalStep && form.notifyByEmail && !accountContact.email)
-      return { valid: false, message: '账号尚未绑定邮箱，暂时无法接收审核邮件。' };
+      return {
+        valid: false,
+        message: '账号尚未绑定邮箱，暂时无法接收审核邮件。',
+        field: 'notifyByEmail',
+      };
     return { valid: true, message: '' };
   }
   const hasContactName = form.contactName.trim().length > 0;
   const hasContactEmail = form.contactEmail.trim().length > 0;
   if (isFinalStep && hasContactName !== hasContactEmail)
-    return { valid: false, message: '称呼和邮箱需要同时填写，或同时留空。' };
+    return { valid: false, message: '称呼和邮箱需要同时填写，或同时留空。', field: 'contactName' };
   if (isFinalStep && form.notifyByEmail && !form.contactEmail.trim())
-    return { valid: false, message: '接收邮件通知需要填写称呼和邮箱。' };
+    return { valid: false, message: '接收邮件通知需要填写称呼和邮箱。', field: 'contactEmail' };
   return { valid: true, message: '' };
 }
 

@@ -36,6 +36,10 @@ summary {
   -webkit-tap-highlight-color: transparent;
 }
 
+:is(input, select, textarea)[aria-invalid='true'] {
+  border-color: var(--sem-danger-solid);
+}
+
 a {
   color: inherit;
   text-decoration: none;

@@ -19,8 +19,9 @@
     bind:value={expiresAt}
     disabled={neverExpires}
     required={!neverExpires}
+    aria-describedby="api-key-expiry-help"
   />
-  <span class="text-xs font-normal text-fg-muted"
+  <span id="api-key-expiry-help" class="text-xs font-normal text-fg-muted"
     >{audience === 'INTERNAL'
       ? '内部密钥最长有效 90 天。'
       : '外部密钥默认有效 365 天。'}时间使用当前设备时区。</span

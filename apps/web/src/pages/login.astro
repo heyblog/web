@@ -2,8 +2,10 @@
 import { IconLogin2 } from '@tabler/icons-svelte';
 
 import { safeNext } from '@/application/auth/auth.server';
+import { authErrorField } from '@/application/auth/auth-fields';
 import { authErrorMessage, authStatusMessage } from '@/application/auth/auth-page';
 import { confirmationLocation } from '@/application/auth/profile-routing';
+import AuthField from '@/components/auth/AuthField.astro';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import OAuthButton from '@/components/auth/OAuthButton.svelte';
 import AuthLayout from '@/layouts/AuthLayout.astro';
@@ -19,31 +21,12 @@ const status = authStatusMessage(Astro.url.searchParams.get('status'));
 ---
 
 <AuthLayout title="登录 | HeyBlog" heading="登录" description="使用 HeyBlog 账号或第三方账号继续。">
-  <AuthNotice message={error} />
+  <AuthNotice message={authErrorField(Astro.url.searchParams.get('error')) ? null : error} />
   <AuthNotice message={status} kind="success" />
-  <form class="grid gap-4" method="post" action="/api/web/auth/login">
+  <form class="grid gap-4" method="post" action="/api/web/auth/login" data-field-feedback>
     <input type="hidden" name="next" value={next} />
-    <label class="grid gap-1.5 text-sm font-medium text-fg">
-      用户名或邮箱
-      <input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base transition-colors outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
-        name="identifier"
-        autocomplete="username"
-        required
-      />
-    </label>
-    <label class="grid gap-1.5 text-sm font-medium text-fg">
-      密码
-      <input
-        class="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base transition-colors outline-none focus:border-focus focus:ring-2 focus:ring-focus/20"
-        name="password"
-        type="password"
-        autocomplete="current-password"
-        minlength="8"
-        maxlength="128"
-        required
-      />
-    </label>
+    <AuthField name="identifier" label="用户名或邮箱" autocomplete="username" />
+    <AuthField name="password" label="密码" autocomplete="current-password" type="password" />
     <button
       class="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-primary px-4 text-sm font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
       type="submit"

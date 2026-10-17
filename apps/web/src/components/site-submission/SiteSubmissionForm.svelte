@@ -12,6 +12,7 @@
     SubmissionOptions,
     SubmissionResult,
   } from '@/api/site-submission/site-submission.types';
+  import { formFeedback, showFieldIssue } from '@/application/forms/field-feedback.browser';
   import { createSiteAvailability } from '@/application/site-submission/site-availability.controller.svelte';
   import {
     problemDetail,
@@ -66,6 +67,7 @@
     private_program_id: '',
   });
   let currentStep = $state(0);
+  let formElement: HTMLFormElement;
   let furthestStep = $state(0);
   let pending = $state(false);
   let baseline = $state(untrack(() => JSON.stringify(form)));
@@ -129,17 +131,22 @@
     error = '';
     showFinalValidation = false;
   }
-  async function presentError(message: string, finalValidation = false): Promise<void> {
+  async function presentError(
+    message: string,
+    finalValidation = false,
+    field?: string,
+  ): Promise<void> {
     error = message;
     showFinalValidation = finalValidation;
     await tick();
+    if (field && showFieldIssue(formElement, field, message)) return;
     document.querySelector<HTMLElement>('[data-submission-alert]')?.focus();
   }
   async function nextStep(): Promise<void> {
     if (pending || availability.checking || resolving) return;
     const validation = validateSubmissionStep(action, form, currentStep, contact);
     if (!validation.valid) {
-      await presentError(validation.message);
+      await presentError(validation.message, false, validation.field);
       return;
     }
     if (detailAction && currentStep === 0 && !(await confirmAvailability())) {
@@ -167,7 +174,7 @@
       if (!validation.valid) {
         currentStep = step;
         furthestStep = Math.max(furthestStep, step);
-        await presentError(validation.message, step === stepCount - 1);
+        await presentError(validation.message, step === stepCount - 1, validation.field);
         return;
       }
     }
@@ -205,7 +212,7 @@
 {#if result && accountEndpoint}
   <SubmissionReceipt auditId={result.audit_id} />
 {:else if result}<SubmissionSuccess {result} />{:else}
-  <form class="grid min-w-0 gap-6" onsubmit={handleSubmit}>
+  <form bind:this={formElement} use:formFeedback class="grid min-w-0 gap-6" onsubmit={handleSubmit}>
     {#if accountEndpoint && initialVerifiedAddress}<p
         class="rounded-md bg-tint p-4 text-sm text-tint-fg"
       >
@@ -231,16 +238,18 @@
       >
         <legend class="sr-only">站点申请</legend>
         {#if currentStep === 0}
-          {#if action !== 'CREATE' && !accountEndpoint}<SiteResolver
-              initialQuery={initialShortId}
-              {resolving}
-              onresolve={resolveSite}
-              onclear={() => {
-                availability.clear();
-                form.siteShortId = '';
-                furthestStep = 0;
-              }}
-            />{/if}
+          {#if action !== 'CREATE' && !accountEndpoint}<div data-field-group="siteShortId">
+              <SiteResolver
+                initialQuery={initialShortId}
+                {resolving}
+                onresolve={resolveSite}
+                onclear={() => {
+                  availability.clear();
+                  form.siteShortId = '';
+                  furthestStep = 0;
+                }}
+              />
+            </div>{/if}
           {#if detailAction && (action === 'CREATE' || form.siteShortId)}
             <SiteDetailsStep
               bind:form

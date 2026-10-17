@@ -3,6 +3,7 @@
 
   import { applyChange, createCascade, previewChange } from '@/api/taxonomy/taxonomy.browser';
   import type { ChangePreview, TaxonomyChange, TaxonomyData } from '@/api/taxonomy/taxonomy.types';
+  import { formFeedback } from '@/application/forms/field-feedback.browser';
   import { taxonomyBlocker, taxonomyMessage } from '@/application/taxonomy/taxonomy.messages';
 
   import { fadeDialogOut } from './tags.dialog.browser';
@@ -285,6 +286,7 @@
               >
             </div>{/if}
           <form
+            use:formFeedback
             class="grid gap-5"
             onsubmit={submit}
             oninput={() => {
@@ -344,7 +346,13 @@
                     maxlength="160"
                     required
                     disabled={busy || closing}
-                  /></label
+                    name="taxonomy_key"
+                    data-validation="taxonomy-key"
+                    aria-describedby="taxonomy-key-help"
+                  /><span id="taxonomy-key-help" class="text-xs/normal font-normal text-fg-muted"
+                    >两段小写字母或数字标识，用 / 分隔，段内可用连字符。例如
+                    technology/programming，最多 160 位。</span
+                  ></label
                 >{:else}<label class="flex min-h-11 items-center gap-3 text-sm"
                   ><input
                     type="checkbox"

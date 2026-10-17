@@ -47,7 +47,7 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
 
 <BaseLayout {title} robots="noindex, nofollow" enableAnalytics={false} bodyClass="min-h-dvh">
   <header
-    class="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-4"
+    class="flex min-h-16 items-center justify-between gap-3 border-b border-line pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))]"
     data-page-header
   >
     <a
@@ -62,13 +62,13 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
         width="40"
         height="40"
       />
-      <span>{siteConfig.name}</span>
+      <span class="hidden xs:inline">{siteConfig.name}</span>
     </a>
-    <div class="flex w-full min-w-0 items-center justify-end gap-1 sm:w-auto sm:gap-2">
+    <div class="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
       <nav class="flex min-w-0 gap-1 text-sm sm:gap-2" aria-label="工作区切换">
         <a
           class:list={[
-            'inline-flex min-h-11 min-w-0 items-center rounded-md px-2 hover:bg-subtle sm:px-3',
+            'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 hover:bg-subtle sm:px-3',
             { 'bg-tint text-tint-fg': workspace === 'personal' },
           ]}
           href="/dashboard"
@@ -85,7 +85,7 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
         {canManage && (
           <a
             class:list={[
-              'inline-flex min-h-11 min-w-0 items-center rounded-md px-2 hover:bg-subtle sm:px-3',
+              'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 hover:bg-subtle sm:px-3',
               { 'bg-tint text-tint-fg': workspace === 'management' },
             ]}
             href="/management"
@@ -103,7 +103,7 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
       </nav>
       <form method="post" action="/api/web/auth/logout" class="shrink-0">
         <button
-          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-2 text-sm font-medium hover:bg-subtle sm:px-3"
+          class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-line-strong px-2 text-sm font-medium hover:bg-subtle sm:px-3"
           type="submit"
           aria-label="退出登录"
           title="退出登录"

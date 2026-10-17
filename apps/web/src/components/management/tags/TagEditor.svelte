@@ -3,6 +3,7 @@
 
   import { deleteTag, saveTag } from '@/api/taxonomy/taxonomy.browser';
   import type { ManagedTag, TaxonomyData } from '@/api/taxonomy/taxonomy.types';
+  import { formFeedback, showFieldIssue } from '@/application/forms/field-feedback.browser';
   import { taxonomyMessage } from '@/application/taxonomy/taxonomy.messages';
 
   import { inputClass, outlineClass, primaryClass } from './tags.styles';
@@ -49,7 +50,14 @@
     const result = await saveTag(tag?.id ?? '', tag ? { ...common, is_enabled: enabled } : common);
     pending = false;
     if (result.ok) onsaved(result.value);
-    else error = taxonomyMessage(result.code);
+    else {
+      const message = taxonomyMessage(result.code);
+      if (
+        !['invalid_tag_name', 'duplicate_tag_name'].includes(result.code) ||
+        !showFieldIssue(form, 'name', message)
+      )
+        error = message;
+    }
   }
 
   async function remove(): Promise<void> {
@@ -66,7 +74,7 @@
   }
 </script>
 
-<form bind:this={form} class="grid gap-5" onsubmit={save} aria-busy={pending}>
+<form use:formFeedback bind:this={form} class="grid gap-5" onsubmit={save} aria-busy={pending}>
   {#if confirmDelete}
     <h3 class="text-base font-semibold" tabindex="-1">确认删除“{name}”？</h3>
     <p class="text-sm">没有引用的分类路径会一并删除。审核历史仍引用时无法删除。</p>
@@ -90,16 +98,25 @@
         class={inputClass}
         bind:value={name}
         required
-        maxlength="120"
         disabled={pending}
-      /></label
+        name="name"
+        data-max-characters="120"
+        aria-describedby="field-name-help"
+      /><span id="field-name-help" class="text-xs/normal font-normal text-fg-muted"
+        >最多 120 个字符；去除首尾空格后，不区分大小写唯一。</span
+      ></label
     >
     <label class="grid gap-1.5 text-sm font-medium"
       >说明（选填）<textarea
         class="min-h-28 rounded-md border border-line-strong bg-surface p-3"
         bind:value={description}
-        maxlength="2000"
-        disabled={pending}></textarea></label
+        disabled={pending}
+        name="description"
+        data-max-characters="2000"
+        aria-describedby="field-description-help"></textarea><span
+        id="field-description-help"
+        class="text-xs/normal font-normal text-fg-muted">选填，最多 2000 个字符。</span
+      ></label
     >
     {#if tag}
       <label class="flex min-h-11 items-center gap-3 text-sm"

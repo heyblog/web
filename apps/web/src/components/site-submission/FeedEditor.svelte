@@ -16,12 +16,12 @@
   let urlValidation = $derived(validateAuxiliaryURLs(form));
 </script>
 
-<section class="grid min-w-0 gap-4">
+<section class="grid min-w-0 gap-4" data-field-group="feeds">
   <header class="flex min-w-0 flex-wrap items-start justify-between gap-4">
     <div class="min-w-0">
       <h2 class="text-xl font-semibold">Feed 与站点资源</h2>
       <p class="mt-1 text-sm text-fg-muted">
-        <span class="block">请填写真实资源地址；没有时可以留空。</span>
+        <span class="block">最多添加 8 条 Feed，并选择一个默认 Feed；没有时可以留空。</span>
       </p>
     </div>
     <button
@@ -36,17 +36,24 @@
     >
       还没有添加 Feed。点击右上角的“添加 Feed”按钮来添加一个。
     </p>{/if}
+  <p id="feed-address-help" class="text-xs text-fg-muted">
+    Feed 地址支持 HTTP、HTTPS 或站内相对地址，不能与主页相同或重复。
+  </p>
   {#each form.feeds as feed (feed.id)}
-    {@const feedMessage = urlValidation.feedMessages[feed.id] ?? ''}
-    {@const feedErrorID = `feed-url-${feed.id}-error`}
     <fieldset class="grid min-w-0 gap-3 rounded-md border border-line p-4 sm:grid-cols-2">
       <legend class="px-1 text-sm font-semibold">Feed</legend>
       <label class="grid min-w-0 gap-2 text-sm"
         >名称<input
           class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
           bind:value={feed.name}
+          name={`feed-name-${feed.id}`}
+          data-max-bytes="100"
+          required={Boolean(feed.url.trim())}
+          aria-describedby={`feed-name-${feed.id}-help`}
           placeholder="默认订阅"
-        /></label
+        /><span id={`feed-name-${feed.id}-help`} class="text-xs text-fg-muted"
+          >填写地址后名称必填，最多 100 字节。</span
+        ></label
       >
       <label class="grid min-w-0 gap-2 text-sm"
         >格式<select
@@ -58,17 +65,13 @@
       >
       <label class="grid min-w-0 gap-2 text-sm sm:col-span-2"
         >地址<input
-          class={[
-            'min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3',
-            feedMessage && 'border-danger',
-          ]}
+          class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
           bind:value={feed.url}
+          name={`feed-url-${feed.id}`}
           placeholder="https://example.com/feed.xml"
-          aria-invalid={feedMessage ? 'true' : undefined}
-          aria-describedby={feedMessage ? feedErrorID : undefined}
-        />{#if feedMessage}<p id={feedErrorID} class="text-xs text-danger-fg">
-            {feedMessage}
-          </p>{/if}</label
+          data-custom-issue={urlValidation.feedMessages[feed.id] ?? ''}
+          aria-describedby="feed-address-help"
+        /></label
       >
       <label class="flex min-h-11 items-center gap-3 text-sm"
         ><input
@@ -90,37 +93,27 @@
   <div class="grid gap-4 sm:grid-cols-2">
     <label class="grid min-w-0 gap-2 text-sm"
       >Sitemap（选填）<input
-        class={[
-          'min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3',
-          urlValidation.sitemapMessage && 'border-danger',
-        ]}
+        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
         bind:value={form.sitemap}
+        name="sitemap"
         placeholder="https://example.com/sitemap.xml"
-        aria-invalid={urlValidation.sitemapMessage ? 'true' : undefined}
-        aria-describedby={`sitemap-url-help${urlValidation.sitemapMessage ? ' sitemap-url-error' : ''}`}
+        data-custom-issue={urlValidation.sitemapMessage}
+        aria-describedby="sitemap-url-help"
       />
       <p id="sitemap-url-help" class="text-xs text-fg-muted">填写 XML Sitemap 地址；没有时留空。</p>
-      {#if urlValidation.sitemapMessage}<p id="sitemap-url-error" class="text-xs text-danger-fg">
-          {urlValidation.sitemapMessage}
-        </p>{/if}</label
-    >
+    </label>
     <label class="grid min-w-0 gap-2 text-sm"
       >友链页（选填）<input
-        class={[
-          'min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3',
-          urlValidation.linkPageMessage && 'border-danger',
-        ]}
+        class="min-h-11 min-w-0 rounded-sm border border-line-strong bg-surface px-3"
         bind:value={form.linkPage}
+        name="linkPage"
         placeholder="https://example.com/friends"
-        aria-invalid={urlValidation.linkPageMessage ? 'true' : undefined}
-        aria-describedby={`link-page-url-help${urlValidation.linkPageMessage ? ' link-page-url-error' : ''}`}
+        data-custom-issue={urlValidation.linkPageMessage}
+        aria-describedby="link-page-url-help"
       />
       <p id="link-page-url-help" class="text-xs text-fg-muted">
         填写展示友情链接的页面地址；没有时留空。
       </p>
-      {#if urlValidation.linkPageMessage}<p id="link-page-url-error" class="text-xs text-danger-fg">
-          {urlValidation.linkPageMessage}
-        </p>{/if}</label
-    >
+    </label>
   </div>
 </section>

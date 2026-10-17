@@ -24,8 +24,13 @@
     <input
       class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
       bind:value={form.name}
-      maxlength="160"
-    />
+      name="name"
+      required
+      data-max-bytes="160"
+      aria-describedby="submission-name-help"
+    /><span id="submission-name-help" class="text-xs/normal font-normal text-fg-muted"
+      >必填，最多 160 字节。</span
+    >
   </label>
   <label class="grid gap-2 text-sm">
     主页地址
@@ -33,6 +38,9 @@
       class="min-h-11 rounded-sm border border-line-strong bg-surface px-3"
       bind:this={addressInput}
       bind:value={form.url}
+      name="url"
+      required
+      data-validation="http-url"
       aria-invalid={availability.state === 'duplicate' || availability.state === 'invalid'}
       aria-describedby={availability.state !== 'idle' ? 'site-address-availability' : undefined}
       oninput={() => availability.clear()}
@@ -50,6 +58,12 @@
     <textarea
       class="min-h-28 rounded-sm border border-line-strong bg-surface p-3"
       bind:value={form.summary}
-      maxlength="2000"></textarea>
+      name="summary"
+      data-max-bytes="2000"
+      aria-describedby="submission-summary-help"></textarea><span
+      id="submission-summary-help"
+      class="text-xs/normal font-normal text-fg-muted"
+      >选填，最多 2000 字节，中文和表情占多个字节。</span
+    >
   </label>
 </div>
