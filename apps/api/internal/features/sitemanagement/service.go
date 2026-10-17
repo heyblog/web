@@ -14,14 +14,19 @@ import (
 )
 
 type Service struct {
-	store    Store
-	auth     Authentication
-	verifier Verifier
-	now      func() time.Time
+	store       Store
+	auth        Authentication
+	verifier    Verifier
+	attachments AttachmentStore
+	now         func() time.Time
 }
 
-func NewService(store Store, authentication Authentication, verifier Verifier) *Service {
-	return &Service{store: store, auth: authentication, verifier: verifier, now: time.Now}
+func NewService(store Store, authentication Authentication, verifier Verifier, attachments ...AttachmentStore) *Service {
+	var attachmentStore AttachmentStore
+	if len(attachments) > 0 {
+		attachmentStore = attachments[0]
+	}
+	return &Service{store: store, auth: authentication, verifier: verifier, attachments: attachmentStore, now: time.Now}
 }
 func (s *Service) Current(ctx context.Context, request *http.Request) (auth.User, error) {
 	return s.auth.Current(ctx, request)
@@ -77,9 +82,12 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 	claim := Claim{ShortID: target.ShortID, SiteID: target.ID, Address: address, UserID: user.ID, Method: input.Method, Status: "PENDING", CreatedAt: s.now()}
 	var token string
 	if input.Method == Manual {
-		evidence := strings.TrimSpace(input.Evidence)
-		if evidence == "" || len(evidence) > 4000 {
-			return CreateResult{}, failure("invalid_evidence", "Ownership evidence is required", 422)
+		evidence, evidenceErr := validateManualEvidence(input.Evidence)
+		if evidenceErr != nil {
+			return CreateResult{}, evidenceErr
+		}
+		if err := validateAttachmentIDs(input.AttachmentIDs); err != nil {
+			return CreateResult{}, err
 		}
 		claim.Evidence = &evidence
 		if input.EvidenceURL != "" {
@@ -90,9 +98,15 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 			if _, err := site.NormalizeAddress(u.Scheme + "://" + u.Host); err != nil {
 				return CreateResult{}, failure("invalid_evidence_url", "The evidence URL is invalid", 422)
 			}
-			value := input.EvidenceURL
+			value := strings.TrimSpace(input.EvidenceURL)
 			claim.EvidenceURL = &value
 		}
+		if claim.EvidenceURL == nil && len(input.AttachmentIDs) == 0 {
+			return CreateResult{}, failure("manual_evidence_required", "A public evidence URL or attachment is required", 422)
+		}
+		claim.AttachmentIDs = append([]string(nil), input.AttachmentIDs...)
+	} else if len(input.AttachmentIDs) > 0 {
+		return CreateResult{}, failure("manual_attachment_invalid", "Evidence attachments are only supported for manual verification", 422)
 	} else if input.Method != BlogsClub {
 		token, err = challengeToken()
 		if err != nil {
@@ -102,7 +116,7 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 		expiry := s.now().Add(24 * time.Hour)
 		claim.ExpiresAt = &expiry
 	}
-	created, err := s.store.Create(ctx, StoredClaim{Claim: claim, UserID: user.ID})
+	created, err := s.store.Create(ctx, StoredClaim{Claim: claim, UserID: user.ID, AttachmentIDs: claim.AttachmentIDs})
 	if err != nil {
 		return CreateResult{}, err
 	}

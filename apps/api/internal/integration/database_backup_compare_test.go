@@ -33,7 +33,7 @@ func readBackupData(t *testing.T, file *os.File) backupData {
 func compareDatabaseBackups(t *testing.T, source, target *os.File, oldAdmin, newAdmin string) {
 	t.Helper()
 	want, got := readBackupData(t, source), readBackupData(t, target)
-	if len(want.Tables) != 33 || len(got.Tables) != 33 {
+	if len(want.Tables) != 34 || len(got.Tables) != 34 {
 		t.Fatal("incomplete table inventory")
 	}
 	for table, rows := range want.Tables {
@@ -44,6 +44,14 @@ func compareDatabaseBackups(t *testing.T, source, target *os.File, oldAdmin, new
 			for _, field := range []string{"created_by", "updated_by", "granted_by", "revoked_by", "reviewed_by", "published_by", "archived_by", "changed_by", "owner_id", "user_id", "actor_id", "submitter_user_id", "identified_by"} {
 				if row[field] == oldAdmin {
 					row[field] = newAdmin
+				}
+			}
+			if table == "directory.site_claim_attachments" {
+				row["status"] = "DELETED"
+				row["storage_key"] = ""
+				row["storage_identity"] = ""
+				for _, key := range []string{"cleanup_requested_at", "archive_at", "purge_at"} {
+					row[key] = nil
 				}
 			}
 			if table == "directory.tag_assignment_archive" {

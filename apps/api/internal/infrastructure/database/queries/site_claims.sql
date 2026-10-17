@@ -27,7 +27,7 @@ DELETE FROM directory.site_ownerships WHERE site_id=$1::uuid;
 -- name: ResolveOwnershipUser :one
 SELECT id::text FROM identity.users WHERE id=$1::uuid AND access_status='ACTIVE' AND deleted_at IS NULL;
 -- name: FinishSiteClaim :execrows
-UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
+UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,reviewed_at=clock_timestamp(),verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
 WHERE id=$1::uuid AND status='PENDING'
 AND ($2 <> 'VERIFIED' OR method IN ('MANUAL','BLOGSCLUB') OR expires_at > clock_timestamp());
 -- name: SiteOwnershipEvent :exec
@@ -40,6 +40,6 @@ SELECT id::text FROM directory.site_claims WHERE site_id=$1::uuid AND user_id=$2
 -- name: RegenerateSiteClaim :exec
 UPDATE directory.site_claims SET token_hash=$2,expires_at=$3 WHERE id=$1::uuid AND status='PENDING' AND method IN ('DNS_TXT','META','FILE');
 -- name: InvalidateSiteClaims :exec
-UPDATE directory.site_claims SET status='CANCELLED' WHERE site_id=$1::uuid AND (status='PENDING' OR (status='VERIFIED' AND consumed_at IS NULL));
+UPDATE directory.site_claims SET status='CANCELLED',reviewed_at=clock_timestamp() WHERE site_id=$1::uuid AND (status='PENDING' OR (status='VERIFIED' AND consumed_at IS NULL));
 -- name: ListSiteOwnershipEvents :many
 SELECT id::text,coalesce(user_id::text,'')::text AS user_id,coalesce(actor_id::text,'')::text AS actor_id,action,reason,evidence,created_at FROM directory.site_ownership_events WHERE site_id=$1::uuid ORDER BY created_at DESC,id DESC;

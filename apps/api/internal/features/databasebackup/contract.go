@@ -69,13 +69,18 @@ func readDocument(reader io.Reader, visit rowVisitor) (document, error) {
 	if err := requireEOF(decoder); err != nil {
 		return document{}, err
 	}
-	if len(sections) != 4 || doc.header.Format != Format || doc.header.Version != 1 || (doc.header.SchemaVersion != 3 && doc.header.SchemaVersion != 4 && doc.header.SchemaVersion != 5) || doc.header.GeneratedAt.IsZero() {
+	if len(sections) != 4 || doc.header.Format != Format || doc.header.Version != 1 || (doc.header.SchemaVersion != 3 && doc.header.SchemaVersion != 4 && doc.header.SchemaVersion != 5 && doc.header.SchemaVersion != 6) || doc.header.GeneratedAt.IsZero() {
 		return document{}, ErrInvalid
 	}
 	if _, err := uuid.Parse(doc.header.ExcludedSystemAdminID); err != nil {
 		return document{}, ErrInvalid
 	}
-	if len(actual) != len(tableNames)+2 || len(doc.manifest) != len(actual) {
+	for _, name := range tablesForSchema(doc.header.SchemaVersion) {
+		if _, ok := actual[name]; !ok {
+			return document{}, ErrInvalid
+		}
+	}
+	if len(actual) != len(tablesForSchema(doc.header.SchemaVersion))+2 || len(doc.manifest) != len(actual) {
 		return document{}, ErrInvalid
 	}
 	seen := make(map[string]bool)

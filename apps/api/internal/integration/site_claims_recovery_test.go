@@ -102,7 +102,7 @@ func verifySiteClaimRecovery(ctx context.Context, t *testing.T, pool *pgxpool.Po
 	})
 	t.Run("revocation cancels an older manual application before it can restore ownership", func(t *testing.T) {
 		insertSite(ctx, t, pool, "Claim0005", "Revocation recovery", "claim-revocation.example.com")
-		pending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0005", Method: sitemanagement.Manual, Evidence: "Author ownership statement"})
+		pending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0005", Method: sitemanagement.Manual, Evidence: "Author ownership statement", EvidenceURL: "https://claim-recovery.example/about"})
 		require.NoError(t, err)
 		proof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0005", Method: sitemanagement.File})
 		require.NoError(t, err)

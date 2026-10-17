@@ -21,18 +21,22 @@ type Querier interface {
 	AssignSiteSoftwareComponent(ctx context.Context, arg AssignSiteSoftwareComponentParams) (DirectorySiteSoftwareComponent, error)
 	AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (DirectorySiteTag, error)
 	BeginDatabaseRestore(ctx context.Context, adminID pgtype.UUID) error
+	BindSiteClaimAttachment(ctx context.Context, arg BindSiteClaimAttachmentParams) (int64, error)
 	BumpUserAuthVersion(ctx context.Context, id pgtype.UUID) error
 	CanReadAccountAudit(ctx context.Context, arg CanReadAccountAuditParams) (bool, error)
 	CancelOwnerFriendRequest(ctx context.Context, arg CancelOwnerFriendRequestParams) (pgtype.UUID, error)
 	CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	ClaimSite(ctx context.Context, shortID string) (ClaimSiteRow, error)
+	CompleteSiteClaimAttachment(ctx context.Context, arg CompleteSiteClaimAttachmentParams) (int64, error)
 	CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error
 	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
 	CountManagedUsers(ctx context.Context, arg CountManagedUsersParams) (int64, error)
+	CountManualClaimWindows(ctx context.Context, dollar_1 pgtype.UUID) (CountManualClaimWindowsRow, error)
 	CountPublicAnnouncementArchive(ctx context.Context) (int64, error)
+	CountRecentSiteClaimAttachments(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
 	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
 	CreateAPIClient(ctx context.Context, arg CreateAPIClientParams) (IdentityApiClient, error)
@@ -46,6 +50,7 @@ type Querier interface {
 	CreateSite(ctx context.Context, arg CreateSiteParams) (DirectorySite, error)
 	CreateSiteAudit(ctx context.Context, arg CreateSiteAuditParams) (DirectorySiteAudit, error)
 	CreateSiteClaim(ctx context.Context, arg CreateSiteClaimParams) (string, error)
+	CreateSiteClaimAttachment(ctx context.Context, arg CreateSiteClaimAttachmentParams) (string, error)
 	CreateSiteOwnership(ctx context.Context, arg CreateSiteOwnershipParams) error
 	CreateSoftwareComponent(ctx context.Context, arg CreateSoftwareComponentParams) (DirectorySoftwareComponent, error)
 	CreateTag(ctx context.Context, arg CreateTagParams) (DirectoryTag, error)
@@ -56,6 +61,7 @@ type Querier interface {
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
 	DeleteManagedTag(ctx context.Context, id pgtype.UUID) error
 	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
+	DeleteSiteClaimAttachment(ctx context.Context, arg DeleteSiteClaimAttachmentParams) (int64, error)
 	DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error
 	DeleteSiteFeeds(ctx context.Context, siteID pgtype.UUID) error
 	DeleteSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) error
@@ -65,6 +71,7 @@ type Querier interface {
 	DirectoryIsEmpty(ctx context.Context) (bool, error)
 	DiscardSiteAuditReviewDraft(ctx context.Context, arg DiscardSiteAuditReviewDraftParams) (DirectorySiteAudit, error)
 	EnableCanonicalTag(ctx context.Context, id pgtype.UUID) error
+	ExpireSiteClaimAttachments(ctx context.Context) error
 	FindAPIKeyCredential(ctx context.Context, publicID string) (FindAPIKeyCredentialRow, error)
 	FindPendingSiteClaim(ctx context.Context, arg FindPendingSiteClaimParams) (string, error)
 	FinishDatabaseRestore(ctx context.Context) error
@@ -97,6 +104,8 @@ type Querier interface {
 	GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error)
 	GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteClaimRow, error)
+	GetSiteClaimAttachment(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteClaimAttachmentRow, error)
+	GetSiteClaimReviewedAt(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.Timestamptz, error)
 	GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (DirectorySiteIcon, error)
 	GetSiteIconHash(ctx context.Context, siteID pgtype.UUID) ([]byte, error)
 	GetSiteMetrics(ctx context.Context, shortIds []string) ([]GetSiteMetricsRow, error)
@@ -112,6 +121,7 @@ type Querier interface {
 	GetUserForUpdate(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	GetUserProviderIdentity(ctx context.Context, arg GetUserProviderIdentityParams) (IdentityOauthIdentity, error)
 	HasOwnerAddressProof(ctx context.Context, arg HasOwnerAddressProofParams) (bool, error)
+	HasRecentRejectedManualClaim(ctx context.Context, arg HasRecentRejectedManualClaimParams) (bool, error)
 	ImportLockCapacity(ctx context.Context) (int32, error)
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IncrementGraphMetrics(ctx context.Context, arg IncrementGraphMetricsParams) error
@@ -167,6 +177,8 @@ type Querier interface {
 	ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error)
 	ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error)
 	ListSiteAuditsForManagement(ctx context.Context, arg ListSiteAuditsForManagementParams) ([]ListSiteAuditsForManagementRow, error)
+	ListSiteClaimAttachmentCleanup(ctx context.Context) ([]ListSiteClaimAttachmentCleanupRow, error)
+	ListSiteClaimAttachmentMetadata(ctx context.Context, dollar_1 pgtype.UUID) ([]ListSiteClaimAttachmentMetadataRow, error)
 	ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) ([]ListSiteClaimsRow, error)
 	ListSiteFeeds(ctx context.Context, siteID pgtype.UUID) ([]DirectorySiteFeed, error)
 	ListSiteOrigins(ctx context.Context, siteID pgtype.UUID) ([]ListSiteOriginsRow, error)
@@ -194,8 +206,13 @@ type Querier interface {
 	LockSiteAuditByID(ctx context.Context, id pgtype.UUID) (DirectorySiteAudit, error)
 	LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error)
 	LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteClaimRow, error)
+	LockSiteClaimAttachment(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteClaimAttachmentRow, error)
+	LockSiteClaimUser(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.UUID, error)
 	LockSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteOwnershipRow, error)
 	LockTaxonomy(ctx context.Context) error
+	MarkSiteClaimAttachmentArchived(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
+	MarkSiteClaimAttachmentDeleted(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
+	MarkSiteClaimAttachmentUploadCleaned(ctx context.Context, dollar_1 pgtype.UUID) error
 	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
@@ -219,6 +236,7 @@ type Querier interface {
 	SetAccountProfile(ctx context.Context, arg SetAccountProfileParams) (IdentityUser, error)
 	SetManagedProfile(ctx context.Context, arg SetManagedProfileParams) (IdentityUser, error)
 	SetRegisteredFriendLink(ctx context.Context, arg SetRegisteredFriendLinkParams) error
+	SetSiteClaimAttachmentStorageKey(ctx context.Context, arg SetSiteClaimAttachmentStorageKeyParams) error
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
 	SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
@@ -245,6 +263,7 @@ type Querier interface {
 	UpsertSiteIcon(ctx context.Context, arg UpsertSiteIconParams) (DirectorySiteIcon, error)
 	UpsertSiteResource(ctx context.Context, arg UpsertSiteResourceParams) (DirectorySiteResource, error)
 	UpsertSiteSource(ctx context.Context, arg UpsertSiteSourceParams) (DirectorySiteSource, error)
+	ValidateSiteClaimAttachments(ctx context.Context, arg ValidateSiteClaimAttachmentsParams) ([]ValidateSiteClaimAttachmentsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

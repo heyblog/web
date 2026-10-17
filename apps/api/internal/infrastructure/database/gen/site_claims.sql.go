@@ -122,7 +122,7 @@ func (q *Queries) FindPendingSiteClaim(ctx context.Context, arg FindPendingSiteC
 }
 
 const finishSiteClaim = `-- name: FinishSiteClaim :execrows
-UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
+UPDATE directory.site_claims SET status=$2,reviewed_by=$3::uuid,review_reason=$4,reviewed_at=clock_timestamp(),verified_at=CASE WHEN $2='VERIFIED' THEN clock_timestamp() ELSE NULL END,consumed_at=CASE WHEN $5::boolean THEN clock_timestamp() ELSE NULL END
 WHERE id=$1::uuid AND status='PENDING'
 AND ($2 <> 'VERIFIED' OR method IN ('MANUAL','BLOGSCLUB') OR expires_at > clock_timestamp())
 `
@@ -238,7 +238,7 @@ func (q *Queries) GetSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (G
 }
 
 const invalidateSiteClaims = `-- name: InvalidateSiteClaims :exec
-UPDATE directory.site_claims SET status='CANCELLED' WHERE site_id=$1::uuid AND (status='PENDING' OR (status='VERIFIED' AND consumed_at IS NULL))
+UPDATE directory.site_claims SET status='CANCELLED',reviewed_at=clock_timestamp() WHERE site_id=$1::uuid AND (status='PENDING' OR (status='VERIFIED' AND consumed_at IS NULL))
 `
 
 func (q *Queries) InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID) error {

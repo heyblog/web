@@ -70,6 +70,11 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 		return Inspection{}, document{}, err
 	}
 	_, err = readDocument(reader, func(name string, row json.RawMessage) error {
+		if doc.header.SchemaVersion == 6 {
+			if err := validateRow(name, row, inventory); err != nil {
+				return err
+			}
+		}
 		converted, conversionErr := doc.convertRow(name, row)
 		if conversionErr != nil {
 			return conversionErr

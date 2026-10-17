@@ -26,6 +26,14 @@ func response[T any](value T) *output[T] {
 }
 
 type createRequest struct{ Body SiteClaimCreateInput }
+type attachmentInitializeRequest struct{ Body AttachmentInitializeInput }
+type attachmentCompleteRequest struct {
+	ID   string `path:"id" format:"uuid"`
+	Body AttachmentCompleteInput
+}
+type attachmentRequest struct {
+	ID string `path:"id" format:"uuid"`
+}
 type claimRequest struct {
 	ID string `path:"claimId"`
 }
@@ -70,6 +78,50 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		}
 		return response(result), nil
 	})
+	initializeAttachment := operation("initialize-site-claim-attachment", http.MethodPost, "/api/web/account/site-claim-attachments")
+	initializeAttachment.DefaultStatus = http.StatusCreated
+	httpapi.Register(api, initializeAttachment, func(ctx context.Context, input *attachmentInitializeRequest) (*output[AttachmentUploadResult], error) {
+		user, err := service.Current(ctx, httpapi.Request(ctx))
+		if err != nil {
+			return nil, routeError(err)
+		}
+		result, err := service.InitializeAttachment(ctx, user, input.Body)
+		if err != nil {
+			return nil, routeError(err)
+		}
+		return response(result), nil
+	})
+	httpapi.Register(api, operation("complete-site-claim-attachment", http.MethodPost, "/api/web/account/site-claim-attachments/{id}/complete"), func(ctx context.Context, input *attachmentCompleteRequest) (*output[ClaimAttachment], error) {
+		user, err := service.Current(ctx, httpapi.Request(ctx))
+		if err != nil {
+			return nil, routeError(err)
+		}
+		result, err := service.CompleteAttachment(ctx, user, input.ID, input.Body)
+		if err != nil {
+			return nil, routeError(err)
+		}
+		return response(result), nil
+	})
+	httpapi.Register(api, operation("delete-site-claim-attachment", http.MethodDelete, "/api/web/account/site-claim-attachments/{id}"), func(ctx context.Context, input *attachmentRequest) (*output[success], error) {
+		user, err := service.Current(ctx, httpapi.Request(ctx))
+		if err != nil {
+			return nil, routeError(err)
+		}
+		if err := service.DeleteAttachment(ctx, user, input.ID); err != nil {
+			return nil, routeError(err)
+		}
+		return response(success{Success: true}), nil
+	})
+	httpapi.Register(api, operation("site-claim-attachment-settings", http.MethodGet, "/api/web/account/site-claim-attachments/settings"), func(ctx context.Context, _ *struct{}) (*output[AttachmentSettings], error) {
+		if _, err := service.Current(ctx, httpapi.Request(ctx)); err != nil {
+			return nil, routeError(err)
+		}
+		settings := AttachmentSettings{}
+		if service.attachments != nil {
+			settings = service.attachments.Settings()
+		}
+		return response(settings), nil
+	})
 	for _, management := range []bool{false, true} {
 		path := "/api/web/account/site-claims"
 		id := "account-site-claims"
@@ -77,6 +129,24 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 			path = "/api/web/management/site-claims"
 			id = "management-site-claims"
 		}
+		attachmentPath := "/api/web/account/site-claim-attachments/{id}/download"
+		if management {
+			attachmentPath = "/api/web/management/site-claim-attachments/{id}/download"
+		}
+		httpapi.Register(api, operation("download-"+id+"-attachment", http.MethodPost, attachmentPath), func(ctx context.Context, input *attachmentRequest) (*output[EvidenceDownload], error) {
+			user, err := routeUser(ctx, service, management)
+			if err != nil {
+				return nil, routeError(err)
+			}
+			if service.attachments == nil {
+				return nil, routeError(failure("attachment_storage_unavailable", "Evidence downloads are temporarily unavailable", 503))
+			}
+			result, err := service.attachments.DownloadAttachment(ctx, user.ID, input.ID, management)
+			if err != nil {
+				return nil, routeError(err)
+			}
+			return response(result), nil
+		})
 		httpapi.Register(api, operation("list-"+id, http.MethodGet, path), listHandler(service, management))
 		httpapi.Register(api, operation("get-"+id, http.MethodGet, path+"/{claimId}"), detailHandler(service, management))
 	}
@@ -222,6 +292,10 @@ func routeError(err error) error {
 			kind = apperror.KindForbidden
 		case 409:
 			kind = apperror.KindConflict
+		case 429:
+			kind = apperror.KindRateLimited
+		case 503:
+			kind = apperror.KindUnavailable
 		}
 		return apperror.Wrap(err, kind, service.Code, service.Message, "site management")
 	}
@@ -239,6 +313,10 @@ func claimRatePolicy(id string) ratelimit.Policy {
 	switch id {
 	case "create-site-claim", "regenerate-site-claim":
 		name, capacity, interval = "site-claims-create", 10, time.Hour
+	case "initialize-site-claim-attachment":
+		name, capacity, interval = "site-claims-upload", 10, time.Hour
+	case "complete-site-claim-attachment", "delete-site-claim-attachment":
+		name, capacity, interval = "site-claims-upload-actions", 30, time.Hour
 	case "check-site-claim":
 		name, capacity, interval = "site-claims-check", 30, time.Minute
 	case "cancel-site-claim":

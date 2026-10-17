@@ -86,7 +86,25 @@ func (r *Repository) Claim(ctx context.Context, raw string) (Claim, error) {
 	if err != nil {
 		return Claim{}, repositoryError(err)
 	}
-	return mapClaim(row), nil
+	claim := mapClaim(row)
+	reviewedAt, err := r.queries.GetSiteClaimReviewedAt(ctx, id)
+	if err != nil {
+		return Claim{}, err
+	}
+	if reviewedAt.Valid {
+		value := reviewedAt.Time
+		claim.ReviewedAt = &value
+	}
+	metadata, err := r.queries.ListSiteClaimAttachmentMetadata(ctx, id)
+	if err != nil {
+		return Claim{}, err
+	}
+	claim.Attachments = make([]ClaimAttachment, 0, len(metadata))
+	for _, attachment := range metadata {
+		claim.AttachmentIDs = append(claim.AttachmentIDs, attachment.ID)
+		claim.Attachments = append(claim.Attachments, attachmentFromRow(dbgen.GetSiteClaimAttachmentRow(attachment)))
+	}
+	return claim, nil
 }
 func (r *Repository) List(ctx context.Context, filter ClaimFilter) ([]Claim, error) {
 	id, err := uuid(filter.UserID)
@@ -125,6 +143,13 @@ func (r *Repository) transaction(ctx context.Context, operation func(*dbgen.Quer
 func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, error) {
 	var claimID string
 	err := r.transaction(ctx, func(q *dbgen.Queries) error {
+		userID, err := uuid(input.UserID)
+		if err != nil {
+			return err
+		}
+		if _, err := q.LockSiteClaimUser(ctx, userID); err != nil {
+			return repositoryError(err)
+		}
 		target, err := q.LockClaimSite(ctx, input.Claim.ShortID)
 		if err != nil {
 			return repositoryError(err)
@@ -136,16 +161,31 @@ func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, erro
 		if err != nil {
 			return err
 		}
-		userID, err := uuid(input.UserID)
-		if err != nil {
-			return err
-		}
 		claimID, err = q.FindPendingSiteClaim(ctx, dbgen.FindPendingSiteClaimParams{Column1: siteID, Column2: userID, Address: input.Claim.Address, Method: string(input.Claim.Method)})
 		if err == nil {
 			return nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		if input.Claim.Method == Manual {
+			counts, err := q.CountManualClaimWindows(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if counts.Recent >= 3 {
+				return failure("manual_submission_limit", "The manual verification submission limit has been reached", 429)
+			}
+			if counts.Pending >= 3 {
+				return failure("manual_pending_limit", "You already have three manual verification applications awaiting review", 409)
+			}
+			rejected, err := q.HasRecentRejectedManualClaim(ctx, dbgen.HasRecentRejectedManualClaimParams{SiteID: siteID, UserID: userID})
+			if err != nil {
+				return err
+			}
+			if rejected {
+				return failure("manual_rejected_cooldown", "Wait 24 hours after a rejected manual verification application", 409)
+			}
 		}
 		owner, err := q.LockSiteOwnership(ctx, siteID)
 		if err == nil && owner.OUserID != input.UserID {
@@ -168,10 +208,61 @@ func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, erro
 			params.ExpiresAt = pgtype.Timestamptz{Time: *input.Claim.ExpiresAt, Valid: true}
 		}
 		claimID, err = q.CreateSiteClaim(ctx, params)
-		return err
+		if err != nil {
+			return err
+		}
+		return bindClaimAttachments(ctx, q, claimID, input, siteID, userID)
 	})
 	if err != nil {
 		return Claim{}, err
 	}
 	return r.Claim(ctx, claimID)
+}
+
+func bindClaimAttachments(ctx context.Context, q *dbgen.Queries, claimID string, input StoredClaim, siteID, userID pgtype.UUID) error {
+	if len(input.AttachmentIDs) == 0 {
+		return nil
+	}
+	if input.Claim.Method != Manual {
+		return failure("manual_attachment_invalid", "Evidence attachments are only supported for manual verification", 422)
+	}
+	if err := validateAttachmentIDs(input.AttachmentIDs); err != nil {
+		return err
+	}
+	claimUUID, err := uuid(claimID)
+	if err != nil {
+		return err
+	}
+	attachmentUUIDs := make([]pgtype.UUID, 0, len(input.AttachmentIDs))
+	for _, rawID := range input.AttachmentIDs {
+		attachmentID, err := uuid(rawID)
+		if err != nil {
+			return failure("manual_attachment_invalid", "Evidence attachment identifiers are invalid", 422)
+		}
+		attachmentUUIDs = append(attachmentUUIDs, attachmentID)
+	}
+	attachments, err := q.ValidateSiteClaimAttachments(ctx, dbgen.ValidateSiteClaimAttachmentsParams{UserID: userID, SiteID: siteID, Address: input.Claim.Address, Ids: attachmentUUIDs})
+	if err != nil {
+		return err
+	}
+	if len(attachments) != len(attachmentUUIDs) {
+		return failure("attachment_not_ready", "The evidence attachment is not ready or belongs to another site", 409)
+	}
+	var totalBytes int64
+	for _, attachment := range attachments {
+		totalBytes += attachment.Size
+	}
+	if totalBytes > ManualAttachmentMaxBytes {
+		return failure("manual_attachment_total_too_large", "Evidence attachments exceed the 20 MiB total limit", 422)
+	}
+	for _, attachmentID := range attachmentUUIDs {
+		changed, err := q.BindSiteClaimAttachment(ctx, dbgen.BindSiteClaimAttachmentParams{ClaimID: claimUUID, ID: attachmentID, UserID: userID, SiteID: siteID, Address: input.Claim.Address})
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return failure("attachment_not_ready", "The evidence attachment is not ready or belongs to another site", 409)
+		}
+	}
+	return nil
 }

@@ -143,7 +143,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		var consumed bool
 		require.NoError(t, pool.QueryRow(ctx, `SELECT consumed_at IS NOT NULL FROM directory.site_claims WHERE id=$1::uuid`, proof.Claim.ID).Scan(&consumed))
 		require.True(t, consumed)
-		stalePending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.Manual, Address: "https://claim-future.example/", Evidence: "Future address proof"})
+		stalePending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.Manual, Address: "https://claim-future.example/", Evidence: "Future address proof", EvidenceURL: "https://claim-future.example/about"})
 		require.NoError(t, err)
 		unusedProof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.File, Address: "https://claim-unused.example/"})
 		require.NoError(t, err)

@@ -206,7 +206,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
   COS lifecycle: delete current/noncurrent versions and delete markers after one day and abort
   incomplete multipart uploads after one day. Never log backup content, signed URLs, credentials,
   temporary paths or raw upstream errors; lifecycle workers receive the structured bootstrap logger.
-- Backup protocol version 1, schema version 5 covers all 33 identity/directory/content tables and complete AGE
+- Backup protocol version 1, schema version 6 covers all 33 identity/directory/content tables and complete AGE
   logical vertices and edges. The baseline freezes the schema inventory; schema evolution
   requires an explicit backup compatibility change. Schema versions 3, 4, and 5 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns
   use decimal strings. Never decode row JSON through floating-point numbers.
@@ -292,7 +292,7 @@ cleanup during test-file splits. Consult the affected package's source contracts
 report any required gate that could not run instead of treating build-tag compilation as a real
 container integration pass.
 
-Database backup exports use format version 1 and schema version 5. Schema version 3 inputs are
+Database backup exports use format version 1 and schema version 6. Schema version 3 inputs are
 verified against their original manifest before shared inspect/restore conversion initializes account
 profile confirmation from OAuth bindings and grants one optional username change. New backups
 preserve confirmation and usage state. The consolidated baseline owns these identity fields.

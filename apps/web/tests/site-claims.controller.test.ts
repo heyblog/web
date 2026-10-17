@@ -273,3 +273,82 @@ test('search clears stale results immediately and ignores out-of-order responses
   assert.equal(search.results.length, 0);
   search.dispose();
 });
+
+test('a multi-file selection uploads every file serially within the limits', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 200 }));
+  let initialized = 0;
+  const creator = createClaimCreator(
+    createClaimsTransport(async (path) => {
+      if (path === 'site-claim-attachments') {
+        initialized += 1;
+        return Response.json({
+          attachment: {
+            id: String(initialized),
+            filename: 'proof.pdf',
+            content_type: 'application/pdf',
+            size: 5,
+            status: 'UPLOADING',
+          },
+          upload_url: 'https://bucket.cos.region.myqcloud.com/key',
+          upload_headers: {},
+          expires_at: '2099-01-01',
+          max_size: 10485760,
+          content_type: 'application/pdf',
+        });
+      }
+      if (path.endsWith('/complete'))
+        return Response.json({
+          id: path.split('/')[1],
+          filename: 'proof.pdf',
+          content_type: 'application/pdf',
+          size: 5,
+          status: 'READY',
+        });
+      return Response.json(contextFixture);
+    }),
+    undefined,
+    'https://bucket.cos.region.myqcloud.com',
+  );
+  await creator.select(claimFixture.short_id);
+  await creator.addAttachments(
+    [1, 2, 3].map((n) => new File(['proof'], `${n}.pdf`, { type: 'application/pdf' })),
+  );
+  assert.equal(initialized, 3);
+  assert.equal(creator.attachments.length, 3);
+  assert.equal(creator.busy, false);
+  creator.dispose();
+});
+
+test('an old upload cannot clear the busy state or error of a newly selected site', async () => {
+  let rejectUpload: (error: Error) => void = () => {};
+  let resolveContext: (response: Response) => void = () => {};
+  let reads = 0;
+  const creator = createClaimCreator(
+    createClaimsTransport((path) => {
+      if (path === 'site-claim-attachments')
+        return new Promise<Response>((_, reject) => {
+          rejectUpload = reject;
+        });
+      reads += 1;
+      if (reads === 1) return Promise.resolve(Response.json(contextFixture));
+      return new Promise<Response>((resolve) => {
+        resolveContext = resolve;
+      });
+    }),
+  );
+  await creator.select(claimFixture.short_id);
+  const uploading = creator.addAttachment(
+    new File(['proof'], 'proof.pdf', { type: 'application/pdf' }),
+  );
+  const selecting = creator.select('other1234');
+  rejectUpload(new Error('old upload cancelled'));
+  await uploading;
+  assert.equal(creator.busy, true);
+  assert.equal(creator.attachmentError, '');
+  resolveContext(
+    Response.json({ ...contextFixture, site: { ...contextFixture.site, short_id: 'other1234' } }),
+  );
+  await selecting;
+  assert.equal(creator.attachments.length, 0);
+  creator.dispose();
+});

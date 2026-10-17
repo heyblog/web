@@ -16,6 +16,7 @@
     primaryClass,
   } from '@/components/management/api-keys/api-keys.styles';
 
+  import ClaimEvidence from './ClaimEvidence.svelte';
   import ClaimProof from './ClaimProof.svelte';
   let { initial, challenge }: { initial: Claim; challenge?: ClaimChallenge } = $props();
   const controller = createClaimDetail(
@@ -103,6 +104,7 @@
         <h3 class="text-sm font-medium">归属说明</h3>
         <p class="mt-2 text-sm whitespace-pre-wrap">{claim.evidence}</p>
       </div>{/if}
+    <ClaimEvidence attachments={claim.attachments ?? []} />
     {#if claim.review_reason}<div>
         <h3 class="text-sm font-medium">审核意见</h3>
         <p class="mt-2 text-sm whitespace-pre-wrap">{claim.review_reason}</p>

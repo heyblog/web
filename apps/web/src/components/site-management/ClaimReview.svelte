@@ -13,6 +13,7 @@
     primaryClass,
   } from '@/components/management/api-keys/api-keys.styles';
 
+  import ClaimEvidence from './ClaimEvidence.svelte';
   import OwnershipPanel from './OwnershipPanel.svelte';
   let {
     initial,
@@ -82,6 +83,7 @@
           <dd class="mt-1 text-sm whitespace-pre-wrap">{claim.review_reason}</dd>
         </div>{/if}
     </dl>
+    <ClaimEvidence attachments={claim.attachments ?? []} management />
     {#if controller.error}<p
         class="rounded-md bg-danger-bg p-4 text-sm text-danger-fg"
         role="alert"

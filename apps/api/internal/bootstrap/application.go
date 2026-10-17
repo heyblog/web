@@ -212,12 +212,32 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 		return nil, err
 	}
 	siteaudit.RegisterAccountRoutes(router.API, siteaudit.NewAccountService(siteaudit.NewRepository(dependencies.DatabasePool()), auditService), options.WebToken, dependencies.RedisClient())
-	claimService := sitemanagement.NewService(sitemanagement.NewRepository(dependencies.DatabasePool()), authService, sitemanagement.NewNetworkVerifier())
+	claimRepository := sitemanagement.NewRepository(dependencies.DatabasePool())
+	attachmentManager := attachmentManagerFromDependencies(dependencies)
+	if attachmentManager == nil {
+		attachmentManager, err = sitemanagement.NewAttachmentManager(claimRepository, configuration.BackupCOS)
+		if err != nil {
+			return nil, err
+		}
+	}
+	claimService := sitemanagement.NewService(claimRepository, authService, sitemanagement.NewNetworkVerifier(), attachmentManager)
 	authService.SetOAuthClaims(claimService)
 	if err := sitemanagement.RegisterRoutes(router.API, claimService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err
 	}
 	return router, nil
+}
+
+type claimAttachmentManagerProvider interface {
+	ClaimAttachmentManager() *sitemanagement.AttachmentManager
+}
+
+func attachmentManagerFromDependencies(dependencies runtimeDependencies) *sitemanagement.AttachmentManager {
+	provider, ok := dependencies.(claimAttachmentManagerProvider)
+	if !ok {
+		return nil
+	}
+	return provider.ClaimAttachmentManager()
 }
 
 func newHTTPServer(processContext context.Context, configuration config.Config, handler http.Handler, logger *slog.Logger) *http.Server {

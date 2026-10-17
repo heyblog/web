@@ -100,6 +100,45 @@ func TestCreate_when_AutomaticChallengeIssued(t *testing.T) {
 	require.Equal(t, "https://example.com/blog/.well-known/heyblog-site-verification.txt", result.Instructions.FileURL)
 	require.WithinDuration(t, store.creates[0].Claim.CreatedAt.Add(24*time.Hour), *result.Claim.ExpiresAt, time.Second)
 }
+
+func TestCreate_when_ManualEvidenceHasNoPublicMaterial(t *testing.T) {
+	// Given a manual ownership statement without a URL or completed attachment.
+	store := &claimStore{target: Site{ShortID: "123456789", Address: "https://example.com/blog/"}}
+	service := NewService(store, nil, nil)
+
+	// When the applicant submits the manual application.
+	_, err := service.Create(t.Context(), auth.User{ID: "user"}, SiteClaimCreateInput{
+		ShortID:  "123456789",
+		Method:   Manual,
+		Evidence: "The account controls this site's publishing system.",
+	})
+
+	// Then the application is rejected before persistence.
+	require.Error(t, err)
+	var serviceErr *ServiceError
+	require.ErrorAs(t, err, &serviceErr)
+	require.Equal(t, "manual_evidence_required", serviceErr.Code)
+	require.Empty(t, store.creates)
+}
+
+func TestCreate_when_ManualEvidenceIncludesPublicURL(t *testing.T) {
+	// Given a complete statement and a public evidence URL.
+	store := &claimStore{target: Site{ShortID: "123456789", Address: "https://example.com/blog/"}}
+	service := NewService(store, nil, nil)
+
+	// When the applicant submits the manual application.
+	result, err := service.Create(t.Context(), auth.User{ID: "user"}, SiteClaimCreateInput{
+		ShortID:     "123456789",
+		Method:      Manual,
+		Evidence:    "The account controls this site's publishing system.",
+		EvidenceURL: "https://example.com/ownership",
+	})
+
+	// Then the URL is retained as review material.
+	require.NoError(t, err)
+	require.NotNil(t, result.Claim.EvidenceURL)
+	require.Equal(t, "https://example.com/ownership", *result.Claim.EvidenceURL)
+}
 func TestCurrentOwner_when_CanonicalAddressChanges(t *testing.T) {
 	// Given ownership verified for a previous address.
 	store := &claimStore{target: Site{ID: "site", Address: "https://new.example/"}, owner: Ownership{UserID: "owner", Address: "https://old.example/"}}

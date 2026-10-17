@@ -30,7 +30,7 @@ var tableNames = []string{
 	"directory.software_components", "directory.software_component_dependencies", "directory.site_sources",
 	"directory.sites", "directory.site_feeds", "directory.site_icons", "directory.site_resources",
 	"directory.site_software_components", "directory.site_origins", "directory.site_tags",
-	"directory.site_claims", "directory.site_ownerships", "directory.site_ownership_events",
+	"directory.site_claims", "directory.site_claim_attachments", "directory.site_ownerships", "directory.site_ownership_events",
 	"directory.site_audits", "directory.owner_friend_link_requests",
 	"directory.site_metrics", "directory.site_metric_events",
 	"content.articles", "content.article_tags", "content.announcements", "content.announcement_revisions",
@@ -90,4 +90,17 @@ type Restoration struct {
 	Datasets     []Dataset    `json:"datasets"`
 	Graph        GraphCounts  `json:"graph"`
 	AdminMapping AdminMapping `json:"admin_mapping"`
+}
+
+func tablesForSchema(version int) []string {
+	if version >= 6 {
+		return tableNames
+	}
+	result := make([]string, 0, len(tableNames)-1)
+	for _, name := range tableNames {
+		if name != "directory.site_claim_attachments" {
+			result = append(result, name)
+		}
+	}
+	return result
 }

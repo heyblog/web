@@ -18,13 +18,16 @@ export async function requestAuthAPI(
   init: Readonly<{
     method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
     body?: Readonly<Record<string, unknown>>;
+    timeoutMs?: number;
   }> = {},
 ): Promise<Response> {
   const configuration = loadWebServerConfig();
   const upstreamURL = new URL(path, configuration.apiBaseUrl);
-  const timeoutMs = /^\/api\/web\/auth\/(github|blogsclub)\/callback$/u.test(upstreamURL.pathname)
-    ? 55_000
-    : 10_000;
+  const timeoutMs =
+    init.timeoutMs ??
+    (/^\/api\/web\/auth\/(github|blogsclub)\/callback$/u.test(upstreamURL.pathname)
+      ? 55_000
+      : 10_000);
   const headers = new Headers({
     Accept: 'application/json',
     'X-HeyBlog-Web-Token': configuration.apiWebToken,

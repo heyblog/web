@@ -143,7 +143,7 @@ func (service *Service) RestoreWithProgress(ctx context.Context, file *os.File, 
 		return Restoration{}, fmt.Errorf("begin database restore: %w", err)
 	}
 	progress.Stage = "restoring"
-	for _, name := range append(append([]string{}, tableNames...), "graph.vertices", "graph.edges") {
+	for _, name := range append(append([]string{}, tablesForSchema(doc.header.SchemaVersion)...), "graph.vertices", "graph.edges") {
 		progress.Dataset = name
 		if err = notify(); err != nil {
 			return Restoration{}, err

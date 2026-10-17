@@ -14,11 +14,17 @@ const accountRoutes: readonly [RegExp, readonly string[]][] = [
   [new RegExp(`^sites/${identifier}/friend-link-requests/${identifier}$`), ['DELETE']],
   [new RegExp(`^sites/${identifier}/claim-context$`), ['GET']],
   [/^site-claims$/, ['GET', 'POST']],
+  [/^site-claim-attachments$/, ['POST']],
+  [/^site-claim-attachments\/settings$/, ['GET']],
+  [new RegExp(`^site-claim-attachments/${identifier}/download$`), ['POST']],
+  [new RegExp(`^site-claim-attachments/${identifier}$`), ['DELETE']],
+  [new RegExp(`^site-claim-attachments/${identifier}/complete$`), ['POST']],
   [new RegExp(`^site-claims/${identifier}/regenerate$`), ['POST']],
   [new RegExp(`^site-claims/${identifier}$`), ['GET', 'DELETE']],
   [new RegExp(`^site-claims/${identifier}/check$`), ['POST']],
 ];
 const managementRoutes: readonly [RegExp, readonly string[]][] = [
+  [new RegExp(`^site-claim-attachments/${identifier}/download$`), ['POST']],
   [/^site-claims$/, ['GET']],
   [new RegExp(`^site-claims/${identifier}$`), ['GET']],
   [new RegExp(`^site-claims/${identifier}/review$`), ['POST']],
@@ -115,6 +121,7 @@ export async function forwardSiteManagement(
               ? 'PUT'
               : 'DELETE',
       ...(body ? { body } : {}),
+      ...(/^site-claim-attachments\/[^/]+\/complete$/u.test(path) ? { timeoutMs: 120_000 } : {}),
     },
   );
   upstream.headers.delete('Location');

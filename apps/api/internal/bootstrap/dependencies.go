@@ -12,6 +12,7 @@ import (
 
 	"heyblog-api/internal/features/databasebackup"
 	"heyblog-api/internal/features/publicview"
+	"heyblog-api/internal/features/sitemanagement"
 	"heyblog-api/internal/features/sitestats"
 	"heyblog-api/internal/infrastructure/cache"
 	"heyblog-api/internal/infrastructure/database"
@@ -29,6 +30,8 @@ type Dependencies struct {
 	metrics            *sitestats.Service
 	backupJobs         *databasebackup.Jobs
 	backupUploads      *databasebackup.Uploads
+	attachmentWorker   *sitemanagement.AttachmentCleanupWorker
+	attachmentManager  *sitemanagement.AttachmentManager
 
 	pingDatabase  func(context.Context) error
 	pingRedis     func(context.Context) error
@@ -108,6 +111,15 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		operations.closeDatabase(pool)
 		return nil, errors.Join(withStage("backup_uploads_open", err), withStage("redis_close", closeErr))
 	}
+	claimRepository := sitemanagement.NewRepository(pool)
+	attachmentManager, err := sitemanagement.NewAttachmentManager(claimRepository, configuration.BackupCOS)
+	if err != nil {
+		backupUploads.Close()
+		closeErr := operations.closeRedis(redisClient)
+		operations.closeDatabase(pool)
+		return nil, errors.Join(withStage("claim_attachments_open", err), withStage("redis_close", closeErr))
+	}
+	attachmentWorker := sitemanagement.NewAttachmentCleanupWorker(ctx, claimRepository, attachmentManager.Storage(), operations.logger)
 	metrics := sitestats.New(pool, nil)
 	return &Dependencies{
 		Database:           pool,
@@ -118,6 +130,8 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		metrics:            metrics,
 		backupJobs:         databasebackup.NewJobs(databasebackup.New(pool), nil),
 		backupUploads:      backupUploads,
+		attachmentWorker:   attachmentWorker,
+		attachmentManager:  attachmentManager,
 		pingDatabase: func(ctx context.Context) error {
 			return pool.Ping(ctx)
 		},
@@ -134,6 +148,10 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 func (dependencies *Dependencies) BackupJobs() *databasebackup.Jobs { return dependencies.backupJobs }
 func (dependencies *Dependencies) BackupUploads() *databasebackup.Uploads {
 	return dependencies.backupUploads
+}
+
+func (dependencies *Dependencies) ClaimAttachmentManager() *sitemanagement.AttachmentManager {
+	return dependencies.attachmentManager
 }
 
 func (dependencies *Dependencies) PublicViews() publicview.Reader {
@@ -191,6 +209,9 @@ func (dependencies *Dependencies) Close() error {
 		}
 		if dependencies.backupUploads != nil {
 			dependencies.backupUploads.Close()
+		}
+		if dependencies.attachmentWorker != nil {
+			dependencies.attachmentWorker.Close()
 		}
 		if dependencies.metrics != nil {
 			dependencies.metrics.Close()

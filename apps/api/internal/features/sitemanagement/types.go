@@ -20,32 +20,35 @@ const (
 )
 
 type Claim struct {
-	ID             string     `json:"id"`
-	SiteID         string     `json:"-"`
-	ShortID        string     `json:"short_id"`
-	SiteName       string     `json:"site_name"`
-	CurrentAddress string     `json:"current_address"`
-	Visibility     string     `json:"-"`
-	OwnerUserID    string     `json:"-"`
-	OwnerAddress   string     `json:"-"`
-	Applicant      *Profile   `json:"applicant,omitempty"`
-	OwnershipState string     `json:"ownership_state"`
-	CanCheck       bool       `json:"can_check"`
-	CanRegenerate  bool       `json:"can_regenerate"`
-	CanCancel      bool       `json:"can_cancel"`
-	CanManage      bool       `json:"can_manage"`
-	VerifiedAt     *time.Time `json:"verified_at,omitempty"`
-	ConsumedAt     *time.Time `json:"consumed_at,omitempty"`
-	UserID         string     `json:"user_id"`
-	Address        string     `json:"address"`
-	Method         Method     `json:"method"`
-	Status         string     `json:"status"`
-	TokenHash      string     `json:"-"`
-	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
-	Evidence       *string    `json:"evidence,omitempty"`
-	EvidenceURL    *string    `json:"evidence_url,omitempty"`
-	ReviewReason   *string    `json:"review_reason,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
+	ID             string            `json:"id"`
+	SiteID         string            `json:"-"`
+	ShortID        string            `json:"short_id"`
+	SiteName       string            `json:"site_name"`
+	CurrentAddress string            `json:"current_address"`
+	Visibility     string            `json:"-"`
+	OwnerUserID    string            `json:"-"`
+	OwnerAddress   string            `json:"-"`
+	Applicant      *Profile          `json:"applicant,omitempty"`
+	OwnershipState string            `json:"ownership_state"`
+	CanCheck       bool              `json:"can_check"`
+	CanRegenerate  bool              `json:"can_regenerate"`
+	CanCancel      bool              `json:"can_cancel"`
+	CanManage      bool              `json:"can_manage"`
+	VerifiedAt     *time.Time        `json:"verified_at,omitempty"`
+	ConsumedAt     *time.Time        `json:"consumed_at,omitempty"`
+	UserID         string            `json:"user_id"`
+	Address        string            `json:"address"`
+	Method         Method            `json:"method"`
+	Status         string            `json:"status"`
+	TokenHash      string            `json:"-"`
+	ExpiresAt      *time.Time        `json:"expires_at,omitempty"`
+	Evidence       *string           `json:"evidence,omitempty"`
+	EvidenceURL    *string           `json:"evidence_url,omitempty"`
+	ReviewReason   *string           `json:"review_reason,omitempty"`
+	ReviewedAt     *time.Time        `json:"reviewed_at,omitempty"`
+	AttachmentIDs  []string          `json:"attachment_ids,omitempty"`
+	Attachments    []ClaimAttachment `json:"attachments,omitempty"`
+	CreatedAt      time.Time         `json:"created_at"`
 }
 type Ownership struct {
 	ID        string  `json:"id"`
@@ -100,13 +103,40 @@ type ClaimList struct {
 	HasMore bool    `json:"has_more"`
 }
 
-type SiteClaimCreateInput struct {
+type AttachmentInitializeInput struct {
 	ShortID     string `json:"short_id" minLength:"9" maxLength:"9"`
-	Method      Method `json:"method" enum:"DNS_TXT,META,FILE,MANUAL,BLOGSCLUB"`
 	Address     string `json:"address,omitempty" maxLength:"2048"`
-	Evidence    string `json:"evidence,omitempty" maxLength:"4000"`
-	EvidenceURL string `json:"evidence_url,omitempty" maxLength:"2048"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size" minimum:"1" maximum:"10485760"`
 }
+
+type AttachmentCompleteInput struct {
+	Size        int64  `json:"size" minimum:"1" maximum:"10485760"`
+	ContentType string `json:"content_type"`
+	SHA256      string `json:"sha256" pattern:"^[0-9a-f]{64}$"`
+}
+
+type AttachmentUploadResult struct {
+	Attachment    ClaimAttachment   `json:"attachment"`
+	UploadURL     string            `json:"upload_url"`
+	UploadHeaders map[string]string `json:"upload_headers"`
+	ExpiresAt     time.Time         `json:"expires_at"`
+	MaxSize       int64             `json:"max_size"`
+	ContentType   AttachmentKind    `json:"content_type"`
+}
+
+type SiteClaimCreateInput struct {
+	ShortID       string   `json:"short_id" minLength:"9" maxLength:"9"`
+	Method        Method   `json:"method" enum:"DNS_TXT,META,FILE,MANUAL,BLOGSCLUB"`
+	Address       string   `json:"address,omitempty" maxLength:"2048"`
+	Evidence      string   `json:"evidence,omitempty" maxLength:"4000"`
+	EvidenceURL   string   `json:"evidence_url,omitempty" maxLength:"2048"`
+	AttachmentIDs []string `json:"attachment_ids,omitempty" maxItems:"3" uniqueItems:"true"`
+}
+
+// StoredClaim is the transaction input used by the repository. AttachmentIDs
+// are bound to the claim in the same transaction as the claim insert.
 type Instructions struct {
 	DNSName     string `json:"dns_name"`
 	DNSValue    string `json:"dns_value"`
@@ -137,8 +167,16 @@ type Decision struct {
 	OAuthSubject            string
 }
 type StoredClaim struct {
-	Claim  Claim
-	UserID string
+	Claim         Claim
+	UserID        string
+	AttachmentIDs []string
+}
+type AttachmentStore interface {
+	InitializeAttachment(context.Context, string, Site, AttachmentUploadInput) (ClaimAttachment, EvidenceUpload, error)
+	CompleteAttachment(context.Context, string, string, AttachmentUploadInput) (ClaimAttachment, error)
+	DeleteAttachment(context.Context, string, string) error
+	Settings() AttachmentSettings
+	DownloadAttachment(context.Context, string, string, bool) (EvidenceDownload, error)
 }
 type Store interface {
 	Site(context.Context, string) (Site, error)

@@ -37,6 +37,13 @@ test('account forwarding permits only purpose-built methods and paths', () => {
   assert.equal(acceptsSiteManagementRoute('site-ownership/abc123456', 'GET', true), true);
   assert.equal(acceptsSiteManagementRoute('site-claims/claim-id', 'GET'), true);
   assert.equal(acceptsSiteManagementRoute('site-claims/claim-id/regenerate', 'POST'), true);
+  assert.equal(acceptsSiteManagementRoute('site-claim-attachments', 'POST'), true);
+  assert.equal(
+    acceptsSiteManagementRoute('site-claim-attachments/attachment-id/complete', 'POST'),
+    true,
+  );
+  assert.equal(acceptsSiteManagementRoute('site-claim-attachments/attachment-id', 'DELETE'), true);
+  assert.equal(acceptsSiteManagementRoute('site-claim-attachments/attachment-id', 'GET'), false);
   assert.equal(acceptsSiteManagementRoute('sites/abc123456/claim-context', 'GET'), true);
 });
 test('mutations reject cross-origin, malformed and oversized requests before forwarding', async () => {

@@ -78,7 +78,7 @@ layer and browser-module boundaries.
   validated COS origin to its CSP via Astro's runtime CSP API in COS mode. A transport or origin
   change requires page reload before uploading. No COS configuration or signing
   secret belongs to Web. Preparation, inspection and restoration reuse the API's staged file.
-  Backup version 1 supports schema versions 3, 4 and 5 with 33 datasets; exports use schema 5.
+  Backup version 1 supports schema versions 3, 4 and 5 with 33 datasets and schema 6 with 34; exports use schema 6.
   Inspection stays synchronous. Restore remains an API-owned task; never retry automatically.
   Resolve uncertain acceptance through a task associated with the same upload ID. Navigation
   stops polling without cancelling accepted work. Cleanup status remains independent of restore

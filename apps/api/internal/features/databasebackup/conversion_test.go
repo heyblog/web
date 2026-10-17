@@ -31,3 +31,38 @@ func TestAccountBackupConversionUsesOAuthBindings(t *testing.T) {
 		t.Fatalf("current state changed: %s / %v", raw, err)
 	}
 }
+
+func TestLegacyClaimConversionPreservesOriginalShortEvidence(t *testing.T) {
+	for _, version := range []int{3, 4, 5} {
+		doc := document{header: Header{SchemaVersion: version}}
+		raw, err := doc.convertRow("directory.site_claims", json.RawMessage(`{"evidence":"Historical proof"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var row map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &row); err != nil {
+			t.Fatal(err)
+		}
+		if string(row["evidence"]) != `"Historical proof"` || string(row["reviewed_at"]) != "null" {
+			t.Fatalf("legacy claim changed: %s", raw)
+		}
+		if _, err := doc.convertRow("directory.site_claims", json.RawMessage(`{"reviewed_at":null}`)); err == nil {
+			t.Fatal("legacy row accepted new field")
+		}
+	}
+}
+
+func TestRestoredEvidenceNeverRetainsSourceObjectAuthority(t *testing.T) {
+	doc := document{header: Header{SchemaVersion: 6}}
+	for _, status := range []string{"UPLOADING", "READY", "BOUND", "CLEANUP_PENDING", "ARCHIVED"} {
+		raw, err := doc.convertRow("directory.site_claim_attachments", json.RawMessage(`{"filename":"proof.pdf","status":"`+status+`","storage_key":"backup/foreign","storage_identity":"source","archive_at":"2024-01-01","purge_at":"2024-02-01"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var row map[string]json.RawMessage
+		_ = json.Unmarshal(raw, &row)
+		if string(row["status"]) != `"DELETED"` || string(row["storage_key"]) != `""` || string(row["storage_identity"]) != `""` || string(row["filename"]) != `"proof.pdf"` {
+			t.Fatalf("source authority retained: %s", raw)
+		}
+	}
+}

@@ -1,5 +1,7 @@
 export {
   type Claim,
+  type ClaimAttachment,
+  type ClaimAttachmentUpload,
   type ClaimChallenge,
   type ClaimMethod,
   claimMethods,
@@ -7,6 +9,8 @@ export {
   claimStatuses,
   parseChallenge,
   parseClaim,
+  parseClaimAttachment,
+  parseClaimAttachmentUpload,
   parseClaims,
 } from './claims.types.ts';
 export interface FriendLink {

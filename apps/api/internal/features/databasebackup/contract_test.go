@@ -16,7 +16,7 @@ func fixtureDocument(t *testing.T) []byte {
 	empty := sha256.Sum256(nil)
 	tables := map[string][]any{}
 	manifest := []Manifest{}
-	for _, name := range tableNames {
+	for _, name := range tablesForSchema(3) {
 		tables[name] = []any{}
 		manifest = append(manifest, Manifest{Dataset: Dataset{Name: name}, SHA256: hex.EncodeToString(empty[:])})
 	}
@@ -102,5 +102,41 @@ func TestDocumentAcceptsSupportedSchemaVersions(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestDocumentRequiresVersionSpecificAttachmentInventory(t *testing.T) {
+	var data map[string]json.RawMessage
+	if err := json.Unmarshal(fixtureDocument(t), &data); err != nil {
+		t.Fatal(err)
+	}
+	var header Header
+	if err := json.Unmarshal(data["metadata"], &header); err != nil {
+		t.Fatal(err)
+	}
+	header.SchemaVersion = 6
+	data["metadata"], _ = json.Marshal(header)
+	missing, _ := json.Marshal(data)
+	if _, err := readDocument(bytes.NewReader(missing), nil); !errors.Is(err, ErrInvalid) {
+		t.Fatal("schema six accepted missing attachment dataset")
+	}
+	var tables map[string]json.RawMessage
+	_ = json.Unmarshal(data["tables"], &tables)
+	tables["directory.site_claim_attachments"] = json.RawMessage(`[]`)
+	data["tables"], _ = json.Marshal(tables)
+	var manifest []Manifest
+	_ = json.Unmarshal(data["manifest"], &manifest)
+	empty := sha256.Sum256(nil)
+	manifest = append(manifest, Manifest{Dataset: Dataset{Name: "directory.site_claim_attachments"}, SHA256: hex.EncodeToString(empty[:])})
+	data["manifest"], _ = json.Marshal(manifest)
+	valid, _ := json.Marshal(data)
+	if _, err := readDocument(bytes.NewReader(valid), nil); err != nil {
+		t.Fatal(err)
+	}
+	header.SchemaVersion = 5
+	data["metadata"], _ = json.Marshal(header)
+	extra, _ := json.Marshal(data)
+	if _, err := readDocument(bytes.NewReader(extra), nil); !errors.Is(err, ErrInvalid) {
+		t.Fatal("legacy schema accepted unexpected attachment dataset")
 	}
 }

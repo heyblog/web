@@ -1,3 +1,12 @@
+import { type ClaimAttachment, parseClaimAttachments } from './claim-attachment.types.ts';
+
+export type { ClaimAttachment, ClaimAttachmentUpload } from './claim-attachment.types.ts';
+export {
+  parseClaimAttachment,
+  parseClaimAttachments,
+  parseClaimAttachmentUpload,
+} from './claim-attachment.types.ts';
+
 export const claimMethods = ['BLOGSCLUB', 'DNS_TXT', 'META', 'FILE', 'MANUAL'] as const;
 export type ClaimMethod = (typeof claimMethods)[number];
 export const claimStatuses = ['PENDING', 'VERIFIED', 'REJECTED', 'CANCELLED'] as const;
@@ -28,6 +37,7 @@ export interface Claim {
   readonly review_reason?: string;
   readonly evidence?: string;
   readonly evidence_url?: string;
+  readonly attachments?: readonly ClaimAttachment[];
   readonly site_name: string;
   readonly current_address: string;
   readonly ownership_state: OwnershipState;
@@ -149,6 +159,7 @@ export function parseClaim(value: unknown): Claim {
     review_reason: optional(item.review_reason),
     evidence: optional(item.evidence),
     evidence_url: optional(item.evidence_url),
+    ...(item.attachments == null ? {} : { attachments: parseClaimAttachments(item.attachments) }),
     site_name: text(item.site_name),
     current_address: text(item.current_address),
     ownership_state: state(item.ownership_state),

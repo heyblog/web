@@ -42,6 +42,18 @@ func TestDatabaseBackupConvertsVersionThreeAccountProfiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	data.Metadata.SchemaVersion = 3
+	delete(data.Tables, "directory.site_claim_attachments")
+	filtered := data.Manifest[:0]
+	for _, entry := range data.Manifest {
+		if entry.Name != "directory.site_claim_attachments" {
+			filtered = append(filtered, entry)
+		}
+	}
+	data.Manifest = filtered
+	for _, row := range data.Tables["directory.site_claims"] {
+		delete(row, "reviewed_at")
+	}
+
 	hash := sha256.New()
 	for _, row := range data.Tables["identity.users"] {
 		delete(row, "profile_confirmation_status")

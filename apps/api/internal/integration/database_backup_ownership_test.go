@@ -16,6 +16,8 @@ func seedDatabaseBackupOwnership(t *testing.T, fixture auditMigrationFixture, ac
 		`INSERT INTO directory.site_claims(site_id,user_id,address,method,status,evidence,reviewed_by,created_at,verified_at,consumed_at)
  SELECT $2,id,'https://backup.example.test/','MANUAL',generated_status,'Historical proof',$1,'2024-01-01'::timestamptz,'2024-01-02'::timestamptz,'2024-01-03'::timestamptz
  FROM identity.users CROSS JOIN unnest(ARRAY['PENDING','VERIFIED','REJECTED','CANCELLED']) generated_status WHERE role='ADMIN'`,
+		`INSERT INTO directory.site_claim_attachments(claim_id,site_id,user_id,address,filename,content_type,size,sha256,storage_key,storage_identity,status,created_at,completed_at,bound_at,archive_at,purge_at)
+ SELECT id,site_id,user_id,address,'proof.pdf','application/pdf',10,repeat('a',64),'heyblog-site-evidence/'||id::text,'https://source.cos.region.myqcloud.com','BOUND','2024-01-01','2024-01-01','2024-01-01','2099-01-01','2100-01-01' FROM directory.site_claims WHERE method='MANUAL' AND status='VERIFIED'`,
 		`INSERT INTO directory.site_ownerships(site_id,user_id,address,revision,created_at,updated_at)
  VALUES($2,$1,'https://backup.example.test/',9007199254740993,'2024-01-01','2024-01-03')`,
 		`INSERT INTO directory.site_ownership_events(site_id,user_id,actor_id,action,reason,evidence,created_at)

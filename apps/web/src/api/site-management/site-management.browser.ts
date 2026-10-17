@@ -8,6 +8,7 @@ export async function accountRequest(
     fetch?: typeof globalThis.fetch;
   }> = {},
 ): Promise<Response> {
+  const timeoutMs = /^site-claim-attachments\/[^/]+\/complete$/u.test(path) ? 125_000 : 15_000;
   return (init.fetch ?? globalThis.fetch)(
     `/api/web/${init.management ? 'management' : 'account'}/${path}`,
     {
@@ -16,7 +17,10 @@ export async function accountRequest(
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
       ...(init.method && init.method !== 'GET' ? { body: JSON.stringify(init.body ?? {}) } : {}),
-      signal: AbortSignal.any([AbortSignal.timeout(15_000), ...(init.signal ? [init.signal] : [])]),
+      signal: AbortSignal.any([
+        AbortSignal.timeout(timeoutMs),
+        ...(init.signal ? [init.signal] : []),
+      ]),
     },
   );
 }

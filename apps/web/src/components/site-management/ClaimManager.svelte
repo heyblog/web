@@ -16,12 +16,14 @@
   import SiteAddressAvailability from '@/components/site-submission/SiteAddressAvailability.svelte';
   import SiteResolver from '@/components/site-submission/SiteResolver.svelte';
 
+  import ClaimAttachments from './ClaimAttachments.svelte';
   import ClaimDetail from './ClaimDetail.svelte';
   let {
     initialShortId = '',
     purpose = 'claim',
-  }: { initialShortId?: string; purpose?: 'claim' | 'address' } = $props();
-  const controller = createClaimCreator();
+    uploadOrigin = '',
+  }: { initialShortId?: string; purpose?: 'claim' | 'address'; uploadOrigin?: string } = $props();
+  const controller = createClaimCreator(undefined, undefined, uploadOrigin);
   let method = $state<ClaimMethod>('BLOGSCLUB');
   let address = $state('');
   let addressInput = $state<HTMLInputElement>();
@@ -231,12 +233,12 @@
                   disabled={controller.busy}
                   placeholder="说明你与该站点的关系，以及管理员可以核对的线索。"
                   name="evidence"
-                  data-max-bytes="4000"
+                  data-max-characters="4000"
                   data-field-label="归属说明"
                   aria-describedby="evidence-requirements"></textarea><span
                   id="evidence-requirements"
                   class="text-xs/normal text-fg-muted"
-                  >必填，最多 4000 字节。说明你与站点的关系及可核对的线索。</span
+                  >至少 20 个字符，最多 4000 个字符。说明你与站点的关系及可核对的线索。</span
                 >
               </label>
               <label class="grid gap-2 text-sm">
@@ -256,6 +258,14 @@
                   >选填，最多 2048 字节；使用公开 HTTP 或 HTTPS 地址，不能包含登录信息。</span
                 >
               </label>
+              <ClaimAttachments
+                attachments={controller.attachments}
+                busy={controller.busy}
+                error={controller.attachmentError}
+                onadd={(files) =>
+                  controller.addAttachments(files, newAddress ? address : context.site.address)}
+                onremove={(id) => controller.removeAttachment(id)}
+              />
             </div>
           {:else if method === 'BLOGSCLUB'}
             <div class="grid gap-3 rounded-lg border border-blogsclub/30 bg-blogsclub/5 p-4">

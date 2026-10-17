@@ -1,5 +1,6 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
+import { parseEvidenceOrigin } from '@/api/site-management/claim-attachment.types';
 import { parseClaimPage } from '@/api/site-management/claims.types';
 import { claimListQuery } from '@/application/site-management/claims-query';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
@@ -12,6 +13,21 @@ Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
 if (!user)
   return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
+const settings = await requestAuthAPI(
+  Astro.request,
+  '/api/web/account/site-claim-attachments/settings',
+);
+for (const cookie of settings.headers.getSetCookie())
+  Astro.response.headers.append('Set-Cookie', cookie);
+let uploadOrigin = '';
+if (settings.ok) {
+  try {
+    uploadOrigin = parseEvidenceOrigin(await settings.json());
+  } catch {
+    uploadOrigin = '';
+  }
+}
+if (uploadOrigin) Astro.csp?.insertDirective(`connect-src ${uploadOrigin}`);
 const { page, query } = claimListQuery(Astro.url.searchParams);
 const response = await requestAuthAPI(Astro.request, `/api/web/account/site-claims?${query}`);
 const data = response.ok ? parseClaimPage(await response.json()) : null;
@@ -25,6 +41,7 @@ const shortId = /^[a-zA-Z0-9]{9}$/u.test(rawID) ? rawID : '';
       slot="create"
       client:load
       initialShortId={shortId}
+      {uploadOrigin}
       purpose={Astro.url.searchParams.get('purpose') === 'address' ? 'address' : 'claim'}
     />
     <div slot="records">

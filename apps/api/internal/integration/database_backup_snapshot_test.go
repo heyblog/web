@@ -43,8 +43,8 @@ func databaseBackupSnapshot(t *testing.T, fixture auditMigrationFixture) map[str
 		}
 		snapshot[name] = data
 	}
-	if businessTables != 33 || len(names) <= businessTables {
-		t.Fatal("rollback snapshot requires all 33 business tables and graph tables")
+	if businessTables != 34 || len(names) <= businessTables {
+		t.Fatal("rollback snapshot requires all 34 business tables and graph tables")
 	}
 	return snapshot
 }
