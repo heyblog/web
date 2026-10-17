@@ -59,7 +59,7 @@ const actions: Readonly<Record<string, FormAction>> = {
     body: (form) => {
       const nextPassword = field(form, 'next_password');
       return {
-        current_password: optionalField(form, 'current_password'),
+        current_password: field(form, 'current_password'),
         next_password: nextPassword,
       };
     },

@@ -14,7 +14,7 @@
     prepareAuthorization,
   } from '@/application/management/user-editor.model';
   import { authorizationAccess, permissionLabels } from '@/application/management/users.model';
-  import { protectUserDraft } from '@/application/management/users-navigation.browser';
+  import { protectFormDraft } from '@/application/navigation/form-navigation.browser';
 
   import UserAccountEditor from './UserAccountEditor.svelte';
   import { buttonClass, inputClass, panelClass, primaryClass } from './users.styles';
@@ -43,7 +43,7 @@
   const permissionsDisabled = $derived(Boolean(access.permissionsReason) || locked || dirty.role);
 
   onMount(() =>
-    protectUserDraft(() => ({
+    protectFormDraft(() => ({
       dirty: dirty.role || dirty.permissions || accountDirty,
       busy: draft.busy || accountBusy,
     })),

@@ -1,5 +1,6 @@
-export function protectUserDraft(
+export function protectFormDraft(
   readState: () => Readonly<{ dirty: boolean; busy: boolean }>,
+  confirmation = '离开此页？尚未保存的修改将丢失。',
 ): () => void {
   let leaving = false;
   const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -29,8 +30,7 @@ export function protectUserDraft(
     )
       return;
     const state = readState();
-    if (state.busy || (state.dirty && !window.confirm('离开此页？尚未保存的修改将丢失。')))
-      event.preventDefault();
+    if (state.busy || (state.dirty && !window.confirm(confirmation))) event.preventDefault();
     else leaving = true;
   };
   window.addEventListener('beforeunload', beforeUnload);

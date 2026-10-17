@@ -6,7 +6,7 @@ import test from 'node:test';
 
 const source = stripTypeScriptTypes(
   readFileSync(
-    new URL('../src/application/management/users-navigation.browser.ts', import.meta.url),
+    new URL('../src/application/navigation/form-navigation.browser.ts', import.meta.url),
     'utf8',
   ),
 ).replace('export function', 'function');
@@ -50,7 +50,7 @@ function createNavigation() {
       removeEventListener: (name: string) => documentEvents.delete(name),
     },
   };
-  runInNewContext(`${source}\nglobalThis.cleanup = protectUserDraft(() => state);`, context);
+  runInNewContext(`${source}\nglobalThis.cleanup = protectFormDraft(() => state);`, context);
   return {
     state,
     link,

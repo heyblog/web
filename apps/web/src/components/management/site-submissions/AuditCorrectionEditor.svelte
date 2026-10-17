@@ -92,6 +92,7 @@
         error = problem.message;
         return;
       }
+      pending = false;
       window.location.assign(returnPath);
     } catch {
       reloadRequired = true;

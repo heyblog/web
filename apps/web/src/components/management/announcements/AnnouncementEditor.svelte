@@ -16,6 +16,7 @@
   } from '../../../api/announcements/announcements.types.ts';
   import { statusLabels } from '../../../application/announcements/announcement-editor.shared.ts';
   import { createAnnouncementEditor } from '../../../application/announcements/announcement-editor.svelte.ts';
+  import { protectFormDraft } from '../../../application/navigation/form-navigation.browser.ts';
   import AnnouncementInline from '../../announcements/AnnouncementInline.svelte';
 
   import AnnouncementFields from './AnnouncementFields.svelte';
@@ -45,31 +46,10 @@
   onMount(() => {
     ready = true;
     timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (editor.dirty) event.preventDefault();
-    };
-    const leaving = (event: MouseEvent) => {
-      const target = event.target;
-      const anchor = target instanceof Element ? target.closest('a[href]') : null;
-      if (
-        !anchor ||
-        !editor.dirty ||
-        event.defaultPrevented ||
-        event.button !== 0 ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey ||
-        event.altKey
-      )
-        return;
-      if (!window.confirm('放弃未保存的修改？')) event.preventDefault();
-    };
-    window.addEventListener('beforeunload', beforeUnload);
-    document.addEventListener('click', leaving);
-    return () => {
-      window.removeEventListener('beforeunload', beforeUnload);
-      document.removeEventListener('click', leaving);
-    };
+    return protectFormDraft(
+      () => ({ dirty: editor.dirty, busy: editor.busy }),
+      '放弃未保存的修改？',
+    );
   });
   async function submit(operation: () => Promise<void>) {
     await operation();

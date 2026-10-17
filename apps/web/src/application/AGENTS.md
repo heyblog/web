@@ -27,6 +27,9 @@ All file references are repository-root-relative; inherit `apps/web/AGENTS.md`.
 
 ## State and Lifecycle Boundaries
 
+- `application/navigation/form-navigation.browser.ts` owns the dirty/busy draft leave guard shared
+  by user management and announcement editing. Confirmed departure prompts once; new tabs,
+  downloads and same-page anchors retain current-page protection. Tests: `apps/web/tests/form-navigation.test.ts`.
 - API-key flows preserve busy/refreshing guards, dirty-form discard confirmation and failure
   sequencing. Keep issued secrets only in result-view memory, retain them after list-refresh
   failure and clear them when leaving the result. Partial update/rotation responses must not

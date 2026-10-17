@@ -5,7 +5,7 @@
   import type { ManagedUser } from '@/api/managed-users/managed-users.types';
   import { authorizationError } from '@/application/management/users.messages';
   import { userMutationNeedsReload } from '@/application/management/users.model';
-  import { protectUserDraft } from '@/application/management/users-navigation.browser';
+  import { protectFormDraft } from '@/application/navigation/form-navigation.browser';
 
   import { buttonClass, inputClass, panelClass, primaryClass } from './users.styles';
   let username = $state('');
@@ -17,7 +17,7 @@
   let mailSent = $state(false);
   let uncertain = $state(false);
   onMount(() =>
-    protectUserDraft(() => ({
+    protectFormDraft(() => ({
       dirty: !created && !!(username || displayName || email),
       busy: pending,
     })),

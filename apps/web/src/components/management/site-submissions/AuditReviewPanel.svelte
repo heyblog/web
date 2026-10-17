@@ -106,6 +106,7 @@
         error = problem.message;
         return;
       }
+      pending = false;
       if (discard) {
         window.location.reload();
         return;

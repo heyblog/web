@@ -150,6 +150,7 @@ export function createAnnouncementEditor(
         accept(next);
         notice = '已保存。';
         if (created) {
+          busy = false;
           window.location.assign(`/management/announcements/${next.id}`);
           return;
         }
@@ -187,6 +188,7 @@ export function createAnnouncementEditor(
         if (!announcement || announcement.status !== 'DRAFT') return;
         await transport.delete(announcement.id, announcement.rowVersion);
         baseline = JSON.stringify(draft);
+        busy = false;
         window.location.assign('/management/announcements');
       }),
     reload: () =>
