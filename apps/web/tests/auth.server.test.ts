@@ -67,7 +67,7 @@ test('auth API gives the GitHub callback a longer timeout', async () => {
   try {
     // When
     await requestAuthAPI(
-      new Request('https://web.example.test/api/web/auth/github/callback'),
+      new Request('https://web.example.test/auth/github/callback'),
       '/api/web/auth/github/callback?code=code&state=state',
     );
 

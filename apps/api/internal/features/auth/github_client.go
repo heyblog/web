@@ -10,7 +10,7 @@ import (
 )
 
 func (service *Service) githubAccessToken(ctx context.Context, code string) (string, error) {
-	form := url.Values{"client_id": {service.config.GithubClientID}, "client_secret": {service.config.GithubClientSecret}, "code": {code}, "redirect_uri": {service.githubCallbackURL()}}
+	form := url.Values{"client_id": {service.config.GithubClientID}, "client_secret": {service.config.GithubClientSecret}, "code": {code}, "redirect_uri": {service.oauthCallbackURL(ProviderGitHub)}}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://github.com/login/oauth/access_token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", err

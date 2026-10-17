@@ -75,10 +75,6 @@ func (subject *blogsClubSubject) UnmarshalJSON(raw []byte) error {
 	}
 }
 
-func (adapter blogsClubAdapter) callbackURL() string {
-	return strings.TrimRight(adapter.service.config.WebBaseURL, "/") + "/auth/blogsclub/callback"
-}
-
 func (adapter blogsClubAdapter) oauthConfig() (blogsClubOAuthConfig, error) {
 	config := adapter.service.config
 	clientID := strings.TrimSpace(config.BlogsClubClientID)
@@ -86,7 +82,7 @@ func (adapter blogsClubAdapter) oauthConfig() (blogsClubOAuthConfig, error) {
 	if clientID == "" || clientSecret == "" {
 		return blogsClubOAuthConfig{}, newAuthError("blogsclub_unavailable", 503, "BlogsClub login is unavailable")
 	}
-	return blogsClubOAuthConfig{clientID: clientID, clientSecret: clientSecret, redirectURI: adapter.callbackURL()}, nil
+	return blogsClubOAuthConfig{clientID: clientID, clientSecret: clientSecret, redirectURI: adapter.service.oauthCallbackURL(ProviderBlogsClub)}, nil
 }
 
 func (config blogsClubOAuthConfig) authorizationURL(state string) string {

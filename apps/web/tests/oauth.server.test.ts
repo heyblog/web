@@ -66,36 +66,58 @@ test('popup start forwards state cookies and returns validated JSON without a re
   }
 });
 
-test('callback bridges a claim result, forwards all cookies and sanitizes an unsafe next path', async () => {
-  // Given
-  Object.assign(process.env, configuration);
-  const original = globalThis.fetch;
-  globalThis.fetch = async () =>
-    Response.json(
-      { ...completion, next: '//attacker.test' },
-      {
-        headers: [
-          ['Set-Cookie', 'access=token; Path=/; HttpOnly'],
-          ['Set-Cookie', 'state=; Path=/; Max-Age=0'],
-        ],
-      },
-    );
-  try {
-    // When
-    const response = await completeOAuth(
-      new Request('https://web.example.test/auth/blogsclub/callback?code=secret-code&state=state'),
-      'blogsclub',
-    );
-    // Then
-    assert.ok(!(response instanceof Response));
-    assert.equal(response.result.next, '/dashboard');
-    assert.equal(response.headers.getSetCookie().length, 2);
-    assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
-    assert.equal(JSON.stringify(response.result).includes('secret-code'), false);
-  } finally {
-    globalThis.fetch = original;
-  }
-});
+for (const [provider, intent] of [
+  ['github', 'login'],
+  ['blogsclub', 'site-claim'],
+] as const)
+  test(`${provider} callback forwards to its internal API and sanitizes an unsafe next path`, async () => {
+    // Given
+    Object.assign(process.env, configuration);
+    const original = globalThis.fetch;
+    let upstreamRequest: Request | undefined;
+    globalThis.fetch = async (input, init) => {
+      upstreamRequest = new Request(input, init);
+      return Response.json(
+        { ...completion, provider, intent, next: '//attacker.test' },
+        {
+          headers: [
+            ['Set-Cookie', 'access=token; Path=/; HttpOnly'],
+            ['Set-Cookie', 'state=; Path=/; Max-Age=0'],
+          ],
+        },
+      );
+    };
+    try {
+      // When
+      const response = await completeOAuth(
+        new Request(
+          `https://web.example.test/auth/${provider}/callback?code=secret-code&state=state`,
+          {
+            headers: { Cookie: 'oauth-state=state' },
+          },
+        ),
+        provider,
+      );
+      // Then
+      assert.ok(!(response instanceof Response));
+      assert.equal(
+        upstreamRequest?.url,
+        `http://api.internal:10201/api/web/auth/${provider}/callback?code=secret-code&state=state`,
+      );
+      assert.equal(upstreamRequest?.headers.get('Cookie'), 'oauth-state=state');
+      assert.equal(
+        upstreamRequest?.headers.get('X-HeyBlog-Web-Token'),
+        configuration.API_WEB_TOKEN,
+      );
+      assert.equal(response.result.provider, provider);
+      assert.equal(response.result.next, '/dashboard');
+      assert.equal(response.headers.getSetCookie().length, 2);
+      assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
+      assert.equal(JSON.stringify(response.result).includes('secret-code'), false);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 
 test('redirect mode continues to the pending claim after a partial binding failure', async () => {
   // Given

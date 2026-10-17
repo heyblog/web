@@ -27,11 +27,7 @@ func (adapter githubAdapter) authorizationURL(state string) (string, error) {
 	if s.config.GithubClientID == "" || s.config.GithubClientSecret == "" {
 		return "", newAuthError("github_unavailable", 503, "GitHub login is unavailable")
 	}
-	return "https://github.com/login/oauth/authorize?" + url.Values{"client_id": {s.config.GithubClientID}, "redirect_uri": {s.githubCallbackURL()}, "scope": {s.config.GithubScope}, "state": {state}}.Encode(), nil
-}
-
-func (service *Service) githubCallbackURL() string {
-	return strings.TrimRight(service.config.WebBaseURL, "/") + "/api/web/auth/github/callback"
+	return "https://github.com/login/oauth/authorize?" + url.Values{"client_id": {s.config.GithubClientID}, "redirect_uri": {s.oauthCallbackURL(ProviderGitHub)}, "scope": {s.config.GithubScope}, "state": {state}}.Encode(), nil
 }
 
 func (adapter githubAdapter) identity(ctx context.Context, code string) (oauthIdentity, error) {

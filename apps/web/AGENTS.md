@@ -60,7 +60,9 @@ layer and browser-module boundaries.
 ## Rendering and Same-Origin Safety
 
 - Browser/API endpoints live under `/api/web/{public,auth,submissions,account,management}`;
-  HTML page URLs remain separate. Browser OAuth callbacks use `/api/web/auth/github/callback` and `/auth/blogsclub/callback`.
+  HTML page URLs remain separate. Browser OAuth callbacks share `/auth/{provider}/callback`,
+  served by one dynamic page that accepts only GitHub and BlogsClub. The page forwards to the
+  private API's `/api/web/auth/{provider}/callback` endpoints; no legacy callback aliases remain.
   `application/auth` owns the common popup lifecycle; `api/auth` validates provider results.
   Popups receive only completed results after server-side exchange. Explicit redirect links recover
   blocked popups. Session DTOs expose `oauth_providers` rather than provider-specific flags.

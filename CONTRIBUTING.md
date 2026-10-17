@@ -82,7 +82,7 @@ mise run //apps/api:dev
 mise run //apps/web:dev
 ```
 
-Web 默认地址为 `http://127.0.0.1:10101`，API 默认地址为 `http://127.0.0.1:10201`。浏览器数据请求通过 Web 同源端点转发到 API。本地 GitHub OAuth callback 为 `http://127.0.0.1:10101/api/web/auth/github/callback`。
+Web 默认地址为 `http://127.0.0.1:10101`，API 默认地址为 `http://127.0.0.1:10201`。浏览器数据请求通过 Web 同源端点转发到 API。OAuth 公开回调使用 `/auth/{provider}/callback`，本地应用后台配置见 [README](./README.md)。
 
 Mailpit 收件箱位于 `http://127.0.0.1:8025`。注册、重新发送验证码、找回密码和站点审核
 通知都会进入该收件箱；可使用 `developer@example.test` 等本地地址完成完整认证流程。需要直接

@@ -299,8 +299,10 @@ preserve confirmation and usage state. The consolidated baseline owns these iden
 
 OAuth authentication shares provider adapters, one-use Redis state and account mutations for
 GitHub and BlogsClub. BlogsClub credentials use `API_BLOGSCLUB_CLIENT_ID` and
-`API_BLOGSCLUB_CLIENT_SECRET`. Its public callback is `/auth/blogsclub/callback`; GitHub retains
-`/api/web/auth/github/callback`. JSON OAuth start/callback responses support the Web popup bridge.
+`API_BLOGSCLUB_CLIENT_SECRET`. Both providers share the public callback template
+`{auth.web_base_url}/auth/{provider}/callback` for authorization and token exchange. Web forwards
+callbacks to the private API's `/api/web/auth/{provider}/callback` endpoints.
+JSON OAuth start/callback responses support the Web popup bridge.
 BlogsClub site claims require fresh server-fetched verified profiles and exact normalized addresses,
 with no stored access tokens or challenge regeneration.
 OAuth callback completion separates the public result from server-only failures. Routes report

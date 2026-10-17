@@ -20,6 +20,7 @@ test('development keeps page scripts and QR images working after graph workers l
   const directory = await mkdtemp(join(tmpdir(), 'heyblog-dev-'));
   let emptyLists = false;
   let sessionStatus = 401;
+  const oauthCallbacks: string[] = [];
   const api = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
     if (request.url === '/api/web/auth/me') {
@@ -32,6 +33,35 @@ test('development keeps page scripts and QR images working after graph workers l
         'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly',
       ]);
       response.end();
+    } else if (
+      request.url?.startsWith('/api/web/auth/github/callback?') ||
+      request.url?.startsWith('/api/web/auth/blogsclub/callback?')
+    ) {
+      oauthCallbacks.push(request.url);
+      const callback = new URL(request.url, 'http://api.test');
+      const provider = callback.pathname.includes('/github/') ? 'github' : 'blogsclub';
+      response.setHeader('Set-Cookie', ['oauth-state=; Path=/; Max-Age=0']);
+      if (callback.searchParams.get('code') === 'invalid') {
+        response.statusCode = 400;
+        response.end(
+          JSON.stringify({ code: 'invalid_oauth_state', detail: 'private-oauth-detail' }),
+        );
+      } else {
+        response.setHeader('Set-Cookie', [
+          'oauth-state=; Path=/; Max-Age=0',
+          'session=renewed; Path=/; HttpOnly',
+        ]);
+        response.end(
+          JSON.stringify({
+            provider,
+            state: callback.searchParams.get('state'),
+            intent: 'login',
+            mode: callback.searchParams.get('code') === 'redirect' ? 'redirect' : 'popup',
+            next: '/dashboard/security',
+            outcome: 'success',
+          }),
+        );
+      }
     } else if (
       request.url === `/api/web/public/sites/id/${profile.shortId}` ||
       request.url === `/api/web/public/sites/id/${profile.shortId}/metadata`
@@ -126,6 +156,41 @@ test('development keeps page scripts and QR images working after graph workers l
       'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly',
       'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly',
     ]);
+
+    // Both public callbacks use the shared page and forward to their internal API endpoint.
+    for (const provider of ['github', 'blogsclub']) {
+      for (const code of ['oauth-test-secret-code', 'redirect', 'invalid']) {
+        const query = new URLSearchParams({ code, state: `${provider}-state` });
+        const response = await fetch(`${origin}/auth/${provider}/callback?${query}`, {
+          redirect: 'manual',
+        });
+        assert.equal(response.status, code === 'redirect' ? 303 : 200);
+        assert.equal(oauthCallbacks.at(-1), `/api/web/auth/${provider}/callback?${query}`);
+        assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+        assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
+        assert.match(response.headers.get('X-Robots-Tag') ?? '', /noindex/u);
+        assert.deepEqual(response.headers.getSetCookie(), [
+          'oauth-state=; Path=/; Max-Age=0',
+          ...(code === 'invalid' ? [] : ['session=renewed; Path=/; HttpOnly']),
+        ]);
+        if (code === 'redirect') {
+          assert.equal(response.headers.get('Location'), origin + '/dashboard/security');
+        } else {
+          const html = await response.text();
+          assert.match(html, /data-oauth-result=/u);
+          assert.ok(html.includes(code === 'invalid' ? '授权未完成' : '授权完成'));
+          assert.ok(!html.includes('oauth-test-secret-code'));
+          assert.ok(!html.includes('private-oauth-detail'));
+        }
+      }
+    }
+    const callbackCount = oauthCallbacks.length;
+    for (const path of ['/auth/unknown/callback', '/api/web/auth/github/callback']) {
+      const response = await fetch(origin + path, { redirect: 'manual' });
+      assert.equal(response.status, 404, path);
+      await response.text();
+    }
+    assert.equal(oauthCallbacks.length, callbackCount);
 
     // Resolve the toolbar before late-loaded Worker imports can change the dependency bundle.
     const toolbar = '/@id/astro/runtime/client/dev-toolbar/entrypoint.js';

@@ -5,8 +5,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGitHubClientMapsTransportFailureToUnavailable(t *testing.T) {
@@ -55,7 +58,7 @@ func TestGitHubClientExchangesCodeAndReadsVerifiedPrimaryEmail(t *testing.T) {
 	if err != nil || token != "github-token" {
 		t.Fatalf("githubAccessToken() = (%q, %v)", token, err)
 	}
-	if redirectURI != "https://web.example.test/api/web/auth/github/callback" {
+	if redirectURI != "https://web.example.test/auth/github/callback" {
 		t.Fatalf("redirect_uri = %q, want Web callback", redirectURI)
 	}
 	profile, email, err := service.githubIdentity(context.Background(), token)
@@ -64,10 +67,38 @@ func TestGitHubClientExchangesCodeAndReadsVerifiedPrimaryEmail(t *testing.T) {
 	}
 }
 
-func TestGitHubCallbackURLUsesPublicWebOrigin(t *testing.T) {
-	service := &Service{config: Config{WebBaseURL: "https://web.example.test"}}
-	if got := service.githubCallbackURL(); got != "https://web.example.test/api/web/auth/github/callback" {
-		t.Fatalf("githubCallbackURL() = %q, want Web callback", got)
+func TestOAuthAuthorizationUsesPublicWebCallbackTemplate(t *testing.T) {
+	t.Parallel()
+
+	for _, origin := range []string{"http://127.0.0.1:10101", "https://web.example.test/"} {
+		for _, test := range []struct {
+			provider OAuthProvider
+			path     string
+		}{
+			{provider: ProviderGitHub, path: "/auth/github/callback"},
+			{provider: ProviderBlogsClub, path: "/auth/blogsclub/callback"},
+		} {
+			t.Run(origin+test.path, func(t *testing.T) {
+				// Given
+				service := &Service{config: Config{
+					WebBaseURL: origin, GithubClientID: "github-client", GithubClientSecret: "github-secret",
+					BlogsClubClientID: "blogsclub-client", BlogsClubClientSecret: "blogsclub-secret",
+				}}
+				adapter, err := service.provider(test.provider)
+				require.NoError(t, err)
+
+				// When
+				target, err := adapter.authorizationURL("state-token")
+				require.NoError(t, err)
+				parsed, err := url.Parse(target)
+				require.NoError(t, err)
+
+				// Then
+				require.Equal(t, strings.TrimRight(origin, "/")+test.path, parsed.Query().Get("redirect_uri"))
+				require.Equal(t, "state-token", parsed.Query().Get("state"))
+				require.Empty(t, parsed.Query().Get("client_secret"))
+			})
+		}
 	}
 }
 

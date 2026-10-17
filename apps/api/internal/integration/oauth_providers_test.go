@@ -115,6 +115,7 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		target, err := url.Parse(response.Header().Get("Location"))
 		require.NoError(t, err)
 		require.Equal(t, "github.com", target.Host)
+		require.Equal(t, "https://web.example.test/auth/github/callback", target.Query().Get("redirect_uri"))
 		state := start(auth.ProviderBlogsClub, "login", "")
 		r = request()
 		r.URL, _ = url.Parse("/api/web/auth/blogsclub/callback?code=good&state=" + state.State)

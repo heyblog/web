@@ -1,9 +1,12 @@
 ---
+import { isOAuthProvider } from '@/api/auth/oauth.types';
 import { completeOAuth } from '@/application/auth/oauth.server';
 import OAuthCallbackPage from '@/components/auth/OAuthCallbackPage.astro';
 
 export const prerender = false;
-const completion = await completeOAuth(Astro.request, 'blogsclub');
+const { provider } = Astro.params;
+if (!isOAuthProvider(provider)) return new Response('Not Found', { status: 404 });
+const completion = await completeOAuth(Astro.request, provider);
 if (completion instanceof Response) return completion;
 for (const [name, value] of completion.headers)
   if (name !== 'set-cookie') Astro.response.headers.set(name, value);

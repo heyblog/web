@@ -17,6 +17,10 @@ const (
 
 func (provider OAuthProvider) slug() string { return strings.ToLower(string(provider)) }
 
+func (service *Service) oauthCallbackURL(provider OAuthProvider) string {
+	return strings.TrimRight(service.config.WebBaseURL, "/") + "/auth/" + provider.slug() + "/callback"
+}
+
 type oauthIdentity struct {
 	Subject, Login, Name, Email string
 	Profile                     json.RawMessage
