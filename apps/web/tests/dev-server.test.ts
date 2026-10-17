@@ -260,16 +260,16 @@ test('development keeps page scripts and QR images working after graph workers l
 
     // Given: the confirmation does not match the proposed password.
     // When: the browser submits the form.
-    const mismatch = await fetch(origin + '/api/web/auth/password', {
+    const passwordMismatch = await fetch(origin + '/api/web/auth/password', {
       method: 'POST',
       headers: { Origin: origin },
       body: new URLSearchParams({ next_password: 'new-password', confirm_password: 'different' }),
       redirect: 'manual',
     });
     // Then: validation redirects locally without sending another mutation upstream.
-    assert.equal(mismatch.status, 303);
+    assert.equal(passwordMismatch.status, 303);
     assert.equal(
-      mismatch.headers.get('Location'),
+      passwordMismatch.headers.get('Location'),
       origin + '/dashboard/security?error=password_mismatch',
     );
     assert.equal(passwordRequests.length, 2);
