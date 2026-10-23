@@ -100,9 +100,12 @@ unchanged.
 CI validates PRs and main independently of the Container workflow. Its Check job runs version and
 Git-hook regression tests; both local `verify` and `verify:full` include these tests. Container builds
 consume the exact SHA and Web artifact of a successful main CI run with a successful CI gate.
-Automatic builds skip merged PRs authored by `renovate[bot]`; explicit Container dispatches
-require a verified main CI run ID and default to build-and-scan only. Do not add publication
-queues, standalone workflow validation scripts, or disable actionlint diagnostics.
+Every verified main push, including merged PRs authored by `renovate[bot]`, builds, scans, and
+publishes SHA-tagged images. The workflow updates `latest` only when the source SHA matches main
+at the pre-publication check, and reports successful updates or skips in logs and the job summary.
+Explicit Container dispatches require a verified main CI run ID and default to build-and-scan only.
+Do not add publication queues, standalone workflow validation scripts, or disable actionlint
+diagnostics.
 
 Use the validation matrix below; root `verify` does not include API race tests or container
 integration tests.
