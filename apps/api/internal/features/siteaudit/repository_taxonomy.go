@@ -189,7 +189,7 @@ func resolveComponent(ctx context.Context, queries componentQueries, reviewer au
 	if component.HomepageURL == "" && component.RepositoryURL == "" || component.IsOpenSource == nil {
 		return ComponentSnapshot{}, newServiceError("taxonomy_metadata_required", http.StatusUnprocessableEntity, "new software components require a homepage or repository URL")
 	}
-	created, err := queries.CreateSoftwareComponent(ctx, dbgen.CreateSoftwareComponentParams{Name: name, Description: "", HomepageUrl: stringPointer(component.HomepageURL), RepositoryUrl: stringPointer(component.RepositoryURL), IsOpenSource: *component.IsOpenSource})
+	created, err := queries.CreateSoftwareComponent(ctx, dbgen.CreateSoftwareComponentParams{Name: name, NormalizedName: normalized, Description: "", HomepageUrl: stringPointer(component.HomepageURL), RepositoryUrl: stringPointer(component.RepositoryURL), IsOpenSource: *component.IsOpenSource})
 	if err != nil {
 		return ComponentSnapshot{}, fmt.Errorf("create reviewed software component: %w", err)
 	}

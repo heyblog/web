@@ -123,6 +123,62 @@ func TestResolveComponentMapsSuggestionToExistingEntryWithoutTaxonomyPermission(
 	}
 }
 
+type componentCreationQueries struct {
+	lookupName string
+	created    dbgen.CreateSoftwareComponentParams
+}
+
+func (*componentCreationQueries) GetSoftwareComponentByID(context.Context, pgtype.UUID) (dbgen.DirectorySoftwareComponent, error) {
+	return dbgen.DirectorySoftwareComponent{}, pgx.ErrNoRows
+}
+
+func (queries *componentCreationQueries) GetSoftwareComponentByNormalizedName(_ context.Context, name string) (dbgen.DirectorySoftwareComponent, error) {
+	queries.lookupName = name
+	return dbgen.DirectorySoftwareComponent{}, pgx.ErrNoRows
+}
+
+func (queries *componentCreationQueries) CreateSoftwareComponent(_ context.Context, params dbgen.CreateSoftwareComponentParams) (dbgen.DirectorySoftwareComponent, error) {
+	queries.created = params
+	return dbgen.DirectorySoftwareComponent{
+		ID: pgtype.UUID{Bytes: [16]byte{3}, Valid: true}, Name: params.Name, NormalizedName: params.NormalizedName,
+		HomepageUrl: params.HomepageUrl, RepositoryUrl: params.RepositoryUrl, IsOpenSource: params.IsOpenSource, IsEnabled: true,
+	}, nil
+}
+
+func TestResolveComponentCreatesCanonicalComponentWithNormalizedName(t *testing.T) {
+	t.Parallel()
+
+	for _, role := range []string{"SITE_PROGRAM", "FRAMEWORK", "LANGUAGE"} {
+		t.Run(role, func(t *testing.T) {
+			t.Parallel()
+
+			// Given a new component with mixed casing and surrounding whitespace.
+			queries := &componentCreationQueries{}
+			component := ComponentSnapshot{
+				SuggestedName: "  CuStOm Component  ", Role: role,
+				HomepageURL: "https://component.example.test", IsOpenSource: boolPointer(true),
+			}
+
+			// When a taxonomy administrator approves the suggestion.
+			resolved, err := resolveComponent(context.Background(), queries, auth.User{Role: auth.RoleSysAdmin}, component)
+			if err != nil {
+				t.Fatalf("resolveComponent() error = %v", err)
+			}
+
+			// Then creation uses the canonical lookup key and returns the catalog identity.
+			if queries.lookupName != "custom component" || queries.created.NormalizedName != "custom component" {
+				t.Errorf("lookup name = %q, created normalized name = %q, want %q for both", queries.lookupName, queries.created.NormalizedName, "custom component")
+			}
+			if queries.created.Name != "CuStOm Component" || resolved.Name != "CuStOm Component" {
+				t.Errorf("created name = %q, resolved name = %q, want trimmed display name", queries.created.Name, resolved.Name)
+			}
+			if resolved.ID != "03000000-0000-0000-0000-000000000000" || resolved.SuggestedName != "" || resolved.Role != role {
+				t.Errorf("resolved component = %#v, want catalog identity with role %q", resolved, role)
+			}
+		})
+	}
+}
+
 func TestTertiaryAssignmentAcceptsIntrinsicClassificationLevel(t *testing.T) {
 	tags, err := normalizeTags([]TagInput{
 		{ID: "primary", Role: "PRIMARY", Level: 1},
