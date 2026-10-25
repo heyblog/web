@@ -50,8 +50,8 @@ func TestPasswordResetOutcomesPreserveAnonymousResponseAndPrivateLogs(t *testing
 					(email, username, display_name, password_hash, email_verified_at, access_status, deletion_requested_at, deletion_scheduled_for)
 					SELECT $1, $2, 'Reset User', password_hash,
 					CASE WHEN $3 THEN clock_timestamp() END, $4,
-					CASE WHEN $5 THEN clock_timestamp() END,
-					CASE WHEN $5 THEN clock_timestamp() + interval '30 days' END
+					CASE WHEN $5 THEN statement_timestamp() END,
+					CASE WHEN $5 THEN statement_timestamp() + interval '30 days' END
 					FROM identity.users WHERE id = $6::uuid`, email, "reset_"+test.name, test.verified, test.status, test.deleting, fixture.actor)
 				require.NoError(t, err)
 			}

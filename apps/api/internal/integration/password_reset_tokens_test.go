@@ -47,7 +47,7 @@ func TestPasswordResetTokenLifecycle(t *testing.T) {
 			case "suspension":
 				_, err = fixture.pool.Exec(ctx, `UPDATE identity.users SET access_status = 'SUSPENDED' WHERE id = $1::uuid`, userID)
 			case "deletion":
-				_, err = fixture.pool.Exec(ctx, `UPDATE identity.users SET access_status = 'SUSPENDED', deletion_requested_at = clock_timestamp(), deletion_scheduled_for = clock_timestamp() + interval '30 days' WHERE id = $1::uuid`, userID)
+				_, err = fixture.pool.Exec(ctx, `UPDATE identity.users SET access_status = 'SUSPENDED', deletion_requested_at = statement_timestamp(), deletion_scheduled_for = statement_timestamp() + interval '30 days' WHERE id = $1::uuid`, userID)
 			}
 			require.NoError(t, err)
 			require.Error(t, fixture.auth.ResetPassword(ctx, token, "unavailable-password"))
