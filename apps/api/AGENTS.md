@@ -84,6 +84,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
   `CurrentSession` serves session/profile confirmation and `Current` additionally requires completed confirmation.
   Profile mutations serialize on the account row and rotate the current session after username changes.
   User management uses server pagination and timestamp revision checks; password setup/reset uses email links.
+  Password recovery accepts every verified active account, including OAuth accounts without a local
+  password. Keep anonymous 204 responses uniform for skipped and sent requests. Record the typed
+  `password_reset_request` outcome through the request logger with its request ID, without account
+  identifiers, email addresses or reset tokens; propagated delivery failures remain owned by the
+  HTTP error boundary.
   User DTOs expose `deletion_pending`; scheduled-deletion accounts remain readable and cannot be managed
   until the existing deletion lifecycle permits an account-state transition.
   Preserve user-management role, permission, scope, and self-management restrictions in

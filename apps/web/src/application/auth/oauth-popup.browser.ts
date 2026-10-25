@@ -6,70 +6,25 @@ import {
   parseOAuthCompletion,
 } from '../../api/auth/oauth.types.ts';
 
-export interface OAuthWindow {
-  readonly closed: boolean;
-  readonly location: { replace(url: string): void };
-  close(): void;
-  focus(): void;
-}
-
-export interface OAuthPopupEnvironment {
-  readonly origin: string;
-  open(): OAuthWindow | null;
-  listen(
-    listener: (event: {
-      readonly origin: string;
-      readonly source: unknown;
-      readonly data: unknown;
-    }) => void,
-  ): () => void;
-  channel(state: string, listener: (data: unknown) => void): () => void;
-  interval(callback: () => void, milliseconds: number): () => void;
-  timeout(callback: () => void, milliseconds: number): () => void;
-}
-
-export const oauthMessageType = 'heyblog-oauth';
-export const oauthChannelName = (state: string) => `heyblog-oauth:${state}`;
-
-function browserEnvironment(): OAuthPopupEnvironment {
-  return {
-    origin: window.location.origin,
-    open() {
-      const width = Math.min(480, window.screen.availWidth);
-      const height = Math.min(660, window.screen.availHeight);
-      const left = Math.max(0, window.screenX + (window.outerWidth - width) / 2);
-      const top = Math.max(0, window.screenY + (window.outerHeight - height) / 2);
-      return window.open(
-        'about:blank',
-        '_blank',
-        `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
-      );
-    },
-    listen(listener) {
-      window.addEventListener('message', listener);
-      return () => window.removeEventListener('message', listener);
-    },
-    channel(state, listener) {
-      if (typeof BroadcastChannel === 'undefined') return () => {};
-      const channel = new BroadcastChannel(oauthChannelName(state));
-      channel.onmessage = (event: MessageEvent<unknown>) => listener(event.data);
-      return () => channel.close();
-    },
-    interval(callback, milliseconds) {
-      const timer = window.setInterval(callback, milliseconds);
-      return () => window.clearInterval(timer);
-    },
-    timeout(callback, milliseconds) {
-      const timer = window.setTimeout(callback, milliseconds);
-      return () => window.clearTimeout(timer);
-    },
-  };
-}
+import {
+  browserEnvironment,
+  type OAuthPopupEnvironment,
+  type OAuthWindow,
+  waitForOAuthPopup,
+} from './oauth-popup-environment.browser.ts';
+import { oauthMessageType } from './oauth-popup-protocol.ts';
 
 interface PopupCallbacks {
   readonly busy: (value: boolean) => void;
+  readonly fallback: (location: string | undefined) => void;
   readonly error: (code: string, fallback?: string) => void;
   readonly complete: (result: OAuthCompletion) => void;
+}
+
+interface PopupAttempt {
+  popup: OAuthWindow | null;
+  readonly abort: AbortController;
+  readonly cleanup: (() => void)[];
 }
 
 export function createOAuthPopup(
@@ -77,43 +32,81 @@ export function createOAuthPopup(
   environment: () => OAuthPopupEnvironment = browserEnvironment,
   start = requestOAuthStart,
 ) {
-  let active: {
-    readonly popup: OAuthWindow | null;
-    readonly abort: AbortController;
-    readonly cleanup: (() => void)[];
-  } | null = null;
+  let active: PopupAttempt | null = null;
+
   function dispose() {
     const attempt = active;
     active = null;
     if (!attempt) return;
     attempt.abort.abort();
     for (const cleanup of attempt.cleanup) cleanup();
-    attempt.popup?.close();
-    callbacks.busy(false);
+    try {
+      attempt.popup?.close();
+    } catch {
+      // Detached browsing contexts may no longer permit window operations.
+    } finally {
+      callbacks.busy(false);
+      callbacks.fallback(undefined);
+    }
   }
+
   async function launch(request: OAuthRequest | (() => Promise<OAuthRequest | null>)) {
     if (active && !active.popup?.closed) {
-      active.popup?.focus();
+      try {
+        active.popup?.focus();
+      } catch {
+        dispose();
+        callbacks.error('oauth_popup_unavailable');
+      }
       return;
     }
-    dispose();
-    const host = environment();
-    const cleanup: (() => void)[] = [];
-    const attempt = { popup: host.open(), abort: new AbortController(), cleanup };
-    active = attempt;
-    callbacks.busy(true);
+    const attempt: PopupAttempt = { popup: null, abort: new AbortController(), cleanup: [] };
+    let host: OAuthPopupEnvironment | undefined;
     let fallback: string | undefined;
+    let requestID: string | undefined;
+    let stage = 'opening';
     try {
-      const input = typeof request === 'function' ? await request() : request;
-      if (active !== attempt) return;
-      if (!input) {
-        dispose();
-        return;
+      dispose();
+      active = attempt;
+      callbacks.busy(true);
+      if (typeof request !== 'function') {
+        fallback = oauthStartPath(request, 'redirect');
+        callbacks.fallback(fallback);
       }
-      fallback = oauthStartPath(input, 'redirect');
-      if (!attempt.popup) throw new OAuthProblem('oauth_popup_blocked');
-      const result = await start(input, attempt.abort.signal);
-      if (active !== attempt) return;
+      host = environment();
+      const origin = host.origin;
+      const id = host.id();
+      attempt.popup = host.open(`/auth/popup#${encodeURIComponent(id)}`);
+      attempt.cleanup.push(
+        host.timeout(() => {
+          if (active !== attempt) return;
+          dispose();
+          callbacks.error('oauth_timeout', fallback);
+        }, 10 * 60_000),
+      );
+      stage = 'starting';
+      const prepare = async () => {
+        const input = typeof request === 'function' ? await request() : request;
+        if (active !== attempt) return null;
+        if (!input) {
+          dispose();
+          return null;
+        }
+        fallback = oauthStartPath(input, 'redirect');
+        callbacks.fallback(fallback);
+        if (!attempt.popup) throw new OAuthProblem('oauth_popup_blocked');
+        const result = await start(input, attempt.abort.signal);
+        return { input, result };
+      };
+      const [, prepared] = await Promise.all([
+        attempt.popup
+          ? waitForOAuthPopup(host, attempt.popup, id, attempt.abort.signal)
+          : Promise.resolve(),
+        prepare(),
+      ]);
+      if (active !== attempt || !prepared) return;
+      const { input, result } = prepared;
+      requestID = result.requestID;
       const accept = (data: unknown) => {
         if (
           active !== attempt ||
@@ -140,9 +133,10 @@ export function createOAuthPopup(
       };
       attempt.cleanup.push(
         host.listen((event) => {
-          if (event.origin === host.origin && event.source === attempt.popup) accept(event.data);
+          if (event.origin === origin && event.source === attempt.popup) accept(event.data);
         }),
       );
+      stage = 'listening';
       attempt.cleanup.push(host.channel(result.state, accept));
       let noticedClose = false;
       attempt.cleanup.push(
@@ -155,19 +149,14 @@ export function createOAuthPopup(
           }
         }, 500),
       );
-      attempt.cleanup.push(
-        host.timeout(() => {
-          if (active !== attempt) return;
-          dispose();
-          callbacks.error('oauth_timeout', fallback);
-        }, 10 * 60_000),
-      );
-      attempt.popup.location.replace(result.authorizationURL);
+      stage = 'navigating';
+      attempt.popup?.location.replace(result.authorizationURL);
     } catch (error) {
       if (active !== attempt) return;
+      const code = error instanceof OAuthProblem ? error.code : 'oauth_popup_unavailable';
+      host?.report?.(stage, code, error instanceof OAuthProblem ? error.requestID : requestID);
       dispose();
-      if (error instanceof OAuthProblem) callbacks.error(error.code, fallback);
-      else throw error;
+      callbacks.error(code, fallback);
     }
   }
   return { launch, dispose };

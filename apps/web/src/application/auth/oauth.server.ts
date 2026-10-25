@@ -15,6 +15,8 @@ export async function startOAuth(request: Request, provider: OAuthProvider): Pro
     `/api/web/auth/${provider}/start${incoming.search}`,
   );
   const headers = new Headers({ 'Cache-Control': 'private, no-store' });
+  const requestID = response.headers.get('X-Request-ID');
+  if (requestID) headers.set('X-Request-ID', requestID);
   copySetCookie(response, headers);
   const wantsJSON = request.headers.get('accept')?.includes('application/json');
   if (!response.ok) {
@@ -84,6 +86,8 @@ export async function completeOAuth(
     'Referrer-Policy': 'no-referrer',
     'X-Robots-Tag': 'noindex, nofollow',
   });
+  const requestID = response.headers.get('X-Request-ID');
+  if (requestID) headers.set('X-Request-ID', requestID);
   copySetCookie(response, headers);
   let result: OAuthCompletion | null = null;
   if (response.ok) {

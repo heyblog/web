@@ -1,11 +1,15 @@
+import { parseRequestID } from '../transport/request-id.ts';
+
 import { oauthAuthorizationURL, type OAuthRequest, oauthStartPath } from './oauth.types.ts';
 
 export class OAuthProblem extends Error {
   readonly code: string;
-  constructor(code: string) {
+  readonly requestID: string | undefined;
+  constructor(code: string, requestID?: string) {
     super(code);
     this.name = 'OAuthProblem';
     this.code = code;
+    this.requestID = requestID;
   }
 }
 
@@ -22,17 +26,18 @@ export async function requestOAuthStart(input: OAuthRequest, signal: AbortSignal
   } catch {
     throw new OAuthProblem(signal.aborted ? 'oauth_cancelled' : 'bad_gateway');
   }
+  const requestID = parseRequestID(response.headers.get('X-Request-ID')) ?? undefined;
   let payload: unknown;
   try {
     payload = await response.json();
   } catch {
-    throw new OAuthProblem('request_failed');
+    throw new OAuthProblem('request_failed', requestID);
   }
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload))
-    throw new OAuthProblem('request_failed');
+    throw new OAuthProblem('request_failed', requestID);
   const item: Record<string, unknown> = Object.fromEntries(Object.entries(payload));
   if (!response.ok)
-    throw new OAuthProblem(typeof item.code === 'string' ? item.code : 'request_failed');
+    throw new OAuthProblem(typeof item.code === 'string' ? item.code : 'request_failed', requestID);
   const authorizationURL = oauthAuthorizationURL(input.provider, item.authorization_url);
   if (
     !authorizationURL ||
@@ -40,6 +45,6 @@ export async function requestOAuthStart(input: OAuthRequest, signal: AbortSignal
     !item.state ||
     new URL(authorizationURL).searchParams.get('state') !== item.state
   )
-    throw new OAuthProblem('request_failed');
-  return { authorizationURL, state: item.state };
+    throw new OAuthProblem('request_failed', requestID);
+  return { authorizationURL, state: item.state, requestID };
 }

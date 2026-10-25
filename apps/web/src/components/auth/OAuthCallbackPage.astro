@@ -42,7 +42,7 @@ const { result } = Astro.props;
     </main>
     <script>
       import { parseOAuthCompletion } from '@/api/auth/oauth.types';
-      import { oauthChannelName, oauthMessageType } from '@/application/auth/oauth-popup.browser';
+      import { oauthChannelName, oauthMessageType } from '@/application/auth/oauth-popup-protocol';
 
       const root = document.querySelector<HTMLElement>('[data-oauth-result]');
       const raw = root?.dataset.oauthResult;

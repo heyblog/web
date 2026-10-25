@@ -53,7 +53,7 @@ func TestAccountManagementLifecycle(t *testing.T) {
 	if detail := fixture.request("GET", path, ""); detail.Code != 200 {
 		t.Fatal(detail.Body.String())
 	}
-	if err := service.ForgotPassword(ctx, "managed@example.test"); err != nil {
+	if _, err := service.ForgotPassword(ctx, "managed@example.test"); err != nil {
 		t.Fatal(err)
 	}
 	oldReset := regexp.MustCompile(`token=([^\s]+)`).FindStringSubmatch(recorder.messages[len(recorder.messages)-1].Text)[1]
@@ -122,7 +122,7 @@ func TestAccountManagementLifecycle(t *testing.T) {
 	if _, err := service.Current(ctx, profileRequest(ctx, t, tokens)); err == nil {
 		t.Fatal("session revocation kept session")
 	}
-	if err := service.ForgotPassword(ctx, "updated@example.test"); err != nil {
+	if _, err := service.ForgotPassword(ctx, "updated@example.test"); err != nil {
 		t.Fatal(err)
 	}
 	staleEmailToken := regexp.MustCompile(`token=([^\s]+)`).FindStringSubmatch(recorder.messages[len(recorder.messages)-1].Text)[1]

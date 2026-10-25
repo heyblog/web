@@ -1,0 +1,46 @@
+---
+import { siteConfig } from '@/site.config';
+
+import '@/styles/global.css';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme-storage-key={siteConfig.themeStorageKey}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <script is:inline src="/theme-init.js"></script>
+    <title>正在授权 | HeyBlog</title>
+  </head>
+  <body class="bg-canvas text-fg">
+    <main class="mx-auto grid min-h-dvh max-w-lg content-center gap-5 p-6">
+      <h1 class="text-xl font-semibold" role="status">
+        正在打开授权页面…
+      </h1>
+      <p class="text-sm text-fg-muted">如果长时间没有跳转，请返回原页面重试或继续授权。</p>
+      <button
+        class="min-h-11 justify-self-start rounded-sm px-3 text-sm text-tint-fg underline outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        type="button"
+        data-close-popup
+      >
+        关闭窗口，返回原页面
+      </button>
+    </main>
+    <script>
+      import { oauthReadyMessageType } from '@/application/auth/oauth-popup-protocol';
+
+      const attempt = location.hash.slice(1);
+      history.replaceState(null, '', location.pathname);
+      if (/^[\w-]{1,128}$/u.test(attempt) && window.opener)
+        window.opener.postMessage({ type: oauthReadyMessageType, attempt }, location.origin);
+      document.querySelector('[data-close-popup]')?.addEventListener('click', () => window.close());
+    </script>
+  </body>
+</html>

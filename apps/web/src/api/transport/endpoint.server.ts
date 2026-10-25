@@ -1,11 +1,11 @@
-import { randomBytes } from 'node:crypto';
-
 import type { APIRoute } from 'astro';
 
 import { loadWebServerConfig, type WebServerConfig } from '../../config.server.ts';
 
 import { forwardClientAddress } from './client-ip.server.ts';
 import { requestEncoded } from './encoded.server.ts';
+import { resolveRequestID } from './request-id.server.ts';
+import { parseRequestID } from './request-id.ts';
 
 export const apiWebTokenHeader = 'X-HeyBlog-Web-Token';
 
@@ -49,8 +49,6 @@ export interface ApiEndpointHandlers {
   GET: APIRoute;
   OPTIONS: APIRoute;
 }
-
-const validRequestID = /^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$/;
 
 export function createApiEndpoint(
   policy: ApiEndpointPolicy,
@@ -157,9 +155,7 @@ export async function handleApiRequest(
   responseHeaders.set('Cache-Control', 'no-store');
   responseHeaders.set(
     'X-Request-ID',
-    validRequestID.test(upstreamResponse.headers.get('X-Request-ID') ?? '')
-      ? (upstreamResponse.headers.get('X-Request-ID') as string)
-      : requestID,
+    parseRequestID(upstreamResponse.headers.get('X-Request-ID')) ?? requestID,
   );
   for (const header of policy.responseHeaders) {
     const value = upstreamResponse.headers.get(header);
@@ -313,11 +309,6 @@ function validatePolicy(policy: ApiEndpointPolicy): void {
   if ((policy.timeoutMs ?? 5_000) <= 0) {
     throw new Error('timeoutMs must be positive');
   }
-}
-
-function resolveRequestID(request: Request): string {
-  const candidate = request.headers.get('X-Request-ID') ?? '';
-  return validRequestID.test(candidate) ? candidate : randomBytes(16).toString('hex');
 }
 
 function problemResponse(

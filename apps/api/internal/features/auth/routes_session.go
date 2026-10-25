@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -131,7 +132,16 @@ func registerNoContentBodyRoute(
 		if err := enforceMailRequest(ctx, limiter, input.Email); err != nil {
 			return err
 		}
-		return mapOptionalError(service.ForgotPassword(ctx, input.Email))
+		outcome, err := service.ForgotPassword(ctx, input.Email)
+		level := slog.LevelInfo
+		if err != nil {
+			level = slog.LevelWarn
+		}
+		httpapi.LogEvent(ctx, httpapi.Event{
+			Name: "password_reset_request", Message: "Password reset request completed", Level: level,
+			Attributes: []slog.Attr{slog.String("outcome", string(outcome))},
+		})
+		return mapOptionalError(err)
 	})
 
 	resetOperation := operation("reset-password", http.MethodPost, "/api/web/auth/password/reset", "Reset a password")

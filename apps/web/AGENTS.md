@@ -64,6 +64,12 @@ layer and browser-module boundaries.
   served by one dynamic page that accepts only GitHub and BlogsClub. The page forwards to the
   private API's `/api/web/auth/{provider}/callback` endpoints; no legacy callback aliases remain.
   `application/auth` owns the common popup lifecycle; `api/auth` validates provider results.
+  Popups open `/auth/popup` and wait for its same-origin, source- and attempt-bound ready message
+  before provider navigation. Startup readiness and authorization requests each have a ten-second
+  deadline; the complete attempt has a ten-minute deadline. Keep explicit redirect recovery and
+  scoped completion channels across COOP detachment. Unexpected popup failures use safe UI codes.
+  Auth forwarding preserves request IDs; OAuth diagnostics contain only provider, phase, status
+  and timing, never query strings or credentials.
   Popups receive only completed results after server-side exchange. Explicit redirect links recover
   blocked popups. Session DTOs expose `oauth_providers` rather than provider-specific flags.
   Each adapter retains its business-specific method/path allowlist; no unrestricted proxy.

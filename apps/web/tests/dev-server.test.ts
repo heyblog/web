@@ -152,6 +152,15 @@ test('development keeps page scripts and QR images working after graph workers l
     const origin = `http://127.0.0.1:${server.address.port}`;
     const get = (path: string) => fetch(origin + path, { signal: AbortSignal.timeout(120_000) });
 
+    const waiting = await get('/auth/popup');
+    assert.equal(waiting.status, 200);
+    assert.equal(waiting.headers.get('Cache-Control'), 'private, no-store');
+    assert.equal(waiting.headers.get('Referrer-Policy'), 'no-referrer');
+    assert.match(waiting.headers.get('X-Robots-Tag') ?? '', /noindex/u);
+    const waitingHTML = await waiting.text();
+    assert.ok(waitingHTML.includes('正在打开授权页面'));
+    assert.ok(waitingHTML.includes('关闭窗口，返回原页面'));
+
     // Auth failures return native redirects with immutable headers.
     const failedLogin = await fetch(origin + '/api/web/auth/login', {
       method: 'POST',

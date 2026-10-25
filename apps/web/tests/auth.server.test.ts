@@ -94,6 +94,64 @@ test('auth API gives the GitHub callback a longer timeout', async () => {
   }
 });
 
+test('OAuth diagnostics correlate requests without including credentials or query values', async () => {
+  Object.assign(process.env, authEnvironment);
+  const originalFetch = globalThis.fetch;
+  const originalInfo = console.info;
+  const originalWarn = console.warn;
+  const diagnostics: unknown[] = [];
+  let fail = false;
+  let sentID: string | null = null;
+  globalThis.fetch = async (_input, init) => {
+    sentID = new Headers(init?.headers).get('X-Request-ID');
+    if (fail) throw new Error('private upstream detail');
+    return new Response(null, { status: 204, headers: { 'X-Request-ID': sentID ?? '' } });
+  };
+  console.info = (...values) => {
+    diagnostics.push(values);
+  };
+  console.warn = (...values) => {
+    diagnostics.push(values);
+  };
+  try {
+    const request = new Request('https://web.example.test/auth/github/callback?code=private-code', {
+      headers: { 'X-Request-ID': 'incoming-request-0123', Cookie: 'private-cookie' },
+    });
+    const success = await requestAuthAPI(
+      request,
+      '/api/web/auth/github/callback?code=private-code&state=private-state',
+    );
+    assert.equal(sentID, 'incoming-request-0123');
+    assert.equal(success.headers.get('X-Request-ID'), sentID);
+    fail = true;
+    const failure = await requestAuthAPI(
+      new Request(request.url, { headers: { 'X-Request-ID': 'invalid id' } }),
+      '/api/web/auth/github/start',
+    );
+    assert.match(sentID ?? '', /^[a-f0-9]{32}$/u);
+    assert.equal(failure.status, 502);
+    assert.equal(failure.headers.get('X-Request-ID'), sentID);
+    const problem: unknown = await failure.json();
+    assert.ok(problem && typeof problem === 'object' && 'request_id' in problem);
+    assert.equal(problem.request_id, sentID);
+    const logged = JSON.stringify(diagnostics);
+    assert.ok(logged.includes('incoming-request-0123'));
+    for (const secret of [
+      'private-code',
+      'private-state',
+      'private-cookie',
+      'private upstream detail',
+      authEnvironment.API_WEB_TOKEN,
+    ])
+      assert.ok(!logged.includes(secret));
+    assert.equal(diagnostics.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.info = originalInfo;
+    console.warn = originalWarn;
+  }
+});
+
 test('auth transport forwards management throttling headers without exposing upstream diagnostics', async () => {
   Object.assign(process.env, authEnvironment);
   const originalFetch = globalThis.fetch;

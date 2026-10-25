@@ -37,6 +37,9 @@
   let fallback = $state<string>();
   const name = $derived(provider === 'github' ? 'GitHub' : 'BlogsClub');
   const popup = createOAuthPopup({
+    fallback: (location) => {
+      fallback = location;
+    },
     busy: (value) => {
       busy = value;
     },
@@ -88,6 +91,7 @@
   {#if fallback}<a
       class="min-h-11 text-sm text-tint-fg underline"
       href={fallback}
+      onclick={() => popup.dispose()}
       data-astro-prefetch="false">在当前页面继续授权</a
     >{/if}
   {#if !prepare}<noscript

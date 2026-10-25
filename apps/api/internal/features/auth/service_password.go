@@ -9,19 +9,36 @@ import (
 	"heyblog-api/internal/infrastructure/mail"
 )
 
-func (service *Service) ForgotPassword(ctx context.Context, email string) error {
+type PasswordResetOutcome string
+
+// #nosec G101 -- These constants are outcome labels, not credentials.
+const (
+	PasswordResetNotFound    PasswordResetOutcome = "skipped_not_found"
+	PasswordResetUnverified  PasswordResetOutcome = "skipped_unverified"
+	PasswordResetUnavailable PasswordResetOutcome = "skipped_unavailable"
+	PasswordResetSent        PasswordResetOutcome = "sent"
+	PasswordResetFailed      PasswordResetOutcome = "failed"
+)
+
+func (service *Service) ForgotPassword(ctx context.Context, email string) (PasswordResetOutcome, error) {
 	email = normalizeEmail(email)
 	user, err := service.repo.userByEmail(ctx, email)
 	if isNotFound(err) {
-		return nil
+		return PasswordResetNotFound, nil
 	}
 	if err != nil {
-		return repositoryError("find reset user", err)
+		return PasswordResetFailed, repositoryError("find reset user", err)
 	}
-	if user.PasswordHash == nil || user.VerifiedAt == nil || !isActive(user) {
-		return nil
+	if !isActive(user) || user.DeletionRequestedAt != nil {
+		return PasswordResetUnavailable, nil
 	}
-	return service.sendPasswordLink(ctx, user)
+	if user.VerifiedAt == nil {
+		return PasswordResetUnverified, nil
+	}
+	if err := service.sendPasswordLink(ctx, user); err != nil {
+		return PasswordResetFailed, err
+	}
+	return PasswordResetSent, nil
 }
 
 func (service *Service) sendPasswordLink(ctx context.Context, user dbUser) error {

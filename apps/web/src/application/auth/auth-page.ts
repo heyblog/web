@@ -1,5 +1,6 @@
 const messages: Readonly<Record<string, string>> = {
   oauth_popup_blocked: '浏览器拦截了授权窗口，请允许弹窗后重试，或在当前页面继续。',
+  oauth_popup_unavailable: '无法打开授权页面，请重试，或在当前页面继续授权。',
   oauth_popup_closed: '尚未收到授权结果，可以继续等待或重新授权。',
   oauth_timeout: '授权已超时，请重新发起。',
   oauth_cancelled: '授权已取消，可以重新发起。',

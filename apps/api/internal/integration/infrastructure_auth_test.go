@@ -152,7 +152,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("logout session: %v", err)
 	}
 
-	if err := service.ForgotPassword(ctx, email); err != nil {
+	if _, err := service.ForgotPassword(ctx, email); err != nil {
 		t.Fatalf("request password reset: %v", err)
 	}
 	resetText := recorder.messages[len(recorder.messages)-1].Text
@@ -215,7 +215,7 @@ func verifyAuthenticationFlows(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("set GitHub user password: %v", err)
 	}
 	messageCount := len(recorder.messages)
-	if err := service.ForgotPassword(ctx, "github-integration@example.test"); err != nil {
+	if _, err := service.ForgotPassword(ctx, "github-integration@example.test"); err != nil {
 		t.Fatalf("request GitHub user password reset: %v", err)
 	}
 	if len(recorder.messages) != messageCount+1 || !strings.Contains(recorder.messages[len(recorder.messages)-1].Text, "30 分钟") {

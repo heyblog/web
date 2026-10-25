@@ -1,4 +1,5 @@
 const privatePrefixes = [
+  '/auth',
   '/dashboard',
   '/management',
   '/api/web/auth',

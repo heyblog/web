@@ -1,5 +1,7 @@
 import { loadWebServerConfig } from '../../config.server.ts';
 import { forwardClientAddress } from '../transport/client-ip.server.ts';
+import { resolveRequestID } from '../transport/request-id.server.ts';
+import { parseRequestID } from '../transport/request-id.ts';
 
 import type { ProblemDetails } from './auth.types.ts';
 
@@ -23,6 +25,11 @@ export async function requestAuthAPI(
 ): Promise<Response> {
   const configuration = loadWebServerConfig();
   const upstreamURL = new URL(path, configuration.apiBaseUrl);
+  const requestID = resolveRequestID(request);
+  const started = performance.now();
+  const oauthPhase = /^\/api\/web\/auth\/(github|blogsclub)\/(start|callback)$/u.exec(
+    upstreamURL.pathname,
+  );
   const timeoutMs =
     init.timeoutMs ??
     (/^\/api\/web\/auth\/(github|blogsclub)\/callback$/u.test(upstreamURL.pathname)
@@ -31,6 +38,7 @@ export async function requestAuthAPI(
   const headers = new Headers({
     Accept: 'application/json',
     'X-HeyBlog-Web-Token': configuration.apiWebToken,
+    'X-Request-ID': requestID,
   });
   const cookie = request.headers.get('cookie');
   if (cookie) headers.set('Cookie', cookie);
@@ -47,13 +55,35 @@ export async function requestAuthAPI(
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]),
     });
   } catch {
+    if (oauthPhase)
+      console.warn('OAuth upstream unavailable', {
+        event: 'oauth_upstream',
+        provider: oauthPhase[1],
+        stage: oauthPhase[2],
+        request_id: requestID,
+        status: 502,
+        duration_ms: Math.round(performance.now() - started),
+      });
     return Response.json(
-      { code: 'bad_gateway', detail: '登录服务暂时不可用', status: 502 },
-      { status: 502, headers: { 'Cache-Control': 'no-store' } },
+      { code: 'bad_gateway', detail: '登录服务暂时不可用', status: 502, request_id: requestID },
+      { status: 502, headers: { 'Cache-Control': 'no-store', 'X-Request-ID': requestID } },
     );
   }
 
   const responseHeaders = new Headers({ 'Cache-Control': 'no-store' });
+  responseHeaders.set(
+    'X-Request-ID',
+    parseRequestID(upstream.headers.get('X-Request-ID')) ?? requestID,
+  );
+  if (oauthPhase)
+    console.info('OAuth upstream completed', {
+      event: 'oauth_upstream',
+      provider: oauthPhase[1],
+      stage: oauthPhase[2],
+      request_id: requestID,
+      status: upstream.status,
+      duration_ms: Math.round(performance.now() - started),
+    });
   for (const name of forwardResponseHeaders) {
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
