@@ -21,7 +21,7 @@ RUN --mount=type=cache,id=heyblog-pnpm-store,target=/root/.local/share/pnpm/stor
        WEB_BUILD_TIME="${WEB_BUILD_TIME}" \
        mise run //apps/web:build
 
-FROM node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea AS runner
+FROM node:24.22.2-trixie-slim@sha256:54f84b4cf8432b21aaffd5d3ce8d41e12cea0d10d33c09d2f3c9879d49d6b446 AS runner
 
 WORKDIR /app
 

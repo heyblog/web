@@ -2,7 +2,7 @@ name: heyblog-production
 
 services:
   redis:
-    image: redis:8-trixie@sha256:97ec88159e6d7cfb5ddef9015386087d58a912de80112f06ebdfa78fa5989901
+    image: redis:8-trixie@sha256:de1068af6f552240dfab67bcc9bfef99bfc60f776bb4580ef077ea4c8c97e848
     command:
       - /bin/sh
       - -ec
