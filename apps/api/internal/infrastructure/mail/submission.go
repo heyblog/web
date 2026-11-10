@@ -40,7 +40,11 @@ func (mailer *SubmissionMailer) SendDecision(ctx context.Context, decision Submi
 	} else {
 		text += "\n\n请使用提交时保存的查询凭证查看完整状态。"
 	}
-	if err := mailer.sender.Send(ctx, Message{From: mailer.from, To: decision.Recipient, Subject: "HeyBlog 站点申请审核结果", Text: text}); err != nil {
+	html, err := RenderDefaultEmail(EmailTemplate{Title: "站点申请审核结果", Message: text, Preheader: "HeyBlog 站点申请审核结果", Details: []EmailDetail{{Label: "申请类型", Value: actionLabel(decision.Action)}, {Label: "审核结果", Value: statusLabel}, {Label: "审核意见", Value: strings.TrimSpace(decision.ReviewerComment)}}})
+	if err != nil {
+		return fmt.Errorf("render submission email: %w", err)
+	}
+	if err := mailer.sender.Send(ctx, Message{From: mailer.from, To: decision.Recipient, Subject: "HeyBlog 站点申请审核结果", Text: text, HTML: html}); err != nil {
 		return fmt.Errorf("send submission decision email: %w", err)
 	}
 	return nil
