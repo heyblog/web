@@ -70,7 +70,7 @@ importers:
         version: 11.1.9(astro@7.4.2(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(supports-color@10.2.2)
       '@astrojs/svelte':
         specifier: ^9.1.1
-        version: 9.1.1(@types/node@24.19.2)(astro@7.4.2(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(jiti@2.7.0)(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(yaml@2.9.1)
+        version: 9.1.2(@types/node@24.19.2)(astro@7.4.2(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(jiti@2.7.0)(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(yaml@2.9.1)
       '@heyblog/configs':
         specifier: workspace:*
         version: link:../../packages/node/configs
@@ -289,8 +289,8 @@ packages:
     resolution: {integrity: sha512-sXlAXJX6t4QfuLg+CuCDzpg7NoxWcyb4paFprgtFppLeisCBmh935h+tJ5CWXfsXEoW2IDy/ihbRMtiu28Chjw==}
     engines: {node: '>=22.23.4'}
 
-  '@astrojs/svelte@9.1.1':
-    resolution: {integrity: sha512-XLbgJ1B88Oand+6VxpsW4hBbW8MQJz50SyHr2CoFNYaX9Kg3Bm6A4aeC1bzKcYwBCzcqyYuDD1GygP5sgGxIFQ==}
+  '@astrojs/svelte@9.1.2':
+    resolution: {integrity: sha512-gLLGQL28CPRC/74REhEmqQNUdjagURcqkSLPgjEZceql7WxdAOXyCD9SFxsl75q4R4ePAWiK7SutfqldC+WNHw==}
     engines: {node: '>=22.23.4'}
     peerDependencies:
       astro: ^7.0.0
@@ -3478,7 +3478,7 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
-  '@astrojs/svelte@9.1.1(@types/node@24.19.2)(astro@7.4.2(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(jiti@2.7.0)(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(yaml@2.9.1)':
+  '@astrojs/svelte@9.1.2(@types/node@24.19.2)(astro@7.4.2(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(jiti@2.7.0)(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(yaml@2.9.1)':
     dependencies:
       '@sveltejs/vite-plugin-svelte': 7.3.1(svelte@5.57.2(@typescript-eslint/types@8.71.2))(vite@8.3.4(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
       astro: 7.4.2(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
