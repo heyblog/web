@@ -17,6 +17,8 @@ minimumReleaseAgeExclude:
   # Allow the exact security fix before the normal release waiting period.
   - http-cache-semantics@4.3.0
   - source-map-js@1.2.2
+  # Renovate security update: @astrojs/svelte@9.1.2
+  - '@astrojs/svelte@9.1.2'
 trustPolicy: no-downgrade
 trustPolicyExclude:
   # Exact locked version reviewed after pnpm reported a registry trust downgrade.
