@@ -35,8 +35,8 @@ func TestVerificationMailerSendsPlainTextCodeFromVerificationIdentity(t *testing
 	if message.Subject != verificationSubject || !strings.Contains(message.Text, "123456") {
 		t.Fatalf("message = %#v, want verification subject and code", message)
 	}
-	if message.HTML != "" {
-		t.Fatalf("HTML = %q, want plain text only for the initial verification flow", message.HTML)
+	if !strings.Contains(message.HTML, "HeyBlog") || !strings.Contains(message.HTML, "123456") {
+		t.Fatalf("HTML = %q, want branded verification template with code", message.HTML)
 	}
 	if !strings.Contains(message.Text, "10 分钟") {
 		t.Fatalf("Text = %q, want configured validity period", message.Text)

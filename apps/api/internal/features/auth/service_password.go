@@ -55,7 +55,11 @@ func (service *Service) sendPasswordLink(ctx context.Context, user dbUser) error
 	}
 	url := strings.TrimRight(service.config.WebBaseURL, "/") + "/reset-password?token=" + token
 	text := "请使用以下链接重置密码：\n\n" + url + "\n\n链接将在 " + mail.FormatValidity(service.config.PasswordResetTTL) + "后过期。"
-	if err := service.sender.Send(ctx, mail.Message{From: service.config.MailFrom, To: email, Subject: "HeyBlog 密码重置", Text: text}); err != nil {
+	html, err := mail.RenderDefaultEmail(mail.EmailTemplate{Title: "密码重置", Message: "请使用以下链接重置密码。\n\n链接将在 " + mail.FormatValidity(service.config.PasswordResetTTL) + "后过期。", Preheader: "重置您的 HeyBlog 密码", Action: &mail.EmailAction{Label: "重置密码", URL: url}})
+	if err != nil {
+		return repositoryError("render reset email", err)
+	}
+	if err := service.sender.Send(ctx, mail.Message{From: service.config.MailFrom, To: email, Subject: "HeyBlog 密码重置", Text: text, HTML: html}); err != nil {
 		return repositoryError("send reset email", err)
 	}
 	return nil
