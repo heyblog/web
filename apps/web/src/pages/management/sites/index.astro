@@ -1,0 +1,303 @@
+---
+import { IconExternalLink, IconSearch, IconWorld } from '@tabler/icons-svelte';
+
+import type { ManagedSite, SiteVisibility } from '@/api/managed-sites/managed-sites.types';
+import { managementNavigation } from '@/application/management/navigation';
+import {
+  managedSiteDate,
+  managedSitesPath,
+  siteAccessScopeLabels,
+  siteVisibilityLabels,
+} from '@/application/management/sites.model';
+import { loadSitesPage } from '@/application/management/sites-page.server';
+import { roleLabels } from '@/application/management/users.model';
+import { siteDetailPath } from '@/application/site-profile/site-card.shared';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+
+export const prerender = false;
+const result = await loadSitesPage(Astro.request, Astro.locals.sessionUser);
+if (result.kind === 'redirect') {
+  const headers = new Headers(result.headers);
+  headers.set('Location', result.location);
+  return new Response(null, { status: 302, headers });
+}
+for (const [name, value] of result.headers) {
+  if (name !== 'set-cookie') Astro.response.headers.set(name, value);
+}
+for (const cookie of result.headers.getSetCookie())
+  Astro.response.headers.append('Set-Cookie', cookie);
+if (result.kind === 'error') Astro.response.status = result.status;
+const actor = result.actor;
+const query = result.query;
+const sites = result.kind === 'ready' ? result.sites : null;
+const statusClass: Readonly<Record<SiteVisibility, string>> = {
+  VISIBLE: 'bg-success-bg text-success-fg',
+  HIDDEN: 'bg-warning-bg text-warning-fg',
+  REMOVED: 'bg-danger-bg text-danger-fg',
+};
+const actionLabels = {
+  CREATE: '新增申请',
+  UPDATE: '更新申请',
+  DELETE: '移除申请',
+  RESTORE: '恢复申请',
+} as const;
+const actionLinkClass =
+  'inline-flex min-h-11 items-center rounded-sm px-2 text-sm font-medium text-tint-fg underline-offset-4 hover:underline sm:min-h-10';
+const updatePath = (site: ManagedSite) =>
+  `/site/submissions/update?short_id=${encodeURIComponent(site.short_id)}`;
+const lifecyclePath = (site: ManagedSite) =>
+  site.visibility === 'REMOVED'
+    ? `/site/submissions/restore?short_id=${encodeURIComponent(site.short_id)}`
+    : `/site/submissions/delete?short_id=${encodeURIComponent(site.short_id)}`;
+const canReview =
+  actor?.role === 'SYS_ADMIN' ||
+  (actor?.role === 'ADMIN' && actor.permissions.includes('site_audit.review'));
+---
+
+<ManagementLayout
+  title="站点管理 | HeyBlog"
+  heading="站点管理"
+  currentPath={Astro.url.pathname}
+  identity={
+    actor
+      ? {
+          displayName: actor.display_name,
+          email: actor.email ?? '',
+          roleLabel: roleLabels[actor.role],
+        }
+      : undefined
+  }
+  navigation={actor ? [...managementNavigation(actor)] : []}
+>
+  {result.kind === 'error' ? (
+    <section class="rounded-md border border-line bg-surface p-6">
+      <h2 class="text-lg font-semibold">暂时无法加载站点</h2>
+      <p class="mt-2 mb-5 text-sm text-fg-muted">站点管理服务暂时不可用，请稍后重试。</p>
+      <a
+        class="inline-flex min-h-11 items-center rounded-md border border-line-strong px-4 text-sm font-medium hover:bg-subtle sm:min-h-10"
+        href={Astro.url.pathname + Astro.url.search}
+      >
+        重新加载
+      </a>
+    </section>
+  ) : (
+    <>
+      <p class="mb-6 max-w-3xl text-sm/normal text-fg-muted">
+        检索全部收录站点并发起更新、移除或恢复申请。生命周期操作继续经过既有审核流程，不会从管理页直接改写站点数据。
+      </p>
+      <form
+        class="mb-6 grid gap-4 rounded-md border border-line bg-surface p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end"
+        method="get"
+        role="search"
+      >
+        <label class="grid gap-1.5 text-sm font-medium">
+          搜索站点
+          <span class="relative">
+            <IconSearch
+              class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg-muted"
+              size={17}
+              stroke={1.75}
+              aria-hidden="true"
+            />
+            <input
+              class="min-h-11 w-full rounded-md border border-line-strong bg-surface pr-3 pl-10 text-base transition-[border-color] duration-(--motion-color) outline-none focus:border-focus sm:min-h-10 sm:text-sm"
+              type="search"
+              name="q"
+              value={query.q}
+              maxlength="160"
+              placeholder="名称、域名或站点 ID"
+            />
+          </span>
+        </label>
+        <label class="grid gap-1.5 text-sm font-medium">
+          收录状态
+          <select
+            class="min-h-11 rounded-md border border-line-strong bg-surface px-3 transition-[border-color] duration-(--motion-color) outline-none focus:border-focus sm:min-h-10"
+            name="visibility"
+          >
+            <option value="">全部状态</option>
+            {Object.entries(siteVisibilityLabels).map(([value, label]) => (
+              <option value={value} selected={query.visibility === value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          class="min-h-11 rounded-md bg-primary px-5 text-sm font-medium text-primary-fg transition-[background-color,transform] duration-(--motion-color) hover:bg-primary-hover active:scale-96 motion-reduce:active:scale-100 sm:min-h-10"
+          type="submit"
+        >
+          筛选
+        </button>
+      </form>
+
+      <div class="mb-4 flex min-h-10 flex-wrap items-center justify-between gap-3 text-sm">
+        <p class="text-fg-muted">
+          共 <span class="font-medium text-fg">{sites?.total_items ?? 0}</span> 个站点
+        </p>
+        {(query.q || query.visibility) && (
+          <a
+            class="inline-flex min-h-11 items-center text-tint-fg hover:underline sm:min-h-10"
+            href="/management/sites"
+          >
+            清除筛选
+          </a>
+        )}
+      </div>
+
+      {sites?.items.length ? (
+        <div class="overflow-x-auto border-y border-line">
+          <table class="w-full min-w-240 border-collapse text-left text-sm">
+            <thead>
+              <tr class="text-xs text-fg-muted">
+                <th class="h-12 px-4 font-medium">站点</th>
+                <th class="h-12 px-4 font-medium">状态</th>
+                <th class="h-12 px-4 font-medium">访问范围</th>
+                <th class="h-12 px-4 font-medium">最后更新</th>
+                <th class="h-12 px-4 font-medium">待处理</th>
+                <th class="h-12 px-4 font-medium">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line">
+              {sites.items.map((site, index) => (
+                <tr
+                  class:list={[
+                    'min-h-12 transition-[background-color] duration-(--motion-color) hover:bg-subtle',
+                    { 'bg-subtle/50': index % 2 === 1 },
+                  ]}
+                >
+                  <td class="px-4 py-3">
+                    <strong class="block font-medium">{site.name}</strong>
+                    <span class="block max-w-80 truncate text-xs text-fg-muted" title={site.url}>
+                      {site.url}
+                    </span>
+                    <span class="mt-1 block font-mono text-xs text-fg-muted">{site.short_id}</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span
+                      class:list={[
+                        'inline-flex min-h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium',
+                        statusClass[site.visibility],
+                      ]}
+                    >
+                      <span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+                      {siteVisibilityLabels[site.visibility]}
+                    </span>
+                    {site.visibility_reason ? (
+                      <span
+                        class="mt-1 block max-w-52 text-xs text-fg-muted"
+                        title={site.visibility_reason}
+                      >
+                        {site.visibility_reason}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td class="px-4 py-3">{siteAccessScopeLabels[site.access_scope]}</td>
+                  <td class="px-4 py-3">
+                    <time datetime={site.updated_at}>{managedSiteDate(site.updated_at)}</time>
+                    <span class="block text-xs text-fg-muted">修订 {site.revision}</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    {site.pending_audit ? (
+                      <span class="inline-flex min-h-5 items-center rounded-sm bg-warning-bg px-2 text-xs font-medium text-warning-fg">
+                        {actionLabels[site.pending_audit.action]}
+                      </span>
+                    ) : (
+                      <span class="text-fg-muted">无</span>
+                    )}
+                  </td>
+                  <td class="px-2 py-1">
+                    <div class="flex flex-wrap items-center gap-x-1">
+                      {site.visibility !== 'REMOVED' ? (
+                        <a
+                          class={actionLinkClass}
+                          href={siteDetailPath({ shortId: site.short_id })}
+                        >
+                          公开页
+                          <IconExternalLink size={15} stroke={1.75} aria-hidden="true" />
+                        </a>
+                      ) : null}
+                      {site.pending_audit ? (
+                        canReview ? (
+                          <a
+                            class={actionLinkClass}
+                            href={`/management/site-submissions/${encodeURIComponent(site.pending_audit.id)}`}
+                          >
+                            查看申请
+                          </a>
+                        ) : null
+                      ) : (
+                        <>
+                          {site.visibility !== 'REMOVED' ? (
+                            <a class={actionLinkClass} href={updatePath(site)}>
+                              更新
+                            </a>
+                          ) : null}
+                          <a class={actionLinkClass} href={lifecyclePath(site)}>
+                            {site.visibility === 'REMOVED' ? '恢复' : '移除'}
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <section class="grid justify-items-center rounded-md border border-dashed border-line px-6 py-12 text-center">
+          <span class="grid size-12 place-items-center rounded-md bg-subtle text-fg-muted">
+            <IconWorld size={24} stroke={1.6} aria-hidden="true" />
+          </span>
+          <h2 class="mt-4 text-sm font-semibold">
+            {query.q || query.visibility ? '没有符合条件的站点' : '暂无站点'}
+          </h2>
+          <p class="mt-2 text-sm text-fg-muted">
+            {query.q || query.visibility
+              ? '调整搜索内容或清除筛选后再试。'
+              : '站点收录后会显示在这里。'}
+          </p>
+        </section>
+      )}
+
+      {sites && sites.total_pages > 1 ? (
+        <nav class="mt-6 flex items-center justify-between gap-4" aria-label="站点分页">
+          {sites.page > 1 ? (
+            <a
+              class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-3 text-sm font-medium hover:bg-subtle sm:min-h-10"
+              href={managedSitesPath(query, sites.page - 1)}
+            >
+              上一页
+            </a>
+          ) : (
+            <span
+              class="inline-flex min-h-11 items-center rounded-sm border border-line px-3 text-sm text-fg-subtle sm:min-h-10"
+              aria-disabled="true"
+            >
+              上一页
+            </span>
+          )}
+          <span class="text-sm text-fg-muted">
+            第 {sites.page} / {sites.total_pages} 页
+          </span>
+          {sites.page < sites.total_pages ? (
+            <a
+              class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-3 text-sm font-medium hover:bg-subtle sm:min-h-10"
+              href={managedSitesPath(query, sites.page + 1)}
+            >
+              下一页
+            </a>
+          ) : (
+            <span
+              class="inline-flex min-h-11 items-center rounded-sm border border-line px-3 text-sm text-fg-subtle sm:min-h-10"
+              aria-disabled="true"
+            >
+              下一页
+            </span>
+          )}
+        </nav>
+      ) : null}
+    </>
+  )}
+</ManagementLayout>
