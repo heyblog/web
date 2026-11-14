@@ -91,6 +91,9 @@ func registerAuditManagementRoutes(api huma.API, service *Service, middleware hu
 		value.Security = []map[string][]string{{"webToken": {}, "accessCookie": {}}}
 		return value
 	}
+	siteListOperation := operation("list-managed-sites", http.MethodGet, "/api/web/management/sites", "List managed sites")
+	siteListOperation.Tags = []string{"site management"}
+	httpapi.Register(api, siteListOperation, managementSiteListHandler(service))
 	httpapi.Register(api, operation("list-site-audits", http.MethodGet, "/api/web/management/site-audits", "List site audits"), managementListHandler(service))
 	httpapi.Register(api, operation("get-site-audit", http.MethodGet, "/api/web/management/site-audits/{auditId}", "Get a site audit"), managementDetailHandler(service))
 	httpapi.Register(api, operation("save-site-audit-review-draft", http.MethodPut, "/api/web/management/site-audits/{auditId}/review-draft", "Save a site audit review draft"), managementSaveReviewDraftHandler(service))

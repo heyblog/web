@@ -15,6 +15,7 @@ type Store interface {
 	Options(context.Context) (SubmissionOptions, error)
 	SearchSites(context.Context, string) ([]SiteSearchResult, error)
 	ExistingSiteForHost(context.Context, string) (*SiteSearchResult, error)
+	ListManagedSites(context.Context, string, string, int32, int32) (ManagedSitePage, error)
 	ListAudits(context.Context, *Status, *Action, int32, int32) (AuditPage, error)
 	AuditDetail(context.Context, string) (Audit, error)
 	DecisionRecipients(context.Context, string) ([]string, error)

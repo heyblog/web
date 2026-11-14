@@ -8,6 +8,10 @@ func (service *Service) ListAudits(ctx context.Context, status *Status, action *
 	return service.repository.ListAudits(ctx, status, action, page, pageSize)
 }
 
+func (service *Service) ListManagedSites(ctx context.Context, query, visibility string, page, pageSize int32) (ManagedSitePage, error) {
+	return service.repository.ListManagedSites(ctx, query, visibility, page, pageSize)
+}
+
 func (service *Service) AuditDetail(ctx context.Context, auditID string) (Audit, error) {
 	audit, err := service.repository.AuditDetail(ctx, auditID)
 	if err != nil {
