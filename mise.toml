@@ -1,4 +1,4 @@
-min_version = "2026.10.25"
+min_version = "2026.11.8"
 monorepo_root = true
 
 [monorepo]
@@ -10,10 +10,10 @@ cascade = true
 shell = "bash -o errexit -o pipefail -c"
 
 [tools]
-go = "1.27.3"
+go = "1.27.4"
 golangci-lint = "2.15.0"
-node = "24.22.2"
-pnpm = "12.15.0"
+node = "24.22.3"
+pnpm = "12.18.0"
 shellcheck = "0.11.0"
 
 [vars]
