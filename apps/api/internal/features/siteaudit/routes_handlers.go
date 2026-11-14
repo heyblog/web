@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"heyblog-api/internal/features/auth"
 	"heyblog-api/internal/platform/apperror"
@@ -47,6 +48,13 @@ type managementListInput struct {
 	Action   string `query:"action" enum:"CREATE,UPDATE,DELETE,RESTORE"`
 	Page     string `query:"page"`
 	PageSize string `query:"page_size"`
+}
+
+type managementSiteListInput struct {
+	Query      string `query:"q" maxLength:"160"`
+	Visibility string `query:"visibility" enum:"VISIBLE,HIDDEN,REMOVED"`
+	Page       string `query:"page"`
+	PageSize   string `query:"page_size"`
 }
 
 type lookupRequest struct {
@@ -155,6 +163,32 @@ func managementListHandler(service *Service) func(context.Context, *managementLi
 			return nil, mapServiceError(err, "list site audits")
 		}
 		return &bodyOutput[AuditPage]{Body: result}, nil
+	}
+}
+
+func managementSiteListHandler(service *Service) func(context.Context, *managementSiteListInput) (*bodyOutput[ManagedSitePage], error) {
+	return func(ctx context.Context, input *managementSiteListInput) (*bodyOutput[ManagedSitePage], error) {
+		if _, err := service.CurrentSiteManager(ctx, httpapi.Request(ctx)); err != nil {
+			return nil, mapServiceError(err, "authorize site management listing")
+		}
+		query := strings.TrimSpace(input.Query)
+		if utf8.RuneCountInString(query) > 160 {
+			return nil, apperror.New(apperror.KindValidation, "invalid_search", "the site management search query is invalid")
+		}
+		if input.Visibility != "" && input.Visibility != "VISIBLE" && input.Visibility != "HIDDEN" && input.Visibility != "REMOVED" {
+			return nil, apperror.New(apperror.KindValidation, "invalid_visibility", "the site visibility filter is invalid")
+		}
+		result, err := service.ListManagedSites(
+			ctx,
+			query,
+			input.Visibility,
+			boundedInteger(input.Page, 1, 1, 1_000_000),
+			boundedInteger(input.PageSize, 20, 1, 50),
+		)
+		if err != nil {
+			return nil, mapServiceError(err, "list sites for management")
+		}
+		return &bodyOutput[ManagedSitePage]{Body: result}, nil
 	}
 }
 

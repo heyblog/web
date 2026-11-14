@@ -34,6 +34,7 @@ func TestRegisterRoutesUsesShortIDForPublicMaintenancePaths(t *testing.T) {
 		"POST /api/web/submissions/:shortId/restorations": false,
 		"GET /api/web/submissions/site-availability":      false,
 		"GET /api/web/submissions/sites/:shortId":         false,
+		"GET /api/web/management/sites":                   false,
 	}
 	for _, route := range router.Routes() {
 		key := route.Method + " " + route.Path

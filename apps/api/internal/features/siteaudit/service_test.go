@@ -93,6 +93,26 @@ func TestReviewPermissionsSeparateAuditReviewFromTaxonomyManagement(t *testing.T
 	}
 }
 
+func TestSiteManagementPermissionIsIndependentFromAuditReview(t *testing.T) {
+	t.Parallel()
+
+	siteManager := auth.User{Role: auth.RoleAdmin, Permissions: []auth.Permission{auth.PermissionSiteManage}}
+	reviewer := auth.User{Role: auth.RoleAdmin, Permissions: []auth.Permission{auth.PermissionSiteAuditReview}}
+
+	if !canManageSites(siteManager) {
+		t.Error("site manager should be allowed to manage sites")
+	}
+	if canReview(siteManager) {
+		t.Error("site manager should not implicitly review site audits")
+	}
+	if canManageSites(reviewer) {
+		t.Error("site audit reviewer should not implicitly manage sites")
+	}
+	if !canManageSites(auth.User{Role: auth.RoleSysAdmin}) {
+		t.Error("system administrator should be allowed to manage sites")
+	}
+}
+
 func TestProposedDeleteUsesSubmittedReasonAsVisibilityReason(t *testing.T) {
 	t.Parallel()
 

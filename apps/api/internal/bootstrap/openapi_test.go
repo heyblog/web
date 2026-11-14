@@ -92,6 +92,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/api/web/submissions/{shortId}/restorations", "/api/web/submissions/query",
 		"/api/web/submissions/options", "/api/web/submissions/site-availability",
 		"/api/web/submissions/sites", "/api/web/submissions/sites/{shortId}",
+		"/api/web/management/sites",
 		"/api/web/management/site-audits", "/api/web/management/site-audits/{auditId}",
 		"/api/web/management/site-audits/{auditId}/review-draft",
 		"/api/web/management/site-audits/{auditId}/review", "/api/internal/v1/data-import",
@@ -144,6 +145,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		{method: "get", path: "/api/web/public/sitemap", schemes: []string{"webToken"}},
 		{method: "get", path: "/api/web/management/announcements", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/api/web/management/announcements/{id}/publish", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/api/web/management/sites", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/api/web/management/site-audits", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/api/web/management/site-audits/{auditId}", schemes: []string{"webToken", "accessCookie"}},
 		{method: "put", path: "/api/web/management/site-audits/{auditId}/review-draft", schemes: []string{"webToken", "accessCookie"}},
@@ -215,8 +217,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 134 {
-		t.Fatalf("documented operation count = %d, want 134", operationCount)
+	if operationCount != 135 {
+		t.Fatalf("documented operation count = %d, want 135", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

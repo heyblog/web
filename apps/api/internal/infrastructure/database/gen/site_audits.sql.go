@@ -90,6 +90,31 @@ func (q *Queries) CountSiteAuditsForManagement(ctx context.Context, arg CountSit
 	return column_1, err
 }
 
+const countSitesForManagement = `-- name: CountSitesForManagement :one
+SELECT count(*)::bigint
+  FROM directory.sites AS site
+ WHERE ($1::text = '' OR site.visibility = $1)
+   AND (
+       $2::text = ''
+       OR site.name ILIKE '%' || $2::text || '%'
+       OR site.normalized_host ILIKE '%' || $2::text || '%'
+       OR site.short_id = $2::text
+       OR site.custom_id = $2::text
+   )
+`
+
+type CountSitesForManagementParams struct {
+	Visibility string
+	QueryText  string
+}
+
+func (q *Queries) CountSitesForManagement(ctx context.Context, arg CountSitesForManagementParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSitesForManagement, arg.Visibility, arg.QueryText)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createSiteAudit = `-- name: CreateSiteAudit :one
 INSERT INTO directory.site_audits (
     lookup_secret_hash,
@@ -374,6 +399,100 @@ func (q *Queries) ListSiteAuditsForManagement(ctx context.Context, arg ListSiteA
 			&i.ReviewedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSitesForManagement = `-- name: ListSitesForManagement :many
+SELECT site.short_id,
+       site.custom_id,
+       site.name,
+       site.scheme,
+       site.normalized_host,
+       site.base_path,
+       site.access_scope,
+       site.visibility,
+       site.visibility_reason,
+       site.revision,
+       site.joined_at,
+       site.updated_at,
+       pending.id AS pending_audit_id,
+       pending.action AS pending_audit_action
+  FROM directory.sites AS site
+  LEFT JOIN directory.site_audits AS pending
+    ON pending.site_id = site.id AND pending.status = 'PENDING'
+ WHERE ($1::text = '' OR site.visibility = $1)
+   AND (
+       $2::text = ''
+       OR site.name ILIKE '%' || $2::text || '%'
+       OR site.normalized_host ILIKE '%' || $2::text || '%'
+       OR site.short_id = $2::text
+       OR site.custom_id = $2::text
+   )
+ ORDER BY site.updated_at DESC, site.id DESC
+ LIMIT $4 OFFSET $3
+`
+
+type ListSitesForManagementParams struct {
+	Visibility string
+	QueryText  string
+	PageOffset int32
+	PageSize   int32
+}
+
+type ListSitesForManagementRow struct {
+	ShortID            string
+	CustomID           *string
+	Name               string
+	Scheme             string
+	NormalizedHost     string
+	BasePath           string
+	AccessScope        string
+	Visibility         string
+	VisibilityReason   *string
+	Revision           int64
+	JoinedAt           pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	PendingAuditID     pgtype.UUID
+	PendingAuditAction *string
+}
+
+func (q *Queries) ListSitesForManagement(ctx context.Context, arg ListSitesForManagementParams) ([]ListSitesForManagementRow, error) {
+	rows, err := q.db.Query(ctx, listSitesForManagement,
+		arg.Visibility,
+		arg.QueryText,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSitesForManagementRow{}
+	for rows.Next() {
+		var i ListSitesForManagementRow
+		if err := rows.Scan(
+			&i.ShortID,
+			&i.CustomID,
+			&i.Name,
+			&i.Scheme,
+			&i.NormalizedHost,
+			&i.BasePath,
+			&i.AccessScope,
+			&i.Visibility,
+			&i.VisibilityReason,
+			&i.Revision,
+			&i.JoinedAt,
+			&i.UpdatedAt,
+			&i.PendingAuditID,
+			&i.PendingAuditAction,
 		); err != nil {
 			return nil, err
 		}
