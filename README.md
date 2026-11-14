@@ -44,6 +44,12 @@ OAuth 公开回调统一使用 `/auth/{provider}/callback`。本地应用后台�
 升级后需同步更新已有 GitHub OAuth App 的 callback URL。Web 收到回调后转发给私有 API 的
 `/api/web/auth/{provider}/callback`。
 
+## 管理中心
+
+拥有对应模块权限的管理员可从个人工作区进入管理中心。站点管理支持按名称、域名、站点 ID
+与收录状态检索全部站点，并从现有申请审核流程发起更新、移除或恢复，保留完整的审核记录。
+功能边界、接口契约和部署前测试步骤见[站点管理说明](./docs/site-management.md)。
+
 开发环境准备、数据库变更和提交要求参见 [贡献指南](./CONTRIBUTING.md)。
 
 ## 数据库备份与恢复

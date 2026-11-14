@@ -9,7 +9,10 @@ if (!user) return Astro.redirect('/login?next=%2Fmanagement');
 const navigation = [...managementNavigation(user)];
 if (!navigation.length) return Astro.redirect('/forbidden');
 const groups = [
-  { title: '站点审核', paths: ['/management/site-claims', '/management/site-submissions'] },
+  {
+    title: '站点管理',
+    paths: ['/management/sites', '/management/site-claims', '/management/site-submissions'],
+  },
   { title: '内容管理', paths: ['/management/tags', '/management/announcements'] },
   {
     title: '系统管理',
