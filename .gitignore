@@ -1,6 +1,9 @@
 # dependencies
 node_modules/
 
+# local analysis and deployment artifacts
+/ai_doc/
+
 # common build outputs and caches
 dist/
 .cache/
@@ -33,3 +36,4 @@ coverage/
 /.vscode/*
 !/.vscode/extensions.json
 !/.vscode/settings.json
+todo.md
