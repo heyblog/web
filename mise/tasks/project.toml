@@ -131,7 +131,7 @@ run = [
   "REGISTRY=example.test NAMESPACE=heyblog IMAGE_TAGS=test mise run --dry-run container:publish >/dev/null",
   '''
 shellcheck=$(mise which shellcheck)
-go tool actionlint -shellcheck "${shellcheck}"
+GOWORK=off go tool actionlint -shellcheck "${shellcheck}"
 ''',
 ]
 
