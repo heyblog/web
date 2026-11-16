@@ -50,6 +50,47 @@ SELECT count(*)::bigint
  WHERE (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status))
    AND (sqlc.narg(action)::text IS NULL OR action = sqlc.narg(action));
 
+-- name: ListSitesForManagement :many
+SELECT site.short_id,
+       site.custom_id,
+       site.name,
+       site.scheme,
+       site.normalized_host,
+       site.base_path,
+       site.access_scope,
+       site.visibility,
+       site.visibility_reason,
+       site.revision,
+       site.joined_at,
+       site.updated_at,
+       pending.id AS pending_audit_id,
+       pending.action AS pending_audit_action
+  FROM directory.sites AS site
+  LEFT JOIN directory.site_audits AS pending
+    ON pending.site_id = site.id AND pending.status = 'PENDING'
+ WHERE (sqlc.arg(visibility)::text = '' OR site.visibility = sqlc.arg(visibility))
+   AND (
+       sqlc.arg(query_text)::text = ''
+       OR site.name ILIKE '%' || sqlc.arg(query_text)::text || '%'
+       OR site.normalized_host ILIKE '%' || sqlc.arg(query_text)::text || '%'
+       OR site.short_id = sqlc.arg(query_text)::text
+       OR site.custom_id = sqlc.arg(query_text)::text
+   )
+ ORDER BY site.updated_at DESC, site.id DESC
+ LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
+
+-- name: CountSitesForManagement :one
+SELECT count(*)::bigint
+  FROM directory.sites AS site
+ WHERE (sqlc.arg(visibility)::text = '' OR site.visibility = sqlc.arg(visibility))
+   AND (
+       sqlc.arg(query_text)::text = ''
+       OR site.name ILIKE '%' || sqlc.arg(query_text)::text || '%'
+       OR site.normalized_host ILIKE '%' || sqlc.arg(query_text)::text || '%'
+       OR site.short_id = sqlc.arg(query_text)::text
+       OR site.custom_id = sqlc.arg(query_text)::text
+   );
+
 -- name: SaveSiteAuditReviewDraft :one
 UPDATE directory.site_audits
    SET review_draft_snapshot = sqlc.arg(review_draft_snapshot),

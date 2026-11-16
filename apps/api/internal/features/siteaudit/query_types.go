@@ -35,6 +35,33 @@ type AuditPage struct {
 	TotalPages int32           `json:"total_pages"`
 }
 
+type ManagedSiteAudit struct {
+	ID     string `json:"id"`
+	Action Action `json:"action"`
+}
+
+type ManagedSite struct {
+	ShortID          string            `json:"short_id"`
+	CustomID         string            `json:"custom_id,omitempty"`
+	Name             string            `json:"name"`
+	URL              string            `json:"url"`
+	AccessScope      string            `json:"access_scope"`
+	Visibility       string            `json:"visibility"`
+	VisibilityReason string            `json:"visibility_reason,omitempty"`
+	Revision         int64             `json:"revision"`
+	JoinedAt         time.Time         `json:"joined_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+	PendingAudit     *ManagedSiteAudit `json:"pending_audit,omitempty"`
+}
+
+type ManagedSitePage struct {
+	Items      []ManagedSite `json:"items"`
+	Page       int32         `json:"page"`
+	PageSize   int32         `json:"page_size"`
+	TotalItems int64         `json:"total_items"`
+	TotalPages int32         `json:"total_pages"`
+}
+
 type SubmissionOptions struct {
 	Tags                []Option                  `json:"tags"`
 	Cascades            []CascadeOption           `json:"cascades,omitempty"`

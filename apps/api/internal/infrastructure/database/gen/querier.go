@@ -38,6 +38,7 @@ type Querier interface {
 	CountPublicAnnouncementArchive(ctx context.Context) (int64, error)
 	CountRecentSiteClaimAttachments(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
 	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
+	CountSitesForManagement(ctx context.Context, arg CountSitesForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
 	CreateAPIClient(ctx context.Context, arg CreateAPIClientParams) (IdentityApiClient, error)
 	CreateAPIClientScope(ctx context.Context, arg CreateAPIClientScopeParams) error
@@ -188,6 +189,7 @@ type Querier interface {
 	ListSiteTags(ctx context.Context, siteID pgtype.UUID) ([]ListSiteTagsRow, error)
 	ListSitemapAnnouncements(ctx context.Context, afterID pgtype.UUID) ([]ListSitemapAnnouncementsRow, error)
 	ListSitemapSites(ctx context.Context, afterID pgtype.UUID) ([]ListSitemapSitesRow, error)
+	ListSitesForManagement(ctx context.Context, arg ListSitesForManagementParams) ([]ListSitesForManagementRow, error)
 	ListSoftwareComponentDependencies(ctx context.Context, componentID pgtype.UUID) ([]ListSoftwareComponentDependenciesRow, error)
 	ListUserManagementPermissions(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListUserOAuthIdentities(ctx context.Context, userID pgtype.UUID) ([]IdentityOauthIdentity, error)
