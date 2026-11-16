@@ -6,6 +6,10 @@ run = "go mod download"
 description = "Start API server"
 run = "mise -E development exec -- go run ."
 
+[tasks."seed:demo"]
+description = "Import fictional blogs into the local development database"
+run = "sh scripts/seed-demo.sh"
+
 [tasks.build]
 description = "Build API"
 run = [

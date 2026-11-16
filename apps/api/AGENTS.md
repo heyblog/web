@@ -44,6 +44,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - `apps/api/internal/infrastructure` groups external-resource implementations: `database`, `cache`,
   `mail` and `siteicon`. `database` owns migrations, sqlc sources/generated queries, and pool access.
 - `apps/api/internal/integration` owns cross-feature tests with real isolated infrastructure.
+- `apps/api/testdata/demo/seed.sql` and `apps/api/scripts/seed-demo.sh` own the additive local
+  demo dataset. Run `mise run //apps/api:seed:demo` after development database migrations.
+  The importer targets only the fixed local development Compose project, preserves repeat-import
+  edits, and rolls back collisions atomically. Validate dataset changes with `TestDemoSeed` in the
+  integration suite and importer changes with ShellCheck.
 - `features`, `platform`, and `infrastructure` are directory namespaces, not aggregate Go packages.
   Bootstrap composes their concrete implementations; domain code stays independent of them.
 - Domain code must not import handlers or database implementations. Split a feature package by

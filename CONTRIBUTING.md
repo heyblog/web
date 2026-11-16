@@ -84,6 +84,11 @@ mise run //apps/web:dev
 
 Web 默认地址为 `http://127.0.0.1:10101`，API 默认地址为 `http://127.0.0.1:10201`。浏览器数据请求通过 Web 同源端点转发到 API。OAuth 公开回调使用 `/auth/{provider}/callback`，本地应用后台配置见 [README](./README.md)。
 
+API 完成首次数据库迁移后，可运行 `sh apps/api/scripts/seed-demo.sh`，或
+`mise run //apps/api:seed:demo`，导入 36 个虚拟博客及分类、订阅源、统计与友链。
+重复执行会保留已有演示数据修改，冲突时整批回滚。详细范围与前提见
+[演示数据说明](./apps/api/testdata/demo/README.md)。
+
 Mailpit 收件箱位于 `http://127.0.0.1:8025`。注册、重新发送验证码、找回密码和站点审核
 通知都会进入该收件箱；可使用 `developer@example.test` 等本地地址完成完整认证流程。需要直接
 测试 AWS SES 时，在 `config/conf.yaml` 中设置 `mail.transport: ses`，并通过 AWS SDK 标准环境
