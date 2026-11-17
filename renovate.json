@@ -10,10 +10,12 @@
     "docker:pinDigests",
     "helpers:pinGitHubActionDigests"
   ],
-  "dependencyDashboard": true,
-  "dependencyDashboardTitle": "依赖更新控制台",
-  "dependencyDashboardHeader": "主版本（x）更新必须在此审批；勾选条目后，Renovate 将创建并在此跟踪关联 PR。",
-  "dependencyDashboardLabels": ["dependencies"],
+  "dependencyDashboard": {
+    "enabled": true,
+    "title": "依赖更新控制台",
+    "header": "主版本（x）更新必须在此审批；勾选条目后，Renovate 将创建并在此跟踪关联 PR。",
+    "labels": ["dependencies"]
+  },
   "enabledManagers": [
     "npm",
     "gomod",
