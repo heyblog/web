@@ -6,10 +6,23 @@ export interface ManagementNavigationItem {
   readonly description: string;
 }
 
+export function canManageSites(user: Pick<SessionUser, 'role' | 'permissions'>): boolean {
+  return (
+    user.role === 'SYS_ADMIN' || (user.role === 'ADMIN' && user.permissions.includes('site.manage'))
+  );
+}
+
 export function managementNavigation(
   user: Pick<SessionUser, 'role' | 'permissions'>,
 ): readonly ManagementNavigationItem[] {
   const items: ManagementNavigationItem[] = [];
+  if (canManageSites(user)) {
+    items.push({
+      label: '站点管理',
+      href: '/management/sites',
+      description: '检索站点并处理收录状态',
+    });
+  }
   if (
     user.role === 'SYS_ADMIN' ||
     (user.role === 'ADMIN' && user.permissions.includes('taxonomy.manage'))
