@@ -47,16 +47,16 @@ test('development keeps page scripts and QR images working after graph workers l
           return;
         }
         response.setHeader('Set-Cookie', [
-          'heyblog_access_token=renewed; Path=/; HttpOnly',
-          'heyblog_refresh_token=renewed; Path=/; HttpOnly',
+          'heyblog_access_token=renewed; Path=/; HttpOnly; Secure',
+          'heyblog_refresh_token=renewed; Path=/; HttpOnly; Secure',
         ]);
         response.end(JSON.stringify({ user: {} }));
       });
     } else if (request.url === '/api/web/auth/logout') {
       response.statusCode = 204;
       response.setHeader('Set-Cookie', [
-        'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly',
-        'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly',
+        'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly; Secure',
+        'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure',
       ]);
       response.end();
     } else if (
@@ -66,16 +66,16 @@ test('development keeps page scripts and QR images working after graph workers l
       oauthCallbacks.push(request.url);
       const callback = new URL(request.url, 'http://api.test');
       const provider = callback.pathname.includes('/github/') ? 'github' : 'blogsclub';
-      response.setHeader('Set-Cookie', ['oauth-state=; Path=/; Max-Age=0']);
       if (callback.searchParams.get('code') === 'invalid') {
+        response.setHeader('Set-Cookie', ['oauth-state=; Path=/; Max-Age=0; HttpOnly; Secure']);
         response.statusCode = 400;
         response.end(
           JSON.stringify({ code: 'invalid_oauth_state', detail: 'private-oauth-detail' }),
         );
       } else {
         response.setHeader('Set-Cookie', [
-          'oauth-state=; Path=/; Max-Age=0',
-          'session=renewed; Path=/; HttpOnly',
+          'oauth-state=; Path=/; Max-Age=0; HttpOnly; Secure',
+          'session=renewed; Path=/; HttpOnly; Secure',
         ]);
         response.end(
           JSON.stringify({
@@ -205,8 +205,8 @@ test('development keeps page scripts and QR images working after graph workers l
     assert.equal(logout.headers.get('Location'), '/login');
     assert.equal(logout.headers.get('Cache-Control'), 'private, no-store');
     assert.deepEqual(logout.headers.getSetCookie(), [
-      'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly',
-      'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly',
+      'heyblog_access_token=; Max-Age=0; Path=/; HttpOnly; Secure',
+      'heyblog_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure',
     ]);
 
     // Both public callbacks use the shared page and forward to their internal API endpoint.
@@ -222,8 +222,8 @@ test('development keeps page scripts and QR images working after graph workers l
         assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
         assert.match(response.headers.get('X-Robots-Tag') ?? '', /noindex/u);
         assert.deepEqual(response.headers.getSetCookie(), [
-          'oauth-state=; Path=/; Max-Age=0',
-          ...(code === 'invalid' ? [] : ['session=renewed; Path=/; HttpOnly']),
+          'oauth-state=; Path=/; Max-Age=0; HttpOnly; Secure',
+          ...(code === 'invalid' ? [] : ['session=renewed; Path=/; HttpOnly; Secure']),
         ]);
         if (code === 'redirect') {
           assert.equal(response.headers.get('Location'), origin + '/dashboard/security');
