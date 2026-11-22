@@ -170,6 +170,14 @@
       },
       "automerge": false,
       "rebaseWhen": "behind-base-branch"
+    },
+    {
+      "description": "Keep mise bootstrap pins out of tool lockfile updates",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["jdx/mise"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "mise bootstrap",
+      "groupSlug": "mise-bootstrap"
     }
   ],
   "ignorePaths": ["**/node_modules/**", "**/dist/**"]
