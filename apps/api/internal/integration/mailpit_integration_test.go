@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,12 +58,17 @@ func TestMailpitSMTPTransport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open SMTP sender: %v", err)
 	}
+	rendered, err := mail.RenderDefaultEmail(mail.EmailTemplate{Title: "集成测试", Message: "中文邮件正文\n\n" + strings.Repeat("长行中文正文", 200)})
+	if err != nil {
+		t.Fatalf("render branded message: %v", err)
+	}
 	want := mail.Message{
-		From:    "sender@example.test",
-		To:      "reader@example.test",
-		Subject: "HeyBlog 集成测试",
-		Text:    "纯文本邮件正文",
-		HTML:    "<p>HTML 邮件正文</p>",
+		From:        "sender@example.test",
+		To:          "reader@example.test",
+		Subject:     "HeyBlog 集成测试",
+		Text:        "纯文本邮件正文",
+		HTML:        rendered.HTML,
+		InlineImage: rendered.InlineImage,
 	}
 	if err := sender.Send(ctx, want); err != nil {
 		t.Fatalf("send Mailpit message: %v", err)
@@ -91,15 +97,23 @@ func TestMailpitSMTPTransport(t *testing.T) {
 	}
 
 	var detail struct {
-		Text string `json:"Text"`
-		HTML string `json:"HTML"`
+		Text   string `json:"Text"`
+		HTML   string `json:"HTML"`
+		Inline []struct {
+			ContentID   string `json:"ContentID"`
+			ContentType string `json:"ContentType"`
+			Size        int    `json:"Size"`
+		} `json:"Inline"`
 	}
 	detailPayload := getMailpitJSON(ctx, t, baseURL+"/api/v1/message/"+message.ID)
 	if err := json.Unmarshal(detailPayload, &detail); err != nil {
 		t.Fatalf("decode Mailpit message detail: %v", err)
 	}
-	if detail.Text != want.Text || detail.HTML != want.HTML {
+	if detail.Text != want.Text || strings.ReplaceAll(detail.HTML, "\r\n", "\n") != strings.ReplaceAll(want.HTML, "\r\n", "\n") {
 		t.Fatalf("Mailpit body = (%q, %q), want original alternatives", detail.Text, detail.HTML)
+	}
+	if len(detail.Inline) != 1 || detail.Inline[0].ContentType != "image/png" || detail.Inline[0].Size == 0 || !strings.Contains(detail.HTML, `src="cid:`+detail.Inline[0].ContentID+`"`) {
+		t.Fatalf("Mailpit inline images = %#v, want matching PNG brand", detail.Inline)
 	}
 }
 

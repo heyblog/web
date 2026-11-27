@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 )
 
 type fakeSESClient struct {
@@ -114,6 +115,29 @@ func TestSESSenderBuildsUTF8SimpleMessage(t *testing.T) {
 	}
 }
 
+func TestSESSenderIncludesInlineBrandAttachment(t *testing.T) {
+	rendered, err := RenderDefaultEmail(EmailTemplate{Title: "验证码", Message: "请验证邮箱。"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &fakeSESClient{}
+	err = newSESSender(client).Send(context.Background(), Message{From: "sender@example.test", To: "reader@example.test", Subject: "验证码", Text: "纯文本", HTML: rendered.HTML, InlineImage: rendered.InlineImage})
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := client.input.Content.Simple
+	if len(message.Attachments) != 1 {
+		t.Fatal("expected one inline brand attachment")
+	}
+	image := message.Attachments[0]
+	if image.ContentId == nil || !strings.Contains(*message.Body.Html.Data, `src="cid:`+*image.ContentId+`"`) {
+		t.Fatal("SES inline image CID does not match HTML")
+	}
+	if image.ContentDisposition != types.AttachmentContentDispositionInline || image.ContentTransferEncoding != types.AttachmentContentTransferEncodingBase64 || image.ContentType == nil || *image.ContentType != "image/png" || image.FileName == nil || *image.FileName != "heyblog.png" || string(image.RawContent) != brandImage {
+		t.Fatal("SES inline image metadata or raw bytes are incorrect")
+	}
+}
+
 func TestSESSenderSetsOnlyProvidedBodyAlternatives(t *testing.T) {
 	t.Parallel()
 
@@ -173,6 +197,12 @@ func TestSESSenderRejectsInvalidMessagesWithoutCallingAWS(t *testing.T) {
 		},
 		"missing body": {
 			From: "sender@example.test", To: "reader@example.test", Subject: "subject",
+		},
+		"image without HTML": {
+			From: "sender@example.test", To: "reader@example.test", Subject: "subject", Text: "body", InlineImage: &InlineImage{},
+		},
+		"empty image": {
+			From: "sender@example.test", To: "reader@example.test", Subject: "subject", HTML: "<p>body</p>", InlineImage: &InlineImage{},
 		},
 	}
 	for name, message := range tests {

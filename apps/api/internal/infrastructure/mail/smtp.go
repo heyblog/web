@@ -1,15 +1,11 @@
 package mail
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"mime"
-	"mime/multipart"
 	"net"
 	"net/smtp"
-	"net/textproto"
 	"strings"
 	"time"
 )
@@ -109,65 +105,6 @@ func (sender *smtpSender) withClient(ctx context.Context, operation func(*smtp.C
 		return errors.Join(fmt.Errorf("close SMTP session: %w", err), client.Close())
 	}
 	return nil
-}
-
-func renderSMTPMessage(message Message) ([]byte, error) {
-	if err := message.validate(); err != nil {
-		return nil, fmt.Errorf("validate email message: %w", err)
-	}
-
-	var buffer bytes.Buffer
-	writeSMTPHeader(&buffer, "From", message.From)
-	writeSMTPHeader(&buffer, "To", message.To)
-	writeSMTPHeader(&buffer, "Subject", mime.QEncoding.Encode(utf8Charset, message.Subject))
-	writeSMTPHeader(&buffer, "MIME-Version", "1.0")
-
-	if strings.TrimSpace(message.Text) != "" && strings.TrimSpace(message.HTML) != "" {
-		writer := multipart.NewWriter(&buffer)
-		writeSMTPHeader(&buffer, "Content-Type", fmt.Sprintf("multipart/alternative; boundary=%q", writer.Boundary()))
-		buffer.WriteString("\r\n")
-		if err := writeSMTPPart(writer, "text/plain", message.Text); err != nil {
-			return nil, err
-		}
-		if err := writeSMTPPart(writer, "text/html", message.HTML); err != nil {
-			return nil, err
-		}
-		if err := writer.Close(); err != nil {
-			return nil, fmt.Errorf("close SMTP multipart body: %w", err)
-		}
-		return buffer.Bytes(), nil
-	}
-
-	contentType, body := "text/plain", message.Text
-	if strings.TrimSpace(message.HTML) != "" {
-		contentType, body = "text/html", message.HTML
-	}
-	writeSMTPHeader(&buffer, "Content-Type", contentType+"; charset="+utf8Charset)
-	writeSMTPHeader(&buffer, "Content-Transfer-Encoding", "8bit")
-	buffer.WriteString("\r\n")
-	buffer.WriteString(body)
-	return buffer.Bytes(), nil
-}
-
-func writeSMTPPart(writer *multipart.Writer, contentType, body string) error {
-	header := make(textproto.MIMEHeader, 2)
-	header.Set("Content-Type", contentType+"; charset="+utf8Charset)
-	header.Set("Content-Transfer-Encoding", "8bit")
-	part, err := writer.CreatePart(header)
-	if err != nil {
-		return fmt.Errorf("create SMTP MIME part: %w", err)
-	}
-	if _, err := part.Write([]byte(body)); err != nil {
-		return fmt.Errorf("write SMTP MIME part: %w", err)
-	}
-	return nil
-}
-
-func writeSMTPHeader(buffer *bytes.Buffer, name, value string) {
-	buffer.WriteString(name)
-	buffer.WriteString(": ")
-	buffer.WriteString(value)
-	buffer.WriteString("\r\n")
 }
 
 func (err *smtpConnectionError) Error() string {

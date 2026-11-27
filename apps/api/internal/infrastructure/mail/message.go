@@ -11,11 +11,21 @@ import (
 var ErrDeliveryUnavailable = errors.New("email delivery unavailable")
 
 type Message struct {
-	From    string
-	To      string
-	Subject string
-	Text    string
-	HTML    string
+	From        string
+	To          string
+	Subject     string
+	Text        string
+	HTML        string
+	InlineImage *InlineImage
+}
+
+// InlineImage is an embedded resource produced by the shared email renderer.
+// Its metadata and bytes remain private so callers cannot inject MIME headers.
+type InlineImage struct {
+	contentID   string
+	fileName    string
+	contentType string
+	data        string
 }
 
 type Sender interface {
@@ -37,6 +47,12 @@ func (message Message) validate() error {
 	}
 	if strings.TrimSpace(message.Text) == "" && strings.TrimSpace(message.HTML) == "" {
 		return fmt.Errorf("text or HTML body is required")
+	}
+	if message.InlineImage != nil && strings.TrimSpace(message.HTML) == "" {
+		return fmt.Errorf("inline image requires an HTML body")
+	}
+	if message.InlineImage != nil && message.InlineImage.data == "" {
+		return fmt.Errorf("inline image data is required")
 	}
 	return nil
 }

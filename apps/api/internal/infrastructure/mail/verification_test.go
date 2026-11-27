@@ -38,6 +38,9 @@ func TestVerificationMailerSendsPlainTextCodeFromVerificationIdentity(t *testing
 	if !strings.Contains(message.HTML, "HeyBlog") || !strings.Contains(message.HTML, "123456") {
 		t.Fatalf("HTML = %q, want branded verification template with code", message.HTML)
 	}
+	if strings.Count(message.HTML, "123456") != 1 || message.InlineImage == nil {
+		t.Fatal("verification HTML must contain one code and its inline brand image")
+	}
 	if !strings.Contains(message.Text, "10 分钟") {
 		t.Fatalf("Text = %q, want configured validity period", message.Text)
 	}

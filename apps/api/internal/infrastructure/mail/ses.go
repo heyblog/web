@@ -56,16 +56,24 @@ func (sender *sesSender) Send(ctx context.Context, message Message) error {
 	if strings.TrimSpace(message.HTML) != "" {
 		body.Html = content(message.HTML)
 	}
+	messageContent := &types.Message{Subject: content(message.Subject), Body: body}
+	if image := message.InlineImage; image != nil {
+		messageContent.Attachments = []types.Attachment{{
+			FileName:                aws.String(image.fileName),
+			RawContent:              []byte(image.data),
+			ContentType:             aws.String(image.contentType),
+			ContentId:               aws.String(image.contentID),
+			ContentDisposition:      types.AttachmentContentDispositionInline,
+			ContentTransferEncoding: types.AttachmentContentTransferEncodingBase64,
+		}}
+	}
 	_, err := sender.client.SendEmail(ctx, &sesv2.SendEmailInput{
 		FromEmailAddress: aws.String(message.From),
 		Destination: &types.Destination{
 			ToAddresses: []string{message.To},
 		},
 		Content: &types.EmailContent{
-			Simple: &types.Message{
-				Subject: content(message.Subject),
-				Body:    body,
-			},
+			Simple: messageContent,
 		},
 	})
 	if err != nil {

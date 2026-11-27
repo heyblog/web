@@ -35,16 +35,16 @@ func (mailer *SubmissionMailer) SendDecision(ctx context.Context, decision Submi
 	if comment := strings.TrimSpace(decision.ReviewerComment); comment != "" {
 		text += "\n\n审核意见：\n" + comment
 	}
+	guidance := "请使用提交时保存的查询凭证查看完整状态。"
 	if decision.Account {
-		text += "\n\n请登录 HeyBlog，在“我的提交”中查看完整状态。"
-	} else {
-		text += "\n\n请使用提交时保存的查询凭证查看完整状态。"
+		guidance = "请登录 HeyBlog，在“我的提交”中查看完整状态。"
 	}
-	html, err := RenderDefaultEmail(EmailTemplate{Title: "站点申请审核结果", Message: text, Preheader: "HeyBlog 站点申请审核结果", Details: []EmailDetail{{Label: "申请类型", Value: actionLabel(decision.Action)}, {Label: "审核结果", Value: statusLabel}, {Label: "审核意见", Value: strings.TrimSpace(decision.ReviewerComment)}}})
+	text += "\n\n" + guidance
+	html, err := RenderDefaultEmail(EmailTemplate{Title: "站点申请审核结果", Message: "您的站点申请已完成审核。\n\n" + guidance, Preheader: "HeyBlog 站点申请审核结果", Details: []EmailDetail{{Label: "申请类型", Value: actionLabel(decision.Action)}, {Label: "审核结果", Value: statusLabel}, {Label: "审核意见", Value: strings.TrimSpace(decision.ReviewerComment)}}})
 	if err != nil {
 		return fmt.Errorf("render submission email: %w", err)
 	}
-	if err := mailer.sender.Send(ctx, Message{From: mailer.from, To: decision.Recipient, Subject: "HeyBlog 站点申请审核结果", Text: text, HTML: html}); err != nil {
+	if err := mailer.sender.Send(ctx, Message{From: mailer.from, To: decision.Recipient, Subject: "HeyBlog 站点申请审核结果", Text: text, HTML: html.HTML, InlineImage: html.InlineImage}); err != nil {
 		return fmt.Errorf("send submission decision email: %w", err)
 	}
 	return nil

@@ -59,7 +59,7 @@ func (service *Service) sendPasswordLink(ctx context.Context, user dbUser) error
 	if err != nil {
 		return repositoryError("render reset email", err)
 	}
-	if err := service.sender.Send(ctx, mail.Message{From: service.config.MailFrom, To: email, Subject: "HeyBlog 密码重置", Text: text, HTML: html}); err != nil {
+	if err := service.sender.Send(ctx, mail.Message{From: service.config.MailFrom, To: email, Subject: "HeyBlog 密码重置", Text: text, HTML: html.HTML, InlineImage: html.InlineImage}); err != nil {
 		return repositoryError("send reset email", err)
 	}
 	return nil

@@ -1,11 +1,24 @@
 package mail
 
 import (
+	_ "embed"
 	"fmt"
 	"html"
 	"net/url"
 	"strings"
 )
+
+const brandContentID = "heyblog-brand"
+
+// brand.png is a 96px raster of apps/web/public/favicon.svg for email clients.
+//
+//go:embed brand.png
+var brandImage string
+
+type RenderedEmail struct {
+	HTML        string
+	InlineImage *InlineImage
+}
 
 // EmailTemplate contains the content rendered by the shared HeyBlog email shell.
 type EmailTemplate struct {
@@ -26,11 +39,11 @@ type EmailAction struct {
 	URL   string
 }
 
-func RenderDefaultEmail(input EmailTemplate) (string, error) {
+func RenderDefaultEmail(input EmailTemplate) (RenderedEmail, error) {
 	title := strings.TrimSpace(input.Title)
 	message := normalizeEmailText(input.Message)
 	if title == "" || message == "" {
-		return "", fmt.Errorf("email title and message are required")
+		return RenderedEmail{}, fmt.Errorf("email title and message are required")
 	}
 	preheader := normalizeEmailText(input.Preheader)
 	if preheader == "" {
@@ -44,39 +57,45 @@ func RenderDefaultEmail(input EmailTemplate) (string, error) {
 		if paragraph == "" {
 			continue
 		}
-		body.WriteString(`<p style="margin:0 0 16px;color:#3f3f46;font-size:16px;line-height:1.75;">`)
+		body.WriteString(`<p style="margin:0 0 16px;color:#0f172a;font-size:16px;line-height:24px;overflow-wrap:anywhere;word-break:break-word;">`)
 		body.WriteString(strings.ReplaceAll(html.EscapeString(paragraph), "\n", "<br>"))
 		body.WriteString(`</p>`)
 	}
 
 	var details strings.Builder
 	for _, detail := range input.Details {
-		label, value := strings.TrimSpace(detail.Label), strings.TrimSpace(detail.Value)
+		label, value := strings.TrimSpace(detail.Label), normalizeEmailText(detail.Value)
 		if label == "" || value == "" {
 			continue
 		}
-		details.WriteString(`<tr><td style="padding:10px 12px;color:#71717a;font-size:14px;border-bottom:1px solid #e4e4e7;vertical-align:top;">`)
+		details.WriteString(`<tr><th scope="row" width="88" style="width:88px;padding:12px 12px 12px 0;color:#64748b;font-size:14px;font-weight:500;line-height:21px;text-align:left;border-bottom:1px solid #e2e8f0;vertical-align:top;">`)
 		details.WriteString(html.EscapeString(label))
-		details.WriteString(`</td><td style="padding:10px 12px;color:#27272a;font-size:14px;border-bottom:1px solid #e4e4e7;vertical-align:top;">`)
-		details.WriteString(html.EscapeString(value))
+		details.WriteString(`</th><td style="padding:12px 0;color:#0f172a;font-size:14px;line-height:21px;border-bottom:1px solid #e2e8f0;vertical-align:top;overflow-wrap:anywhere;word-break:break-word;">`)
+		details.WriteString(strings.ReplaceAll(html.EscapeString(value), "\n", "<br>"))
 		details.WriteString(`</td></tr>`)
 	}
 
 	action := ""
 	if input.Action != nil {
+		label := strings.TrimSpace(input.Action.Label)
+		if label == "" {
+			return RenderedEmail{}, fmt.Errorf("email action label is required")
+		}
 		actionURL, err := emailActionURL(input.Action.URL)
 		if err != nil {
-			return "", err
+			return RenderedEmail{}, err
 		}
-		action = `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 8px;"><tr><td bgcolor="#158187" style="border-radius:6px;"><a href="` + html.EscapeString(actionURL) + `" style="display:inline-block;padding:12px 20px;color:#ffffff;font-size:15px;font-weight:700;line-height:20px;text-decoration:none;">` + html.EscapeString(strings.TrimSpace(input.Action.Label)) + `</a></td></tr></table>`
+		action = `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 16px;"><tr><td bgcolor="#0f7b80" style="border-radius:6px;text-align:center;"><a href="` + html.EscapeString(actionURL) + `" style="display:inline-block;padding:12px 24px;border:1px solid #0f7b80;border-radius:6px;color:#ffffff;font-size:16px;font-weight:500;line-height:24px;text-decoration:none;">` + html.EscapeString(label) + `</a></td></tr></table><p style="margin:0;font-size:12px;line-height:18px;color:#64748b;overflow-wrap:anywhere;word-break:break-word;">也可复制此链接到浏览器：<br><a href="` + html.EscapeString(actionURL) + `" style="color:#0c666b;text-decoration:underline;">` + html.EscapeString(actionURL) + `</a></p>`
 	}
 
-	return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>` + html.EscapeString(title) + `</title></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:Inter,'Noto Sans SC','Segoe UI',Arial,sans-serif;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">` + html.EscapeString(preheader) + `</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f4f4f5;"><tr><td align="center" style="padding:32px 16px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #e4e4e7;border-radius:8px;overflow:hidden;"><tr><td style="padding:24px 32px;background:#09090b;border-bottom:4px solid #158187;"><a href="https://www.heyblog.net/" style="color:#f4f4f5;font-size:24px;font-weight:800;line-height:32px;text-decoration:none;">HeyBlog</a><div style="margin-top:4px;color:#a1a1aa;font-size:13px;line-height:20px;">独立博客网络</div></td></tr><tr><td style="padding:32px;"><h1 style="margin:0 0 20px;color:#18181b;font-size:24px;line-height:1.4;font-weight:750;">` + html.EscapeString(title) + `</h1>` + body.String() + func() string {
-		if details.Len() == 0 {
-			return ""
-		}
-		return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;border:1px solid #e4e4e7;border-radius:6px;border-collapse:separate;border-spacing:0;">` + details.String() + `</table>`
-	}() + action + `</td></tr><tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #e4e4e7;color:#71717a;font-size:12px;line-height:20px;">这封邮件由 <a href="https://www.heyblog.net/" style="color:#0f7b80;text-decoration:none;">HeyBlog</a> 发出。请勿向任何人提供密码或验证码。</td></tr></table></td></tr></table></body></html>`, nil
+	detailTable := ""
+	if details.Len() > 0 {
+		detailTable = `<table width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;table-layout:fixed;margin:8px 0 24px;border-collapse:collapse;">` + details.String() + `</table>`
+	}
+	return RenderedEmail{
+		HTML:        fmt.Sprintf(emailDocument, html.EscapeString(title), html.EscapeString(preheader), brandContentID, html.EscapeString(title), body.String(), detailTable, action),
+		InlineImage: &InlineImage{contentID: brandContentID, fileName: "heyblog.png", contentType: "image/png", data: brandImage},
+	}, nil
 }
 
 func normalizeEmailText(value string) string {
