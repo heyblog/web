@@ -92,6 +92,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/api/web/submissions/{shortId}/restorations", "/api/web/submissions/query",
 		"/api/web/submissions/options", "/api/web/submissions/site-availability",
 		"/api/web/submissions/sites", "/api/web/submissions/sites/{shortId}",
+		"/api/web/management/site-annotations", "/api/web/management/site-annotations/options",
+		"/api/web/management/site-annotations/{shortId}", "/api/web/management/site-annotations/{shortId}/history",
 		"/api/web/management/sites",
 		"/api/web/management/site-audits", "/api/web/management/site-audits/{auditId}",
 		"/api/web/management/site-audits/{auditId}/review-draft",
@@ -145,6 +147,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		{method: "get", path: "/api/web/public/sitemap", schemes: []string{"webToken"}},
 		{method: "get", path: "/api/web/management/announcements", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/api/web/management/announcements/{id}/publish", schemes: []string{"webToken", "accessCookie"}},
+		{method: "get", path: "/api/web/management/site-annotations", schemes: []string{"webToken", "accessCookie"}},
+		{method: "patch", path: "/api/web/management/site-annotations/{shortId}", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/api/web/management/sites", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/api/web/management/site-audits", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/api/web/management/site-audits/{auditId}", schemes: []string{"webToken", "accessCookie"}},
@@ -193,7 +197,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 	methods := map[string]struct{}{
 		"get": {}, "head": {}, "post": {}, "put": {}, "patch": {}, "delete": {}, "options": {},
 	}
-	operationIDs := make(map[string]string, 114)
+	operationIDs := make(map[string]string, len(wantedPaths))
 	operationCount := 0
 	for path, pathItem := range raw.Paths {
 		for method, encoded := range pathItem {
@@ -217,8 +221,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 135 {
-		t.Fatalf("documented operation count = %d, want 135", operationCount)
+	if operationCount != 140 {
+		t.Fatalf("documented operation count = %d, want 140", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

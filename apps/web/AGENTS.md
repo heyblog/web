@@ -198,7 +198,10 @@ browser import graph, and relevant feature tests before completion.
 
 OG image generation reads `/api/web/public/sites/id/{identifier}/metadata` so image requests do not increment public display metrics.
 
-Protected dashboard and management pages reuse the session resolved by middleware. OAuth accounts
-with pending confirmation enter `/complete-profile` before business operations. Confirmation and
-subsequent one-time username changes use the dedicated `api/account-profile` boundary; display
-names remain editable. Management user lists use server pagination and per-account details.
+Protected dashboard, management and annotation pages reuse the session resolved by middleware.
+`/annotation` owns the annotation list, editor and history, with independent workspace access
+through `site_annotation.manage` for administrators or the system administrator role.
+OAuth accounts with pending confirmation enter `/complete-profile` before business operations.
+Confirmation and subsequent one-time username changes use the dedicated `api/account-profile`
+boundary; display names remain editable. Management user lists use server pagination and
+per-account details.

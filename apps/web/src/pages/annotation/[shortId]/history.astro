@@ -1,0 +1,97 @@
+---
+import { readAnnotation } from '@/api/site-annotation/annotation.server';
+import { annotationQuery, isAnnotationID } from '@/api/site-annotation/annotation-contract';
+import { parseAnnotationHistory } from '@/api/site-annotation/annotation-responses';
+import { canAnnotateSites } from '@/application/site-annotation/annotation-access';
+import {
+  annotationDetailPath,
+  annotationFailure,
+  annotationListPath,
+  annotationTime,
+} from '@/application/site-annotation/annotation-view';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import { linkClass, sectionClass } from '@/components/site-annotation/annotation.styles';
+import AnnotationValues from '@/components/site-annotation/AnnotationValues.svelte';
+import PageNavigation from '@/components/site-management/PageNavigation.astro';
+import AnnotationLayout from '@/layouts/AnnotationLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = Astro.locals.sessionUser;
+if (!actor)
+  return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
+if (!canAnnotateSites(actor)) return Astro.redirect('/forbidden');
+const { shortId } = Astro.params;
+if (!isAnnotationID(shortId) || shortId === 'options')
+  return new Response(null, { status: 404, headers: Astro.response.headers });
+const { data, status, headers } = await readAnnotation(
+  Astro.request,
+  `${shortId}/history`,
+  parseAnnotationHistory,
+);
+for (const cookie of headers.getSetCookie()) Astro.response.headers.append('Set-Cookie', cookie);
+if (!data) Astro.response.status = status;
+---
+
+<AnnotationLayout {actor} heading="标注变更记录">
+  <nav class="mb-4 flex flex-wrap gap-x-5" aria-label="站点标注">
+    <a class={linkClass} href={annotationListPath}>
+      返回标注台
+    </a>
+    <a class={linkClass} href={annotationDetailPath(shortId)}>
+      返回站点标注
+    </a>
+  </nav>
+  {data ? (
+    <>
+      {data.items.length ? (
+        <ol class="grid gap-4">
+          {data.items.map((entry) => (
+            <li class={sectionClass}>
+              <div class="grid min-w-0 gap-1">
+                <p class="font-semibold wrap-anywhere">
+                  {entry.source === 'AUDIT' ? '申请审核' : '站点标注'} ·{' '}
+                  {entry.actor_name || '系统'}
+                </p>
+                <time class="text-sm text-fg-muted" datetime={entry.created_at}>
+                  {annotationTime(entry.created_at)}
+                </time>
+              </div>
+              {entry.reason && (
+                <p class="text-sm wrap-anywhere whitespace-pre-wrap">{entry.reason}</p>
+              )}
+              <details class="min-w-0 border-t border-line pt-2">
+                <summary class="min-h-11 cursor-pointer py-2 text-sm font-medium sm:min-h-10">
+                  查看变更
+                </summary>
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="min-w-0 rounded-sm bg-subtle p-3">
+                    <h2 class="font-medium">变更前</h2>
+                    <AnnotationValues values={entry.before} />
+                  </div>
+                  <div class="min-w-0 rounded-sm bg-subtle p-3">
+                    <h2 class="font-medium">变更后</h2>
+                    <AnnotationValues values={entry.after} />
+                  </div>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p class="rounded-md border border-dashed border-line px-4 py-10 text-center text-sm text-fg-muted">
+          暂无变更记录。
+        </p>
+      )}
+      {(data.page > 1 || data.total > data.page_size) && (
+        <PageNavigation
+          page={data.page}
+          hasNext={data.page * data.page_size < data.total}
+          query={annotationQuery(Astro.url.searchParams, 'history')}
+        />
+      )}
+    </>
+  ) : (
+    <AuthNotice message={annotationFailure(status, 'load')} />
+  )}
+</AnnotationLayout>

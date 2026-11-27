@@ -44,7 +44,7 @@ func verifyOwnerAnonymization(ctx context.Context, t *testing.T, pool *pgxpool.P
 	now()-interval '31 days',now()-interval '31 days',now()-interval '1 day',now()-interval '32 days') RETURNING id`).Scan(&userID); err != nil {
 		t.Fatal(err)
 	}
-	siteID := insertSite(ctx, t, pool, "Privacy01", "Private ownership", "private-owner.example.test")
+	siteID := insertBlogSite(ctx, t, pool, "Privacy01", "Private ownership", "private-owner.example.test")
 	if err := pool.QueryRow(ctx, `INSERT INTO directory.site_ownerships(site_id,user_id,address) VALUES($1,$2,'https://private-owner.example.test/') RETURNING id`, siteID, userID).Scan(&ownershipID); err != nil {
 		t.Fatal(err)
 	}

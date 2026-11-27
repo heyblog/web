@@ -178,7 +178,7 @@ func (service *Service) RestoreWithProgress(ctx context.Context, file *os.File, 
 	if err = notify(); err != nil {
 		return Restoration{}, err
 	}
-	if err = queries.FinishDatabaseRestore(ctx); err != nil {
+	if _, err = tx.Exec(ctx, "SELECT directory.backup_restore_finish($1::integer)", doc.header.SchemaVersion); err != nil {
 		return Restoration{}, fmt.Errorf("validate database restore: %w", err)
 	}
 	progress.Stage = "committing"

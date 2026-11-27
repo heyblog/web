@@ -23,7 +23,7 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 
 	// Given a canonical site, valid submission taxonomy, and an authorized reviewer.
 	const existingShortID = "4Fjw77W5U"
-	insertSite(ctx, t, pool, existingShortID, "Existing Site", "existing-review.example.com")
+	insertBlogSite(ctx, t, pool, existingShortID, "Existing Site", "existing-review.example.com")
 	queries := dbgen.New(pool)
 	cascades, err := queries.ListEnabledSiteTagCascades(ctx)
 	if err != nil || len(cascades) == 0 {
@@ -107,7 +107,7 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 	if err != nil {
 		t.Fatalf("submit review-race creation: %v", err)
 	}
-	insertSite(ctx, t, pool, "6Nop7Qr8S", "Review Race Winner", "review-race.example.com")
+	insertBlogSite(ctx, t, pool, "6Nop7Qr8S", "Review Race Winner", "review-race.example.com")
 
 	// When the pending CREATE is approved.
 	_, err = service.Review(ctx, reviewActor, siteaudit.ReviewInput{AuditID: createResult.AuditID, Decision: siteaudit.DecisionApprove})
@@ -118,7 +118,7 @@ func verifySiteAuditAddressConflicts(ctx context.Context, t *testing.T, pool *pg
 
 	// Given an UPDATE that changes one site's host to another canonical site's host.
 	const updateShortID = "5Klm6No7P"
-	updateSiteID := insertSite(ctx, t, pool, updateShortID, "Update Source", "update-source.example.com")
+	updateSiteID := insertBlogSite(ctx, t, pool, updateShortID, "Update Source", "update-source.example.com")
 	updateResult, err := service.Submit(ctx, siteaudit.ActionUpdate, updateShortID, siteauditConflictSubmission("https://existing-review.example.com", taxonomy, programID))
 	if err != nil {
 		t.Fatalf("submit conflicting site update: %v", err)

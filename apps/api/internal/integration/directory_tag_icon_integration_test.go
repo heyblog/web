@@ -15,8 +15,8 @@ import (
 func verifyTagAndIconConstraints(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
 	t.Helper()
 
-	siteID := insertSite(ctx, t, connection, "6Aa7Bb8Cc", "Tag and Icon", "tag-icon.example.com")
-	otherSiteID := insertSite(ctx, t, connection, "7Aa8Bb9Cc", "Invalid Tag Role", "tag-role.example.com")
+	siteID := insertBlogSite(ctx, t, connection, "6Aa7Bb8Cc", "Tag and Icon", "tag-icon.example.com")
+	otherSiteID := insertBlogSite(ctx, t, connection, "7Aa8Bb9Cc", "Invalid Tag Role", "tag-role.example.com")
 	var tertiaryTagID, warningTagID, alternateTertiaryTagID pgtype.UUID
 	for _, tag := range []struct {
 		name        string

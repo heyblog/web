@@ -15,6 +15,7 @@ type Querier interface {
 	AddOwnerFriendRequest(ctx context.Context, arg AddOwnerFriendRequestParams) (DirectoryOwnerFriendLinkRequest, error)
 	AddSiteOrigin(ctx context.Context, arg AddSiteOriginParams) (DirectorySiteOrigin, error)
 	AddSoftwareComponentDependency(ctx context.Context, arg AddSoftwareComponentDependencyParams) (DirectorySoftwareComponentDependency, error)
+	AnnotationPendingAudit(ctx context.Context, arg AnnotationPendingAuditParams) (string, error)
 	ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotParams) (DirectorySite, error)
 	ApproveSiteAudit(ctx context.Context, arg ApproveSiteAuditParams) (DirectorySiteAudit, error)
 	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (ContentAnnouncement, error)
@@ -31,12 +32,14 @@ type Querier interface {
 	CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error
 	ConsumePasswordResetToken(ctx context.Context, id pgtype.UUID) error
+	CountAnnotationSites(ctx context.Context, arg CountAnnotationSitesParams) (int64, error)
 	CountAnnouncementsForManagement(ctx context.Context, arg CountAnnouncementsForManagementParams) (int64, error)
 	CountDirectorySitesByStatus(ctx context.Context, arg CountDirectorySitesByStatusParams) (CountDirectorySitesByStatusRow, error)
 	CountManagedUsers(ctx context.Context, arg CountManagedUsersParams) (int64, error)
 	CountManualClaimWindows(ctx context.Context, dollar_1 pgtype.UUID) (CountManualClaimWindowsRow, error)
 	CountPublicAnnouncementArchive(ctx context.Context) (int64, error)
 	CountRecentSiteClaimAttachments(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
+	CountSiteAnnotationHistory(ctx context.Context, siteID pgtype.UUID) (int64, error)
 	CountSiteAuditsForManagement(ctx context.Context, arg CountSiteAuditsForManagementParams) (int64, error)
 	CountSitesForManagement(ctx context.Context, arg CountSitesForManagementParams) (int64, error)
 	CountVisibleSites(ctx context.Context) (int64, error)
@@ -60,11 +63,11 @@ type Querier interface {
 	DeleteAPIClientScopes(ctx context.Context, clientID pgtype.UUID) error
 	DeleteDraftAnnouncement(ctx context.Context, arg DeleteDraftAnnouncementParams) (int64, error)
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
+	DeleteEnabledSiteFeeds(ctx context.Context, siteID pgtype.UUID) error
 	DeleteManagedTag(ctx context.Context, id pgtype.UUID) error
 	DeletePasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteSiteClaimAttachment(ctx context.Context, arg DeleteSiteClaimAttachmentParams) (int64, error)
 	DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error
-	DeleteSiteFeeds(ctx context.Context, siteID pgtype.UUID) error
 	DeleteSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) error
 	DeleteSiteResource(ctx context.Context, arg DeleteSiteResourceParams) error
 	DeleteSiteResources(ctx context.Context, siteID pgtype.UUID) error
@@ -136,12 +139,15 @@ type Querier interface {
 	InsertOrigin(ctx context.Context, arg InsertOriginParams) error
 	InsertResource(ctx context.Context, arg InsertResourceParams) error
 	InsertSite(ctx context.Context, arg InsertSiteParams) error
+	InsertSiteAnnotationHistory(ctx context.Context, arg InsertSiteAnnotationHistoryParams) error
 	InsertSiteSoftwareComponent(ctx context.Context, arg InsertSiteSoftwareComponentParams) error
 	InsertSiteTag(ctx context.Context, arg InsertSiteTagParams) error
 	InsertSoftwareComponent(ctx context.Context, arg InsertSoftwareComponentParams) error
 	InsertSoftwareDependency(ctx context.Context, arg InsertSoftwareDependencyParams) error
 	InsertSource(ctx context.Context, arg InsertSourceParams) (pgtype.UUID, error)
 	InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID) error
+	IsBlogClaimAttachment(ctx context.Context, dollar_1 pgtype.UUID) (bool, error)
+	LatestNonBlogClassificationRevision(ctx context.Context, siteID pgtype.UUID) (int64, error)
 	ListAPIClientScopes(ctx context.Context) ([]IdentityApiClientScope, error)
 	ListAPIClientScopesByClient(ctx context.Context, clientID pgtype.UUID) ([]string, error)
 	ListAPIClients(ctx context.Context) ([]IdentityApiClient, error)
@@ -149,6 +155,7 @@ type Querier interface {
 	ListAccountAudits(ctx context.Context, arg ListAccountAuditsParams) ([]DirectorySiteAudit, error)
 	ListAccountSites(ctx context.Context, userID pgtype.UUID) ([]DirectorySite, error)
 	ListActiveMainAnnouncements(ctx context.Context) ([]ContentAnnouncement, error)
+	ListAnnotationSites(ctx context.Context, arg ListAnnotationSitesParams) ([]ListAnnotationSitesRow, error)
 	ListAnnouncementRevisions(ctx context.Context, announcementID pgtype.UUID) ([]ContentAnnouncementRevision, error)
 	ListAnnouncementsForManagement(ctx context.Context, arg ListAnnouncementsForManagementParams) ([]ListAnnouncementsForManagementRow, error)
 	ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteFeed, error)
@@ -177,6 +184,9 @@ type Querier interface {
 	ListPublicSiteTagsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]ListPublicSiteTagsBySiteIDsRow, error)
 	ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgtype.UUID) ([]DirectorySiteResource, error)
 	ListRandomVisibleSites(ctx context.Context, limit int32) ([]DirectorySite, error)
+	ListRecordedIncomingLinks(ctx context.Context, host string) ([]ListRecordedIncomingLinksRow, error)
+	ListRecordedOutgoingLinks(ctx context.Context, siteID pgtype.UUID) ([]ListRecordedOutgoingLinksRow, error)
+	ListSiteAnnotationHistory(ctx context.Context, arg ListSiteAnnotationHistoryParams) ([]ListSiteAnnotationHistoryRow, error)
 	ListSiteAuditsForManagement(ctx context.Context, arg ListSiteAuditsForManagementParams) ([]ListSiteAuditsForManagementRow, error)
 	ListSiteClaimAttachmentCleanup(ctx context.Context) ([]ListSiteClaimAttachmentCleanupRow, error)
 	ListSiteClaimAttachmentMetadata(ctx context.Context, dollar_1 pgtype.UUID) ([]ListSiteClaimAttachmentMetadataRow, error)
@@ -196,6 +206,7 @@ type Querier interface {
 	ListVisibleSites(ctx context.Context, arg ListVisibleSitesParams) ([]DirectorySite, error)
 	LockAnnouncement(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	LockClaimSite(ctx context.Context, shortID string) (LockClaimSiteRow, error)
+	LockClaimSiteByID(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.UUID, error)
 	LockCurrentSiteOwner(ctx context.Context, arg LockCurrentSiteOwnerParams) (DirectorySiteOwnership, error)
 	LockEmailVerificationCode(ctx context.Context, id pgtype.UUID) (IdentityEmailVerificationCode, error)
 	LockFriendEndpointSites(ctx context.Context, arg LockFriendEndpointSitesParams) ([]pgtype.UUID, error)
@@ -257,6 +268,7 @@ type Querier interface {
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (ContentAnnouncement, error)
 	UpdateManagedTag(ctx context.Context, arg UpdateManagedTagParams) error
 	UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressParams) (DirectorySite, error)
+	UpdateSiteAnnotation(ctx context.Context, arg UpdateSiteAnnotationParams) (DirectorySite, error)
 	UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSiteDirectoryProfileParams) (DirectorySite, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (IdentityUser, error)
 	UpsertFriendLink(ctx context.Context, arg UpsertFriendLinkParams) error

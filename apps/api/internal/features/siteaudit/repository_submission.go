@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"heyblog-api/internal/domain/site"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -13,23 +15,27 @@ import (
 )
 
 func (repository *Repository) SubmissionSite(ctx context.Context, shortID string) (Snapshot, error) {
-	return repository.siteSnapshot(ctx, shortID, "get target site by short ID")
+	return repository.siteSnapshot(ctx, shortID, false)
 }
 
 func (repository *Repository) ResolveSite(ctx context.Context, shortID string) (Snapshot, error) {
-	return repository.siteSnapshot(ctx, shortID, "get site by short ID")
+	return repository.siteSnapshot(ctx, shortID, false)
 }
 
-func (repository *Repository) siteSnapshot(ctx context.Context, shortID, operation string) (Snapshot, error) {
+func (repository *Repository) ResubmissionSite(ctx context.Context, shortID string) (Snapshot, error) {
+	return repository.siteSnapshot(ctx, shortID, true)
+}
+
+func (repository *Repository) siteSnapshot(ctx context.Context, shortID string, resubmission bool) (Snapshot, error) {
 	row, err := repository.queries.GetSiteByShortID(ctx, shortID)
 	if err != nil {
 		if isNotFound(err) {
 			return Snapshot{}, newServiceError("site_not_found", http.StatusNotFound, "the target site was not found")
 		}
-		return Snapshot{}, fmt.Errorf("%s: %w", operation, err)
+		return Snapshot{}, fmt.Errorf("get target site by short ID: %w", err)
 	}
 	snapshot, err := loadSnapshot(ctx, repository.queries, row.ID)
-	if isNotFound(err) {
+	if isNotFound(err) || (err == nil && (snapshot.BlogStatus == site.BlogConfirmed) == resubmission) {
 		return Snapshot{}, newServiceError("site_not_found", http.StatusNotFound, "the target site was not found")
 	}
 	return snapshot, err
@@ -39,7 +45,20 @@ func (repository *Repository) CreateSubmission(ctx context.Context, record submi
 	if record.Provenance.UserID != "" {
 		return repository.createAccountSubmission(ctx, record)
 	}
-	return repository.insertSubmission(ctx, record)
+	if record.Action == ActionCreate {
+		return repository.insertSubmission(ctx, record)
+	}
+	tx, err := repository.pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("begin site submission: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	bound := &Repository{pool: repository.pool, queries: repository.queries.WithTx(tx)}
+	auditID, err := bound.insertSubmission(ctx, record)
+	if err != nil {
+		return "", err
+	}
+	return auditID, tx.Commit(ctx)
 }
 
 func (repository *Repository) insertSubmission(ctx context.Context, record submissionRecord) (string, error) {
@@ -54,6 +73,15 @@ func (repository *Repository) insertSubmission(ctx context.Context, record submi
 	siteID, err := parseOptionalUUID(record.Base.SiteID)
 	if err != nil {
 		return "", err
+	}
+	if siteID.Valid {
+		row, lockErr := repository.queries.LockSiteByID(ctx, siteID)
+		if lockErr != nil {
+			return "", lockErr
+		}
+		if row.Revision != record.Base.Revision || site.BlogStatus(row.BlogStatus) != record.Base.BlogStatus {
+			return "", newServiceError("site_revision_changed", http.StatusConflict, "the site changed; resubmit the application")
+		}
 	}
 	userID, err := parseOptionalUUID(record.Provenance.UserID)
 	if err != nil {

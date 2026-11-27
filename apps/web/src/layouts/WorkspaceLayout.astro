@@ -1,6 +1,9 @@
 ---
 import { IconChevronDown, IconLogout2 } from '@tabler/icons-svelte';
 
+import { managementNavigation } from '@/application/management/navigation';
+import { canAnnotateSites } from '@/application/site-annotation/annotation-access';
+import { annotationListPath } from '@/application/site-annotation/annotation-view';
 import { siteConfig } from '@/site.config';
 
 import BaseLayout from './BaseLayout.astro';
@@ -25,20 +28,35 @@ export interface Props {
   eyebrow?: string;
   identity?: ManagementIdentityView;
   navigation: ManagementNavigationItem[];
-  workspace: 'personal' | 'management';
-  canManage?: boolean;
+  workspace: 'personal' | 'management' | 'annotation';
 }
 
-const {
-  title,
-  heading,
-  currentPath,
-  eyebrow,
-  identity,
-  navigation,
-  workspace,
-  canManage = true,
-} = Astro.props;
+const { title, heading, currentPath, eyebrow, identity, navigation, workspace } = Astro.props;
+const user = Astro.locals.sessionUser;
+const workspaces = [
+  { key: 'personal', href: '/dashboard', label: '个人工作区', shortLabel: '个人' },
+];
+if (workspace === 'management' || (user && managementNavigation(user).length > 0)) {
+  workspaces.push({
+    key: 'management',
+    href: '/management',
+    label: '管理工作区',
+    shortLabel: '管理',
+  });
+}
+if (user && canAnnotateSites(user)) {
+  workspaces.push({
+    key: 'annotation',
+    href: annotationListPath,
+    label: '标注工作区',
+    shortLabel: '标注',
+  });
+}
+const navigationLabel = {
+  personal: '个人导航',
+  management: '管理导航',
+  annotation: '标注导航',
+}[workspace];
 const isActive = (href: string) =>
   currentPath === href ||
   (href !== '/dashboard' && href !== '/management' && currentPath.startsWith(`${href}/`));
@@ -66,40 +84,24 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
     </a>
     <div class="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
       <nav class="flex min-w-0 gap-1 text-sm sm:gap-2" aria-label="工作区切换">
-        <a
-          class:list={[
-            'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 hover:bg-subtle sm:px-3',
-            { 'bg-tint text-tint-fg': workspace === 'personal' },
-          ]}
-          href="/dashboard"
-          aria-current={workspace === 'personal' ? 'true' : undefined}
-          aria-label="个人工作区"
-        >
-          <span class="sm:hidden" aria-hidden="true">
-            个人
-          </span>
-          <span class="hidden sm:inline" aria-hidden="true">
-            个人工作区
-          </span>
-        </a>
-        {canManage && (
+        {workspaces.map((item) => (
           <a
             class:list={[
               'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 hover:bg-subtle sm:px-3',
-              { 'bg-tint text-tint-fg': workspace === 'management' },
+              { 'bg-tint text-tint-fg': workspace === item.key },
             ]}
-            href="/management"
-            aria-current={workspace === 'management' ? 'true' : undefined}
-            aria-label="管理工作区"
+            href={item.href}
+            aria-current={workspace === item.key ? 'true' : undefined}
+            aria-label={item.label}
           >
             <span class="sm:hidden" aria-hidden="true">
-              管理
+              {item.shortLabel}
             </span>
             <span class="hidden sm:inline" aria-hidden="true">
-              管理工作区
+              {item.label}
             </span>
           </a>
-        )}
+        ))}
       </nav>
       <form method="post" action="/api/web/auth/logout" class="shrink-0">
         <button
@@ -161,10 +163,7 @@ const activeNavigation = navigation.find((item) => isActive(item.href));
                   </dl>
                 </section>
               ) : null}
-              <nav
-                class="grid gap-1"
-                aria-label={workspace === 'personal' ? '个人导航' : '管理导航'}
-              >
+              <nav class="grid gap-1" aria-label={navigationLabel}>
                 {navigation.map((item) => (
                   <a
                     class:list={[

@@ -33,8 +33,8 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if err := sitemanagement.RegisterRoutes(fixture.router.API, claims, credentialWebToken, fixture.redis); err != nil {
 		t.Fatal(err)
 	}
-	insertSite(ctx, t, fixture.pool, "HTTPown01", "HTTP owned site", "http-owner.example.test")
-	insertSite(ctx, t, fixture.pool, "HTTPfri01", "HTTP friend", "http-friend.example.test")
+	insertBlogSite(ctx, t, fixture.pool, "HTTPown01", "HTTP owned site", "http-owner.example.test")
+	insertBlogSite(ctx, t, fixture.pool, "HTTPfri01", "HTTP friend", "http-friend.example.test")
 	missingToken := httptest.NewRecorder()
 	fixture.router.ServeHTTP(missingToken, httptest.NewRequest("GET", "/api/web/account/sites", nil))
 	if missingToken.Code != 401 {

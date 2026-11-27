@@ -8,8 +8,9 @@ INSERT INTO directory.sites (
     base_path,
     summary,
     access_scope,
-    tag_cascade_id
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    tag_cascade_id,
+    blog_status
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BLOG')
 RETURNING *;
 
 -- name: GetSiteByID :one
@@ -30,21 +31,21 @@ SELECT * FROM directory.sites WHERE normalized_host = $1;
 -- name: ListVisibleSites :many
 SELECT *
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
  ORDER BY joined_at DESC, id DESC
  LIMIT $1 OFFSET $2;
 
 -- name: ListRandomVisibleSites :many
 SELECT *
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
  ORDER BY random()
 LIMIT $1;
 
 -- name: PickRandomVisibleSite :one
 SELECT site.*
   FROM directory.sites AS site
- WHERE site.visibility = 'VISIBLE'
+ WHERE site.blog_status = 'BLOG' AND site.visibility = 'VISIBLE'
    AND (sqlc.arg(level1_tag_name)::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
@@ -93,13 +94,13 @@ SELECT cascade.id, cascade.taxonomy_key, cascade.sort_order,
 -- name: CountVisibleSites :one
 SELECT count(*)::bigint
   FROM directory.sites
- WHERE visibility = 'VISIBLE';
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE';
 
 -- name: CountDirectorySitesByStatus :one
 SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
        count(*) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
   FROM directory.sites AS site
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+ WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
    AND (
        sqlc.arg(query_text)::text = ''
        OR strpos(
@@ -185,7 +186,7 @@ SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_cou
 -- name: ListDirectorySites :many
 SELECT site.*
   FROM directory.sites AS site
- WHERE site.visibility = sqlc.arg(site_visibility)::text
+ WHERE site.blog_status = 'BLOG' AND site.visibility = sqlc.arg(site_visibility)::text
    AND (
        sqlc.arg(query_text)::text = ''
        OR strpos(
@@ -292,18 +293,18 @@ WITH assignments AS (
     SELECT cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, site.visibility
       FROM directory.sites AS site
       JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
-     WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+     WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
     UNION ALL
     SELECT cascade.level2_tag_id, 'SECONDARY'::text, site.visibility
       FROM directory.sites AS site
       JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
-     WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+     WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
     UNION ALL
     SELECT assignment.tag_id, assignment.role, site.visibility
       FROM directory.site_tags AS assignment
       JOIN directory.sites AS site ON site.id = assignment.site_id
      WHERE assignment.role IN ('TERTIARY', 'WARNING')
-       AND site.visibility IN ('VISIBLE', 'HIDDEN')
+       AND site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
 ), counts AS (
     -- Each branch contains at most one assignment per (site, tag, role).
     SELECT tag_id, role,
@@ -329,7 +330,7 @@ SELECT component.name, component.normalized_name,
   FROM directory.site_software_components AS assignment
   JOIN directory.software_components AS component ON component.id = assignment.component_id
   JOIN directory.sites AS site ON site.id = assignment.site_id
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND component.is_enabled
+ WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN') AND component.is_enabled
  GROUP BY component.id, component.name, component.normalized_name
  ORDER BY normal_count DESC, abnormal_count DESC, component.name, component.normalized_name;
 
@@ -360,7 +361,8 @@ UPDATE directory.sites
        access_scope = $7,
        visibility = $8,
        visibility_reason = $9,
-       tag_cascade_id = $10
+       tag_cascade_id = $10,
+       blog_status = CASE WHEN sqlc.arg(approve_blog)::boolean THEN 'BLOG' ELSE blog_status END
  WHERE id = $1 AND revision = $11
 RETURNING *;
 
@@ -413,8 +415,8 @@ SELECT *
 -- name: DeleteSiteFeed :exec
 DELETE FROM directory.site_feeds WHERE id = $1 AND site_id = $2;
 
--- name: DeleteSiteFeeds :exec
-DELETE FROM directory.site_feeds WHERE site_id = $1;
+-- name: DeleteEnabledSiteFeeds :exec
+DELETE FROM directory.site_feeds WHERE site_id = $1 AND is_enabled;
 
 -- name: UpsertSiteResource :one
 INSERT INTO directory.site_resources (
@@ -682,8 +684,9 @@ SELECT * FROM directory.site_sources WHERE source_key = $1;
 -- name: SearchSitesForSubmission :many
 SELECT *
   FROM directory.sites
- WHERE name ILIKE '%' || sqlc.arg(query)::text || '%'
-    OR normalized_host ILIKE '%' || sqlc.arg(query)::text || '%'
-    OR short_id = sqlc.arg(query)::text
+ WHERE blog_status = 'BLOG'
+   AND (name ILIKE '%' || sqlc.arg(query)::text || '%'
+     OR normalized_host ILIKE '%' || sqlc.arg(query)::text || '%'
+     OR short_id = sqlc.arg(query)::text)
  ORDER BY visibility, name, id
  LIMIT 12;

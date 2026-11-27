@@ -26,7 +26,33 @@ func (service *Service) submit(ctx context.Context, action Action, targetShortID
 		return SubmissionResult{}, err
 	}
 	base := Snapshot{AccessScope: "ALL", Visibility: "VISIBLE"}
-	if action != ActionCreate {
+	if action == ActionCreate {
+		address, addressErr := site.NormalizeAddress(normalized.Site.URL)
+		if addressErr != nil {
+			return SubmissionResult{}, fmt.Errorf("%w: address: %w", ErrInvalidSubmission, addressErr)
+		}
+		existing, lookupErr := service.repository.ExistingSiteForHost(ctx, address.NormalizedHost)
+		if lookupErr != nil {
+			return SubmissionResult{}, lookupErr
+		}
+		if existing != nil {
+			if !existing.BlogStatus.IsValid() || existing.BlogStatus == site.BlogConfirmed || provenance.Channel == "OWNER_FRIEND_LINK" {
+				return SubmissionResult{}, siteAddressConflictError()
+			}
+			base, err = service.repository.ResubmissionSite(ctx, existing.ShortID)
+			if err != nil {
+				return SubmissionResult{}, err
+			}
+			if base.NormalizedHost != address.NormalizedHost {
+				return SubmissionResult{}, newServiceError("site_revision_changed", http.StatusConflict, "the site address changed; resubmit the application")
+			}
+			base.resubmission = true
+			action = ActionUpdate
+			if normalized.Reason == "" {
+				normalized.Reason = "申请收录为博客"
+			}
+		}
+	} else {
 		if err := site.ValidateShortID(targetShortID); err != nil {
 			return SubmissionResult{}, fmt.Errorf("%w: target site short ID is invalid", ErrInvalidSubmission)
 		}
@@ -40,16 +66,13 @@ func (service *Service) submit(ctx context.Context, action Action, targetShortID
 	if err != nil {
 		return SubmissionResult{}, err
 	}
-	if err := service.ensureCreateAddressAvailable(ctx, action, proposed.NormalizedHost); err != nil {
-		return SubmissionResult{}, err
-	}
 	if action == ActionCreate || action == ActionUpdate {
 		proposed, err = service.repository.PrepareSubmission(ctx, proposed, base)
 		if err != nil {
 			return SubmissionResult{}, err
 		}
 	}
-	if action == ActionUpdate && len(buildSnapshotDiff(base, proposed)) == 0 {
+	if action == ActionUpdate && !base.resubmission && len(buildSnapshotDiff(base, proposed)) == 0 {
 		return SubmissionResult{}, newServiceError("submission_no_changes", http.StatusUnprocessableEntity, "the update does not change the site")
 	}
 	secret, secretHash, err := newLookupSecret()
@@ -65,7 +88,7 @@ func (service *Service) submit(ctx context.Context, action Action, targetShortID
 	if provenance.UserID != "" {
 		secret = ""
 	}
-	return SubmissionResult{AuditID: auditID, LookupToken: secret, Action: action, Status: StatusPending, ShortID: targetShortID}, nil
+	return SubmissionResult{AuditID: auditID, LookupToken: secret, Action: submittedAction(action, base), Status: StatusPending, ShortID: targetShortID}, nil
 }
 
 func proposedForAction(action Action, input SubmissionInput, base Snapshot) (Snapshot, error) {
@@ -98,4 +121,11 @@ func newLookupSecret() (string, []byte, error) {
 	}
 	digest := sha256.Sum256(secret)
 	return base64.RawURLEncoding.EncodeToString(secret), digest[:], nil
+}
+
+func submittedAction(action Action, base Snapshot) Action {
+	if base.resubmission {
+		return ActionCreate
+	}
+	return action
 }

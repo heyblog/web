@@ -144,6 +144,8 @@ type DirectorySite struct {
 	UpdatedAt pgtype.Timestamptz
 	// Required SITE taxonomy path.
 	TagCascadeID pgtype.UUID
+	// Whether the site is an eligible blog, a confirmed non-blog, or awaiting annotation.
+	BlogStatus string
 }
 
 // Anonymous site lifecycle requests with immutable aggregate evidence and reviewed outcomes.

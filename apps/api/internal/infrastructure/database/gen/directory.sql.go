@@ -90,9 +90,10 @@ UPDATE directory.sites
        access_scope = $7,
        visibility = $8,
        visibility_reason = $9,
-       tag_cascade_id = $10
+       tag_cascade_id = $10,
+       blog_status = CASE WHEN $12::boolean THEN 'BLOG' ELSE blog_status END
  WHERE id = $1 AND revision = $11
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
 `
 
 type ApplySiteSnapshotParams struct {
@@ -107,6 +108,7 @@ type ApplySiteSnapshotParams struct {
 	VisibilityReason *string
 	TagCascadeID     pgtype.UUID
 	Revision         int64
+	ApproveBlog      bool
 }
 
 func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotParams) (DirectorySite, error) {
@@ -122,6 +124,7 @@ func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotPa
 		arg.VisibilityReason,
 		arg.TagCascadeID,
 		arg.Revision,
+		arg.ApproveBlog,
 	)
 	var i DirectorySite
 	err := row.Scan(
@@ -140,6 +143,7 @@ func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotPa
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
@@ -245,7 +249,7 @@ const countDirectorySitesByStatus = `-- name: CountDirectorySitesByStatus :one
 SELECT count(*) FILTER (WHERE site.visibility = 'VISIBLE')::bigint AS normal_count,
        count(*) FILTER (WHERE site.visibility = 'HIDDEN')::bigint AS abnormal_count
   FROM directory.sites AS site
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+ WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
    AND (
        $1::text = ''
        OR strpos(
@@ -364,7 +368,7 @@ func (q *Queries) CountDirectorySitesByStatus(ctx context.Context, arg CountDire
 const countVisibleSites = `-- name: CountVisibleSites :one
 SELECT count(*)::bigint
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
 `
 
 func (q *Queries) CountVisibleSites(ctx context.Context) (int64, error) {
@@ -384,9 +388,10 @@ INSERT INTO directory.sites (
     base_path,
     summary,
     access_scope,
-    tag_cascade_id
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+    tag_cascade_id,
+    blog_status
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BLOG')
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
 `
 
 type CreateSiteParams struct {
@@ -430,6 +435,7 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Directo
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
@@ -506,6 +512,15 @@ func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Directory
 	return i, err
 }
 
+const deleteEnabledSiteFeeds = `-- name: DeleteEnabledSiteFeeds :exec
+DELETE FROM directory.site_feeds WHERE site_id = $1 AND is_enabled
+`
+
+func (q *Queries) DeleteEnabledSiteFeeds(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteEnabledSiteFeeds, siteID)
+	return err
+}
+
 const deleteSiteFeed = `-- name: DeleteSiteFeed :exec
 DELETE FROM directory.site_feeds WHERE id = $1 AND site_id = $2
 `
@@ -517,15 +532,6 @@ type DeleteSiteFeedParams struct {
 
 func (q *Queries) DeleteSiteFeed(ctx context.Context, arg DeleteSiteFeedParams) error {
 	_, err := q.db.Exec(ctx, deleteSiteFeed, arg.ID, arg.SiteID)
-	return err
-}
-
-const deleteSiteFeeds = `-- name: DeleteSiteFeeds :exec
-DELETE FROM directory.site_feeds WHERE site_id = $1
-`
-
-func (q *Queries) DeleteSiteFeeds(ctx context.Context, siteID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteSiteFeeds, siteID)
 	return err
 }
 
@@ -603,7 +609,7 @@ func (q *Queries) GetReadableSiteTagCascade(ctx context.Context, id pgtype.UUID)
 }
 
 const getSiteByCustomID = `-- name: GetSiteByCustomID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE custom_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE custom_id = $1
 `
 
 func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error) {
@@ -625,12 +631,13 @@ func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (Dire
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
 
 const getSiteByHost = `-- name: GetSiteByHost :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE normalized_host = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE normalized_host = $1
 `
 
 func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (DirectorySite, error) {
@@ -652,12 +659,13 @@ func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (Dir
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
 
 const getSiteByID = `-- name: GetSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE id = $1
 `
 
 func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -679,12 +687,13 @@ func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySit
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
 
 const getSiteByShortID = `-- name: GetSiteByShortID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE short_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE short_id = $1
 `
 
 func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error) {
@@ -706,6 +715,7 @@ func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (Directo
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
@@ -868,9 +878,9 @@ func (q *Queries) ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteI
 }
 
 const listDirectorySites = `-- name: ListDirectorySites :many
-SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status
   FROM directory.sites AS site
- WHERE site.visibility = $1::text
+ WHERE site.blog_status = 'BLOG' AND site.visibility = $1::text
    AND (
        $2::text = ''
        OR strpos(
@@ -1030,6 +1040,7 @@ func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySites
 			&i.JoinedAt,
 			&i.UpdatedAt,
 			&i.TagCascadeID,
+			&i.BlogStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -1046,18 +1057,18 @@ WITH assignments AS (
     SELECT cascade.level1_tag_id AS tag_id, 'PRIMARY'::text AS role, site.visibility
       FROM directory.sites AS site
       JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
-     WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+     WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
     UNION ALL
     SELECT cascade.level2_tag_id, 'SECONDARY'::text, site.visibility
       FROM directory.sites AS site
       JOIN directory.tag_cascades AS cascade ON cascade.id = site.tag_cascade_id
-     WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
+     WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
     UNION ALL
     SELECT assignment.tag_id, assignment.role, site.visibility
       FROM directory.site_tags AS assignment
       JOIN directory.sites AS site ON site.id = assignment.site_id
      WHERE assignment.role IN ('TERTIARY', 'WARNING')
-       AND site.visibility IN ('VISIBLE', 'HIDDEN')
+       AND site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN')
 ), counts AS (
     -- Each branch contains at most one assignment per (site, tag, role).
     SELECT tag_id, role,
@@ -1117,7 +1128,7 @@ SELECT component.name, component.normalized_name,
   FROM directory.site_software_components AS assignment
   JOIN directory.software_components AS component ON component.id = assignment.component_id
   JOIN directory.sites AS site ON site.id = assignment.site_id
- WHERE site.visibility IN ('VISIBLE', 'HIDDEN') AND component.is_enabled
+ WHERE site.blog_status = 'BLOG' AND site.visibility IN ('VISIBLE', 'HIDDEN') AND component.is_enabled
  GROUP BY component.id, component.name, component.normalized_name
  ORDER BY normal_count DESC, abnormal_count DESC, component.name, component.normalized_name
 `
@@ -1618,9 +1629,9 @@ func (q *Queries) ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgt
 }
 
 const listRandomVisibleSites = `-- name: ListRandomVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
  ORDER BY random()
 LIMIT $1
 `
@@ -1650,6 +1661,7 @@ func (q *Queries) ListRandomVisibleSites(ctx context.Context, limit int32) ([]Di
 			&i.JoinedAt,
 			&i.UpdatedAt,
 			&i.TagCascadeID,
+			&i.BlogStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -1947,9 +1959,9 @@ func (q *Queries) ListSoftwareComponentDependencies(ctx context.Context, compone
 }
 
 const listVisibleSites = `-- name: ListVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
  ORDER BY joined_at DESC, id DESC
  LIMIT $1 OFFSET $2
 `
@@ -1984,6 +1996,7 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 			&i.JoinedAt,
 			&i.UpdatedAt,
 			&i.TagCascadeID,
+			&i.BlogStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -1996,7 +2009,7 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 }
 
 const lockSiteByID = `-- name: LockSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id FROM directory.sites WHERE id = $1 FOR UPDATE
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -2018,14 +2031,15 @@ func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySi
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
 
 const pickRandomVisibleSite = `-- name: PickRandomVisibleSite :one
-SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status
   FROM directory.sites AS site
- WHERE site.visibility = 'VISIBLE'
+ WHERE site.blog_status = 'BLOG' AND site.visibility = 'VISIBLE'
    AND ($1::text = '' OR EXISTS (
        SELECT 1 FROM directory.tag_cascades AS cascade
        JOIN directory.tags AS tag ON tag.id = cascade.level1_tag_id
@@ -2066,6 +2080,7 @@ func (q *Queries) PickRandomVisibleSite(ctx context.Context, arg PickRandomVisib
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
@@ -2087,11 +2102,12 @@ func (q *Queries) RemoveSoftwareComponentDependency(ctx context.Context, arg Rem
 }
 
 const searchSitesForSubmission = `-- name: SearchSitesForSubmission :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
   FROM directory.sites
- WHERE name ILIKE '%' || $1::text || '%'
-    OR normalized_host ILIKE '%' || $1::text || '%'
-    OR short_id = $1::text
+ WHERE blog_status = 'BLOG'
+   AND (name ILIKE '%' || $1::text || '%'
+     OR normalized_host ILIKE '%' || $1::text || '%'
+     OR short_id = $1::text)
  ORDER BY visibility, name, id
  LIMIT 12
 `
@@ -2121,6 +2137,7 @@ func (q *Queries) SearchSitesForSubmission(ctx context.Context, query string) ([
 			&i.JoinedAt,
 			&i.UpdatedAt,
 			&i.TagCascadeID,
+			&i.BlogStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -2137,7 +2154,7 @@ UPDATE directory.sites
    SET visibility = $2,
        visibility_reason = $3
  WHERE id = $1 AND revision = $4
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
 `
 
 type SetSiteVisibilityParams struct {
@@ -2171,6 +2188,7 @@ func (q *Queries) SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityPa
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
@@ -2238,7 +2256,7 @@ UPDATE directory.sites
        normalized_host = $3,
        base_path = $4
  WHERE id = $1 AND revision = $5
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
 `
 
 type UpdateSiteAddressParams struct {
@@ -2274,6 +2292,7 @@ func (q *Queries) UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressPa
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
@@ -2285,7 +2304,7 @@ UPDATE directory.sites
        summary = $4,
        access_scope = $5
  WHERE id = $1 AND revision = $6
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
 `
 
 type UpdateSiteDirectoryProfileParams struct {
@@ -2323,6 +2342,7 @@ func (q *Queries) UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSite
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"heyblog-api/internal/domain/site"
 	"heyblog-api/internal/features/auth"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
@@ -58,7 +59,15 @@ func (transaction *auditTransaction) LockSiteSnapshot(ctx context.Context, siteI
 	if _, err := transaction.queries.LockSiteByID(ctx, id); err != nil {
 		return Snapshot{}, fmt.Errorf("lock target site: %w", err)
 	}
-	return loadSnapshot(ctx, transaction.queries, id)
+	snapshot, err := loadSnapshot(ctx, transaction.queries, id)
+	if err != nil || snapshot.BlogStatus != site.BlogExcluded {
+		return snapshot, err
+	}
+	snapshot.lastNonBlogRevision, err = transaction.queries.LatestNonBlogClassificationRevision(ctx, id)
+	if err != nil {
+		return Snapshot{}, fmt.Errorf("read the site classification revision: %w", err)
+	}
+	return snapshot, nil
 }
 
 func (transaction *auditTransaction) ResolveTaxonomy(ctx context.Context, reviewer auth.User, snapshot, current Snapshot) (Snapshot, error) {

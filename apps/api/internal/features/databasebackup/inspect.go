@@ -70,7 +70,8 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 		return Inspection{}, document{}, err
 	}
 	_, err = readDocument(reader, func(name string, row json.RawMessage) error {
-		if doc.header.SchemaVersion == 6 {
+		if name == "directory.site_claim_attachments" {
+			// Validate the original values before dropping external storage authority.
 			if err := validateRow(name, row, inventory); err != nil {
 				return err
 			}
@@ -114,6 +115,13 @@ func validateRow(name string, raw json.RawMessage, inventory columnInventory) er
 		typeName, ok := fields[field]
 		if !ok {
 			return ErrInvalid
+		}
+		if name == "directory.sites" && field == "blog_status" {
+			switch string(rawValue) {
+			case `"BLOG"`, `"NON_BLOG"`, `"UNREVIEWED"`:
+			default:
+				return ErrInvalid
+			}
 		}
 		if bytes.Equal(rawValue, []byte("null")) {
 			continue

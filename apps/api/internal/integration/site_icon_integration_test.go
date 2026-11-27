@@ -88,7 +88,7 @@ func TestSiteIconHTTPWithDatabase(t *testing.T) {
 		{name: "no icon", id: "D1b2C3d4E", visibility: "VISIBLE", status: 404},
 	} {
 		t.Run(state.name, func(t *testing.T) {
-			id := insertSite(ctx, t, pool, state.id, state.name, strings.ToLower(state.id)+".example.test")
+			id := insertBlogSite(ctx, t, pool, state.id, state.name, strings.ToLower(state.id)+".example.test")
 			if state.visibility != "VISIBLE" {
 				if _, err := pool.Exec(ctx, "UPDATE directory.sites SET visibility=$2,visibility_reason='test' WHERE id=$1", id, state.visibility); err != nil {
 					t.Fatal(err)

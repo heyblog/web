@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"heyblog-api/internal/domain/site"
 	"heyblog-api/internal/features/auth"
 )
 
@@ -26,6 +27,14 @@ func (service *Service) approve(ctx context.Context, transaction AuditTransactio
 		}
 		if input.ExpectedSiteRevision != current.Revision {
 			return Audit{}, newServiceError("site_revision_changed", http.StatusConflict, "the site changed; refresh the three-way diff before reviewing")
+		}
+		if current.BlogStatus == site.BlogExcluded || current.BlogStatus == site.BlogUnreviewed {
+			if audit.Action != ActionUpdate {
+				return Audit{}, newServiceError("site_not_blog", http.StatusConflict, "only blogs can be removed or restored")
+			}
+			if audit.BaseRevision < current.lastNonBlogRevision {
+				return Audit{}, newServiceError("site_classified_after_submission", http.StatusConflict, "the site was classified as a non-blog after this application")
+			}
 		}
 	}
 	final, conflicts := MergeRequestedSnapshot(audit.BaseSnapshot, audit.ProposedSnapshot, current)

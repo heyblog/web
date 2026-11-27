@@ -108,6 +108,10 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 		t.Fatalf("Import() counts = %#v, want %#v", counts, wantCounts)
 	}
 	assertDirectorySiteCount(ctx, t, pool, 2)
+	var unreviewedCount int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM directory.sites WHERE blog_status = 'UNREVIEWED'").Scan(&unreviewedCount); err != nil || unreviewedCount != 2 {
+		t.Fatalf("unreviewed imported sites = %d, want 2: %v", unreviewedCount, err)
+	}
 	var feedFormat string
 	var isDefault bool
 	if err := pool.QueryRow(ctx, "SELECT format, is_default FROM directory.site_feeds").Scan(&feedFormat, &isDefault); err != nil {
@@ -158,7 +162,7 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 		t.Fatalf("query imported friend links: %v", err)
 	}
 	if registeredLinks != 0 || externalLinks != 0 {
-		t.Fatalf("visible friend links = registered:%d external:%d, want hidden target to produce 0/0", registeredLinks, externalLinks)
+		t.Fatalf("visible friend links = registered:%d external:%d, want unreviewed endpoints to produce 0/0", registeredLinks, externalLinks)
 	}
 	if _, err := pool.Exec(ctx, `
 		UPDATE directory.sites
@@ -167,15 +171,16 @@ func TestRepositoryImportsDirectoryAtomicallyOnce(t *testing.T) {
 	`, bundles.Blogs.Blogs[1].ID); err != nil {
 		t.Fatalf("make imported graph target visible: %v", err)
 	}
-	if err := pool.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE target_site_id IS NOT NULL),
-		       count(*) FILTER (WHERE target_site_id IS NULL)
-		  FROM directory.list_friend_links($1::uuid, false)
-	`, bundles.Blogs.Blogs[0].ID).Scan(&registeredLinks, &externalLinks); err != nil {
-		t.Fatalf("query visible imported friend links: %v", err)
+	var publicLinks int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM directory.list_friend_links($1::uuid, false)", bundles.Blogs.Blogs[0].ID).Scan(&publicLinks); err != nil || publicLinks != 0 {
+		t.Fatalf("visible but unreviewed friend links = %d, want 0: %v", publicLinks, err)
 	}
-	if registeredLinks != 1 || externalLinks != 0 {
-		t.Fatalf("visible friend links = registered:%d external:%d, want 1/0 after target becomes visible", registeredLinks, externalLinks)
+	if _, err := pool.Exec(ctx, "UPDATE directory.sites SET blog_status = 'BLOG'"); err != nil {
+		t.Fatalf("classify imported sites as blogs: %v", err)
+	}
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM directory.list_friend_links($1::uuid, false) WHERE target_site_id = $2::uuid",
+		bundles.Blogs.Blogs[0].ID, bundles.Blogs.Blogs[1].ID).Scan(&publicLinks); err != nil || publicLinks != 1 {
+		t.Fatalf("confirmed imported friend link = %d, want 1: %v", publicLinks, err)
 	}
 	if _, err := service.Import(ctx, bundles); !errors.Is(err, ErrDirectoryNotEmpty) {
 		t.Fatalf("second Import() error = %v, want ErrDirectoryNotEmpty", err)

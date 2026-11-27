@@ -37,15 +37,33 @@ test('inspection parsing validates the dataset inventory and restoration readine
     { ...inspectionFixture, graph: { vertices: -1, edges: 2 } },
     { ...inspectionFixture, schema_version: 1 },
     { ...inspectionFixture, schema_version: 2 },
+    { ...inspectionFixture, schema_version: 6 },
+    { ...inspectionFixture, schema_version: 8 },
   ];
-  assert.equal(inspectionFixture.datasets.length, 33);
   // When / Then
   assert.deepEqual(parseBackupInspection(inspectionFixture), inspectionFixture);
-  for (const schema_version of [4, 5]) {
-    const current = { ...inspectionFixture, schema_version };
-    assert.deepEqual(parseBackupInspection(current), current);
+  for (const schema_version of [3, 4, 5, 6]) {
+    const datasets = inspectionFixture.datasets.filter(
+      ({ name }) =>
+        name !== 'directory.site_annotation_history' &&
+        (schema_version === 6 || name !== 'directory.site_claim_attachments'),
+    );
+    const legacy = { ...inspectionFixture, schema_version, datasets };
+    assert.deepEqual(parseBackupInspection(legacy), legacy);
+    const restored = { ...restorationFixture, datasets };
+    assert.deepEqual(parseBackupRestoration(restored), restored);
   }
   for (const input of cases) assert.equal(parseBackupInspection(input), null);
+  assert.deepEqual(parseBackupRestoration(restorationFixture), restorationFixture);
+  assert.equal(
+    parseBackupRestoration({
+      ...restorationFixture,
+      datasets: restorationFixture.datasets.filter(
+        ({ name }) => name !== 'directory.site_claim_attachments',
+      ),
+    }),
+    null,
+  );
   assert.equal(parseBackupRestoration({ ...restorationFixture, admin_mapping: {} }), null);
 });
 

@@ -10,6 +10,7 @@ export const roleLabels: Readonly<Record<UserRole, string>> = {
 export const permissionLabels: Readonly<Record<ManagementPermission, string>> = {
   'user.manage': '用户管理',
   'site_audit.review': '站点审核',
+  'site_annotation.manage': '标注台',
   'feedback.review': '反馈处理',
   'announcement.manage': '公告管理',
   'taxonomy.manage': '分类维护',

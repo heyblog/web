@@ -12,7 +12,7 @@ import (
 
 type snapshotQueries interface {
 	GetSiteByID(context.Context, pgtype.UUID) (dbgen.DirectorySite, error)
-	ListSiteFeeds(context.Context, pgtype.UUID) ([]dbgen.DirectorySiteFeed, error)
+	ListPublicSiteFeeds(context.Context, pgtype.UUID) ([]dbgen.DirectorySiteFeed, error)
 	ListSiteResources(context.Context, pgtype.UUID) ([]dbgen.DirectorySiteResource, error)
 	ListSiteTags(context.Context, pgtype.UUID) ([]dbgen.ListSiteTagsRow, error)
 	ListSiteSoftwareComponents(context.Context, pgtype.UUID) ([]dbgen.ListSiteSoftwareComponentsRow, error)
@@ -24,6 +24,16 @@ func loadSnapshot(ctx context.Context, queries snapshotQueries, siteID pgtype.UU
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("get site for snapshot: %w", err)
 	}
+	feeds, err := queries.ListPublicSiteFeeds(ctx, siteID)
+	if err != nil {
+		return Snapshot{}, fmt.Errorf("list site feeds for snapshot: %w", err)
+	}
+	return loadSnapshotFromRows(ctx, queries, row, feeds)
+}
+
+func loadSnapshotFromRows(ctx context.Context, queries snapshotQueries, row dbgen.DirectorySite, feeds []dbgen.DirectorySiteFeed) (Snapshot, error) {
+	siteID := row.ID
+	var err error
 	var cascade dbgen.GetReadableSiteTagCascadeRow
 	if cascadeQueries, ok := queries.(interface {
 		GetReadableSiteTagCascade(context.Context, pgtype.UUID) (dbgen.GetReadableSiteTagCascadeRow, error)
@@ -32,10 +42,6 @@ func loadSnapshot(ctx context.Context, queries snapshotQueries, siteID pgtype.UU
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("get site classification for snapshot: %w", err)
 		}
-	}
-	feeds, err := queries.ListSiteFeeds(ctx, siteID)
-	if err != nil {
-		return Snapshot{}, fmt.Errorf("list site feeds for snapshot: %w", err)
 	}
 	resources, err := queries.ListSiteResources(ctx, siteID)
 	if err != nil {
@@ -82,7 +88,7 @@ func mapSnapshot(
 	}
 	address := site.Address{Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath}
 	snapshot := Snapshot{
-		SiteID: identifier, Revision: row.Revision, ShortID: row.ShortID, Name: row.Name,
+		SiteID: identifier, BlogStatus: site.BlogStatus(row.BlogStatus), Revision: row.Revision, ShortID: row.ShortID, Name: row.Name,
 		Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath,
 		Summary: row.Summary, AccessScope: row.AccessScope, Visibility: row.Visibility,
 		Feeds: make([]FeedSnapshot, 0, len(feeds)), Resources: make([]ResourceSnapshot, 0, len(resources)),

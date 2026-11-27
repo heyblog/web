@@ -84,10 +84,7 @@ test('serves PNGs and redirects UUIDs while preserving the existing ID lookup st
   // Then: only the canonical request renders; redirection targets the short-ID PNG.
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('content-type'), 'image/png');
-  assert.equal(
-    response.headers.get('cache-control'),
-    'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
-  );
+  assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.deepEqual(new Uint8Array(await response.arrayBuffer()), png);
   assert.equal(redirect.status, 308);
   assert.equal(redirect.headers.get('location'), siteOgImagePath(profile));

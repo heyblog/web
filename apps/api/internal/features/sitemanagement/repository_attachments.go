@@ -42,6 +42,13 @@ func (r *Repository) CreateAttachmentMetadata(ctx context.Context, userID string
 		if _, err := q.LockSiteClaimUser(ctx, accountID); err != nil {
 			return repositoryError(err)
 		}
+		current, err := q.LockClaimSite(ctx, target.ShortID)
+		if err != nil {
+			return repositoryError(err)
+		}
+		if current.Address != target.Address || current.Visibility == "REMOVED" {
+			return ErrNotFound
+		}
 		count, err := q.CountRecentSiteClaimAttachments(ctx, accountID)
 		if err != nil {
 			return err
@@ -72,6 +79,16 @@ func (r *Repository) CompleteAttachmentMetadata(ctx context.Context, userID, raw
 	}
 	var result ClaimAttachment
 	err = r.transaction(ctx, func(q *dbgen.Queries) error {
+		attachment, err := q.GetSiteClaimAttachment(ctx, attachmentID)
+		if err != nil {
+			return repositoryError(err)
+		}
+		if attachment.UserID != userID {
+			return ErrNotFound
+		}
+		if _, err := q.LockClaimSiteByID(ctx, attachmentUUID(attachment.SiteID)); err != nil {
+			return repositoryError(err)
+		}
 		row, err := q.LockSiteClaimAttachment(ctx, attachmentID)
 		if err != nil {
 			return repositoryError(err)
@@ -189,6 +206,13 @@ func (r *Repository) MarkAttachmentUploadCleaned(ctx context.Context, id string)
 func (r *Repository) AttachmentMetadata(ctx context.Context, id string) (ClaimAttachment, error) {
 	parsed, err := uuid(id)
 	if err != nil {
+		return ClaimAttachment{}, ErrNotFound
+	}
+	eligible, err := r.queries.IsBlogClaimAttachment(ctx, parsed)
+	if err != nil {
+		return ClaimAttachment{}, repositoryError(err)
+	}
+	if !eligible {
 		return ClaimAttachment{}, ErrNotFound
 	}
 	row, err := r.queries.GetSiteClaimAttachment(ctx, parsed)

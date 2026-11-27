@@ -17,9 +17,9 @@ func verifyPublicFriendGraph(ctx context.Context, t *testing.T, pool *pgxpool.Po
 	t.Helper()
 	// Given
 	queries := dbgen.New(pool)
-	source := insertSite(ctx, t, pool, "G1a2B3c4D", "Graph Source", "graph-source.example.com")
-	target := insertSite(ctx, t, pool, "G2a3B4c5D", "Graph Target", "graph-target.example.com")
-	insertSite(ctx, t, pool, "G3a4B5c6D", "Graph Isolated", "graph-isolated.example.com")
+	source := insertBlogSite(ctx, t, pool, "G1a2B3c4D", "Graph Source", "graph-source.example.com")
+	target := insertBlogSite(ctx, t, pool, "G2a3B4c5D", "Graph Target", "graph-target.example.com")
+	insertBlogSite(ctx, t, pool, "G3a4B5c6D", "Graph Isolated", "graph-isolated.example.com")
 	for _, link := range []dbgen.UpsertFriendLinkParams{
 		{PSourceSiteID: source, PTargetUrl: "https://graph-target.example.com/", PTargetHost: "graph-target.example.com", PStatus: "ACTIVE"},
 		{PSourceSiteID: target, PTargetUrl: "https://graph-source.example.com/", PTargetHost: "graph-source.example.com", PStatus: "ACTIVE"},
@@ -34,10 +34,10 @@ func verifyPublicFriendGraph(ctx context.Context, t *testing.T, pool *pgxpool.Po
 	// When
 	graph, err := service.SiteGraphByIdentifier(ctx, publicview.SiteIdentifier{Kind: publicview.IdentifierShortID, Value: "G1a2B3c4D"})
 	// Then
-	if err != nil || len(graph.Nodes) != 3 || len(graph.Edges) != 3 || graph.Stats.ReciprocalPairs != 1 {
+	if err != nil || len(graph.Nodes) != 2 || len(graph.Edges) != 2 || graph.Stats.ReciprocalPairs != 1 {
 		t.Fatalf("local graph = %#v, error = %v", graph, err)
 	}
-	t.Run("global includes isolated and excludes inactive", func(t *testing.T) {
+	t.Run("global includes isolated blogs and excludes external sites", func(t *testing.T) {
 		graph, err := service.Graph(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -47,8 +47,8 @@ func verifyPublicFriendGraph(ctx context.Context, t *testing.T, pool *pgxpool.Po
 			if node.Host == "graph-isolated.example.com" {
 				found = true
 			}
-			if node.Host == "graph-inactive.example.com" {
-				t.Fatal("inactive external exposed")
+			if node.Host == "graph-inactive.example.com" || node.Host == "graph-external.example.com" {
+				t.Fatal("external site exposed")
 			}
 		}
 		if !found {
@@ -108,16 +108,20 @@ func verifyPublicFriendGraph(ctx context.Context, t *testing.T, pool *pgxpool.Po
 	})
 
 	t.Run("external promotion updates identity and address", func(t *testing.T) {
-		insertSite(ctx, t, pool, "G4a5B6c7D", "Promoted", "graph-external.example.com")
+		insertBlogSite(ctx, t, pool, "G4a5B6c7D", "Promoted", "graph-external.example.com")
 		graph, err := service.SiteGraphByIdentifier(ctx, publicview.SiteIdentifier{Kind: publicview.IdentifierShortID, Value: "G1a2B3c4D"})
 		if err != nil {
 			t.Fatal(err)
 		}
 		for _, node := range graph.Nodes {
-			if node.Host == "graph-external.example.com" && (node.ID != "site:G4a5B6c7D" || node.HomepageURL != "https://graph-external.example.com/") {
-				t.Fatalf("promoted node = %#v", node)
+			if node.Host == "graph-external.example.com" {
+				if node.ID != "site:G4a5B6c7D" || node.HomepageURL != "https://graph-external.example.com/" {
+					t.Fatalf("promoted node = %#v", node)
+				}
+				return
 			}
 		}
+		t.Fatal("confirmed target blog did not join the graph")
 	})
 	t.Run("hidden center and endpoint", func(t *testing.T) {
 		if _, err := pool.Exec(ctx, "UPDATE directory.sites SET visibility = 'HIDDEN', visibility_reason = 'private' WHERE id = $1", source); err != nil {

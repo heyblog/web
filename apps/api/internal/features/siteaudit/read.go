@@ -20,7 +20,7 @@ func (service *Service) Query(ctx context.Context, lookupToken string) (PublicAu
 	if err != nil {
 		return PublicAuditResult{}, err
 	}
-	return PublicAuditResult{Action: audit.Action, Status: audit.Status, ShortID: publicAuditShortID(audit), ReviewerComment: audit.ReviewerComment, ReviewedAt: audit.ReviewedAt, CreatedAt: audit.CreatedAt}, nil
+	return PublicAuditResult{Action: submittedAction(audit.Action, audit.BaseSnapshot), Status: audit.Status, ShortID: publicAuditShortID(audit), ReviewerComment: audit.ReviewerComment, ReviewedAt: audit.ReviewedAt, CreatedAt: audit.CreatedAt}, nil
 }
 
 func (service *Service) ResolveSite(ctx context.Context, shortID string) (Snapshot, error) {
@@ -51,21 +51,10 @@ func (service *Service) CheckSiteAvailability(ctx context.Context, rawURL string
 	if err != nil {
 		return SiteAvailability{}, err
 	}
+	if existing != nil && existing.BlogStatus.IsValid() && existing.BlogStatus != site.BlogConfirmed {
+		existing = nil
+	}
 	return SiteAvailability{Available: existing == nil, ExistingSite: existing}, nil
-}
-
-func (service *Service) ensureCreateAddressAvailable(ctx context.Context, action Action, normalizedHost string) error {
-	if action != ActionCreate {
-		return nil
-	}
-	existing, err := service.repository.ExistingSiteForHost(ctx, normalizedHost)
-	if err != nil {
-		return err
-	}
-	if existing != nil {
-		return siteAddressConflictError()
-	}
-	return nil
 }
 
 func publicSiteSnapshot(snapshot Snapshot) Snapshot {
@@ -74,6 +63,9 @@ func publicSiteSnapshot(snapshot Snapshot) Snapshot {
 }
 
 func publicAuditShortID(audit Audit) string {
+	if audit.BaseSnapshot.resubmission && audit.Status != StatusApproved {
+		return ""
+	}
 	if audit.FinalSnapshot.ShortID != "" {
 		return audit.FinalSnapshot.ShortID
 	}

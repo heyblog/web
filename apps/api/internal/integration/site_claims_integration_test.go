@@ -35,7 +35,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	service := sitemanagement.NewService(repository, nil, claimsProofVerifier{})
 	t.Run("proof expiring while waiting for the site lock cannot grant ownership", func(t *testing.T) {
 		// Given a valid challenge whose decision is blocked behind a site update.
-		siteID := insertSite(ctx, t, pool, "Claim0003", "Expiring claim", "claim-expiring.example.com")
+		siteID := insertBlogSite(ctx, t, pool, "Claim0003", "Expiring claim", "claim-expiring.example.com")
 		result, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0003", Method: sitemanagement.File})
 		require.NoError(t, err)
 		tx, err := pool.Begin(ctx)
@@ -70,7 +70,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	})
 	t.Run("concurrent verification has one owner", func(t *testing.T) {
 		// Given two applicants with independently issued proofs.
-		insertSite(ctx, t, pool, "Claim0001", "Claim concurrency", "claim-concurrency.example.com")
+		insertBlogSite(ctx, t, pool, "Claim0001", "Claim concurrency", "claim-concurrency.example.com")
 		claims := make([]sitemanagement.CreateResult, 2)
 		for i := 0; i < 2; i++ {
 			result, err := service.Create(ctx, users[i], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0001", Method: sitemanagement.DNS})
@@ -99,7 +99,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	})
 	t.Run("manual review establishes ownership and rejects self review", func(t *testing.T) {
 		// Given an evidence-backed manual application.
-		insertSite(ctx, t, pool, "Claim0002", "Manual claim", "claim-manual.example.com")
+		insertBlogSite(ctx, t, pool, "Claim0002", "Manual claim", "claim-manual.example.com")
 		result, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.Manual, Evidence: "Public domain registration and author statement", EvidenceURL: "https://claim-manual.example.com/about"})
 		require.NoError(t, err)
 		self := users[0]

@@ -20,7 +20,7 @@ import (
 func verifySiteMetrics(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	// Given
-	id := insertSite(ctx, t, pool, "M1a2B3c4D", "Metric Site", "metric-site.example.com")
+	id := insertBlogSite(ctx, t, pool, "M1a2B3c4D", "Metric Site", "metric-site.example.com")
 	queries := dbgen.New(pool)
 	before, err := queries.GetSiteByID(ctx, id)
 	if err != nil {

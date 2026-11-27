@@ -53,7 +53,7 @@ func TestDemoSeed(t *testing.T) {
 			query string
 			want  int
 		}{
-			{"sites", "SELECT count(*) FROM directory.sites", 36},
+			{"blogs", "SELECT count(*) FROM directory.sites WHERE blog_status='BLOG'", 36},
 			{"visible", "SELECT count(*) FROM directory.sites WHERE visibility='VISIBLE'", 32},
 			{"hidden", "SELECT count(*) FROM directory.sites WHERE visibility='HIDDEN'", 2},
 			{"removed", "SELECT count(*) FROM directory.sites WHERE visibility='REMOVED'", 2},
@@ -74,7 +74,7 @@ func TestDemoSeed(t *testing.T) {
 		}
 		views := publicview.New(dbgen.New(tx), nil)
 		graph, err := views.Graph(ctx)
-		if err != nil || len(graph.Nodes) != 34 || len(graph.Edges) != 68 || graph.Stats.ReciprocalPairs != 6 {
+		if err != nil || len(graph.Nodes) != 32 || len(graph.Edges) != 66 || graph.Stats.ReciprocalPairs != 6 {
 			t.Fatalf("public graph = %#v: %v", graph, err)
 		}
 		for _, shortID := range []string{"Demo00031", "Demo00032"} {

@@ -25,7 +25,10 @@ func (repository *Repository) accountSubmissions(ctx context.Context, user strin
 		if err != nil {
 			return AccountSubmissionPage{}, err
 		}
-		items = append(items, AuditListItem{ID: audit.ID, Action: audit.Action, Status: audit.Status, SiteID: audit.SiteID,
+		if audit.BaseSnapshot.resubmission && audit.Status != StatusApproved {
+			audit.SiteID = ""
+		}
+		items = append(items, AuditListItem{ID: audit.ID, Action: submittedAction(audit.Action, audit.BaseSnapshot), Status: audit.Status, SiteID: audit.SiteID,
 			SiteName: audit.ProposedSnapshot.Name, SiteAddress: snapshotAddress(audit.ProposedSnapshot), CreatedAt: audit.CreatedAt,
 			ReviewedAt: audit.ReviewedAt, SourceChannel: audit.SourceChannel, SubmitterUserID: audit.SubmitterUserID, SourceSiteID: audit.SourceSiteID})
 	}

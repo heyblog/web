@@ -6,11 +6,12 @@ import (
 )
 
 const (
-	Path            = "/api/web/management/database-backup"
-	FileLimit int64 = 512 << 20
-	BodyLimit       = FileLimit + 1<<20
-	Timeout         = 30 * time.Minute
-	Format          = "heyblog.database-backup"
+	Path                = "/api/web/management/database-backup"
+	FileLimit     int64 = 512 << 20
+	BodyLimit           = FileLimit + 1<<20
+	Timeout             = 30 * time.Minute
+	Format              = "heyblog.database-backup"
+	schemaVersion       = 7
 )
 
 var (
@@ -31,7 +32,7 @@ var tableNames = []string{
 	"directory.sites", "directory.site_feeds", "directory.site_icons", "directory.site_resources",
 	"directory.site_software_components", "directory.site_origins", "directory.site_tags",
 	"directory.site_claims", "directory.site_claim_attachments", "directory.site_ownerships", "directory.site_ownership_events",
-	"directory.site_audits", "directory.owner_friend_link_requests",
+	"directory.site_audits", "directory.site_annotation_history", "directory.owner_friend_link_requests",
 	"directory.site_metrics", "directory.site_metric_events",
 	"content.articles", "content.article_tags", "content.announcements", "content.announcement_revisions",
 }
@@ -93,14 +94,15 @@ type Restoration struct {
 }
 
 func tablesForSchema(version int) []string {
-	if version >= 6 {
+	if version == schemaVersion {
 		return tableNames
 	}
 	result := make([]string, 0, len(tableNames)-1)
 	for _, name := range tableNames {
-		if name != "directory.site_claim_attachments" {
-			result = append(result, name)
+		if name == "directory.site_annotation_history" || (version < 6 && name == "directory.site_claim_attachments") {
+			continue
 		}
+		result = append(result, name)
 	}
 	return result
 }

@@ -29,17 +29,19 @@ func verifySitemapQueries(ctx context.Context, t *testing.T, pool *pgxpool.Pool)
 		}
 	}()
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO directory.sites (id, short_id, name, normalized_host)
+		INSERT INTO directory.sites (id, short_id, name, normalized_host, blog_status)
 		SELECT ('00000000-0000-7000-8000-' || lpad(number::text, 12, '0'))::uuid,
-		       lpad(number::text, 9, '0'), 'Sitemap site', 'sitemap-' || number || '.example.test'
+		       lpad(number::text, 9, '0'), 'Sitemap site', 'sitemap-' || number || '.example.test', 'BLOG'
 		  FROM generate_series(1, 1002) AS number;
 	`); err != nil {
 		t.Fatalf("insert sitemap sites: %v", err)
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO directory.sites (id, short_id, name, normalized_host, visibility, visibility_reason)
-		VALUES ('00000000-0000-7000-8000-000000002001', '000002001', 'Hidden', 'sitemap-hidden.example.test', 'HIDDEN', 'internal'),
-		       ('00000000-0000-7000-8000-000000002002', '000002002', 'Removed', 'sitemap-removed.example.test', 'REMOVED', 'internal');
+		INSERT INTO directory.sites (id, short_id, name, normalized_host, visibility, visibility_reason, blog_status)
+		VALUES ('00000000-0000-7000-8000-000000002001', '000002001', 'Hidden', 'sitemap-hidden.example.test', 'HIDDEN', 'internal', 'BLOG'),
+		       ('00000000-0000-7000-8000-000000002002', '000002002', 'Removed', 'sitemap-removed.example.test', 'REMOVED', 'internal', 'BLOG'),
+       ('00000000-0000-7000-8000-000000002003', '000002003', 'Non-blog', 'sitemap-non-blog.example.test', 'VISIBLE', NULL, 'NON_BLOG'),
+       ('00000000-0000-7000-8000-000000002004', '000002004', 'Unreviewed', 'sitemap-unreviewed.example.test', 'VISIBLE', NULL, 'UNREVIEWED');
 	`); err != nil {
 		t.Fatalf("insert excluded sitemap sites: %v", err)
 	}

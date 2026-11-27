@@ -83,8 +83,8 @@ export function createSitemapService(dependencies: SitemapDependencies) {
     current = { documents, expiresAt: now() + 60_000 };
     return current;
   }
-  async function snapshot(): Promise<Snapshot> {
-    if (current && current.expiresAt > now()) return current;
+  async function snapshot(refreshSites: boolean): Promise<Snapshot> {
+    if (!refreshSites && current && current.expiresAt > now()) return current;
     pending ??= generate().finally(() => {
       pending = undefined;
     });
@@ -97,14 +97,17 @@ export function createSitemapService(dependencies: SitemapDependencies) {
     )
       return new Response(null, { status: 404 });
     try {
-      const value = await snapshot();
+      const refreshSites = path === '/sitemap.xml' || path.startsWith('/sitemap-sites-');
+      const value = await snapshot(refreshSites);
       const document = value.documents.get(path);
       if (!document)
         return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
       const headers = {
         'Content-Type': 'application/xml; charset=utf-8',
         ETag: document.etag,
-        'Cache-Control': `public, max-age=0, s-maxage=${Math.max(0, Math.floor((value.expiresAt - now()) / 1_000))}, must-revalidate`,
+        'Cache-Control': refreshSites
+          ? 'public, max-age=0, must-revalidate'
+          : `public, max-age=0, s-maxage=${Math.max(0, Math.floor((value.expiresAt - now()) / 1_000))}, must-revalidate`,
       };
       const matches = request.headers
         .get('If-None-Match')

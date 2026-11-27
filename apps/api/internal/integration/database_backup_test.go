@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"heyblog-api/internal/features/databasebackup"
 	"heyblog-api/internal/features/siteaudit"
@@ -34,7 +35,11 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	if err := source.pool.QueryRow(t.Context(), `INSERT INTO identity.users(email,username,display_name,role) VALUES('source@example.test','source_admin','Source','SYS_ADMIN') RETURNING id::text`).Scan(&actor); err != nil {
 		t.Fatal(err)
 	}
-	siteID := insertSite(t.Context(), t, source.pool, "Backup123", "Backup site", "backup.example.test")
+	var siteID pgtype.UUID
+	if err := source.pool.QueryRow(t.Context(), `INSERT INTO directory.sites(short_id,name,normalized_host,revision)
+		VALUES('Backup123','Backup site','backup.example.test',9007199254740992) RETURNING id`).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
 	credential := seedDatabaseBackup(t, source, actor, siteID)
 	service := databasebackup.New(source.pool)
 	file, err := service.Export(t.Context())
@@ -59,8 +64,8 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !preview.CanRestore {
-		t.Fatalf("target rejected: %+v", preview.Issues)
+	if !preview.CanRestore || preview.SchemaVersion != 7 {
+		t.Fatalf("unexpected inspection: %+v", preview)
 	}
 	verifyBackupRestoreLocks(t, target, retained)
 	verifyBackupRestoreRollback(t, target, restore, file, retained, preview.SHA256)

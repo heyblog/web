@@ -406,6 +406,7 @@ func testSite(shortID string) dbgen.DirectorySite {
 	id := [16]byte{1}
 	copy(id[1:], shortID)
 	return dbgen.DirectorySite{
+		BlogStatus:     "BLOG",
 		ID:             pgtype.UUID{Bytes: id, Valid: true},
 		ShortID:        shortID,
 		Name:           "示例博客",

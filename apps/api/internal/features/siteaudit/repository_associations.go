@@ -14,8 +14,8 @@ import (
 
 func syncAssociations(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, snapshot Snapshot, reviewerID pgtype.UUID, createsProgramDependencies bool) error {
 	address := site.Address{Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath}
-	if err := queries.DeleteSiteFeeds(ctx, siteID); err != nil {
-		return fmt.Errorf("replace reviewed feeds: %w", err)
+	if err := queries.DeleteEnabledSiteFeeds(ctx, siteID); err != nil {
+		return fmt.Errorf("replace enabled feeds: %w", err)
 	}
 	for _, feed := range snapshot.Feeds {
 		location, err := site.NormalizeLocation(feed.URL, address, false)

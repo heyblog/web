@@ -1,7 +1,7 @@
 import type { SessionUser } from '../../api/auth/auth.types.ts';
 
 export function isAccountPage(path: string): boolean {
-  return /^\/(dashboard|management)(\/|$)/u.test(path);
+  return /^\/(dashboard|management|annotation)(\/|$)/u.test(path);
 }
 
 export function confirmationLocation(next: string): string {

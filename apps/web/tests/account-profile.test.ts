@@ -106,6 +106,10 @@ test('pending profiles return to the requested workspace after confirmation', ()
   const claimNext = encodeURIComponent(claimURL.pathname + claimURL.search);
   assert.equal(profileRedirect(claimURL, null), `/login?next=${claimNext}`);
   assert.equal(profileRedirect(claimURL, user), `/complete-profile?next=${claimNext}`);
+  const annotationURL = new URL('https://web.example.test/annotation/site123/history?page=2');
+  const annotationNext = encodeURIComponent(annotationURL.pathname + annotationURL.search);
+  assert.equal(profileRedirect(annotationURL, null), `/login?next=${annotationNext}`);
+  assert.equal(profileRedirect(annotationURL, user), `/complete-profile?next=${annotationNext}`);
 });
 
 test('session parser preserves account policy and rejects unusable quota responses', () => {

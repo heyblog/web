@@ -81,10 +81,11 @@ test('cursor reads validate IDs, forward only the service token, and reject malf
   }
 });
 
-test('public snapshot coalesces callers, has a fixed expiry, and revalidates ETags without partial fallback', async () => {
+test('public snapshots coalesce callers and recheck site eligibility before revalidating ETags', async () => {
   let clock = 0;
   let reads = 0;
   let failed = false;
+  let blogExists = true;
   const serve = createSitemapService({
     now: () => clock,
     loadStatic: async () => [{ path: '/' }],
@@ -92,7 +93,9 @@ test('public snapshot coalesces callers, has a fixed expiry, and revalidates ETa
       reads++;
       if (failed) throw new SitemapUnavailableError();
       return kind === 'sites'
-        ? [site(1)]
+        ? blogExists
+          ? [site(1)]
+          : []
         : [
             {
               id: uuid(2),
@@ -117,11 +120,19 @@ test('public snapshot coalesces callers, has a fixed expiry, and revalidates ETa
   );
   assert.equal(cached.status, 304);
   assert.equal(await cached.text(), '');
-  assert.match(cached.headers.get('Cache-Control') ?? '', /s-maxage=1,/);
+  assert.equal(cached.headers.get('Cache-Control'), 'public, max-age=0, must-revalidate');
+  blogExists = false;
+  const formerSiteMap = await serve(
+    '/sitemap-sites-1.xml',
+    request('/sitemap-sites-1.xml', {
+      'If-None-Match': sites.headers.get('ETag') ?? '',
+    }),
+  );
+  assert.equal(formerSiteMap.status, 200);
+  assert.doesNotMatch(await formerSiteMap.text(), /\/site\//);
   const announcement = await serve('/sitemap-announcements-1.xml', request());
   assert.match(await announcement.text(), /<lastmod>2026-10-02T00:00:00.000Z<\/lastmod>/);
   assert.equal((await serve('/sitemap-sites-2.xml', request())).status, 404);
-  clock = 60_000;
   failed = true;
   const unavailable = await serve('/sitemap.xml', request());
   assert.equal(unavailable.status, 503);

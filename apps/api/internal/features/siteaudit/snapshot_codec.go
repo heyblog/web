@@ -27,7 +27,24 @@ func optionalSnapshotJSON(action Action, snapshot Snapshot) ([]byte, error) {
 	if action == ActionCreate {
 		return nil, nil
 	}
-	return encodeSnapshot(snapshot)
+	return json.Marshal(submissionBase{Snapshot: snapshot, Resubmission: snapshot.resubmission})
+}
+
+type submissionBase struct {
+	Snapshot
+	Resubmission bool `json:"resubmission,omitempty"`
+}
+
+func decodeSubmissionBase(data []byte) (Snapshot, error) {
+	if len(data) == 0 {
+		return Snapshot{}, nil
+	}
+	var stored submissionBase
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return Snapshot{}, err
+	}
+	stored.resubmission = stored.Resubmission
+	return stored.Snapshot, nil
 }
 
 func baseRevisionPointer(action Action, snapshot Snapshot) *int64 {

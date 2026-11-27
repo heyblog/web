@@ -2,6 +2,7 @@ const privatePrefixes = [
   '/auth',
   '/dashboard',
   '/management',
+  '/annotation',
   '/api/web/auth',
   '/api',
   '/_server-islands',

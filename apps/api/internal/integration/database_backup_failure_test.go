@@ -33,6 +33,9 @@ func verifyBackupRestoreLocks(t *testing.T, target auditMigrationFixture, actor 
 	if _, err := target.pool.Exec(ctx, `SELECT set_config('heyblog.database_restore',txid_current()::text,true); SELECT directory.backup_restore_row('identity.users','{}',uuidv7(),uuidv7())`); err == nil {
 		t.Fatal("runtime forged restore authority")
 	}
+	if _, err := target.pool.Exec(ctx, "SELECT directory.backup_restore_finish(6)"); err == nil {
+		t.Fatal("legacy restore finished outside the protected transaction")
+	}
 	tx, err := target.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +60,7 @@ func verifyBackupRestoreLocks(t *testing.T, target auditMigrationFixture, actor 
 		WHERE u.id=$1`, actor).Scan(&retained); err != nil || retained != actor {
 		t.Fatalf("session identity read during restore = %q, %v", retained, err)
 	}
-	for _, table := range []string{"identity.users", "identity.oauth_identities", "identity.user_management_permissions"} {
+	for _, table := range []string{"identity.users", "identity.oauth_identities", "identity.user_management_permissions", "directory.site_annotation_history"} {
 		writer, err := target.pool.Begin(ctx)
 		if err != nil {
 			t.Fatal(err)

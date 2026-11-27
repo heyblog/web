@@ -1,7 +1,7 @@
 -- name: ListSitemapSites :many
 SELECT id, short_id
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
    AND (sqlc.narg(after_id)::uuid IS NULL OR id > sqlc.narg(after_id)::uuid)
  ORDER BY id ASC
  LIMIT 1001;

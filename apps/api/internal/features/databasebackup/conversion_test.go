@@ -2,6 +2,7 @@ package databasebackup
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -64,5 +65,13 @@ func TestRestoredEvidenceNeverRetainsSourceObjectAuthority(t *testing.T) {
 		if string(row["status"]) != `"DELETED"` || string(row["storage_key"]) != `""` || string(row["storage_identity"]) != `""` || string(row["filename"]) != `"proof.pdf"` {
 			t.Fatalf("source authority retained: %s", raw)
 		}
+	}
+}
+
+func TestLegacySiteConversionRejectsExplicitClassification(t *testing.T) {
+	doc := document{header: Header{SchemaVersion: 6}}
+	_, err := doc.convertRow("directory.sites", json.RawMessage(`{"blog_status":"NON_BLOG"}`))
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("legacy site accepted a classification: %v", err)
 	}
 }

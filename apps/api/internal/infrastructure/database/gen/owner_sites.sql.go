@@ -101,8 +101,8 @@ func (q *Queries) GetAccountFriendRequestAudit(ctx context.Context, arg GetAccou
 }
 
 const getAccountSite = `-- name: GetAccountSite :one
-SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
-WHERE s.short_id = $1 AND o.user_id = $2
+SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id, s.blog_status FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
+WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2
 `
 
 type GetAccountSiteParams struct {
@@ -129,13 +129,14 @@ func (q *Queries) GetAccountSite(ctx context.Context, arg GetAccountSiteParams) 
 		&i.JoinedAt,
 		&i.UpdatedAt,
 		&i.TagCascadeID,
+		&i.BlogStatus,
 	)
 	return i, err
 }
 
 const getCurrentSiteOwner = `-- name: GetCurrentSiteOwner :one
 SELECT o.id, o.site_id, o.user_id, o.address, o.verified_claim_id, o.revision, o.created_at, o.updated_at FROM directory.site_ownerships o JOIN directory.sites s ON s.id = o.site_id
-WHERE s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
+WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
 AND o.address = s.scheme || '://' || s.normalized_host || s.base_path
 `
 
@@ -263,8 +264,8 @@ func (q *Queries) ListAccountAudits(ctx context.Context, arg ListAccountAuditsPa
 }
 
 const listAccountSites = `-- name: ListAccountSites :many
-SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
-WHERE o.user_id = $1 ORDER BY s.name, s.id
+SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id, s.blog_status FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
+WHERE s.blog_status = 'BLOG' AND o.user_id = $1 ORDER BY s.name, s.id
 `
 
 func (q *Queries) ListAccountSites(ctx context.Context, userID pgtype.UUID) ([]DirectorySite, error) {
@@ -292,6 +293,7 @@ func (q *Queries) ListAccountSites(ctx context.Context, userID pgtype.UUID) ([]D
 			&i.JoinedAt,
 			&i.UpdatedAt,
 			&i.TagCascadeID,
+			&i.BlogStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -424,7 +426,7 @@ func (q *Queries) ListOwnerFriendRequests(ctx context.Context, arg ListOwnerFrie
 
 const lockCurrentSiteOwner = `-- name: LockCurrentSiteOwner :one
 SELECT o.id, o.site_id, o.user_id, o.address, o.verified_claim_id, o.revision, o.created_at, o.updated_at FROM directory.site_ownerships o JOIN directory.sites s ON s.id = o.site_id
-WHERE s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
+WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
 AND o.address = s.scheme || '://' || s.normalized_host || s.base_path
 FOR UPDATE OF s, o
 `

@@ -21,7 +21,7 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	t.Helper()
 	queries := dbgen.New(connection)
 	for index := range 26 {
-		insertSite(
+		insertBlogSite(
 			ctx,
 			t,
 			connection,
@@ -101,10 +101,10 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 	if err != nil {
 		t.Fatalf("create second directory tertiary tag: %v", err)
 	}
-	visibleBoth := insertSite(ctx, t, connection, "F00000001", "Role Fixture Visible Both", "role-visible-both.example.com")
-	visiblePartial := insertSite(ctx, t, connection, "F00000002", "Role Fixture Visible Partial", "role-visible-partial.example.com")
-	hiddenBoth := insertSite(ctx, t, connection, "F00000003", "Role Fixture Hidden Both", "role-hidden-both.example.com")
-	removedBoth := insertSite(ctx, t, connection, "F00000004", "Role Fixture Removed Both", "role-removed-both.example.com")
+	visibleBoth := insertBlogSite(ctx, t, connection, "F00000001", "Role Fixture Visible Both", "role-visible-both.example.com")
+	visiblePartial := insertBlogSite(ctx, t, connection, "F00000002", "Role Fixture Visible Partial", "role-visible-partial.example.com")
+	hiddenBoth := insertBlogSite(ctx, t, connection, "F00000003", "Role Fixture Hidden Both", "role-hidden-both.example.com")
+	removedBoth := insertBlogSite(ctx, t, connection, "F00000004", "Role Fixture Removed Both", "role-removed-both.example.com")
 	if _, err := connection.Exec(ctx, `UPDATE directory.sites SET visibility = 'HIDDEN', visibility_reason = 'fixture' WHERE id = $1`, hiddenBoth); err != nil {
 		t.Fatalf("hide directory role fixture: %v", err)
 	}
@@ -244,7 +244,7 @@ func verifySiteAuditReviewDraftQueries(ctx context.Context, t *testing.T, pool *
 func verifyDirectoryConstraints(ctx context.Context, t *testing.T, connection *pgxpool.Pool) {
 	t.Helper()
 
-	siteID := insertSite(ctx, t, connection, "0Aa1Bb2Cc", "Example Blog", "example.com")
+	siteID := insertBlogSite(ctx, t, connection, "0Aa1Bb2Cc", "Example Blog", "example.com")
 	if _, err := connection.Exec(ctx, `
 		INSERT INTO directory.site_feeds (
 			site_id, name, location_type, url_ref, url_key, is_default
@@ -253,7 +253,7 @@ func verifyDirectoryConstraints(ctx context.Context, t *testing.T, connection *p
 		t.Fatalf("insert default feed: %v", err)
 	}
 
-	feedlessSiteID := insertSite(ctx, t, connection, "1Aa2Bb3Cc", "Feed Constraint", "feed.example.com")
+	feedlessSiteID := insertBlogSite(ctx, t, connection, "1Aa2Bb3Cc", "Feed Constraint", "feed.example.com")
 	if _, err := connection.Exec(ctx, `
 		INSERT INTO directory.site_feeds (
 			site_id, name, location_type, url_ref, url_key, is_default
@@ -286,8 +286,8 @@ func verifyPublicViewQueries(ctx context.Context, t *testing.T, connection *pgxp
 	if err != nil {
 		t.Fatalf("count visible sites before fixture: %v", err)
 	}
-	visibleSiteID := insertSite(ctx, t, connection, "6Pv7Qw8Er", "Public Query", "public-query.example.com")
-	hiddenSiteID := insertSite(ctx, t, connection, "7Pv8Qw9Er", "Hidden Query", "hidden-query.example.com")
+	visibleSiteID := insertBlogSite(ctx, t, connection, "6Pv7Qw8Er", "Public Query", "public-query.example.com")
+	hiddenSiteID := insertBlogSite(ctx, t, connection, "7Pv8Qw9Er", "Hidden Query", "hidden-query.example.com")
 	if _, err := connection.Exec(ctx, `
 		UPDATE directory.sites
 		   SET visibility = 'HIDDEN', visibility_reason = 'integration fixture'
@@ -492,6 +492,19 @@ func insertSite(
 		RETURNING id
 	`, shortID, name, host).Scan(&siteID); err != nil {
 		t.Fatalf("insert site %q: %v", host, err)
+	}
+	return siteID
+}
+
+func insertBlogSite(ctx context.Context, t *testing.T, connection *pgxpool.Pool, shortID, name, host string) pgtype.UUID {
+	t.Helper()
+	var siteID pgtype.UUID
+	if err := connection.QueryRow(ctx, `
+  INSERT INTO directory.sites (short_id, name, normalized_host, blog_status)
+  VALUES ($1, $2, $3, 'BLOG')
+  RETURNING id
+ `, shortID, name, host).Scan(&siteID); err != nil {
+		t.Fatalf("insert blog fixture %q: %v", host, err)
 	}
 	return siteID
 }

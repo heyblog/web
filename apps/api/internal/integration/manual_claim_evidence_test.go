@@ -23,7 +23,7 @@ func TestManualClaimEvidenceLimitsAndLifecycle(t *testing.T) {
 	service := sitemanagement.NewService(repo, nil, claimsProofVerifier{})
 	user := auth.User{Role: auth.RoleUser}
 	require.NoError(t, fixture.pool.QueryRow(ctx, `INSERT INTO identity.users(email,username,display_name) VALUES ('manual@example.test','manual_user','Manual') RETURNING id::text`).Scan(&user.ID))
-	siteID := insertSite(ctx, t, fixture.pool, "Manual001", "Manual evidence", "manual-evidence.example.com")
+	siteID := insertBlogSite(ctx, t, fixture.pool, "Manual001", "Manual evidence", "manual-evidence.example.com")
 	target, err := repo.Site(ctx, "Manual001")
 	require.NoError(t, err)
 	ready := func(name string, size int64) sitemanagement.ClaimAttachment {
@@ -89,7 +89,7 @@ func TestManualClaimConcurrentAccountQuota(t *testing.T) {
 	require.NoError(t, fixture.pool.QueryRow(t.Context(), `INSERT INTO identity.users(email,username,display_name) VALUES ('quota@example.test','quota_user','Quota') RETURNING id::text`).Scan(&user.ID))
 	service := sitemanagement.NewService(sitemanagement.NewRepository(fixture.pool), nil, claimsProofVerifier{})
 	for i := 0; i < 6; i++ {
-		insertSite(t.Context(), t, fixture.pool, fmt.Sprintf("Quota%04d", i), "Quota", fmt.Sprintf("quota%d.example.com", i))
+		insertBlogSite(t.Context(), t, fixture.pool, fmt.Sprintf("Quota%04d", i), "Quota", fmt.Sprintf("quota%d.example.com", i))
 	}
 	results := make(chan error, 6)
 	var group sync.WaitGroup

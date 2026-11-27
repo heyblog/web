@@ -69,7 +69,7 @@ func TestTaxonomyManagement(t *testing.T) {
 		return ""
 	}
 	var siteID, articleID string
-	if err := f.pool.QueryRow(ctx, `INSERT INTO directory.sites(short_id,name,scheme,normalized_host,base_path,summary,tag_cascade_id) VALUES('Taxo12345','Taxonomy','https','taxonomy.example.test','/','',$1::uuid) RETURNING id::text`, path(child.ID, "SITE")).Scan(&siteID); err != nil {
+	if err := f.pool.QueryRow(ctx, `INSERT INTO directory.sites(short_id,name,scheme,normalized_host,base_path,summary,tag_cascade_id,blog_status) VALUES('Taxo12345','Taxonomy','https','taxonomy.example.test','/','',$1::uuid,'BLOG') RETURNING id::text`, path(child.ID, "SITE")).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.pool.QueryRow(ctx, `INSERT INTO content.articles(site_id,location_type,url_ref,url_key,tag_cascade_id) VALUES($1::uuid,'RELATIVE','/article','/article',$2::uuid) RETURNING id::text`, siteID, path(child.ID, "ARTICLE")).Scan(&articleID); err != nil {

@@ -1,0 +1,64 @@
+---
+import { readAnnotation } from '@/api/site-annotation/annotation.server';
+import { isAnnotationID } from '@/api/site-annotation/annotation-contract';
+import {
+  parseAnnotationDetail,
+  parseAnnotationOptions,
+} from '@/api/site-annotation/annotation-responses';
+import {
+  canAnnotateSites,
+  canReviewSiteAudits,
+} from '@/application/site-annotation/annotation-access';
+import {
+  annotationDetailPath,
+  annotationFailure,
+  annotationListPath,
+} from '@/application/site-annotation/annotation-view';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import { linkClass } from '@/components/site-annotation/annotation.styles';
+import AnnotationEditor from '@/components/site-annotation/AnnotationEditor.svelte';
+import AnnotationLayout from '@/layouts/AnnotationLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = Astro.locals.sessionUser;
+if (!actor) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
+if (!canAnnotateSites(actor)) return Astro.redirect('/forbidden');
+const { shortId } = Astro.params;
+if (!isAnnotationID(shortId) || shortId === 'options')
+  return new Response(null, { status: 404, headers: Astro.response.headers });
+const [detailResult, optionsResult] = await Promise.all([
+  readAnnotation(Astro.request, shortId, parseAnnotationDetail),
+  readAnnotation(Astro.request, 'options', parseAnnotationOptions),
+]);
+for (const result of [detailResult, optionsResult]) {
+  for (const cookie of result.headers.getSetCookie())
+    Astro.response.headers.append('Set-Cookie', cookie);
+}
+const detail = detailResult.data?.short_id === shortId ? detailResult.data : null;
+const detailStatus = detailResult.data && !detail ? 502 : detailResult.status;
+if (!detail) Astro.response.status = detailStatus;
+---
+
+<AnnotationLayout {actor} heading="编辑站点标注">
+  <nav class="mb-4 flex flex-wrap gap-x-5" aria-label="站点标注">
+    <a class={linkClass} href={annotationListPath}>
+      返回标注台
+    </a>
+    {detail && (
+      <a class={linkClass} href={`${annotationDetailPath(shortId)}/history`}>
+        变更记录
+      </a>
+    )}
+  </nav>
+  {detail ? (
+    <AnnotationEditor
+      initial={detail}
+      options={optionsResult.data}
+      canReview={canReviewSiteAudits(actor)}
+      client:load
+    />
+  ) : (
+    <AuthNotice message={annotationFailure(detailStatus, 'load')} />
+  )}
+</AnnotationLayout>

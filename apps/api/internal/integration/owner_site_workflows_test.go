@@ -165,8 +165,8 @@ func newOwnerWorkflowFixture(ctx context.Context, t *testing.T, pool *pgxpool.Po
 	if err != nil {
 		t.Fatal(err)
 	}
-	siteID := insertSite(ctx, t, pool, "Owner0001", "Owner source", "owner-source.example.test")
-	insertSite(ctx, t, pool, "Friend001", "Registered friend", "owner-friend.example.test")
+	siteID := insertBlogSite(ctx, t, pool, "Owner0001", "Owner source", "owner-source.example.test")
+	insertBlogSite(ctx, t, pool, "Friend001", "Registered friend", "owner-friend.example.test")
 	if _, err := pool.Exec(ctx, `INSERT INTO directory.site_ownerships(site_id,user_id,address) VALUES($1,$2,'https://owner-source.example.test/')`, siteID, user.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func verifyOwnerFriendApproval(ctx context.Context, t *testing.T, pool *pgxpool.
 		t.Fatalf("shared target = %#v / %v", result, err)
 	}
 	t.Run("older pending friends survive a full page of finished history", func(t *testing.T) {
-		source := insertSite(ctx, t, pool, "OwnPage01", "Friend history source", "owner-history-page.example.test")
+		source := insertBlogSite(ctx, t, pool, "OwnPage01", "Friend history source", "owner-history-page.example.test")
 		var ownership string
 		require.NoError(t, pool.QueryRow(ctx, `INSERT INTO directory.site_ownerships(site_id,user_id,address) VALUES($1,$2::uuid,'https://owner-history-page.example.test/') RETURNING id::text`, source, fixture.user.ID).Scan(&ownership))
 		var pending string

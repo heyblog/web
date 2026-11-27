@@ -187,7 +187,7 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		_, rotated, err := service.OAuthUnbind(ctx, request(), auth.ProviderBlogsClub)
 		require.NoError(t, err)
 		fixture.access = rotated[0]
-		insertSite(ctx, t, fixture.pool, "OAuth0001", "OAuth Blog", "oauth-blog.example.test")
+		insertBlogSite(ctx, t, fixture.pool, "OAuth0001", "OAuth Blog", "oauth-blog.example.test")
 		actor, err := service.Current(ctx, request())
 		require.NoError(t, err)
 		created, err := claims.Create(ctx, actor, sitemanagement.SiteClaimCreateInput{ShortID: "OAuth0001", Method: sitemanagement.BlogsClub})

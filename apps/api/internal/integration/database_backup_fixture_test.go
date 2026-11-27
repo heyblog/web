@@ -16,6 +16,9 @@ import (
 func seedDatabaseBackup(t *testing.T, fixture auditMigrationFixture, actor string, siteID pgtype.UUID) apikey.Credential {
 	t.Helper()
 	ctx := t.Context()
+	if _, err := fixture.pool.Exec(ctx, "UPDATE directory.sites SET blog_status='BLOG' WHERE id=$1", siteID); err != nil {
+		t.Fatal(err)
+	}
 	queries := dbgen.New(fixture.pool)
 	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{PSourceSiteID: siteID, PTargetHost: "external.example.test", PTargetUrl: "https://external.example.test/", PStatus: "INACTIVE"}); err != nil {
 		t.Fatal(err)
@@ -47,7 +50,13 @@ func seedDatabaseBackup(t *testing.T, fixture auditMigrationFixture, actor strin
 		`INSERT INTO content.announcements(kind,title,status,starts_at,published_at,archived_at,created_by,updated_by,published_by,archived_by,row_version) VALUES('MAIN','Historical','ARCHIVED',now()-interval '2 days',now()-interval '2 days',now()-interval '1 day',$1,$1,$1,$1,9007199254740993)`,
 		`INSERT INTO content.announcement_revisions(announcement_id,revision,kind,title,priority,action_type,starts_at,published_at,published_by,changed_by) SELECT id,9007199254740992,kind,'Original',0,'NONE',starts_at,published_at,$1,$1 FROM content.announcements`,
 		`INSERT INTO directory.site_audits(lookup_secret_hash,action,status,site_id,base_revision,base_snapshot,proposed_snapshot,final_snapshot,request_reason,reviewed_by,reviewed_at) VALUES(decode(repeat('cd',32),'hex'),'UPDATE','APPROVED',$2,1,jsonb_build_object('tags',jsonb_build_array(jsonb_build_object('id','22222222-2222-4222-8222-222222222222','label_id','11111111-1111-4111-8111-111111111111','name','Historical computer','role','WARNING')),'confirmed_by',$1::text,'origins',jsonb_build_array(jsonb_build_object('metadata',jsonb_build_object('owner_id',$1::text)))),jsonb_build_object('tags',jsonb_build_array(jsonb_build_object('id','22222222-2222-4222-8222-222222222222','label_id','11111111-1111-4111-8111-111111111111','name','Historical computer','role','WARNING')),'confirmed_by',$1::text,'origins',jsonb_build_array(jsonb_build_object('metadata',jsonb_build_object('owner_id',$1::text)))),jsonb_build_object('tags',jsonb_build_array(jsonb_build_object('id','22222222-2222-4222-8222-222222222222','label_id','11111111-1111-4111-8111-111111111111','name','Historical computer','role','WARNING')),'confirmed_by',$1::text,'origins',jsonb_build_array(jsonb_build_object('metadata',jsonb_build_object('owner_id',$1::text)))),'Historical',$1,now())`,
-		`UPDATE directory.sites SET visibility='HIDDEN',visibility_reason='Historical',custom_id='backup-blog' WHERE id=$2`,
+		`UPDATE directory.sites SET visibility='HIDDEN',visibility_reason='Historical',custom_id='backup-blog',blog_status='NON_BLOG' WHERE id=$2`,
+		`INSERT INTO directory.site_annotation_history(site_id,actor_id,site_revision,source,site_audit_id,reason,before_snapshot,after_snapshot,created_at)
+SELECT $2,$1,9007199254740993,'AUDIT',id,'Historical classification','{"blog_status":"UNREVIEWED"}',
+       jsonb_build_object('blog_status','BLOG','confirmed_by',$1::text,'metadata',jsonb_build_object('actor_id',$1::text)),'2024-01-05'
+FROM directory.site_audits WHERE lookup_secret_hash=decode(repeat('cd',32),'hex')`,
+		`INSERT INTO directory.site_annotation_history(site_id,actor_id,site_revision,source,reason,before_snapshot,after_snapshot,created_at)
+VALUES($2,$1,9007199254740994,'ANNOTATION','Reviewed manually','{"blog_status":"BLOG"}','{"blog_status":"NON_BLOG"}','2024-01-06')`,
 		`UPDATE directory.tag_cascades SET is_enabled=false WHERE id=(SELECT tag_cascade_id FROM directory.sites WHERE id=$2)`,
 	}
 	for _, statement := range statements {

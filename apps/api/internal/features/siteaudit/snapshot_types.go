@@ -1,5 +1,7 @@
 package siteaudit
 
+import "heyblog-api/internal/domain/site"
+
 type FeedSnapshot struct {
 	ID        string `json:"id,omitempty"`
 	Name      string `json:"name"`
@@ -43,6 +45,9 @@ type ComponentSnapshot struct {
 }
 
 type Snapshot struct {
+	lastNonBlogRevision int64
+	resubmission        bool
+	BlogStatus          site.BlogStatus     `json:"-"`
 	SiteID              string              `json:"site_id,omitempty"`
 	Revision            int64               `json:"revision,omitempty"`
 	ShortID             string              `json:"short_id,omitempty"`

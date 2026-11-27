@@ -8,6 +8,7 @@ import (
 
 type Store interface {
 	SubmissionSite(context.Context, string) (Snapshot, error)
+	ResubmissionSite(context.Context, string) (Snapshot, error)
 	ResolveSite(context.Context, string) (Snapshot, error)
 	CreateSubmission(context.Context, submissionRecord) (string, error)
 	LookupAudit(context.Context, []byte) (Audit, error)

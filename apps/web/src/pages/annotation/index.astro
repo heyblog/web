@@ -1,0 +1,136 @@
+---
+import { readAnnotation } from '@/api/site-annotation/annotation.server';
+import { annotationFilters } from '@/api/site-annotation/annotation.types';
+import {
+  annotationQuery,
+  annotationSearchLimit,
+  annotationStatus,
+} from '@/api/site-annotation/annotation-contract';
+import { parseAnnotationPage } from '@/api/site-annotation/annotation-responses';
+import {
+  canAnnotateSites,
+  canReviewSiteAudits,
+} from '@/application/site-annotation/annotation-access';
+import {
+  annotationDetailPath,
+  annotationFailure,
+  annotationListPath,
+  annotationTime,
+  statusLabels,
+} from '@/application/site-annotation/annotation-view';
+import AuthNotice from '@/components/auth/AuthNotice.astro';
+import {
+  inputClass,
+  linkClass,
+  primaryClass,
+} from '@/components/site-annotation/annotation.styles';
+import PageNavigation from '@/components/site-management/PageNavigation.astro';
+import AnnotationLayout from '@/layouts/AnnotationLayout.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = Astro.locals.sessionUser;
+if (!actor)
+  return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
+if (!canAnnotateSites(actor)) return Astro.redirect('/forbidden');
+const canReview = canReviewSiteAudits(actor);
+const query = annotationQuery(Astro.url.searchParams, 'list');
+const status = annotationStatus(query.get('status'));
+const q = query.get('q') ?? '';
+const {
+  data,
+  status: responseStatus,
+  headers,
+} = await readAnnotation(Astro.request, '', parseAnnotationPage);
+for (const cookie of headers.getSetCookie()) Astro.response.headers.append('Set-Cookie', cookie);
+if (!data) Astro.response.status = responseStatus;
+---
+
+<AnnotationLayout {actor} heading="标注台">
+  <form method="get" action={annotationListPath} class="mb-6 flex flex-wrap items-end gap-3">
+    <label class="grid w-full min-w-0 gap-1.5 text-sm font-medium sm:flex-1">
+      搜索站点
+      <input
+        class={inputClass}
+        type="search"
+        name="q"
+        value={q}
+        maxlength={annotationSearchLimit}
+        placeholder="站点名称、网址或短 ID"
+      />
+    </label>
+    <label class="grid flex-1 gap-1.5 text-sm font-medium sm:flex-none">
+      标注状态
+      <select class={inputClass} name="status">
+        {annotationFilters.map((value) => (
+          <option value={value} selected={status === value}>
+            {statusLabels[value]}
+          </option>
+        ))}
+      </select>
+    </label>
+    <button class={primaryClass} type="submit">
+      筛选
+    </button>
+  </form>
+  {data ? (
+    <>
+      <p class="mb-3 text-sm text-fg-muted">共 {data.total} 个站点</p>
+      {data.items.length ? (
+        <ul class="divide-y divide-line rounded-md border border-line bg-surface">
+          {data.items.map((site) => (
+            <li class="grid min-w-0 gap-x-6 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div class="min-w-0">
+                <a class={`${linkClass} wrap-anywhere`} href={annotationDetailPath(site.short_id)}>
+                  {site.name || site.short_id}
+                </a>
+                <p class="text-sm wrap-anywhere text-fg-muted">{site.url}</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span
+                  class:list={[
+                    'rounded-sm px-2 py-0.5 text-xs font-medium',
+                    site.blog_status === 'BLOG'
+                      ? 'bg-success-bg text-success-fg'
+                      : site.blog_status === 'UNREVIEWED'
+                        ? 'bg-warning-bg text-warning-fg'
+                        : 'bg-subtle text-fg-muted',
+                  ]}
+                >
+                  {statusLabels[site.blog_status]}
+                </span>
+                <time class="text-fg-muted" datetime={site.updated_at}>
+                  {annotationTime(site.updated_at)}
+                </time>
+                {site.pending_audit_id &&
+                  (canReview ? (
+                    <a
+                      class={linkClass}
+                      href={`/management/site-submissions/${site.pending_audit_id}`}
+                    >
+                      有待审核申请
+                    </a>
+                  ) : (
+                    <span class="text-warning-fg">有待审核申请</span>
+                  ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="rounded-md border border-dashed border-line px-4 py-10 text-center text-sm text-fg-muted">
+          没有符合条件的站点。
+        </p>
+      )}
+      {(data.page > 1 || data.total > data.page_size) && (
+        <PageNavigation
+          page={data.page}
+          hasNext={data.page * data.page_size < data.total}
+          {query}
+        />
+      )}
+    </>
+  ) : (
+    <AuthNotice message={annotationFailure(responseStatus, 'load')} />
+  )}
+</AnnotationLayout>

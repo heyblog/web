@@ -30,7 +30,7 @@ func verifySiteClaimRecovery(ctx context.Context, t *testing.T, pool *pgxpool.Po
 	repository := sitemanagement.NewRepository(pool)
 	service := sitemanagement.NewService(repository, nil, claimsProofVerifier{})
 	t.Run("duplicate and expired proof recovery retain one application and reject stale network success", func(t *testing.T) {
-		siteID := insertSite(ctx, t, pool, "Claim0004", "Proof recovery", "claim-recovery.example.com")
+		siteID := insertBlogSite(ctx, t, pool, "Claim0004", "Proof recovery", "claim-recovery.example.com")
 		input := sitemanagement.SiteClaimCreateInput{ShortID: "Claim0004", Method: sitemanagement.File}
 		first, err := service.Create(ctx, users[0], input)
 		require.NoError(t, err)
@@ -101,7 +101,7 @@ func verifySiteClaimRecovery(ctx context.Context, t *testing.T, pool *pgxpool.Po
 		require.True(t, detail.CanVerifyAddress)
 	})
 	t.Run("revocation cancels an older manual application before it can restore ownership", func(t *testing.T) {
-		insertSite(ctx, t, pool, "Claim0005", "Revocation recovery", "claim-revocation.example.com")
+		insertBlogSite(ctx, t, pool, "Claim0005", "Revocation recovery", "claim-revocation.example.com")
 		pending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0005", Method: sitemanagement.Manual, Evidence: "Author ownership statement", EvidenceURL: "https://claim-recovery.example/about"})
 		require.NoError(t, err)
 		proof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0005", Method: sitemanagement.File})

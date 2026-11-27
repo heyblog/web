@@ -91,14 +91,14 @@ BEGIN
     ON CONFLICT (normalized_name) DO NOTHING;
 
     INSERT INTO directory.sites (id, short_id, custom_id, name, normalized_host, base_path,
-        summary, access_scope, visibility, visibility_reason, joined_at, updated_at, tag_cascade_id)
+        summary, access_scope, visibility, visibility_reason, joined_at, updated_at, tag_cascade_id, blog_status)
     SELECT demo.id, 'Demo' || lpad(n::text, 5, '0'), 'demo-' || lpad(n::text, 2, '0'),
            demo.name, host, base_path, summary,
            CASE WHEN n % 9 = 0 THEN 'CN_ONLY' WHEN n % 11 = 0 THEN 'GLOBAL_ONLY' ELSE 'ALL' END,
            CASE WHEN n <= 32 THEN 'VISIBLE' WHEN n <= 34 THEN 'HIDDEN' ELSE 'REMOVED' END,
            CASE WHEN n BETWEEN 33 AND 34 THEN '演示：站点维护中'
                 WHEN n >= 35 THEN '演示：站点已停止运营' END,
-           now() - n * interval '7 days', now() - n * interval '1 day', cascade.id
+           now() - n * interval '7 days', now() - n * interval '1 day', cascade.id, 'BLOG'
       FROM heyblog_demo_sites AS demo
       JOIN directory.tag_cascades AS cascade ON cascade.scope = 'SITE'
        AND cascade.taxonomy_key = demo.taxonomy_key ORDER BY n;

@@ -211,6 +211,7 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 	if err := siteaudit.RegisterRoutes(router.API, auditService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err
 	}
+	siteaudit.RegisterAnnotationRoutes(router.API, siteaudit.NewRepository(dependencies.DatabasePool()), authService, options.WebToken)
 	siteaudit.RegisterAccountRoutes(router.API, siteaudit.NewAccountService(siteaudit.NewRepository(dependencies.DatabasePool()), auditService), options.WebToken, dependencies.RedisClient())
 	claimRepository := sitemanagement.NewRepository(dependencies.DatabasePool())
 	attachmentManager := attachmentManagerFromDependencies(dependencies)

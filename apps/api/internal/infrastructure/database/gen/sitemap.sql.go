@@ -56,7 +56,7 @@ func (q *Queries) ListSitemapAnnouncements(ctx context.Context, afterID pgtype.U
 const listSitemapSites = `-- name: ListSitemapSites :many
 SELECT id, short_id
   FROM directory.sites
- WHERE visibility = 'VISIBLE'
+ WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
    AND ($1::uuid IS NULL OR id > $1::uuid)
  ORDER BY id ASC
  LIMIT 1001

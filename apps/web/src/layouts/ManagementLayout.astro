@@ -1,6 +1,6 @@
 ---
 import WorkspaceLayout, { type Props as WorkspaceProps } from './WorkspaceLayout.astro';
-type Props = Omit<WorkspaceProps, 'workspace' | 'canManage'>;
+type Props = Omit<WorkspaceProps, 'workspace'>;
 const { navigation, ...props } = Astro.props;
 ---
 

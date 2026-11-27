@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"heyblog-api/internal/domain/site"
+
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
@@ -103,6 +105,9 @@ func (repository *Repository) setAccountFriend(ctx context.Context, user string,
 	if err != nil {
 		return err
 	}
+	if site.BlogStatus(target.BlogStatus) != site.BlogConfirmed {
+		return newServiceError("site_not_found", http.StatusNotFound, "the friend site was not found")
+	}
 	if active && target.Visibility == "REMOVED" {
 		return newServiceError("site_removed", http.StatusConflict, "a removed site cannot be added as a friend")
 	}
@@ -175,6 +180,13 @@ func (repository *Repository) removeAccountFriend(ctx context.Context, user, sho
 		return newServiceError("site_ownership_required", http.StatusForbidden, "active site ownership is required")
 	}
 	if err != nil {
+		return err
+	}
+	target, err := queries.GetSiteByHost(ctx, targetHost)
+	if err == nil && site.BlogStatus(target.BlogStatus) != site.BlogConfirmed {
+		return newServiceError("friend_link_not_found", http.StatusNotFound, "the active friend link was not found")
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
 	removed, err := queries.RemoveOwnerFriendLink(ctx, dbgen.RemoveOwnerFriendLinkParams{PSourceSiteID: owner.SiteID, PTargetHost: targetHost})

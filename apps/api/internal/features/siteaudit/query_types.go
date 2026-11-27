@@ -1,6 +1,10 @@
 package siteaudit
 
-import "time"
+import (
+	"time"
+
+	"heyblog-api/internal/domain/site"
+)
 
 type PublicAuditResult struct {
 	Action          Action     `json:"action"`
@@ -105,10 +109,11 @@ type ProgramDependencyOption struct {
 }
 
 type SiteSearchResult struct {
-	ShortID    string `json:"short_id"`
-	Name       string `json:"name"`
-	URL        string `json:"url"`
-	Visibility string `json:"visibility"`
+	BlogStatus site.BlogStatus `json:"-"`
+	ShortID    string          `json:"short_id"`
+	Name       string          `json:"name"`
+	URL        string          `json:"url"`
+	Visibility string          `json:"visibility"`
 }
 
 type SiteAvailability struct {

@@ -18,7 +18,7 @@ func verifySiteAuditShortIDMaintenance(ctx context.Context, t *testing.T, pool *
 
 	const shortID = "8Qa9Rb0Sc"
 	const customID = "maintenance-alias"
-	siteID := insertSite(ctx, t, pool, shortID, "Maintenance Target", "maintenance.example.com")
+	siteID := insertBlogSite(ctx, t, pool, shortID, "Maintenance Target", "maintenance.example.com")
 	if _, err := pool.Exec(ctx, `UPDATE directory.sites SET custom_id = $2 WHERE id = $1`, siteID, customID); err != nil {
 		t.Fatalf("set maintenance site custom ID: %v", err)
 	}

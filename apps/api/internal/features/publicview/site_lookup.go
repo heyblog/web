@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"heyblog-api/internal/domain/site"
@@ -53,14 +54,14 @@ func siteRowByIdentifier(ctx context.Context, queries IdentifierQueries, identif
 	default:
 		return dbgen.DirectorySite{}, badIdentifier("identifier")
 	}
-	return row, err
+	return publicBlog(row, err)
 }
 
 func (service *Service) SiteByCustomID(ctx context.Context, customID string) (SiteProfile, error) {
 	if err := site.ValidateCustomID(customID); err != nil {
 		return SiteProfile{}, badIdentifier("customId")
 	}
-	row, err := service.lookup.GetSiteByCustomID(ctx, &customID)
+	row, err := publicBlog(service.lookup.GetSiteByCustomID(ctx, &customID))
 	return service.displayProfile(ctx, profileLookup{row: row, err: err})
 }
 
@@ -77,4 +78,11 @@ func (service *Service) displayProfile(ctx context.Context, lookup profileLookup
 		profile.Metrics = service.metrics.RecordResponse(ctx, ids)[profile.ShortID]
 	}
 	return profile, nil
+}
+
+func publicBlog(row dbgen.DirectorySite, err error) (dbgen.DirectorySite, error) {
+	if err == nil && site.BlogStatus(row.BlogStatus) != site.BlogConfirmed {
+		return dbgen.DirectorySite{}, pgx.ErrNoRows
+	}
+	return row, err
 }

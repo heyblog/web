@@ -64,7 +64,7 @@ func TestTaxonomyCatalogCacheTracksCommittedInputs(t *testing.T) {
 		t.Fatal("committed change left stale catalog")
 	}
 	// Object insertion changes usage as well as the optimistic mutation revision.
-	insertSite(ctx, t, f.pool, "CacHe1234", "Catalog cache", "catalog-cache.example.test")
+	insertBlogSite(ctx, t, f.pool, "CacHe1234", "Catalog cache", "catalog-cache.example.test")
 	withSite := read()
 	if withSite.Revision == after.Revision {
 		t.Fatal("site insertion left stale revision")
@@ -116,7 +116,7 @@ func TestDirectoryOptionsCacheTracksClassificationNamesAndCounts(t *testing.T) {
 	if !found {
 		t.Fatal("committed classification name not returned")
 	}
-	insertSite(ctx, t, f.pool, "OpTio1234", "Directory options", "directory-options.example.test")
+	insertBlogSite(ctx, t, f.pool, "OpTio1234", "Directory options", "directory-options.example.test")
 	if _, err := f.pool.Exec(ctx, `UPDATE directory.sites SET tag_cascade_id=(
 	 SELECT id FROM directory.tag_cascades WHERE level1_tag_id=$1::uuid AND scope='SITE' LIMIT 1
 	) WHERE short_id='OpTio1234'`, classification.ID); err != nil {

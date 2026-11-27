@@ -31,6 +31,18 @@ func (doc *document) prepareConversion(ctx context.Context, file *os.File) error
 }
 
 func (doc document) convertRow(name string, raw json.RawMessage) (json.RawMessage, error) {
+	if doc.header.SchemaVersion < schemaVersion && name == "directory.sites" {
+		var row map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &row); err != nil || row == nil {
+			return nil, ErrInvalid
+		}
+		if _, exists := row["blog_status"]; exists {
+			return nil, ErrInvalid
+		}
+		// The database derives the final state after the historical audits are restored.
+		row["blog_status"] = json.RawMessage(`"UNREVIEWED"`)
+		return json.Marshal(row)
+	}
 	if doc.header.SchemaVersion < 6 && name == "directory.site_claims" {
 		var row map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &row); err != nil {

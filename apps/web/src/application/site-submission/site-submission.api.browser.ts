@@ -31,6 +31,8 @@ const problemMessages: Readonly<Record<string, string>> = {
   site_already_removed: '该站点已处于删除状态。',
   site_not_removed: '该站点当前无需恢复。',
   audit_already_reviewed: '该申请已处理，请刷新页面。',
+  site_classified_after_submission: '提交后，该站点已被标注为非博客。请拒绝本次申请。',
+  site_not_blog: '该站点当前未被确认为博客。',
   site_revision_changed: '站点数据已变化，请刷新后重新审核。',
   audit_conflicts_unresolved: '站点数据已变化，请刷新后重新审核。',
   taxonomy_permission_required: '当前账号无权新建分类或技术条目。',

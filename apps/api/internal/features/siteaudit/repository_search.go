@@ -47,5 +47,5 @@ func siteSearchResult(row dbgen.DirectorySite) (SiteSearchResult, error) {
 	if err != nil {
 		return SiteSearchResult{}, fmt.Errorf("map searched site address: %w", err)
 	}
-	return SiteSearchResult{ShortID: row.ShortID, Name: row.Name, URL: urlValue, Visibility: row.Visibility}, nil
+	return SiteSearchResult{BlogStatus: site.BlogStatus(row.BlogStatus), ShortID: row.ShortID, Name: row.Name, URL: urlValue, Visibility: row.Visibility}, nil
 }

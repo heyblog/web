@@ -44,7 +44,7 @@ func verifyRandomClassificationSelection(ctx context.Context, t *testing.T, pool
 		t.Fatal(err)
 	}
 	var siteID pgtype.UUID
-	if err := tx.QueryRow(ctx, `INSERT INTO directory.sites (short_id, name, normalized_host, tag_cascade_id) VALUES ('Rnd000001', 'Random Fixture', 'random-fixture.example.com', $1) RETURNING id`, pair[0].ID).Scan(&siteID); err != nil {
+	if err := tx.QueryRow(ctx, `INSERT INTO directory.sites (short_id, name, normalized_host, tag_cascade_id, blog_status) VALUES ('Rnd000001', 'Random Fixture', 'random-fixture.example.com', $1, 'BLOG') RETURNING id`, pair[0].ID).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}
 	for _, cascade := range pair {

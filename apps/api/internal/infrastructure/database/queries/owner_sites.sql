@@ -1,15 +1,15 @@
 -- name: ListAccountSites :many
 SELECT s.* FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
-WHERE o.user_id = $1 ORDER BY s.name, s.id;
+WHERE s.blog_status = 'BLOG' AND o.user_id = $1 ORDER BY s.name, s.id;
 
 -- name: GetCurrentSiteOwner :one
 SELECT o.* FROM directory.site_ownerships o JOIN directory.sites s ON s.id = o.site_id
-WHERE s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
+WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
 AND o.address = s.scheme || '://' || s.normalized_host || s.base_path;
 
 -- name: LockCurrentSiteOwner :one
 SELECT o.* FROM directory.site_ownerships o JOIN directory.sites s ON s.id = o.site_id
-WHERE s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
+WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2 AND s.visibility <> 'REMOVED'
 AND o.address = s.scheme || '://' || s.normalized_host || s.base_path
 FOR UPDATE OF s, o;
 
@@ -42,7 +42,7 @@ FROM directory.list_owner_friend_links($1, true) l LEFT JOIN directory.sites s O
 
 -- name: GetAccountSite :one
 SELECT s.* FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
-WHERE s.short_id = $1 AND o.user_id = $2;
+WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2;
 
 -- name: LockFriendEndpointSites :many
 SELECT s.id FROM directory.sites s WHERE s.short_id IN (sqlc.arg(source_short_id), sqlc.arg(target_short_id))

@@ -19,7 +19,7 @@ SELECT site.short_id,
        coalesce(metric.query_count, 0)::bigint AS query_count
   FROM directory.sites AS site
   LEFT JOIN directory.site_metrics AS metric ON metric.site_id = site.id
- WHERE site.short_id = ANY($1::text[])
+ WHERE site.blog_status = 'BLOG' AND site.short_id = ANY($1::text[])
 `
 
 type GetSiteMetricsRow struct {
@@ -58,7 +58,7 @@ func (q *Queries) GetSiteMetrics(ctx context.Context, shortIds []string) ([]GetS
 
 const getSiteOutboundTarget = `-- name: GetSiteOutboundTarget :one
 SELECT scheme, normalized_host, base_path FROM directory.sites
- WHERE short_id = $1 AND visibility IN ('VISIBLE', 'HIDDEN')
+ WHERE short_id = $1 AND blog_status = 'BLOG' AND visibility IN ('VISIBLE', 'HIDDEN')
 `
 
 type GetSiteOutboundTargetRow struct {
@@ -79,7 +79,7 @@ INSERT INTO directory.site_metrics (site_id, query_count, response_count)
 SELECT site.id, event.increment, event.increment
   FROM (SELECT unnest($1::text[]) AS short_id,
                unnest($2::bigint[]) AS increment) AS event
-  JOIN directory.sites AS site ON site.short_id = event.short_id
+  JOIN directory.sites AS site ON site.short_id = event.short_id AND site.blog_status = 'BLOG'
  ORDER BY site.id
 ON CONFLICT (site_id) DO UPDATE SET
     query_count = directory.site_metrics.query_count + EXCLUDED.query_count,
@@ -100,7 +100,7 @@ const incrementSiteDisplayMetrics = `-- name: IncrementSiteDisplayMetrics :exec
 INSERT INTO directory.site_metrics (site_id, query_count, response_count)
 SELECT site.id, $1::bigint, $2::bigint
   FROM directory.sites AS site
- WHERE site.short_id = ANY($3::text[])
+ WHERE site.blog_status = 'BLOG' AND site.short_id = ANY($3::text[])
  ORDER BY site.id
 ON CONFLICT (site_id) DO UPDATE SET
     query_count = directory.site_metrics.query_count + EXCLUDED.query_count,
@@ -124,7 +124,7 @@ WITH accepted AS (
     SELECT event.event_id, site.id, $1::text
       FROM (SELECT unnest($2::uuid[]) AS event_id,
                    unnest($3::text[]) AS short_id) AS event
-      JOIN directory.sites AS site ON site.short_id = event.short_id
+      JOIN directory.sites AS site ON site.short_id = event.short_id AND site.blog_status = 'BLOG'
      WHERE site.visibility IN ('VISIBLE', 'HIDDEN')
      ORDER BY site.id, event.event_id
     ON CONFLICT DO NOTHING
@@ -153,7 +153,7 @@ const recordSiteResponseMetrics = `-- name: RecordSiteResponseMetrics :many
 WITH recorded AS (
     INSERT INTO directory.site_metrics (site_id, response_count)
     SELECT site.id, 1 FROM directory.sites AS site
-     WHERE site.short_id = ANY($1::text[])
+     WHERE site.blog_status = 'BLOG' AND site.short_id = ANY($1::text[])
      ORDER BY site.id
     ON CONFLICT (site_id) DO UPDATE SET
         response_count = directory.site_metrics.response_count + 1

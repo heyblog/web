@@ -1,6 +1,5 @@
 ---
 import type { SessionUser } from '@/api/auth/auth.types';
-import { managementNavigation } from '@/application/management/navigation';
 
 import WorkspaceLayout from './WorkspaceLayout.astro';
 
@@ -26,7 +25,6 @@ const navigation = [
   {currentPath}
   eyebrow="个人工作区"
   workspace="personal"
-  canManage={managementNavigation(user).length > 0}
   identity={{ displayName: user.display_name, email: user.email ?? '', roleLabel: user.role }}
   {navigation}
 >

@@ -5,6 +5,12 @@ VALUES (sqlc.arg(site_id)::uuid,sqlc.arg(user_id)::uuid,sqlc.arg(address),sqlc.a
 UPDATE directory.site_claim_attachments SET storage_key=sqlc.arg(storage_key) WHERE id=sqlc.arg(id)::uuid;
 -- name: GetSiteClaimAttachment :one
 SELECT id::text, coalesce(claim_id::text, '')::text AS claim_id, site_id::text, coalesce(user_id::text, '')::text AS user_id, address, filename, content_type, size, sha256, status, storage_key, storage_identity, created_at FROM directory.site_claim_attachments WHERE id=$1::uuid;
+-- name: IsBlogClaimAttachment :one
+SELECT EXISTS (
+ SELECT 1 FROM directory.site_claim_attachments a
+ JOIN directory.sites s ON s.id=a.site_id AND s.blog_status='BLOG'
+ WHERE a.id=$1::uuid
+);
 -- name: LockSiteClaimAttachment :one
 SELECT id::text, coalesce(claim_id::text, '')::text AS claim_id, site_id::text, coalesce(user_id::text, '')::text AS user_id, address, filename, content_type, size, sha256, status, storage_key, storage_identity, created_at FROM directory.site_claim_attachments WHERE id=$1::uuid FOR UPDATE;
 -- name: CompleteSiteClaimAttachment :execrows

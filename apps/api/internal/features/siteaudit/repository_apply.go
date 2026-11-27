@@ -41,7 +41,7 @@ func (transaction *auditTransaction) applySnapshot(
 		row, err = queries.ApplySiteSnapshot(ctx, dbgen.ApplySiteSnapshotParams{
 			ID: siteID, Name: final.Name, Scheme: final.Scheme, NormalizedHost: final.NormalizedHost,
 			BasePath: final.BasePath, Summary: final.Summary, AccessScope: final.AccessScope,
-			Visibility: final.Visibility, VisibilityReason: stringPointer(final.VisibilityReason), TagCascadeID: cascadeID, Revision: current.Revision,
+			Visibility: final.Visibility, VisibilityReason: stringPointer(final.VisibilityReason), TagCascadeID: cascadeID, Revision: current.Revision, ApproveBlog: action == ActionUpdate,
 		})
 	}
 	if err != nil {
@@ -61,6 +61,14 @@ func (transaction *auditTransaction) applySnapshot(
 	}
 	if action == ActionCreate && transaction.locked.SourceChannel == "ANONYMOUS" {
 		if err := addSubmissionOrigin(ctx, queries, siteID); err != nil {
+			return pgtype.UUID{}, 0, err
+		}
+	}
+	if (action == ActionCreate || action == ActionUpdate) && current.BlogStatus != site.BlogConfirmed {
+		if err := recordAuditBlogClassification(ctx, queries, blogClassificationChange{
+			SiteID: siteID, ReviewerID: reviewerID, AuditID: transaction.locked.ID,
+			Revision: row.Revision, Previous: current.BlogStatus,
+		}); err != nil {
 			return pgtype.UUID{}, 0, err
 		}
 	}

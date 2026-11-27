@@ -113,7 +113,7 @@ func verifyFriendLinkGraph(
 	t.Helper()
 	queries := dbgen.New(connection)
 
-	sourceID := insertSite(ctx, t, connection, "4Aa5Bb6Cc", "Source", "source.example.com")
+	sourceID := insertBlogSite(ctx, t, connection, "4Aa5Bb6Cc", "Source", "source.example.com")
 	if _, err := connection.Exec(ctx, `
 		INSERT INTO directory.site_feeds (
 			site_id, name, location_type, url_ref, url_key, is_default
@@ -133,8 +133,12 @@ func verifyFriendLinkGraph(
 	}
 
 	links := listFriendLinks(ctx, t, queries, sourceID, false)
-	if len(links) != 1 || links[0].TargetSiteID.Valid || links[0].TargetUrl != externalURL {
-		t.Fatalf("external friend links = %#v", links)
+	if len(links) != 0 {
+		t.Fatalf("public friend links exposed an external site: %#v", links)
+	}
+	recorded, err := queries.ListRecordedOutgoingLinks(ctx, sourceID)
+	if err != nil || len(recorded) != 1 || recorded[0].TargetUrl != externalURL {
+		t.Fatalf("recorded external friend links = %#v, err = %v", recorded, err)
 	}
 	if err := queries.UpsertFriendLink(ctx, dbgen.UpsertFriendLinkParams{
 		PSourceSiteID: sourceID,
@@ -162,7 +166,7 @@ func verifyFriendLinkGraph(
 		t.Fatalf("show source site: %v", err)
 	}
 
-	targetID := insertSite(ctx, t, connection, "5Aa6Bb7Cc", "Target", "target.example.com")
+	targetID := insertBlogSite(ctx, t, connection, "5Aa6Bb7Cc", "Target", "target.example.com")
 	links = listFriendLinks(ctx, t, queries, sourceID, false)
 	if len(links) != 1 || !links[0].TargetSiteID.Valid || links[0].TargetSiteID != targetID ||
 		links[0].TargetUrl != "https://target.example.com/" {

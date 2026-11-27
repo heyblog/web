@@ -72,14 +72,17 @@ test('random-page rules exclude query/slash variants without blocking go-prefixe
     assert.equal(blocked(path), false, path);
 });
 
-test('dashboard routes are private throughout the user workbench', () => {
+test('workspace routes stay private through nested pages', () => {
   for (const path of [
     '/dashboard',
     '/dashboard/sites/new',
     '/dashboard/claims',
     '/dashboard/submissions/123',
     '/dashboard/security',
+    '/annotation',
+    '/annotation/site123/history',
   ])
     assert.equal(isIndexablePath(path), false, path);
   assert.equal(isIndexablePath('/dashboard-public'), true);
+  assert.equal(isIndexablePath('/annotation-guide'), true);
 });

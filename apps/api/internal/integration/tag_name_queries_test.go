@@ -24,7 +24,7 @@ func TestTagNameDirectoryQueries(t *testing.T) {
 	}
 	c := paths[0]
 	var siteID pgtype.UUID
-	if err := f.pool.QueryRow(ctx, `INSERT INTO directory.sites(short_id,name,normalized_host,visibility,tag_cascade_id) VALUES('NameQuery','Query site','query.example.test','VISIBLE',$1) RETURNING id`, c.ID).Scan(&siteID); err != nil {
+	if err := f.pool.QueryRow(ctx, `INSERT INTO directory.sites(short_id,name,normalized_host,visibility,tag_cascade_id,blog_status) VALUES('NameQuery','Query site','query.example.test','VISIBLE',$1,'BLOG') RETURNING id`, c.ID).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}
 	tertiary, err := q.CreateTag(ctx, dbgen.CreateTagParams{Name: "Example", Description: "tertiary"})

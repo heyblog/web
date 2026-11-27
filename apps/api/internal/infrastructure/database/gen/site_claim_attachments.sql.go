@@ -223,6 +223,21 @@ func (q *Queries) HasRecentRejectedManualClaim(ctx context.Context, arg HasRecen
 	return exists, err
 }
 
+const isBlogClaimAttachment = `-- name: IsBlogClaimAttachment :one
+SELECT EXISTS (
+ SELECT 1 FROM directory.site_claim_attachments a
+ JOIN directory.sites s ON s.id=a.site_id AND s.blog_status='BLOG'
+ WHERE a.id=$1::uuid
+)
+`
+
+func (q *Queries) IsBlogClaimAttachment(ctx context.Context, dollar_1 pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isBlogClaimAttachment, dollar_1)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listSiteClaimAttachmentCleanup = `-- name: ListSiteClaimAttachmentCleanup :many
 SELECT id::text,status,storage_key,storage_identity,
  (upload_cleaned_at IS NULL)::boolean AS cleanup_upload

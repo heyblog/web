@@ -33,7 +33,7 @@ func readBackupData(t *testing.T, file *os.File) backupData {
 func compareDatabaseBackups(t *testing.T, source, target *os.File, oldAdmin, newAdmin string) {
 	t.Helper()
 	want, got := readBackupData(t, source), readBackupData(t, target)
-	if len(want.Tables) != 34 || len(got.Tables) != 34 {
+	if len(want.Tables) != 35 || len(got.Tables) != 35 {
 		t.Fatal("incomplete table inventory")
 	}
 	for table, rows := range want.Tables {
@@ -81,6 +81,11 @@ func compareDatabaseBackups(t *testing.T, source, target *os.File, oldAdmin, new
 							snapshot["confirmed_by"] = newAdmin
 						}
 					}
+				}
+			}
+			if table == "directory.site_annotation_history" {
+				if snapshot, ok := row["after_snapshot"].(map[string]any); ok && snapshot["confirmed_by"] == oldAdmin {
+					snapshot["confirmed_by"] = newAdmin
 				}
 			}
 		}

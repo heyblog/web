@@ -93,7 +93,8 @@ func (q *Queries) CountSiteAuditsForManagement(ctx context.Context, arg CountSit
 const countSitesForManagement = `-- name: CountSitesForManagement :one
 SELECT count(*)::bigint
   FROM directory.sites AS site
- WHERE ($1::text = '' OR site.visibility = $1)
+ WHERE site.blog_status = 'BLOG'
+   AND ($1::text = '' OR site.visibility = $1)
    AND (
        $2::text = ''
        OR site.name ILIKE '%' || $2::text || '%'
@@ -428,7 +429,8 @@ SELECT site.short_id,
   FROM directory.sites AS site
   LEFT JOIN directory.site_audits AS pending
     ON pending.site_id = site.id AND pending.status = 'PENDING'
- WHERE ($1::text = '' OR site.visibility = $1)
+ WHERE site.blog_status = 'BLOG'
+   AND ($1::text = '' OR site.visibility = $1)
    AND (
        $2::text = ''
        OR site.name ILIKE '%' || $2::text || '%'

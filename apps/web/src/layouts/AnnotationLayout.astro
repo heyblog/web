@@ -1,0 +1,29 @@
+---
+import type { SessionUser } from '@/api/auth/auth.types';
+import { roleLabels } from '@/application/management/users.model';
+import { annotationListPath } from '@/application/site-annotation/annotation-view';
+
+import WorkspaceLayout from './WorkspaceLayout.astro';
+
+interface Props {
+  actor: SessionUser;
+  heading: string;
+}
+const { actor, heading } = Astro.props;
+---
+
+<WorkspaceLayout
+  title={heading}
+  {heading}
+  currentPath={Astro.url.pathname}
+  eyebrow="标注工作区"
+  workspace="annotation"
+  identity={{
+    displayName: actor.display_name,
+    email: actor.email ?? '',
+    roleLabel: roleLabels[actor.role],
+  }}
+  navigation={[{ label: '站点标注', href: annotationListPath }]}
+>
+  <slot />
+</WorkspaceLayout>

@@ -13,6 +13,7 @@ export const backupDatasetNames = [
   'identity.api_client_scopes',
   'identity.api_keys',
   'directory.site_claims',
+  'directory.site_claim_attachments',
   'directory.site_ownerships',
   'directory.site_ownership_events',
   'directory.owner_friend_link_requests',
@@ -27,6 +28,7 @@ export const backupDatasetNames = [
   'directory.site_sources',
   'directory.site_origins',
   'directory.site_audits',
+  'directory.site_annotation_history',
   'directory.tag_cascades',
   'directory.tag_identity_aliases',
   'directory.tag_assignment_archive',
@@ -54,7 +56,7 @@ export interface BackupIssue {
 export interface BackupInspection {
   readonly sha256: string;
   readonly version: 1;
-  readonly schema_version: 3 | 4 | 5 | 6;
+  readonly schema_version: 3 | 4 | 5 | 6 | 7;
   readonly generated_at: string;
   readonly excluded_system_admin_id: string;
   readonly retained_system_admin_id: string;
@@ -84,8 +86,11 @@ function isCount(value: unknown): value is number {
 function isDatasetName(value: unknown): value is BackupDatasetName {
   return backupDatasetNames.some((name) => name === value);
 }
-function parseDatasets(value: unknown): readonly BackupDataset[] | null {
-  if (!Array.isArray(value) || value.length !== backupDatasetNames.length) return null;
+function parseDatasets(
+  value: unknown,
+  schemaVersion?: BackupInspection['schema_version'],
+): readonly BackupDataset[] | null {
+  if (!Array.isArray(value) || value.length > backupDatasetNames.length) return null;
   const datasets: BackupDataset[] = [];
   const names = new Set<string>();
   for (const item of value) {
@@ -99,7 +104,16 @@ function parseDatasets(value: unknown): readonly BackupDataset[] | null {
     names.add(item.name);
     datasets.push({ name: item.name, count: item.count });
   }
-  return datasets;
+  // Restore results omit the source schema version and can have any supported inventory.
+  const versions = schemaVersion === undefined ? [5, 6, 7] : [schemaVersion];
+  const valid = versions.some((version) =>
+    backupDatasetNames.every((name) => {
+      if (name === 'directory.site_claim_attachments') return names.has(name) === version >= 6;
+      if (name === 'directory.site_annotation_history') return names.has(name) === version >= 7;
+      return names.has(name);
+    }),
+  );
+  return valid ? datasets : null;
 }
 function parseGraph(value: unknown): BackupGraphCounts | null {
   if (!isRecord(value) || !isCount(value.vertices) || !isCount(value.edges)) return null;
@@ -134,7 +148,8 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
     (value.schema_version !== 3 &&
       value.schema_version !== 4 &&
       value.schema_version !== 5 &&
-      value.schema_version !== 6) ||
+      value.schema_version !== 6 &&
+      value.schema_version !== 7) ||
     typeof value.generated_at !== 'string' ||
     !Number.isFinite(Date.parse(value.generated_at)) ||
     !isUUID(value.excluded_system_admin_id) ||
@@ -143,7 +158,7 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
     typeof value.can_restore !== 'boolean'
   )
     return null;
-  const datasets = parseDatasets(value.datasets);
+  const datasets = parseDatasets(value.datasets, value.schema_version);
   const graph = parseGraph(value.graph);
   const issues = parseIssues(value.issues);
   if (

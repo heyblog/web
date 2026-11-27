@@ -68,7 +68,8 @@ SELECT site.short_id,
   FROM directory.sites AS site
   LEFT JOIN directory.site_audits AS pending
     ON pending.site_id = site.id AND pending.status = 'PENDING'
- WHERE (sqlc.arg(visibility)::text = '' OR site.visibility = sqlc.arg(visibility))
+ WHERE site.blog_status = 'BLOG'
+   AND (sqlc.arg(visibility)::text = '' OR site.visibility = sqlc.arg(visibility))
    AND (
        sqlc.arg(query_text)::text = ''
        OR site.name ILIKE '%' || sqlc.arg(query_text)::text || '%'
@@ -82,7 +83,8 @@ SELECT site.short_id,
 -- name: CountSitesForManagement :one
 SELECT count(*)::bigint
   FROM directory.sites AS site
- WHERE (sqlc.arg(visibility)::text = '' OR site.visibility = sqlc.arg(visibility))
+ WHERE site.blog_status = 'BLOG'
+   AND (sqlc.arg(visibility)::text = '' OR site.visibility = sqlc.arg(visibility))
    AND (
        sqlc.arg(query_text)::text = ''
        OR site.name ILIKE '%' || sqlc.arg(query_text)::text || '%'

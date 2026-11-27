@@ -6,6 +6,7 @@ export type UserRole = (typeof userRoles)[number];
 export const managementPermissions = [
   'user.manage',
   'site_audit.review',
+  'site_annotation.manage',
   'feedback.review',
   'announcement.manage',
   'taxonomy.manage',

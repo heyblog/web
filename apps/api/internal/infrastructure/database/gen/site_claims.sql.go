@@ -12,7 +12,7 @@ import (
 )
 
 const claimSite = `-- name: ClaimSite :one
-SELECT id::text, short_id,name,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1
+SELECT id::text, short_id,name,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1 AND blog_status = 'BLOG'
 `
 
 type ClaimSiteRow struct {
@@ -150,7 +150,7 @@ func (q *Queries) FinishSiteClaim(ctx context.Context, arg FinishSiteClaimParams
 }
 
 const getSiteClaim = `-- name: GetSiteClaim :one
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid
 `
 
 type GetSiteClaimRow struct {
@@ -247,7 +247,7 @@ func (q *Queries) InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID
 }
 
 const listSiteClaims = `-- name: ListSiteClaims :many
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id
 WHERE ($1::uuid IS NULL OR c.user_id=$1::uuid)
 AND ($2::uuid IS NULL OR c.site_id=$2::uuid)
 AND ($3::text='' OR c.status=$3::text)
@@ -382,7 +382,7 @@ func (q *Queries) ListSiteOwnershipEvents(ctx context.Context, dollar_1 pgtype.U
 }
 
 const lockClaimSite = `-- name: LockClaimSite :one
-SELECT id::text, short_id,name,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1 FOR UPDATE
+SELECT id::text, short_id,name,(scheme || '://' || normalized_host || base_path)::text AS address,visibility FROM directory.sites WHERE short_id=$1 AND blog_status = 'BLOG' FOR UPDATE
 `
 
 type LockClaimSiteRow struct {
@@ -406,8 +406,19 @@ func (q *Queries) LockClaimSite(ctx context.Context, shortID string) (LockClaimS
 	return i, err
 }
 
+const lockClaimSiteByID = `-- name: LockClaimSiteByID :one
+SELECT id FROM directory.sites WHERE id=$1::uuid AND blog_status = 'BLOG' AND visibility <> 'REMOVED' FOR SHARE
+`
+
+func (q *Queries) LockClaimSiteByID(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockClaimSiteByID, dollar_1)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const lockSiteClaim = `-- name: LockSiteClaim :one
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid FOR UPDATE OF c
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid FOR UPDATE OF c
 `
 
 type LockSiteClaimRow struct {

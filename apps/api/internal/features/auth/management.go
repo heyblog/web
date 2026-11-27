@@ -8,7 +8,7 @@ import (
 var validPermissions = []Permission{
 	PermissionUserManage, PermissionSiteAuditReview, PermissionFeedbackReview,
 	PermissionAnnouncementManage, PermissionTaxonomyManage, PermissionSiteManage,
-	PermissionTaskManage, PermissionLogRead,
+	PermissionTaskManage, PermissionLogRead, PermissionSiteAnnotation,
 }
 
 func (service *Service) UpdateRole(ctx context.Context, actor User, targetID string, role Role) (User, error) {

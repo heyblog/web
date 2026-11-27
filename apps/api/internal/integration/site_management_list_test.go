@@ -14,19 +14,19 @@ import (
 func verifyManagedSiteList(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
-	visibleID := insertSite(ctx, t, pool, "5MgmtA1Bc", "Managed List Visible", "managed-list-visible.example.test")
+	visibleID := insertBlogSite(ctx, t, pool, "5MgmtA1Bc", "Managed List Visible", "managed-list-visible.example.test")
 	if _, err := pool.Exec(ctx, `UPDATE directory.sites
 		SET custom_id = 'managed-visible', scheme = 'http', base_path = '/journal', access_scope = 'GLOBAL_ONLY'
 		WHERE id = $1`, visibleID); err != nil {
 		t.Fatalf("configure managed visible site: %v", err)
 	}
-	hiddenID := insertSite(ctx, t, pool, "5MgmtD2Ef", "Managed List Hidden", "managed-list-hidden.example.test")
+	hiddenID := insertBlogSite(ctx, t, pool, "5MgmtD2Ef", "Managed List Hidden", "managed-list-hidden.example.test")
 	if _, err := pool.Exec(ctx, `UPDATE directory.sites
 		SET visibility = 'HIDDEN', visibility_reason = 'Temporarily unavailable'
 		WHERE id = $1`, hiddenID); err != nil {
 		t.Fatalf("configure managed hidden site: %v", err)
 	}
-	removedID := insertSite(ctx, t, pool, "5MgmtG3Hi", "Managed List Removed", "managed-list-removed.example.test")
+	removedID := insertBlogSite(ctx, t, pool, "5MgmtG3Hi", "Managed List Removed", "managed-list-removed.example.test")
 	if _, err := pool.Exec(ctx, `UPDATE directory.sites
 		SET visibility = 'REMOVED', visibility_reason = 'Owner requested removal'
 		WHERE id = $1`, removedID); err != nil {

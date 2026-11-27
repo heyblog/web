@@ -19,6 +19,7 @@ const (
 	PermissionAnnouncementManage Permission = "announcement.manage"
 	PermissionTaxonomyManage     Permission = "taxonomy.manage"
 	PermissionSiteManage         Permission = "site.manage"
+	PermissionSiteAnnotation     Permission = "site_annotation.manage"
 	PermissionTaskManage         Permission = "task.manage"
 	PermissionLogRead            Permission = "log.read"
 )

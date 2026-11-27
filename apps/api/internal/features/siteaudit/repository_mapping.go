@@ -27,7 +27,8 @@ func auditFromRow(row dbgen.DirectorySiteAudit) (Audit, error) {
 	if row.BaseRevision != nil {
 		audit.BaseRevision = *row.BaseRevision
 	}
-	if err := decodeSnapshot(row.BaseSnapshot, &audit.BaseSnapshot); err != nil {
+	audit.BaseSnapshot, err = decodeSubmissionBase(row.BaseSnapshot)
+	if err != nil {
 		return Audit{}, fmt.Errorf("decode base snapshot: %w", err)
 	}
 	if err := decodeSnapshot(row.ProposedSnapshot, &audit.ProposedSnapshot); err != nil {
