@@ -6,9 +6,6 @@ import (
 
 func MergeRequestedSnapshot(base, proposed, current Snapshot) (Snapshot, []DiffItem) {
 	merged := current
-	if merged.AccessScope == "" {
-		merged.AccessScope = "ALL"
-	}
 	conflicts := make([]DiffItem, 0)
 	mergeString := func(field string, baseValue, proposedValue, currentValue string, destination *string) {
 		if baseValue == proposedValue {

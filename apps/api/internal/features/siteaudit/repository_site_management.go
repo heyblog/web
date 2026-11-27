@@ -50,7 +50,7 @@ func (repository *Repository) ListManagedSites(ctx context.Context, query, visib
 		}
 		item := ManagedSite{
 			ShortID: row.ShortID, CustomID: stringValue(row.CustomID), Name: row.Name, URL: urlValue,
-			AccessScope: row.AccessScope, Visibility: row.Visibility,
+			AccessScope: stringValue(row.AccessScope), Visibility: row.Visibility,
 			VisibilityReason: stringValue(row.VisibilityReason), Revision: row.Revision,
 			JoinedAt: row.JoinedAt.Time, UpdatedAt: row.UpdatedAt.Time,
 		}

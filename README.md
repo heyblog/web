@@ -6,6 +6,9 @@ HeyBlog 是一个收集、整理并链接个人博客站点的工作区。后端
 
 - `apps/api`：Gin API、PostgreSQL/AGE 数据库迁移、sqlc 查询和 Redis 接入。
 - `apps/web`：Astro SSR 前端和 Svelte 交互组件。
+- `apps/worker`：通过内部 HTTP 调度和执行任务，不连接数据库。
+- `apps/edge`：Cloudflare 和 EdgeOne 单跳请求执行器。
+- `packages/go`：共享请求库与 API 拥有的任务协议。
 - `packages/node/configs`：共享 Node.js 工具配置。
 - `infra`：开发依赖和部署基础设施。
 
@@ -21,11 +24,12 @@ cp apps/api/config/conf.development.example.yaml apps/api/config/conf.yaml
 docker compose -f infra/docker/docker-compose.env.yaml up -d --wait
 ```
 
-分别启动 API 和 Web：
+分别启动 API、Web 和 worker：
 
 ```bash
 mise run //apps/api:dev
 mise run //apps/web:dev
+mise run //apps/worker:dev
 ```
 
 开发依赖的启停由开发者直接使用 Docker Compose 管理；如果本机 Docker 需要提权，在上述
@@ -51,6 +55,8 @@ OAuth 公开回调统一使用 `/auth/{provider}/callback`。本地应用后台�
 生命周期操作不会直接改写数据库；“移除”采用可恢复的归档语义，不会物理删除站点。
 
 开发环境准备、数据库变更和提交要求参见 [贡献指南](./CONTRIBUTING.md)。
+任务配置、升级步骤和平台验收参见 [worker 操作说明](./apps/worker/README.md)及
+[Edge 操作说明](./apps/edge/README.md)。
 
 ## 数据库备份与恢复
 

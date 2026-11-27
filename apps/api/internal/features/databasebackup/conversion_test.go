@@ -56,7 +56,7 @@ func TestLegacyClaimConversionPreservesOriginalShortEvidence(t *testing.T) {
 func TestRestoredEvidenceNeverRetainsSourceObjectAuthority(t *testing.T) {
 	doc := document{header: Header{SchemaVersion: 6}}
 	for _, status := range []string{"UPLOADING", "READY", "BOUND", "CLEANUP_PENDING", "ARCHIVED"} {
-		raw, err := doc.convertRow("directory.site_claim_attachments", json.RawMessage(`{"filename":"proof.pdf","status":"`+status+`","storage_key":"backup/foreign","storage_identity":"source","archive_at":"2024-01-01","purge_at":"2024-02-01"}`))
+		raw, err := doc.convertRow("directory.site_claim_attachments", json.RawMessage(`{"filename":"proof.pdf","status":"`+status+`","storage_key":"backup/foreign","storage_identity":"source","cleanup_requested_at":null,"archive_at":"2024-01-01T00:00:00Z","purge_at":"2024-02-01T00:00:00Z"}`))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,9 +68,35 @@ func TestRestoredEvidenceNeverRetainsSourceObjectAuthority(t *testing.T) {
 	}
 }
 
+func TestRestoredEvidenceRejectsMalformedSourceBeforeClearing(t *testing.T) {
+	valid := map[string]json.RawMessage{
+		"status": json.RawMessage(`"READY"`), "storage_key": json.RawMessage(`"proof"`),
+		"storage_identity": json.RawMessage(`"source"`), "cleanup_requested_at": json.RawMessage(`null`),
+		"archive_at": json.RawMessage(`null`), "purge_at": json.RawMessage(`null`),
+	}
+	doc := document{header: Header{SchemaVersion: 6}}
+	for _, tc := range []struct{ field, value string }{
+		{"status", `"INVALID"`}, {"storage_key", `null`}, {"storage_identity", `{}`},
+		{"cleanup_requested_at", `"invalid"`}, {"archive_at", `1`}, {"purge_at", `false`},
+	} {
+		t.Run(tc.field, func(t *testing.T) {
+			previous := valid[tc.field]
+			valid[tc.field] = json.RawMessage(tc.value)
+			raw, err := json.Marshal(valid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := doc.convertRow("directory.site_claim_attachments", raw); err == nil {
+				t.Fatal("malformed attachment field was cleared without validation")
+			}
+			valid[tc.field] = previous
+		})
+	}
+}
+
 func TestLegacySiteConversionRejectsExplicitClassification(t *testing.T) {
 	doc := document{header: Header{SchemaVersion: 6}}
-	_, err := doc.convertRow("directory.sites", json.RawMessage(`{"blog_status":"NON_BLOG"}`))
+	_, err := doc.convertRow("directory.sites", json.RawMessage(`{"access_scope":"ALL","blog_status":"NON_BLOG"}`))
 	if !errors.Is(err, ErrInvalid) {
 		t.Fatalf("legacy site accepted a classification: %v", err)
 	}

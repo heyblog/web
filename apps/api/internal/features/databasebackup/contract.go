@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -16,6 +17,7 @@ type document struct {
 	header      Header
 	manifest    []Manifest
 	offsets     map[string]int64
+	convertedAt time.Time
 }
 
 type rowVisitor func(string, json.RawMessage) error
@@ -23,7 +25,7 @@ type rowVisitor func(string, json.RawMessage) error
 func readDocument(reader io.Reader, visit rowVisitor) (document, error) {
 	decoder := json.NewDecoder(reader)
 	decoder.UseNumber()
-	doc := document{offsets: make(map[string]int64)}
+	doc := document{offsets: make(map[string]int64), convertedAt: time.Now().UTC().Truncate(time.Microsecond)}
 	actual := make(map[string]Manifest)
 	sections := make(map[string]bool)
 	err := object(decoder, func(section string) error {

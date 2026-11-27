@@ -1,0 +1,20 @@
+---
+import { managementNavigation } from '@/application/management/navigation';
+import SigningManager from '@/components/management/task-center/SigningManager.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = Astro.locals.sessionUser;
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Frequest-signing');
+if (actor.role !== 'SYS_ADMIN') return Astro.redirect('/forbidden');
+---
+
+<ManagementLayout
+  title="请求签名管理 | HeyBlog"
+  heading="请求签名管理"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  <SigningManager client:load />
+</ManagementLayout>

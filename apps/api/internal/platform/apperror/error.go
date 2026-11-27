@@ -46,6 +46,7 @@ type Error struct {
 	kind          Kind
 	code          string
 	publicDetail  string
+	currentState  string
 	invalidParams []InvalidParam
 	diagnostics   []Diagnostic
 	cause         error
@@ -71,6 +72,14 @@ func (err *Error) WithInvalidParams(parameters []InvalidParam) *Error {
 	copyOfError.invalidParams = slices.Clone(parameters)
 	return &copyOfError
 }
+
+func (err *Error) WithCurrentState(state string) *Error {
+	copyOfError := *err
+	copyOfError.currentState = state
+	return &copyOfError
+}
+
+func (err *Error) CurrentState() string { return err.currentState }
 
 func (err *Error) WithDiagnostics(diagnostics []Diagnostic) *Error {
 	copyOfError := *err

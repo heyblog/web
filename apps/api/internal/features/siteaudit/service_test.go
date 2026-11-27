@@ -130,7 +130,7 @@ func TestProposedDeleteUsesSubmittedReasonAsVisibilityReason(t *testing.T) {
 	}
 }
 
-func TestMergeRequestedSnapshotDefaultsCreateAccessScope(t *testing.T) {
+func TestMergeRequestedSnapshotLeavesCreateAccessScopeUnknown(t *testing.T) {
 	t.Parallel()
 
 	merged, conflicts := MergeRequestedSnapshot(
@@ -142,7 +142,7 @@ func TestMergeRequestedSnapshotDefaultsCreateAccessScope(t *testing.T) {
 	if len(conflicts) != 0 {
 		t.Fatalf("conflicts = %#v, want none", conflicts)
 	}
-	if merged.AccessScope != "ALL" || merged.Visibility != "VISIBLE" {
-		t.Fatalf("merged directory state = (%q, %q), want (ALL, VISIBLE)", merged.AccessScope, merged.Visibility)
+	if merged.AccessScope != "" || merged.Visibility != "VISIBLE" {
+		t.Fatalf("merged directory state = (%q, %q), want (unknown, VISIBLE)", merged.AccessScope, merged.Visibility)
 	}
 }

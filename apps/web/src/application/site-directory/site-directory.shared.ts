@@ -67,7 +67,7 @@ function isDirectoryStatus(value: string | null): value is SiteDirectoryStatus {
 }
 
 function isDirectoryAccess(value: string): value is SiteDirectoryAccess {
-  return value === 'ALL' || value === 'CN_ONLY' || value === 'GLOBAL_ONLY';
+  return value === 'ALL' || value === 'CN' || value === 'GL';
 }
 
 function validName(value: string | null): string {

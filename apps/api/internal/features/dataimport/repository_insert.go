@@ -27,7 +27,7 @@ func insertProfiles(ctx context.Context, queries *dbgen.Queries, plan Plan) erro
 		if err := queries.InsertSite(ctx, dbgen.InsertSiteParams{
 			ID: mustUUID(row.ID), ShortID: row.ShortID, Name: row.Name,
 			Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath,
-			Summary: row.Summary, AccessScope: row.AccessScope, Visibility: row.Visibility,
+			Summary: row.Summary, Visibility: row.Visibility,
 			VisibilityReason: nullableText(row.VisibilityReason),
 			JoinedAt:         timestamp(row.JoinedAt), UpdatedAt: timestamp(row.UpdatedAt),
 		}); err != nil {

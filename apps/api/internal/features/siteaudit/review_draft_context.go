@@ -39,7 +39,7 @@ func loadReviewDraftContext(ctx context.Context, transaction AuditTransaction, v
 		return Audit{}, Snapshot{}, err
 	}
 	current := audit.ProposedSnapshot
-	current.AccessScope = "ALL"
+	current.AccessScope = ""
 	if row.Action == ActionUpdate {
 		current, err = transaction.LockSiteSnapshot(ctx, row.SiteID)
 		if err != nil {

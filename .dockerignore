@@ -27,6 +27,7 @@
 **/test-results
 **/playwright-report
 **/blob-report
+tmp
 
 # OS and IDE files
 **/.DS_Store

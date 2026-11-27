@@ -242,7 +242,6 @@ INSERT INTO directory.sites (
     normalized_host,
     base_path,
     summary,
-    access_scope,
     visibility,
     visibility_reason,
     tag_cascade_id,
@@ -257,12 +256,11 @@ INSERT INTO directory.sites (
     $6,
     $7,
     $8,
-    $9,
-    $10::text,
+    $9::text,
     (SELECT id FROM directory.tag_cascades
       WHERE scope = 'SITE' AND taxonomy_key = 'other/topic-other-other'),
-    $11::timestamptz,
-    $12::timestamptz
+    $10::timestamptz,
+    $11::timestamptz
 )
 `
 
@@ -274,7 +272,6 @@ type InsertSiteParams struct {
 	NormalizedHost   string
 	BasePath         string
 	Summary          string
-	AccessScope      string
 	Visibility       string
 	VisibilityReason *string
 	JoinedAt         pgtype.Timestamptz
@@ -290,7 +287,6 @@ func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
 		arg.NormalizedHost,
 		arg.BasePath,
 		arg.Summary,
-		arg.AccessScope,
 		arg.Visibility,
 		arg.VisibilityReason,
 		arg.JoinedAt,

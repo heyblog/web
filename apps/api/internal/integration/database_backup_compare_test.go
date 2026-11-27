@@ -8,6 +8,8 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -33,18 +35,42 @@ func readBackupData(t *testing.T, file *os.File) backupData {
 func compareDatabaseBackups(t *testing.T, source, target *os.File, oldAdmin, newAdmin string) {
 	t.Helper()
 	want, got := readBackupData(t, source), readBackupData(t, target)
-	if len(want.Tables) != 35 || len(got.Tables) != 35 {
+	if len(want.Tables) != 53 || len(got.Tables) != 53 {
 		t.Fatal("incomplete table inventory")
 	}
 	for table, rows := range want.Tables {
-		if len(rows) == 0 {
+		if len(rows) == 0 && !strings.HasPrefix(table, "operations.") && table != "directory.site_monitoring_rounds" {
 			t.Errorf("roundtrip fixture has no rows for %s", table)
 		}
 		for _, row := range rows {
+			if table == "operations.signing_policy" {
+				row["enabled"] = true
+				revision, err := row["revision"].(json.Number).Int64()
+				if err != nil {
+					t.Fatal(err)
+				}
+				row["revision"] = json.Number(strconv.FormatInt(revision+1, 10))
+			}
+			if table == "operations.request_configs" {
+				row["enabled"] = false
+				parameters, ok := row["parameters"].(map[string]any)
+				if !ok {
+					t.Fatal("invalid request configuration")
+				}
+				parameters["signed"] = true
+			}
 			for _, field := range []string{"created_by", "updated_by", "granted_by", "revoked_by", "reviewed_by", "published_by", "archived_by", "changed_by", "owner_id", "user_id", "actor_id", "submitter_user_id", "identified_by"} {
 				if row[field] == oldAdmin {
 					row[field] = newAdmin
 				}
+			}
+			if table == "directory.sites" {
+				previous, err := strconv.ParseInt(row["monitoring_generation"].(string), 10, 64)
+				if err != nil {
+					t.Fatal(err)
+				}
+				row["monitoring_generation"] = strconv.FormatInt(previous+1, 10)
+				row["status"], row["access_scope"], row["last_checked_at"] = nil, nil, nil
 			}
 			if table == "directory.site_claim_attachments" {
 				row["status"] = "DELETED"

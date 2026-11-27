@@ -45,9 +45,9 @@ UPDATE directory.sites
        normalized_host = sqlc.arg(normalized_host),
        base_path = sqlc.arg(base_path),
        summary = sqlc.arg(summary),
-       access_scope = sqlc.arg(access_scope),
        blog_status = sqlc.arg(blog_status),
-       tag_cascade_id = sqlc.arg(tag_cascade_id)
+       tag_cascade_id = sqlc.arg(tag_cascade_id),
+       revision = revision + 1
  WHERE id = sqlc.arg(site_id) AND revision = sqlc.arg(revision)
 RETURNING *;
 

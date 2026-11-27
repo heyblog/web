@@ -30,8 +30,8 @@
   let { options, query, onRemove, onClear }: Props = $props();
   const accessLabels = new Map([
     ['ALL', '全球可访问'],
-    ['CN_ONLY', '仅中国大陆'],
-    ['GLOBAL_ONLY', '仅海外'],
+    ['CN', '仅中国大陆'],
+    ['GL', '仅海外'],
   ]);
   const labels = $derived(
     new Map([

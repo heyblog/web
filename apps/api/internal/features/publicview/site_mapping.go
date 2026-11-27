@@ -3,6 +3,7 @@ package publicview
 import (
 	"heyblog-api/internal/domain/site"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
+	"time"
 )
 
 func mapSiteCard(row dbgen.DirectorySite) (SiteCard, error) {
@@ -22,9 +23,13 @@ func mapSiteCard(row dbgen.DirectorySite) (SiteCard, error) {
 	if err != nil {
 		return SiteCard{}, err
 	}
+	var checkedAt *time.Time
+	if row.LastCheckedAt.Valid {
+		checkedAt = &row.LastCheckedAt.Time
+	}
 	return SiteCard{
 		ShortID: row.ShortID, CustomID: row.CustomID, Name: row.Name, Summary: row.Summary,
-		Host: row.NormalizedHost, HomepageURL: homepageURL, AccessScope: row.AccessScope,
+		Host: row.NormalizedHost, HomepageURL: homepageURL, AccessScope: row.AccessScope, HealthStatus: row.Status, LastCheckedAt: checkedAt,
 		DirectoryStatus: directoryStatus, JoinedAt: row.JoinedAt.Time, UpdatedAt: row.UpdatedAt.Time,
 	}, nil
 }

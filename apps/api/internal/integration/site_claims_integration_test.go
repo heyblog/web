@@ -36,7 +36,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Run("proof expiring while waiting for the site lock cannot grant ownership", func(t *testing.T) {
 		// Given a valid challenge whose decision is blocked behind a site update.
 		siteID := insertBlogSite(ctx, t, pool, "Claim0003", "Expiring claim", "claim-expiring.example.com")
-		result, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0003", Method: sitemanagement.File})
+		result, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0003", Method: sitemanagement.DNS})
 		require.NoError(t, err)
 		tx, err := pool.Begin(ctx)
 		require.NoError(t, err)
@@ -120,7 +120,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		// Given an owner and separately verified new-address proof.
 		owner, err := service.CurrentOwner(ctx, users[0], "Claim0002")
 		require.NoError(t, err)
-		proof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.File, Address: "https://claim-new.example.com/blog/"})
+		proof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.DNS, Address: "https://claim-new.example.com/blog/"})
 		require.NoError(t, err)
 		_, err = service.Check(ctx, users[0], proof.Claim.ID)
 		require.NoError(t, err)
@@ -145,7 +145,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		require.True(t, consumed)
 		stalePending, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.Manual, Address: "https://claim-future.example/", Evidence: "Future address proof", EvidenceURL: "https://claim-future.example/about"})
 		require.NoError(t, err)
-		unusedProof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.File, Address: "https://claim-unused.example/"})
+		unusedProof, err := service.Create(ctx, users[0], sitemanagement.SiteClaimCreateInput{ShortID: "Claim0002", Method: sitemanagement.DNS, Address: "https://claim-unused.example/"})
 		require.NoError(t, err)
 		_, err = service.Check(ctx, users[0], unusedProof.Claim.ID)
 		require.NoError(t, err)

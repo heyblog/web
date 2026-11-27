@@ -20,13 +20,14 @@ ${docker_command} build --platform linux/amd64 -f infra/docker/Dockerfile.builde
 ]
 
 ["container:build"]
-description = "Build local API and Web container images from prepared inputs"
+description = "Build local API, worker and Web container images from prepared inputs"
 run = [
   { task = "container:command:check" },
   { task = "container:base" },
   '''
 docker_command=${DOCKER_COMMAND:-docker}
 ${docker_command} build --platform linux/amd64 -f apps/api/Dockerfile -t api:local .
+${docker_command} build --platform linux/amd64 -f apps/worker/Dockerfile -t worker:local .
 ''',
   '''
 docker_command=${DOCKER_COMMAND:-docker}
@@ -53,7 +54,7 @@ ${docker_command} build \
 ]
 
 ["container:scan"]
-description = "Scan local API and Web images for fixable high-severity vulnerabilities"
+description = "Scan local application images for fixable high-severity vulnerabilities"
 env.TRIVY_IMAGE = "aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb"
 run = [
   { task = "container:command:check" },
@@ -70,7 +71,7 @@ ${docker_command} run --rm \
   --volume "${docker_socket}:/var/run/docker.sock" \
   "${TRIVY_IMAGE}" \
   -ec '
-    for image in api:local web:local; do
+    for image in api:local worker:local web:local; do
       trivy image \
         --exit-code 1 \
         --ignore-unfixed \
@@ -144,11 +145,11 @@ for tag in "$@"; do
   esac
   [ "$(string_length "${tag}")" -le 128 ] || { printf 'image tag is too long: %s\n' "${tag}" >&2; exit 1; }
 done
-for image in api:local web:local; do
+for image in api:local worker:local web:local; do
   ${docker_command} image inspect "${image}" >/dev/null
 done
 for tag in "$@"; do
-  for image in api web; do
+  for image in api worker web; do
     target=${registry}/${namespace}/${image}:${tag}
     ${docker_command} tag "${image}:local" "${target}"
     ${docker_command} push "${target}"

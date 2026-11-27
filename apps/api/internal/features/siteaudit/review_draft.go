@@ -2,7 +2,6 @@ package siteaudit
 
 import (
 	"context"
-	"fmt"
 
 	"heyblog-api/internal/features/auth"
 )
@@ -18,17 +17,7 @@ func (service *Service) SaveReviewDraft(ctx context.Context, reviewer auth.User,
 		if contextErr != nil {
 			return contextErr
 		}
-		draftBase := current
-		if row.ReviewDraftSnapshot != nil {
-			draftBase.AccessScope = row.ReviewDraftSnapshot.AccessScope
-		}
-		if input.Site.AccessScope != "" {
-			if input.Site.AccessScope != "CN_ONLY" && input.Site.AccessScope != "GLOBAL_ONLY" && input.Site.AccessScope != "ALL" {
-				return fmt.Errorf("%w: unsupported access scope", ErrInvalidSubmission)
-			}
-			draftBase.AccessScope = input.Site.AccessScope
-		}
-		draft, buildErr := BuildProposedSnapshot(input.Site.SiteInput, draftBase)
+		draft, buildErr := BuildProposedSnapshot(input.Site.SiteInput, current)
 		if buildErr != nil {
 			return buildErr
 		}

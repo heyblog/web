@@ -69,7 +69,7 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !preview.CanRestore || preview.SchemaVersion != 8 {
+	if !preview.CanRestore || preview.SchemaVersion != 9 {
 		t.Fatalf("unexpected inspection: %+v", preview)
 	}
 	verifyBackupRestoreLocks(t, target, retained)

@@ -15,6 +15,8 @@ const profile: SiteProfile = {
   host: 'example.com',
   homepageUrl: 'https://example.com',
   accessScope: 'ALL',
+  healthStatus: null,
+  lastCheckedAt: null,
   directoryStatus: 'normal',
   joinedAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-02T00:00:00Z',

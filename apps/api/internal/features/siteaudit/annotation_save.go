@@ -126,7 +126,7 @@ func annotationHistoryValues(detail AnnotationDetail) (map[string]json.RawMessag
 	if err := json.Unmarshal(data, &values); err != nil {
 		return nil, err
 	}
-	for _, field := range []string{"short_id", "revision", "updated_at", "pending_audit_id", "friend_version", "incoming"} {
+	for _, field := range []string{"short_id", "revision", "updated_at", "pending_audit_id", "friend_version", "incoming", "access_scope"} {
 		delete(values, field)
 	}
 	return values, nil
@@ -151,9 +151,6 @@ func (write annotationWrite) apply(ctx context.Context, before AnnotationDetail)
 	if patch.Summary != nil {
 		row.Summary = strings.TrimSpace(*patch.Summary)
 	}
-	if patch.AccessScope != nil {
-		row.AccessScope = *patch.AccessScope
-	}
 	if patch.BlogStatus != nil {
 		if !patch.BlogStatus.IsValid() {
 			return dbgen.DirectorySite{}, invalidAnnotation("the blog classification is invalid")
@@ -175,7 +172,7 @@ func (write annotationWrite) apply(ctx context.Context, before AnnotationDetail)
 	}
 	updated, err := write.q.UpdateSiteAnnotation(ctx, dbgen.UpdateSiteAnnotationParams{
 		SiteID: row.ID, Name: row.Name, Scheme: address.Scheme, NormalizedHost: address.NormalizedHost, BasePath: address.BasePath,
-		Summary: row.Summary, AccessScope: row.AccessScope, BlogStatus: row.BlogStatus, TagCascadeID: cascadeID, Revision: row.Revision,
+		Summary: row.Summary, BlogStatus: row.BlogStatus, TagCascadeID: cascadeID, Revision: row.Revision,
 	})
 	if isNotFound(err) {
 		return dbgen.DirectorySite{}, annotationConflict()

@@ -13,8 +13,9 @@ export const siteVisibilityLabels: Readonly<Record<SiteVisibility, string>> = {
 };
 
 export const siteAccessScopeLabels: Readonly<Record<ManagedSite['access_scope'], string>> = {
-  CN_ONLY: '中国大陆',
-  GLOBAL_ONLY: '境外',
+  '': '未知',
+  CN: '中国大陆',
+  GL: '境外',
   ALL: '全球',
 };
 

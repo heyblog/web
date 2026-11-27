@@ -177,7 +177,7 @@ func readDirectoryAccessScopes(values url.Values) ([]string, error) {
 	}
 	for _, item := range items {
 		switch item {
-		case "ALL", "CN_ONLY", "GLOBAL_ONLY":
+		case "ALL", "CN", "GL":
 		default:
 			return nil, invalidDirectoryQuery("access", "contains an invalid value")
 		}

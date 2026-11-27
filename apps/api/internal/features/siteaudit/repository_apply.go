@@ -40,7 +40,7 @@ func (transaction *auditTransaction) applySnapshot(
 		cascadeID := rowCascadeID(current, final)
 		row, err = queries.ApplySiteSnapshot(ctx, dbgen.ApplySiteSnapshotParams{
 			ID: siteID, Name: final.Name, Scheme: final.Scheme, NormalizedHost: final.NormalizedHost,
-			BasePath: final.BasePath, Summary: final.Summary, AccessScope: final.AccessScope,
+			BasePath: final.BasePath, Summary: final.Summary,
 			Visibility: final.Visibility, VisibilityReason: stringPointer(final.VisibilityReason), TagCascadeID: cascadeID, Revision: current.Revision, ApproveBlog: action == ActionUpdate,
 		})
 	}
@@ -55,7 +55,7 @@ func (transaction *auditTransaction) applySnapshot(
 	}
 	final.Revision = row.Revision
 	if action == ActionCreate || action == ActionUpdate {
-		if err := syncAssociations(ctx, queries, siteID, final, reviewerID, createsProgramDependencies); err != nil {
+		if err := syncAssociations(ctx, queries, siteID, current, final, reviewerID, createsProgramDependencies); err != nil {
 			return pgtype.UUID{}, 0, err
 		}
 	}
@@ -82,7 +82,7 @@ func (transaction *auditTransaction) createSite(ctx context.Context, queries *db
 		if err != nil {
 			return dbgen.DirectorySite{}, fmt.Errorf("generate site short ID: %w", err)
 		}
-		row, err := queries.CreateSite(ctx, dbgen.CreateSiteParams{ShortID: shortID, Name: snapshot.Name, Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath, Summary: snapshot.Summary, AccessScope: snapshot.AccessScope, TagCascadeID: cascadeID})
+		row, err := queries.CreateSite(ctx, dbgen.CreateSiteParams{ShortID: shortID, Name: snapshot.Name, Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath, Summary: snapshot.Summary, TagCascadeID: cascadeID})
 		if err == nil {
 			return row, nil
 		}

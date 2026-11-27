@@ -9,11 +9,17 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"heyblog-api/internal/domain/site"
 	"heyblog-api/internal/features/siteaudit"
 	"heyblog-api/internal/features/sitemanagement"
+	"heyblog-api/internal/features/taskcenter"
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
+
+	"heyblog.local/taskprotocol"
+
+	"github.com/google/uuid"
 )
 
 type publishedProof struct{}
@@ -51,7 +57,7 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if forbidden.Code != http.StatusForbidden {
 		t.Fatalf("unverified edit = %d / %s", forbidden.Code, forbidden.Body.String())
 	}
-	created := fixture.request("POST", "/api/web/account/site-claims", `{"short_id":"HTTPown01","method":"META"}`)
+	created := fixture.request("POST", "/api/web/account/site-claims", `{"short_id":"HTTPown01","method":"DNS_TXT"}`)
 	if created.Code != http.StatusOK {
 		t.Fatalf("create certification = %d / %s", created.Code, created.Body.String())
 	}
@@ -97,7 +103,28 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	}
 	input := siteauditConflictSubmission("https://http-owner.example.test/", siteauditConflictTaxonomy{Level1ID: integrationUUIDText(t, cascades[0].Level1ID), Level2ID: integrationUUIDText(t, cascades[0].Level2ID)}, integrationUUIDText(t, program.ID))
 	input.Site.Name = "Updated HTTP owner"
-	if _, err := fixture.pool.Exec(ctx, "UPDATE directory.sites SET access_scope = 'CN_ONLY' WHERE short_id = 'HTTPown01'"); err != nil {
+	// RSS history must not prevent the review path from replacing feed associations.
+	if _, err := fixture.pool.Exec(ctx, `INSERT INTO directory.site_feeds(site_id,name,location_type,url_ref,url_key,is_default) SELECT id,'Review RSS','RELATIVE',path,path,path='/a.xml' FROM directory.sites CROSS JOIN (VALUES('/a.xml'),('/b.xml')) AS feeds(path) WHERE short_id='HTTPown01'`); err != nil {
+		t.Fatal(err)
+	}
+	tasks := taskcenter.NewRepository(fixture.pool, time.Now)
+	worker := taskprotocol.WorkerInput{InstanceID: uuid.NewString(), Protocol: taskprotocol.ProtocolVersion}
+	if _, err := tasks.Register(ctx, taskprotocol.Instance{InstanceID: worker.InstanceID, Protocol: worker.Protocol, Version: "integration"}); err != nil {
+		t.Fatal(err)
+	}
+	var rssID string
+	if err := fixture.pool.QueryRow(ctx, `SELECT id::text FROM operations.schedules WHERE kind='rss'`).Scan(&rssID); err != nil {
+		t.Fatal(err)
+	}
+	rssRun, err := tasks.Manual(ctx, taskAdministrator, rssID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err := tasks.Claim(ctx, worker)
+	if err != nil || lease == nil {
+		t.Fatalf("RSS lease: %v", err)
+	}
+	if _, err := fixture.pool.Exec(ctx, "UPDATE directory.sites SET access_scope = 'CN' WHERE short_id = 'HTTPown01'"); err != nil {
 		t.Fatal(err)
 	}
 	body, err := json.Marshal(input)
@@ -120,7 +147,7 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 		t.Fatalf("account update result = %#v / %v", submission, err)
 	}
 	detail := fixture.request("GET", "/api/web/account/site-submissions/"+submission.AuditID, "")
-	if detail.Code != 200 || !strings.Contains(detail.Body.String(), "OWNER_UPDATE") || !strings.Contains(detail.Body.String(), "CN_ONLY") {
+	if detail.Code != 200 || !strings.Contains(detail.Body.String(), "OWNER_UPDATE") || !strings.Contains(detail.Body.String(), `"access_scope":"CN"`) {
 		t.Fatalf("account update detail = %d / %s", detail.Code, detail.Body.String())
 	}
 	canonical := fixture.request("GET", "/api/web/account/sites/HTTPown01", "")
@@ -131,7 +158,7 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if err := json.Unmarshal(canonical.Body.Bytes(), &snapshot); err != nil {
 		t.Fatal(err)
 	}
-	draftBody, err := json.Marshal(siteaudit.ReviewDraftInput{Site: siteaudit.ReviewSiteInput{SiteInput: input.Site, AccessScope: "GLOBAL_ONLY"}, ExpectedSiteRevision: snapshot.Revision})
+	draftBody, err := json.Marshal(siteaudit.ReviewDraftInput{Site: siteaudit.ReviewSiteInput{SiteInput: input.Site}, ExpectedSiteRevision: snapshot.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +175,23 @@ func TestOwnerAccountHTTPWorkflow(t *testing.T) {
 	if err := json.Unmarshal(approved.Body.Bytes(), &audit); err != nil {
 		t.Fatal(err)
 	}
-	if approved.Code != http.StatusOK || audit.FinalSnapshot.AccessScope != "GLOBAL_ONLY" {
+	if approved.Code != http.StatusOK || audit.FinalSnapshot.AccessScope != "CN" {
 		t.Fatalf("admin scope approval = %d / %s", approved.Code, approved.Body.String())
+	}
+	if _, err := tasks.Claim(ctx, worker); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := taskcenter.NewSigning(tasks, nil).Permit(ctx, lease.ID, taskprotocol.Authorization{
+		Fence: taskprotocol.Fence{WorkerInput: worker, Token: lease.Token}, RequestKey: "stale", Platform: lease.Route[0], Method: "GET", URL: lease.Address}); err == nil {
+		t.Fatal("deleted feed lease remained usable")
+	}
+	targets, err := tasks.Targets(ctx, rssRun, taskcenter.Query{})
+	if err != nil || len(targets.Items) != 2 {
+		t.Fatalf("RSS history: %v %v", targets, err)
+	}
+	for _, target := range targets.Items {
+		if target.FeedID != nil || target.State != "skipped" || target.Reason != "target_changed" {
+			t.Fatalf("deleted feed target: %+v", target)
+		}
 	}
 }

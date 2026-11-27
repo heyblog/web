@@ -40,12 +40,14 @@ run = '''
 cat <<'EOF'
 apps/api       The backend api server built with Gin
 apps/web       The frontend web app built with Astro
+apps/edge      Cloudflare and EdgeOne request executors
+apps/worker    Independent HTTP task worker
 EOF
 '''
 
 ["apps:dev"]
 description = "Run core apps"
-run = [{ tasks = ["//apps/api:dev", "//apps/web:dev"] }]
+run = [{ tasks = ["//apps/api:dev", "//apps/web:dev", "//apps/worker:dev"] }]
 
 ["app:dev"]
 description = "Run core apps"
@@ -53,7 +55,14 @@ run = [{ task = "apps:dev" }]
 
 [install]
 description = "Install repository dependencies"
-run = ["pnpm install", "go mod download", { task = "//apps/api:install" }]
+run = [
+  "pnpm install",
+  "go mod download",
+  { task = "//apps/api:install" },
+  { task = "//apps/worker:install" },
+  { task = "//packages/go/edgerequest:install" },
+  { task = "//packages/go/taskprotocol:install" },
+]
 
 [prepare]
 description = "Prepare generated project inputs"
@@ -72,6 +81,10 @@ run = [
   { task = "//packages/node/configs:format" },
   { task = "//apps/web:format" },
   { task = "//apps/api:format" },
+  { task = "//apps/worker:format" },
+  { task = "//packages/go/edgerequest:format" },
+  { task = "//packages/go/taskprotocol:format" },
+  "pnpm --dir apps/edge run format",
 ]
 
 ["format:check"]
@@ -83,6 +96,10 @@ run = [
   { task = "//packages/node/configs:format:check" },
   { task = "//apps/web:format:check" },
   { task = "//apps/api:format:check" },
+  { task = "//apps/worker:check" },
+  { task = "//packages/go/edgerequest:check" },
+  { task = "//packages/go/taskprotocol:check" },
+  "pnpm --dir apps/edge run format:check",
 ]
 
 [lint]
@@ -92,6 +109,7 @@ run = [
   { task = "//packages/node/configs:lint" },
   { task = "//apps/web:lint" },
   { task = "//apps/api:lint" },
+  "pnpm --dir apps/edge run lint",
 ]
 
 ["lint:fix"]
@@ -105,7 +123,14 @@ run = [
 
 [build]
 description = "Build all active applications"
-run = [{ task = "//apps/api:build" }, { task = "//apps/web:build" }]
+run = [
+  { task = "//apps/api:build" },
+  { task = "//apps/worker:build" },
+  { task = "//packages/go/edgerequest:build" },
+  { task = "//packages/go/taskprotocol:build" },
+  { task = "//apps/web:build" },
+  { task = "//apps/edge:build" },
+]
 
 [typecheck]
 description = "Type-check all Node workspace modules"
@@ -113,6 +138,7 @@ run = [
   "pnpm run typecheck",
   { task = "//packages/node/configs:typecheck" },
   { task = "//apps/web:typecheck" },
+  "pnpm --dir apps/edge run typecheck",
 ]
 
 [check]
@@ -126,7 +152,11 @@ run = [
   { task = "//apps/api:sqlc:diff" },
   "mise tasks validate",
   "mise --cd apps/api tasks validate",
+  "mise --cd apps/worker tasks validate",
+  "mise --cd packages/go/edgerequest tasks validate",
+  "mise --cd packages/go/taskprotocol tasks validate",
   "mise --cd apps/web tasks validate",
+  "mise --cd apps/edge tasks validate",
   "mise --cd packages/node/configs tasks validate",
   "REGISTRY=example.test NAMESPACE=heyblog IMAGE_TAGS=test mise run --dry-run container:publish >/dev/null",
   '''
@@ -141,12 +171,21 @@ run = [
   { task = "version:test" },
   { task = "hooks:test" },
   { task = "//apps/api:test" },
+  { task = "//apps/worker:test" },
+  { task = "//packages/go/edgerequest:test" },
+  { task = "//packages/go/taskprotocol:test" },
   { task = "//apps/web:test" },
+  { task = "//apps/edge:test" },
 ]
 
 ["test:race"]
 description = "Run race-enabled tests"
-run = [{ task = "//apps/api:test:race" }]
+run = [
+  { task = "//apps/api:test:race" },
+  { task = "//apps/worker:test" },
+  { task = "//packages/go/edgerequest:test" },
+  { task = "//packages/go/taskprotocol:test" },
+]
 
 ["test:integration"]
 description = "Run integration tests"

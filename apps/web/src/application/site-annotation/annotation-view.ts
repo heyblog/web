@@ -21,9 +21,14 @@ export const statusLabels = {
 
 export const scopeLabels = {
   ALL: '全球可访问',
+  CN: '仅中国大陆可访问',
   CN_ONLY: '仅中国大陆可访问',
+  GL: '仅中国大陆以外可访问',
   GLOBAL_ONLY: '仅中国大陆以外可访问',
-} satisfies Record<AnnotationDetail['access_scope'], string>;
+} satisfies Record<
+  NonNullable<AnnotationDetail['access_scope']> | 'CN_ONLY' | 'GLOBAL_ONLY',
+  string
+>;
 
 export const tagRoleLabels = {
   PRIMARY: '一级分类',

@@ -2,17 +2,19 @@ package databasebackup
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
 const (
-	Path                          = "/api/web/management/database-backup"
-	FileLimit               int64 = 512 << 20
-	BodyLimit                     = FileLimit + 1<<20
-	Timeout                       = 30 * time.Minute
-	Format                        = "heyblog.database-backup"
-	annotationSchemaVersion       = 7
-	schemaVersion                 = 8
+	Path                           = "/api/web/management/database-backup"
+	FileLimit                int64 = 512 << 20
+	BodyLimit                      = FileLimit + 1<<20
+	Timeout                        = 30 * time.Minute
+	Format                         = "heyblog.database-backup"
+	annotationSchemaVersion        = 7
+	emailChangeSchemaVersion       = 8
+	schemaVersion                  = 9
 )
 
 var (
@@ -36,6 +38,12 @@ var tableNames = []string{
 	"directory.site_audits", "directory.site_annotation_history", "directory.owner_friend_link_requests",
 	"directory.site_metrics", "directory.site_metric_events",
 	"content.articles", "content.article_tags", "content.announcements", "content.announcement_revisions",
+	"directory.site_monitoring_rounds",
+	"operations.request_configs", "operations.task_settings", "operations.workers",
+	"operations.schedules", "operations.runs", "operations.targets",
+	"operations.signing_policy", "operations.signing_keys", "operations.signing_events",
+	"operations.request_attempts", "operations.feed_documents", "operations.feed_items", "operations.route_state",
+	"operations.task_events", "operations.task_idempotency", "operations.platform_backoff", "operations.request_statistics",
 }
 
 type Header struct {
@@ -95,12 +103,16 @@ type Restoration struct {
 }
 
 func tablesForSchema(version int) []string {
-	if version >= annotationSchemaVersion {
-		return tableNames
-	}
-	result := make([]string, 0, len(tableNames)-1)
-	for _, name := range tableNames {
-		if name == "directory.site_annotation_history" || (version < 6 && name == "directory.site_claim_attachments") {
+	names := tableNames
+	result := make([]string, 0, len(names))
+	for _, name := range names {
+		if version < schemaVersion && (strings.HasPrefix(name, "operations.") || name == "directory.site_monitoring_rounds") {
+			continue
+		}
+		if version < annotationSchemaVersion && name == "directory.site_annotation_history" {
+			continue
+		}
+		if version < 6 && name == "directory.site_claim_attachments" {
 			continue
 		}
 		result = append(result, name)

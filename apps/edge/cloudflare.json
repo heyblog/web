@@ -1,0 +1,6 @@
+{
+  "main_module": "cloudflare.mjs",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "bindings": []
+}

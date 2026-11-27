@@ -90,7 +90,7 @@ func mapSnapshot(
 	snapshot := Snapshot{
 		SiteID: identifier, BlogStatus: site.BlogStatus(row.BlogStatus), Revision: row.Revision, ShortID: row.ShortID, Name: row.Name,
 		Scheme: row.Scheme, NormalizedHost: row.NormalizedHost, BasePath: row.BasePath,
-		Summary: row.Summary, AccessScope: row.AccessScope, Visibility: row.Visibility,
+		Summary: row.Summary, AccessScope: stringValue(row.AccessScope), Visibility: row.Visibility,
 		Feeds: make([]FeedSnapshot, 0, len(feeds)), Resources: make([]ResourceSnapshot, 0, len(resources)),
 		Tags: make([]TagSnapshot, 0, len(tags)), Components: make([]ComponentSnapshot, 0, len(components)),
 		ProgramDependencies: make([]ComponentSnapshot, 0, len(dependencies)),

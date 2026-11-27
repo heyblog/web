@@ -20,7 +20,7 @@ func TestParseDirectoryQueryAcceptsSupportedFilters(t *testing.T) {
 		"tertiary":   {"design", "astro"},
 		"warning":    {"slow-access"},
 		"technology": {"astro"},
-		"access":     {"ALL", "CN_ONLY"},
+		"access":     {"ALL", "CN"},
 		"feed":       {"with"},
 		"status":     {"abnormal"},
 		"sort":       {"updated"},

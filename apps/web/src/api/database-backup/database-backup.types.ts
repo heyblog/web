@@ -39,6 +39,24 @@ export const backupDatasetNames = [
   'content.announcement_revisions',
   'content.articles',
   'content.article_tags',
+  'directory.site_monitoring_rounds',
+  'operations.request_configs',
+  'operations.task_settings',
+  'operations.workers',
+  'operations.schedules',
+  'operations.runs',
+  'operations.targets',
+  'operations.signing_policy',
+  'operations.signing_keys',
+  'operations.signing_events',
+  'operations.request_attempts',
+  'operations.feed_documents',
+  'operations.feed_items',
+  'operations.route_state',
+  'operations.task_events',
+  'operations.task_idempotency',
+  'operations.platform_backoff',
+  'operations.request_statistics',
 ] as const;
 export type BackupDatasetName = (typeof backupDatasetNames)[number];
 export interface BackupDataset {
@@ -56,7 +74,7 @@ export interface BackupIssue {
 export interface BackupInspection {
   readonly sha256: string;
   readonly version: 1;
-  readonly schema_version: 3 | 4 | 5 | 6 | 7 | 8;
+  readonly schema_version: 3 | 4 | 5 | 6 | 7 | 8 | 9;
   readonly generated_at: string;
   readonly excluded_system_admin_id: string;
   readonly retained_system_admin_id: string;
@@ -105,11 +123,13 @@ function parseDatasets(
     datasets.push({ name: item.name, count: item.count });
   }
   // Restore results omit the source schema version and can have any supported inventory.
-  const versions = schemaVersion === undefined ? [5, 6, 7] : [schemaVersion];
+  const versions = schemaVersion === undefined ? [5, 6, 8, 9] : [schemaVersion];
   const valid = versions.some((version) =>
     backupDatasetNames.every((name) => {
       if (name === 'directory.site_claim_attachments') return names.has(name) === version >= 6;
       if (name === 'directory.site_annotation_history') return names.has(name) === version >= 7;
+      if (name.startsWith('operations.') || name === 'directory.site_monitoring_rounds')
+        return names.has(name) === version >= 9;
       return names.has(name);
     }),
   );
@@ -150,7 +170,8 @@ export function parseBackupInspection(value: unknown): BackupInspection | null {
       value.schema_version !== 5 &&
       value.schema_version !== 6 &&
       value.schema_version !== 7 &&
-      value.schema_version !== 8) ||
+      value.schema_version !== 8 &&
+      value.schema_version !== 9) ||
     typeof value.generated_at !== 'string' ||
     !Number.isFinite(Date.parse(value.generated_at)) ||
     !isUUID(value.excluded_system_admin_id) ||

@@ -68,7 +68,22 @@ export function managementNavigation(
       description: '管理账号、资料与授权',
     });
   }
+  if (
+    user.role === 'SYS_ADMIN' ||
+    (user.role === 'ADMIN' && user.permissions.includes('task.manage'))
+  ) {
+    items.push({
+      label: '后台任务中心',
+      href: '/management/tasks',
+      description: '管理检测、RSS 调度与执行记录',
+    });
+  }
   if (user.role === 'SYS_ADMIN') {
+    items.push({
+      label: '请求签名管理',
+      href: '/management/request-signing',
+      description: '管理对外请求签名与公钥',
+    });
     items.push({
       label: '数据备份',
       href: '/management/database-backup',

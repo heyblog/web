@@ -16,9 +16,12 @@ func verifyManagedSiteList(ctx context.Context, t *testing.T, pool *pgxpool.Pool
 
 	visibleID := insertBlogSite(ctx, t, pool, "5MgmtA1Bc", "Managed List Visible", "managed-list-visible.example.test")
 	if _, err := pool.Exec(ctx, `UPDATE directory.sites
-		SET custom_id = 'managed-visible', scheme = 'http', base_path = '/journal', access_scope = 'GLOBAL_ONLY'
+		SET custom_id = 'managed-visible', scheme = 'http', base_path = '/journal'
 		WHERE id = $1`, visibleID); err != nil {
 		t.Fatalf("configure managed visible site: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE directory.sites SET access_scope = 'GL' WHERE id = $1`, visibleID); err != nil {
+		t.Fatalf("record monitoring scope: %v", err)
 	}
 	hiddenID := insertBlogSite(ctx, t, pool, "5MgmtD2Ef", "Managed List Hidden", "managed-list-hidden.example.test")
 	if _, err := pool.Exec(ctx, `UPDATE directory.sites
@@ -61,7 +64,7 @@ func verifyManagedSiteList(ctx context.Context, t *testing.T, pool *pgxpool.Pool
 		t.Fatalf("find managed site by custom ID: %v", err)
 	}
 	if len(visible.Items) != 1 || visible.Items[0].URL != "http://managed-list-visible.example.test/journal" ||
-		visible.Items[0].AccessScope != "GLOBAL_ONLY" || visible.Items[0].PendingAudit == nil ||
+		visible.Items[0].AccessScope != "GL" || visible.Items[0].PendingAudit == nil ||
 		visible.Items[0].PendingAudit.ID != pending.AuditID || visible.Items[0].PendingAudit.Action != siteaudit.ActionDelete {
 		t.Fatalf("managed visible site = %#v, want address, scope, and pending deletion", visible.Items)
 	}

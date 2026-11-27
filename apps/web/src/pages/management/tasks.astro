@@ -1,0 +1,24 @@
+---
+import { managementNavigation } from '@/application/management/navigation';
+import TaskManager from '@/components/management/task-center/TaskManager.svelte';
+import ManagementLayout from '@/layouts/ManagementLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+const actor = Astro.locals.sessionUser;
+if (!actor) return Astro.redirect('/login?next=%2Fmanagement%2Ftasks');
+if (
+  actor.role !== 'SYS_ADMIN' &&
+  !(actor.role === 'ADMIN' && actor.permissions.includes('task.manage'))
+)
+  return Astro.redirect('/forbidden');
+---
+
+<ManagementLayout
+  title="后台任务中心 | HeyBlog"
+  heading="后台任务中心"
+  currentPath={Astro.url.pathname}
+  identity={{ displayName: actor.display_name, email: actor.email ?? '', roleLabel: actor.role }}
+  navigation={[...managementNavigation(actor)]}
+>
+  <TaskManager system={actor.role === 'SYS_ADMIN'} client:load />
+</ManagementLayout>

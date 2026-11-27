@@ -248,16 +248,18 @@ func stringPointer(value string) *string { return &value }
 //nolint:gosec // These are inert test fixtures and never authenticate a real service.
 func serviceEnvironment(key string) string {
 	values := map[string]string{
-		"API_MIGRATION_DATABASE_URL": "postgres://migrator@example.test/heyblog",
-		"API_DATABASE_URL":           "postgres://runtime@example.test/heyblog",
-		"API_REDIS_URL":              "redis://example.test:6379/0",
-		"API_MAIL_SMTP_URL":          "smtp://example.test:1025",
-		"API_HEALTHCHECK_TOKEN":      testHealthcheckToken,
-		"API_WEB_TOKEN":              testWebToken,
-		"API_AUTH_ACCESS_SECRET":     "test-auth-access-secret-0123456789abcdef",
-		"API_AUTH_REFRESH_SECRET":    "test-auth-refresh-secret-0123456789abcdef",
-		"API_GITHUB_CLIENT_ID":       "github-client-id",
-		"API_GITHUB_CLIENT_SECRET":   "github-client-secret",
+		"API_MIGRATION_DATABASE_URL":     "postgres://migrator@example.test/heyblog",
+		"API_DATABASE_URL":               "postgres://runtime@example.test/heyblog",
+		"API_REDIS_URL":                  "redis://example.test:6379/0",
+		"API_MAIL_SMTP_URL":              "smtp://example.test:1025",
+		"API_HEALTHCHECK_TOKEN":          testHealthcheckToken,
+		"API_WEB_TOKEN":                  testWebToken,
+		"API_AUTH_ACCESS_SECRET":         "test-auth-access-secret-0123456789abcdef",
+		"API_AUTH_REFRESH_SECRET":        "test-auth-refresh-secret-0123456789abcdef",
+		"API_GITHUB_CLIENT_ID":           "github-client-id",
+		"API_GITHUB_CLIENT_SECRET":       "github-client-secret",
+		"API_REQUEST_SIGNING_MASTER_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+		"API_TASK_WORKER_TOKEN":          "test-task-worker-token-0123456789abcdef",
 	}
 	return values[key]
 }

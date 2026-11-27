@@ -41,7 +41,7 @@ func TestSubmissionAndReviewAccessScopeHTTPContracts(t *testing.T) {
 	httpapi.Register(api, huma.Operation{OperationID: "draft", Method: http.MethodPut, Path: "/draft"},
 		func(_ context.Context, input *bodyInput[ReviewDraftInput]) (*bodyOutput[string], error) {
 			called = true
-			return &bodyOutput[string]{Body: input.Body.Site.AccessScope}, nil
+			return &bodyOutput[string]{Body: "accepted"}, nil
 		})
 	site := SiteInput{Name: "Example", URL: "https://example.com", Tags: []TagInput{}, Components: []ComponentInput{}, Feeds: []FeedInput{}, Resources: []ResourceInput{}, ProgramDependencies: []ComponentInput{}}
 	encoded, err := json.Marshal(SubmissionInput{Site: site})
@@ -59,28 +59,24 @@ func TestSubmissionAndReviewAccessScopeHTTPContracts(t *testing.T) {
 		}
 	}
 	for _, scope := range []string{"CN_ONLY", "GLOBAL_ONLY", "ALL", "unsupported"} {
-		draft, err := json.Marshal(ReviewDraftInput{Site: ReviewSiteInput{SiteInput: site, AccessScope: scope}})
+		draft, err := json.Marshal(ReviewDraftInput{Site: ReviewSiteInput{SiteInput: site}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		called = false
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPut, "/draft", strings.NewReader(string(draft)))
+		request := httptest.NewRequest(http.MethodPut, "/draft", strings.NewReader(strings.Replace(string(draft), `"site":{`, `"site":{"access_scope":"`+scope+`",`, 1)))
 		request.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(response, request)
-		if scope == "unsupported" {
-			if response.Code != http.StatusUnprocessableEntity || called {
-				t.Fatalf("invalid scope = %d, called=%v", response.Code, called)
-			}
-		} else if response.Code != http.StatusOK || !called || !strings.Contains(response.Body.String(), scope) {
-			t.Fatalf("review scope %s = %d %s", scope, response.Code, response.Body.String())
+		if response.Code != http.StatusUnprocessableEntity || called {
+			t.Fatalf("review scope %s was accepted: %d", scope, response.Code)
 		}
 	}
 	schemas := api.OpenAPI().Components.Schemas.Map()
 	if _, exists := schemas["SiteInput"].Properties["access_scope"]; exists {
 		t.Fatal("ordinary OpenAPI input exposes access scope")
 	}
-	if schemas["ReviewSiteInput"].Properties["access_scope"] == nil {
-		t.Fatal("review OpenAPI input omits access scope")
+	if schemas["ReviewSiteInput"].Properties["access_scope"] != nil {
+		t.Fatal("review OpenAPI input exposes access scope")
 	}
 }

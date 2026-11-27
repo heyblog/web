@@ -38,6 +38,12 @@ const page = {
 
 test('managed site boundary accepts complete pages and rejects malformed site state', () => {
   assert.deepEqual(parseManagedSitePage(page), page);
+  const unmonitoredPage = { ...page, items: [{ ...site, access_scope: '' }] };
+  assert.deepEqual(parseManagedSitePage(unmonitoredPage), unmonitoredPage);
+  assert.equal(
+    parseManagedSitePage({ ...page, items: [{ ...site, access_scope: 'INVALID' }] }),
+    null,
+  );
   assert.equal(
     parseManagedSitePage({ ...page, items: [{ ...site, visibility: 'UNKNOWN' }] }),
     null,

@@ -1,0 +1,22 @@
+{
+  "name": "heyblog-edge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --config ../../packages/node/configs/prettier.config.ts --write '**/*.{ts,mjs,json,md}'",
+    "format:check": "prettier --config ../../packages/node/configs/prettier.config.ts --check '**/*.{ts,mjs,json,md}'",
+    "lint": "eslint --config eslint.config.ts .",
+    "build": "node scripts/build.mjs",
+    "deploy:cf": "node scripts/deploy-cf.mjs",
+    "deploy:eo": "node scripts/deploy-eo.mjs"
+  },
+  "dependencies": {
+    "hono": "^4.13.0",
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

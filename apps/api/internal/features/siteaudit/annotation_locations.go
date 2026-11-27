@@ -81,8 +81,8 @@ func (write annotationWrite) saveLocations(ctx context.Context, before Annotatio
 	if err != nil {
 		return err
 	}
-	if write.patch.Feeds != nil {
-		if err := write.applyFeeds(ctx, storedFeeds, next.feeds); err != nil {
+	if write.patch.Feeds != nil || write.row.Scheme != address.Scheme || write.row.NormalizedHost != address.NormalizedHost {
+		if err := write.applyFeeds(ctx, storedFeeds, next.feeds, write.row.Scheme != address.Scheme || write.row.NormalizedHost != address.NormalizedHost); err != nil {
 			return err
 		}
 	}
@@ -159,7 +159,7 @@ func (write annotationWrite) prepareLocations(feeds []AnnotationFeed, resources 
 	return next, nil
 }
 
-func (write annotationWrite) applyFeeds(ctx context.Context, prior []dbgen.DirectorySiteFeed, next []dbgen.UpsertSiteFeedParams) error {
+func (write annotationWrite) applyFeeds(ctx context.Context, prior []dbgen.DirectorySiteFeed, next []dbgen.UpsertSiteFeedParams, originChanged bool) error {
 	desired := make(map[string]dbgen.UpsertSiteFeedParams, len(next))
 	for _, feed := range next {
 		desired[feed.UrlKey] = feed
@@ -167,7 +167,7 @@ func (write annotationWrite) applyFeeds(ctx context.Context, prior []dbgen.Direc
 	for _, feed := range prior {
 		want, exists := desired[feed.UrlKey]
 		switch {
-		case !exists:
+		case !exists || originChanged && feed.LocationType == "RELATIVE":
 			if err := write.q.DeleteSiteFeed(ctx, dbgen.DeleteSiteFeedParams{SiteID: feed.SiteID, ID: feed.ID}); err != nil {
 				return err
 			}

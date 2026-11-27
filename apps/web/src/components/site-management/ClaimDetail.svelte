@@ -9,6 +9,7 @@
     claimLabel,
   } from '@/application/site-management/claims.model';
   import { claimMethodLabels } from '@/application/site-management/messages';
+  import { state as taskState } from '@/application/task-center/model';
   import OAuthButton from '@/components/auth/OAuthButton.svelte';
   import {
     buttonClass,
@@ -29,11 +30,12 @@
   let action = $state<'cancel' | 'regenerate'>('regenerate');
   const loading = {
     refresh: '正在刷新…',
-    check: '正在检查验证配置，最多需要 8 秒…',
+    check: '正在提交验证检查…',
     cancel: '正在取消…',
     regenerate: '正在生成新配置…',
   } as const;
   onMount(() => {
+    controller.startPolling();
     const timer = setInterval(() => {
       now = Date.now();
     }, 1000);
@@ -102,6 +104,9 @@
     {#if controller.notice}<p class="text-sm text-success-fg" role="status">
         {controller.notice}
       </p>{/if}
+    {#if controller.task}<p class="text-sm text-fg-muted" role="status">
+        验证检查：{taskState(controller.task.state)}
+      </p>{/if}
     {#if claim.evidence}<div>
         <h3 class="text-sm font-medium">归属说明</h3>
         <p class="mt-2 text-sm whitespace-pre-wrap">{claim.evidence}</p>
@@ -161,7 +166,7 @@
         {:else if claim.can_check}<button
             type="button"
             class={primaryClass}
-            disabled={controller.busy !== null || claimExpired(claim, now)}
+            disabled={controller.busy !== null || controller.checking || claimExpired(claim, now)}
             onclick={() => void controller.run('check')}>检查验证</button
           >{/if}
         {#if claim.can_regenerate}<button

@@ -25,8 +25,8 @@
 
   const accessOptions = [
     { value: 'ALL', label: '全球可访问' },
-    { value: 'CN_ONLY', label: '仅中国大陆' },
-    { value: 'GLOBAL_ONLY', label: '仅海外' },
+    { value: 'CN', label: '仅中国大陆' },
+    { value: 'GL', label: '仅海外' },
   ] as const satisfies readonly { value: SiteDirectoryAccess; label: string }[];
   let { options, query, onToggle, onClassificationChange, onFeedChange }: Props = $props();
   const id = $props.id();

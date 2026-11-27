@@ -6,33 +6,56 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-func fixtureDocument(t *testing.T, version int) []byte {
+func fixtureDocumentForSchema(t *testing.T, schema int, budgets ...json.RawMessage) []byte {
 	t.Helper()
 	empty := sha256.Sum256(nil)
 	tables := map[string][]any{}
 	manifest := []Manifest{}
-	for _, name := range tablesForSchema(version) {
+	for _, name := range tablesForSchema(schema) {
 		tables[name] = []any{}
 		manifest = append(manifest, Manifest{Dataset: Dataset{Name: name}, SHA256: hex.EncodeToString(empty[:])})
+	}
+	if len(budgets) > 0 {
+		tables["operations.platform_budgets"] = make([]any, len(budgets))
+		hash := sha256.New()
+		for i, row := range budgets {
+			canonical, err := canonicalRow(row)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tables["operations.platform_budgets"][i] = json.RawMessage(canonical)
+			_, _ = hash.Write(append(canonical, '\n'))
+		}
+		manifest = append(manifest, Manifest{Dataset: Dataset{Name: "operations.platform_budgets", Count: int64(len(budgets))}, SHA256: hex.EncodeToString(hash.Sum(nil))})
 	}
 	for _, name := range []string{"graph.vertices", "graph.edges"} {
 		manifest = append(manifest, Manifest{Dataset: Dataset{Name: name}, SHA256: hex.EncodeToString(empty[:])})
 	}
-	data, err := json.Marshal(map[string]any{"metadata": Header{Format: Format, Version: 1, SchemaVersion: version, GeneratedAt: time.Now(), ExcludedSystemAdminID: "00000000-0000-0000-0000-000000000001"}, "tables": tables, "graph": map[string]any{"vertices": []any{}, "edges": []any{}}, "manifest": manifest})
+	data, err := json.Marshal(map[string]any{"metadata": Header{Format: Format, Version: 1, SchemaVersion: schema, GeneratedAt: time.Now(), ExcludedSystemAdminID: "00000000-0000-0000-0000-000000000001"}, "tables": tables, "graph": map[string]any{"vertices": []any{}, "edges": []any{}}, "manifest": manifest})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
 }
 
+func TestDocumentRejectsIntermediateFormats(t *testing.T) {
+	quota := json.RawMessage(`{"platform":"CF","limit_requests":"100","used_requests":"2","period_seconds":3600,"period_start":"2026-01-01T00:00:00Z"}`)
+	for _, data := range [][]byte{fixtureDocumentForSchema(t, schemaVersion, quota), bytes.Replace(fixtureDocumentForSchema(t, schemaVersion), []byte(`"schema_version":9`), []byte(`"schema_version":7`), 1), fixtureDocumentForSchema(t, 10)} {
+		if _, err := readDocument(bytes.NewReader(data), nil); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("intermediate format accepted: %v", err)
+		}
+	}
+}
+
 func TestDocumentRejectsMissingUnknownAndTamperedDatasets(t *testing.T) {
 	t.Parallel()
-	valid := fixtureDocument(t, 3)
+	valid := fixtureDocumentForSchema(t, 3)
 	if _, err := readDocument(bytes.NewReader(valid), nil); err != nil {
 		t.Fatal(err)
 	}
@@ -91,12 +114,11 @@ func TestRowContractRejectsUnknownFieldsAndUnsafeBigints(t *testing.T) {
 
 func TestDocumentAcceptsSupportedSchemaVersions(t *testing.T) {
 	// Given a valid transfer with no schema-specific rows.
-	valid := fixtureDocument(t, 3)
-	for _, version := range []string{"3", "4", "5"} {
-		t.Run(version, func(t *testing.T) {
+	for _, version := range []int{3, 4, 5, 6, 7, 8, 9} {
+		t.Run(strconv.Itoa(version), func(t *testing.T) {
 			// When its source schema is a supported version.
-			data := strings.Replace(string(valid), `"schema_version":3`, `"schema_version":`+version, 1)
-			_, err := readDocument(strings.NewReader(data), nil)
+			data := fixtureDocumentForSchema(t, version)
+			_, err := readDocument(bytes.NewReader(data), nil)
 			// Then integrity validation still accepts it.
 			if err != nil {
 				t.Fatal(err)
@@ -107,7 +129,7 @@ func TestDocumentAcceptsSupportedSchemaVersions(t *testing.T) {
 
 func TestDocumentRequiresVersionSpecificAttachmentInventory(t *testing.T) {
 	var data map[string]json.RawMessage
-	if err := json.Unmarshal(fixtureDocument(t, 3), &data); err != nil {
+	if err := json.Unmarshal(fixtureDocumentForSchema(t, 3), &data); err != nil {
 		t.Fatal(err)
 	}
 	var header Header
@@ -152,7 +174,7 @@ func TestDocumentRejectsMismatchedAnnotationHistoryInventory(t *testing.T) {
 		{"current without history", 6, `"schema_version":6`, `"schema_version":7`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			archive := fixtureDocument(t, test.inventory)
+			archive := fixtureDocumentForSchema(t, test.inventory)
 			archive = bytes.Replace(archive, []byte(test.version), []byte(test.mislabeled), 1)
 			if _, err := readDocument(bytes.NewReader(archive), nil); !errors.Is(err, ErrInvalid) {
 				t.Fatalf("mismatched inventory accepted: %v", err)

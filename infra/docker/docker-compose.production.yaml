@@ -33,6 +33,12 @@ services:
       API_REDIS_URL: ${API_REDIS_URL:?API_REDIS_URL is required}
       API_HEALTHCHECK_TOKEN: ${API_HEALTHCHECK_TOKEN:?API_HEALTHCHECK_TOKEN is required}
       API_WEB_TOKEN: ${API_WEB_TOKEN:?API_WEB_TOKEN is required}
+      API_TASK_WORKER_TOKEN: ${API_TASK_WORKER_TOKEN:?API_TASK_WORKER_TOKEN is required}
+      API_REQUEST_SIGNING_MASTER_KEY: ${API_REQUEST_SIGNING_MASTER_KEY:?API_REQUEST_SIGNING_MASTER_KEY is required}
+      API_EDGE_CF_URL: ${API_EDGE_CF_URL:-}
+      API_EDGE_CF_TOKEN: ${API_EDGE_CF_TOKEN:-}
+      API_EDGE_EO_URL: ${API_EDGE_EO_URL:-}
+      API_EDGE_EO_TOKEN: ${API_EDGE_EO_TOKEN:-}
       API_AUTH_ACCESS_SECRET: ${API_AUTH_ACCESS_SECRET:?API_AUTH_ACCESS_SECRET is required}
       API_AUTH_REFRESH_SECRET: ${API_AUTH_REFRESH_SECRET:?API_AUTH_REFRESH_SECRET is required}
       API_GITHUB_CLIENT_ID: ${API_GITHUB_CLIENT_ID:?API_GITHUB_CLIENT_ID is required}
@@ -62,6 +68,24 @@ services:
           create_host_path: false
       - api_logs:/var/log/heyblog/api
     stop_grace_period: 25s
+    networks:
+      - private
+
+  worker:
+    image: ${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/worker:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      TASK_WORKER_API_URL: http://api:10201
+      API_TASK_WORKER_TOKEN: ${API_TASK_WORKER_TOKEN:?API_TASK_WORKER_TOKEN is required}
+      API_EDGE_CF_URL: ${API_EDGE_CF_URL:-}
+      API_EDGE_CF_TOKEN: ${API_EDGE_CF_TOKEN:-}
+      API_EDGE_EO_URL: ${API_EDGE_EO_URL:-}
+      API_EDGE_EO_TOKEN: ${API_EDGE_EO_TOKEN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 35s
     networks:
       - private
 

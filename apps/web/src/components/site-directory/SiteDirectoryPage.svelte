@@ -154,8 +154,7 @@
     selected: boolean,
   ): readonly SiteDirectoryAccess[] {
     return toggleValues(values, value, selected).filter(
-      (item): item is SiteDirectoryAccess =>
-        item === 'ALL' || item === 'CN_ONLY' || item === 'GLOBAL_ONLY',
+      (item): item is SiteDirectoryAccess => item === 'ALL' || item === 'CN' || item === 'GL',
     );
   }
 

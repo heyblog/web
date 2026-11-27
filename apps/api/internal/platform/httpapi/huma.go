@@ -259,6 +259,7 @@ func problemFromDescriptor(ctx *gin.Context, descriptor problemDescriptor) *Prob
 		Detail:        descriptor.detail,
 		Instance:      instance,
 		Code:          descriptor.code,
+		CurrentState:  descriptor.currentState,
 		RequestID:     requestID,
 		InvalidParams: descriptor.params,
 	}

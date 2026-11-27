@@ -168,6 +168,7 @@ func run(ctx context.Context, configuration config.Config, logger *slog.Logger, 
 
 func newApplicationHandler(options httpapi.Options, dependencies runtimeDependencies, configuration config.Config) (http.Handler, error) {
 	options.BodyLimitOverrides = dataimport.BodyLimitOverrides()
+	options.BodyLimitOverrides[httpapi.Route{Method: "POST", Path: "/api/internal/v1/tasks/targets/:id/report"}] = 2 << 20
 	for route, limit := range databasebackup.BodyLimitOverrides() {
 		options.BodyLimitOverrides[route] = limit
 	}
@@ -221,7 +222,9 @@ func newApplicationHandler(options httpapi.Options, dependencies runtimeDependen
 			return nil, err
 		}
 	}
-	claimService := sitemanagement.NewService(claimRepository, authService, sitemanagement.NewNetworkVerifier(), attachmentManager)
+	taskRepository := registerTaskCenter(router.API, dependencies.DatabasePool(), authService, configuration)
+	claimService := sitemanagement.NewService(claimRepository, authService, sitemanagement.NewDNSVerifier(net.DefaultResolver), attachmentManager)
+	claimService.SetVerificationQueue(taskRepository)
 	authService.SetOAuthClaims(claimService)
 	if err := sitemanagement.RegisterRoutes(router.API, claimService, options.WebToken, dependencies.RedisClient()); err != nil {
 		return nil, err

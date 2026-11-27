@@ -24,6 +24,10 @@ ambiguity before implementing behavior.
 
 - `apps/api`: backend API application.
 - `apps/web`: frontend web application.
+- `apps/edge`: shared Hono request executor with Cloudflare and EdgeOne adapters.
+- `apps/worker`: standalone HTTP task scheduler and executor; no database access.
+- `packages/go/edgerequest`: internal shared public-target and Edge request transport.
+- `packages/go/taskprotocol`: API-owned internal task DTOs and pure scheduling rules.
 - `packages/node/configs`: shared Node.js quality-tool configuration.
 - `infra`: development dependencies and deployment infrastructure configuration.
 - `.github`: repository automation, reusable actions, and CI workflows.
@@ -172,12 +176,12 @@ integration tests.
 
 ## Testing
 
-| Change scope | Required validation |
-| --- | --- |
-| One module | Focused tests while iterating, then the owning module's `:verify` |
-| Shared configuration or cross-module | Affected module checks and root `mise run verify` |
+| Change scope                                         | Required validation                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| One module                                           | Focused tests while iterating, then the owning module's `:verify`              |
+| Shared configuration or cross-module                 | Affected module checks and root `mise run verify`                              |
 | Database, auth, infrastructure, or lifecycle changes | Relevant integration, race, smoke, or container tasks in addition to the above |
-| Security or dependency risk | Relevant security tasks; network-backed checks require network access |
+| Security or dependency risk                          | Relevant security tasks; network-backed checks require network access          |
 
 Use `verify:full` for an explicitly requested full gate or when its combined coverage is needed.
 Report any required check that could not run; a smaller passing check does not replace it.

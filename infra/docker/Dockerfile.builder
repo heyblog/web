@@ -6,7 +6,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends bash ca-certificates curl git tar xz-utils \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl git libatomic1 tar xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl --fail --silent --show-error --location \
@@ -25,7 +25,7 @@ ENV MISE_TRUSTED_CONFIG_PATHS=/workspace \
 
 COPY mise.toml mise.lock ./
 
-RUN mkdir -p apps/api apps/web packages/node/configs \
+RUN mkdir -p apps/api apps/web apps/edge apps/worker packages/node/configs packages/go/edgerequest packages/go/taskprotocol \
     && mise install --locked node go pnpm
 
 LABEL org.opencontainers.image.title="HeyBlog builder"

@@ -22,6 +22,7 @@ const accountRoutes: readonly [RegExp, readonly string[]][] = [
   [new RegExp(`^site-claims/${identifier}/regenerate$`), ['POST']],
   [new RegExp(`^site-claims/${identifier}$`), ['GET', 'DELETE']],
   [new RegExp(`^site-claims/${identifier}/check$`), ['POST']],
+  [new RegExp(`^site-claims/${identifier}/task$`), ['GET']],
 ];
 const managementRoutes: readonly [RegExp, readonly string[]][] = [
   [new RegExp(`^site-claim-attachments/${identifier}/download$`), ['POST']],

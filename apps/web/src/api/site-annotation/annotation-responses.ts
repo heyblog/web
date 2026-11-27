@@ -49,7 +49,7 @@ export function parseAnnotationDetail(value: unknown): AnnotationDetail {
   return {
     ...annotationItem(value),
     summary: text(item.summary),
-    access_scope: oneOf(item.access_scope, accessScopes),
+    access_scope: item.access_scope === null ? null : oneOf(item.access_scope, accessScopes),
     tag_cascade_id:
       item.tag_cascade_id == null || item.tag_cascade_id === '' ? '' : id(item.tag_cascade_id),
     tags: list(item.tags ?? [], (value) => ({

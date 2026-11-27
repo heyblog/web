@@ -13,7 +13,7 @@ export interface ManagedSite {
   readonly custom_id?: string;
   readonly name: string;
   readonly url: string;
-  readonly access_scope: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
+  readonly access_scope: 'CN' | 'GL' | 'ALL' | '';
   readonly visibility: SiteVisibility;
   readonly visibility_reason?: string;
   readonly revision: number;

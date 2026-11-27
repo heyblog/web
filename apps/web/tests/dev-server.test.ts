@@ -311,7 +311,15 @@ test('development keeps page scripts and QR images working after graph workers l
     await loadedToolbar.text();
 
     // When: public prerendered and SSR pages share the development runtime.
-    for (const path of ['/terms', '/privacy', '/blog', '/docs', '/', '/login']) {
+    for (const path of [
+      '/terms',
+      '/privacy',
+      '/blog',
+      '/docs',
+      '/',
+      '/login',
+      '/request-signing',
+    ]) {
       const response = await get(path);
       const html = await response.text();
       // Then: scripts resolve through the dev environment for every page.

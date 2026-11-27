@@ -19,6 +19,7 @@ type Service struct {
 	verifier    Verifier
 	attachments AttachmentStore
 	now         func() time.Time
+	queue       VerificationQueue
 }
 
 func NewService(store Store, authentication Authentication, verifier Verifier, attachments ...AttachmentStore) *Service {
@@ -140,8 +141,14 @@ func (s *Service) Check(ctx context.Context, user auth.User, id string) (Claim, 
 	if claim.Method == BlogsClub {
 		return Claim{}, failure("oauth_authorization_required", "Authorize BlogsClub to verify this site", 409)
 	}
+	if claim.Method == Meta || claim.Method == File {
+		return Claim{}, failure("verification_async_required", "This verification application runs asynchronously", 409)
+	}
 	if claim.Method == Manual {
 		return Claim{}, failure("manual_review_required", "This verification application requires human review", 409)
+	}
+	if claim.Method != DNS {
+		return Claim{}, failure("invalid_method", "The verification method is invalid", 422)
 	}
 	if claim.ExpiresAt == nil || !s.now().Before(*claim.ExpiresAt) {
 		return Claim{}, failure("claim_expired", "This verification challenge has expired", 409)

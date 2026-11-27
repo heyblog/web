@@ -67,9 +67,7 @@ export interface SiteInput {
   readonly components: readonly ComponentInput[];
   readonly program_dependencies: readonly ComponentInput[];
 }
-export interface ReviewSiteInput extends SiteInput {
-  readonly access_scope?: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
-}
+export type ReviewSiteInput = SiteInput;
 export interface SubmissionPayload {
   readonly site: SiteInput;
   readonly reason?: string;

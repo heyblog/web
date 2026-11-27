@@ -5,8 +5,8 @@
   let { site }: { site: SiteCardView } = $props();
   const accessLabels = {
     ALL: '全球可访问',
-    CN_ONLY: '仅中国大陆可访问',
-    GLOBAL_ONLY: '仅海外可访问',
+    CN: '仅中国大陆可访问',
+    GL: '仅海外可访问',
   } as const;
 </script>
 
@@ -28,7 +28,9 @@
     </div>
     <div>
       <dt class="text-fg-muted">访问范围</dt>
-      <dd class="mt-1 font-medium">{accessLabels[site.accessScope]}</dd>
+      <dd class="mt-1 font-medium">
+        {site.accessScope === null ? '访问范围待检测' : accessLabels[site.accessScope]}
+      </dd>
     </div>
   </dl>
   {#if site.warnings.length > 0}

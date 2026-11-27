@@ -18,9 +18,15 @@ function isSite(value: unknown): value is HomeSiteCard {
     typeof value.summary === 'string' &&
     typeof value.host === 'string' &&
     typeof value.homepageUrl === 'string' &&
-    (value.accessScope === 'ALL' ||
-      value.accessScope === 'CN_ONLY' ||
-      value.accessScope === 'GLOBAL_ONLY') &&
+    (value.accessScope === null ||
+      value.accessScope === 'ALL' ||
+      value.accessScope === 'CN' ||
+      value.accessScope === 'GL') &&
+    (value.healthStatus === null ||
+      value.healthStatus === 'OK' ||
+      value.healthStatus === 'WARN' ||
+      value.healthStatus === 'DOWN') &&
+    (value.lastCheckedAt === null || isDate(value.lastCheckedAt)) &&
     (value.directoryStatus === 'normal' || value.directoryStatus === 'abnormal') &&
     isDate(value.joinedAt) &&
     isDate(value.updatedAt) &&

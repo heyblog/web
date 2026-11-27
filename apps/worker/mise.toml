@@ -1,0 +1,26 @@
+[tasks.install]
+run = "go mod download"
+
+[tasks.dev]
+run = "mise -E development exec -- go run ."
+
+[tasks.build]
+run = [
+  "mkdir -p dist",
+  "go build -buildvcs=false -trimpath -ldflags='-s -w' -o dist/heyblog-worker .",
+]
+
+[tasks.test]
+run = "go test -race ./..."
+
+[tasks.format]
+run = "golangci-lint fmt --config ../../.golangci.yaml"
+
+[tasks.check]
+run = [
+  "golangci-lint fmt --config ../../.golangci.yaml --diff",
+  "golangci-lint run --config ../../.golangci.yaml ./...",
+]
+
+[tasks.verify]
+run = [{ task = ":check" }, { task = ":test" }, { task = ":build" }]

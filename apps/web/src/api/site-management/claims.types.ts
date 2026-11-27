@@ -24,6 +24,7 @@ export interface ClaimSite {
   readonly visibility: string;
 }
 export interface Claim {
+  readonly task?: VerificationTask;
   readonly id: string;
   readonly short_id: string;
   readonly user_id: string;
@@ -47,6 +48,22 @@ export interface Claim {
   readonly can_cancel: boolean;
   readonly can_manage: boolean;
   readonly applicant?: ClaimPerson;
+}
+export interface VerificationTask {
+  readonly id: string;
+  readonly state: string;
+  readonly status_url: string;
+  readonly reason: string;
+}
+export function parseVerificationTask(value: unknown): VerificationTask | null {
+  if (value === null) return null;
+  const item = record(value);
+  return {
+    id: text(item.id),
+    state: text(item.state),
+    status_url: text(item.status_url),
+    reason: text(item.reason),
+  };
 }
 export interface ClaimChallenge {
   readonly claim: Claim;
@@ -147,6 +164,7 @@ export function parseClaim(value: unknown): Claim {
   const status = claimStatuses.find((entry) => entry === item.status);
   if (!method || !status) throw new TypeError('Invalid claim status');
   return {
+    ...(item.task == null ? {} : { task: parseVerificationTask(item.task) ?? undefined }),
     id: text(item.id),
     short_id: text(item.short_id),
     user_id: text(item.user_id),

@@ -25,7 +25,7 @@ func (service *Service) submit(ctx context.Context, action Action, targetShortID
 	if err != nil {
 		return SubmissionResult{}, err
 	}
-	base := Snapshot{AccessScope: "ALL", Visibility: "VISIBLE"}
+	base := Snapshot{Visibility: "VISIBLE"}
 	if action == ActionCreate {
 		address, addressErr := site.NormalizeAddress(normalized.Site.URL)
 		if addressErr != nil {

@@ -7,7 +7,9 @@ export interface SiteCardBase {
   summary: string;
   host: string;
   homepageUrl: string;
-  accessScope: 'CN_ONLY' | 'GLOBAL_ONLY' | 'ALL';
+  accessScope: 'CN' | 'GL' | 'ALL' | null;
+  healthStatus: 'OK' | 'WARN' | 'DOWN' | null;
+  lastCheckedAt: string | null;
   directoryStatus: 'normal' | 'abnormal';
   joinedAt: string;
   updatedAt: string;

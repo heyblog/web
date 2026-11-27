@@ -7,6 +7,7 @@ import {
   parseClaimAttachmentUpload,
   parseClaimContext,
   parseOwnership,
+  parseVerificationTask,
   record,
 } from './claims.types.ts';
 import { accountRequest } from './site-management.browser.ts';
@@ -60,6 +61,8 @@ export function createClaimsTransport(request = accountRequest) {
       send(`sites/${encodeURIComponent(id)}/claim-context`, parseClaimContext, { signal }),
     detail: (id: string, signal: AbortSignal, management = false) =>
       send(`site-claims/${encodeURIComponent(id)}`, parseClaim, { signal, management }),
+    task: (id: string, signal: AbortSignal) =>
+      send(`site-claims/${encodeURIComponent(id)}/task`, parseVerificationTask, { signal }),
     create: (
       body: {
         readonly short_id: string;

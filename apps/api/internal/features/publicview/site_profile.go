@@ -11,7 +11,9 @@ type SiteCard struct {
 	Summary         string          `json:"summary"`
 	Host            string          `json:"host"`
 	HomepageURL     string          `json:"homepageUrl"`
-	AccessScope     string          `json:"accessScope"`
+	AccessScope     *string         `json:"accessScope"`
+	HealthStatus    *string         `json:"healthStatus"`
+	LastCheckedAt   *time.Time      `json:"lastCheckedAt"`
 	DirectoryStatus DirectoryStatus `json:"directoryStatus"`
 	JoinedAt        time.Time       `json:"joinedAt"`
 	UpdatedAt       time.Time       `json:"updatedAt"`

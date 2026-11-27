@@ -20,6 +20,7 @@ const (
 )
 
 type Claim struct {
+	Task                   *VerificationTask `json:"task,omitempty"`
 	ID                     string            `json:"id"`
 	SiteID                 string            `json:"-"`
 	ShortID                string            `json:"short_id"`

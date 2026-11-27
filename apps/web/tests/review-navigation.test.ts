@@ -158,6 +158,8 @@ for (const action of ['APPROVED', 'REJECTED', 'DISCARD', 'CORRECTION']) {
       },
       form: {},
       accessScope: 'ALL',
+      healthStatus: null,
+      lastCheckedAt: null,
       returnPath: '/management/site-submissions',
       requestAuditReview: async () => new Response(null, { status: 204 }),
       requestReviewDraft: async () => new Response(null, { status: 204 }),

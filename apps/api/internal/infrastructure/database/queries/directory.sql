@@ -7,10 +7,9 @@ INSERT INTO directory.sites (
     normalized_host,
     base_path,
     summary,
-    access_scope,
     tag_cascade_id,
     blog_status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BLOG')
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'BLOG')
 RETURNING *;
 
 -- name: GetSiteByID :one
@@ -346,9 +345,8 @@ RETURNING *;
 UPDATE directory.sites
    SET custom_id = $2,
        name = $3,
-       summary = $4,
-       access_scope = $5
- WHERE id = $1 AND revision = $6
+       summary = $4
+ WHERE id = $1 AND revision = $5
 RETURNING *;
 
 -- name: ApplySiteSnapshot :one
@@ -358,12 +356,12 @@ UPDATE directory.sites
        normalized_host = $4,
        base_path = $5,
        summary = $6,
-       access_scope = $7,
-       visibility = $8,
-       visibility_reason = $9,
-       tag_cascade_id = $10,
+       visibility = $7,
+       visibility_reason = $8,
+       tag_cascade_id = $9,
+       revision = revision + 1,
        blog_status = CASE WHEN sqlc.arg(approve_blog)::boolean THEN 'BLOG' ELSE blog_status END
- WHERE id = $1 AND revision = $11
+ WHERE id = $1 AND revision = $10
 RETURNING *;
 
 -- name: SetSiteVisibility :one
@@ -417,6 +415,9 @@ DELETE FROM directory.site_feeds WHERE id = $1 AND site_id = $2;
 
 -- name: DeleteEnabledSiteFeeds :exec
 DELETE FROM directory.site_feeds WHERE site_id = $1 AND is_enabled;
+
+-- name: ClearSiteFeedDefaults :exec
+UPDATE directory.site_feeds SET is_default = false WHERE site_id = $1 AND is_default;
 
 -- name: UpsertSiteResource :one
 INSERT INTO directory.site_resources (

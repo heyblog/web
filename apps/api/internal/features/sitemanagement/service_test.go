@@ -38,6 +38,17 @@ type proofVerifier struct{ calls int }
 
 func (v *proofVerifier) Verify(context.Context, Claim) error { v.calls++; return nil }
 
+type verificationQueue struct{ claims []Claim }
+
+func (q *verificationQueue) EnqueueClaim(_ context.Context, claim Claim) (VerificationTask, error) {
+	q.claims = append(q.claims, claim)
+	return VerificationTask{ID: "task", State: "queued"}, nil
+}
+
+func (*verificationQueue) ClaimTask(context.Context, string, string) (*VerificationTask, error) {
+	return nil, nil
+}
+
 type testAuthentication struct {
 	user auth.User
 	err  error
@@ -72,6 +83,55 @@ func TestCheck_when_ApplicantDiffers(t *testing.T) {
 	_, err := service.Check(t.Context(), auth.User{ID: "other"}, "claim")
 	// Then the claim remains undisclosed.
 	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestHTTPChecks_areQueuedInsteadOfVerifiedByTheAPI(t *testing.T) {
+	for _, method := range []Method{Meta, File} {
+		t.Run(string(method), func(t *testing.T) {
+			// Given a pending HTTP proof and an available worker queue.
+			now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+			expires := now.Add(time.Hour)
+			store := &claimStore{claim: Claim{ID: "claim", UserID: "user", Method: method, Status: "PENDING", ExpiresAt: &expires}}
+			verifier := &proofVerifier{}
+			queue := &verificationQueue{}
+			service := NewService(store, nil, verifier)
+			service.now = func() time.Time { return now }
+			service.SetVerificationQueue(queue)
+
+			// When the applicant starts verification, its work is queued for the worker.
+			claim, err := service.StartCheck(t.Context(), auth.User{ID: "user"}, "claim")
+			require.NoError(t, err)
+			require.NotNil(t, claim.Task)
+			require.Len(t, queue.claims, 1)
+			require.Zero(t, verifier.calls)
+
+			// Then the synchronous service path cannot bypass the task lifecycle.
+			_, err = service.Check(t.Context(), auth.User{ID: "user"}, "claim")
+			var serviceErr *ServiceError
+			require.ErrorAs(t, err, &serviceErr)
+			require.Equal(t, "verification_async_required", serviceErr.Code)
+			require.Zero(t, verifier.calls)
+		})
+	}
+}
+
+func TestDNSChecks_remainSynchronous(t *testing.T) {
+	// Given a pending DNS proof and a queue that must only serve HTTP proofs.
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	expires := now.Add(time.Hour)
+	store := &claimStore{claim: Claim{ID: "claim", UserID: "user", Method: DNS, Status: "PENDING", ExpiresAt: &expires}}
+	verifier := &proofVerifier{}
+	queue := &verificationQueue{}
+	service := NewService(store, nil, verifier)
+	service.now = func() time.Time { return now }
+	service.SetVerificationQueue(queue)
+
+	// When the applicant starts verification, the resolver-backed verifier runs immediately.
+	_, err := service.StartCheck(t.Context(), auth.User{ID: "user"}, "claim")
+	require.NoError(t, err)
+	require.Equal(t, 1, verifier.calls)
+	require.Empty(t, queue.claims)
+	require.Equal(t, 1, store.decisions)
 }
 func TestReview_when_SelfReviewOrMissingPermission(t *testing.T) {
 	for _, user := range []auth.User{{ID: "owner", Role: auth.RoleSysAdmin}, {ID: "other", Role: auth.RoleAdmin}} {

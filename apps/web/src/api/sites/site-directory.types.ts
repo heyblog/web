@@ -3,7 +3,7 @@ import type { SiteCardView } from './site-card.types.ts';
 export type SiteDirectoryFeed = 'any' | 'with' | 'without';
 export type SiteDirectorySort = 'random' | 'joined' | 'updated';
 export type SiteDirectoryOrder = 'asc' | 'desc';
-export type SiteDirectoryAccess = 'ALL' | 'CN_ONLY' | 'GLOBAL_ONLY';
+export type SiteDirectoryAccess = 'ALL' | 'CN' | 'GL';
 export type SiteDirectoryStatus = 'normal' | 'abnormal';
 export type SiteDirectoryFilterName = 'tertiary' | 'warning' | 'technology' | 'access';
 

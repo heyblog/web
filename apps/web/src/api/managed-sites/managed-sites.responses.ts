@@ -53,9 +53,10 @@ export function parseManagedSite(value: unknown): ManagedSite | null {
     typeof value.name !== 'string' ||
     !value.name ||
     !isURL(value.url) ||
-    (value.access_scope !== 'CN_ONLY' &&
-      value.access_scope !== 'GLOBAL_ONLY' &&
-      value.access_scope !== 'ALL') ||
+    (value.access_scope !== 'CN' &&
+      value.access_scope !== 'GL' &&
+      value.access_scope !== 'ALL' &&
+      value.access_scope !== '') ||
     !isVisibility(value.visibility) ||
     !isOptionalString(value.visibility_reason) ||
     !Number.isSafeInteger(value.revision) ||

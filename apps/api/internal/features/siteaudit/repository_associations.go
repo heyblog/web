@@ -12,19 +12,10 @@ import (
 	dbgen "heyblog-api/internal/infrastructure/database/gen"
 )
 
-func syncAssociations(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, snapshot Snapshot, reviewerID pgtype.UUID, createsProgramDependencies bool) error {
+func syncAssociations(ctx context.Context, queries *dbgen.Queries, siteID pgtype.UUID, current, snapshot Snapshot, reviewerID pgtype.UUID, createsProgramDependencies bool) error {
 	address := site.Address{Scheme: snapshot.Scheme, NormalizedHost: snapshot.NormalizedHost, BasePath: snapshot.BasePath}
-	if err := queries.DeleteEnabledSiteFeeds(ctx, siteID); err != nil {
-		return fmt.Errorf("replace enabled feeds: %w", err)
-	}
-	for _, feed := range snapshot.Feeds {
-		location, err := site.NormalizeLocation(feed.URL, address, false)
-		if err != nil {
-			return err
-		}
-		if _, err := queries.UpsertSiteFeed(ctx, dbgen.UpsertSiteFeedParams{SiteID: siteID, Name: feed.Name, LocationType: location.Type, UrlRef: stringPointer(location.URLRef), ExternalUrl: stringPointer(location.ExternalURL), UrlKey: location.URLKey, Format: feed.Format, IsEnabled: true, IsDefault: feed.IsDefault}); err != nil {
-			return fmt.Errorf("write reviewed feed: %w", err)
-		}
+	if err := syncFeeds(ctx, queries, siteID, current, snapshot); err != nil {
+		return err
 	}
 	if err := syncResources(ctx, queries, siteID, address, snapshot.Resources); err != nil {
 		return err

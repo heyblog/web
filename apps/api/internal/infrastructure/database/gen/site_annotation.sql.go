@@ -115,7 +115,7 @@ func (q *Queries) LatestNonBlogClassificationRevision(ctx context.Context, siteI
 }
 
 const listAnnotationSites = `-- name: ListAnnotationSites :many
-SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status, COALESCE(pending.id::text, '')::text AS pending_audit_id
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status, site.status, site.monitoring_generation, site.last_checked_at, COALESCE(pending.id::text, '')::text AS pending_audit_id
   FROM directory.sites AS site
   LEFT JOIN LATERAL (
       SELECT audit.id
@@ -178,6 +178,9 @@ func (q *Queries) ListAnnotationSites(ctx context.Context, arg ListAnnotationSit
 			&i.DirectorySite.UpdatedAt,
 			&i.DirectorySite.TagCascadeID,
 			&i.DirectorySite.BlogStatus,
+			&i.DirectorySite.Status,
+			&i.DirectorySite.MonitoringGeneration,
+			&i.DirectorySite.LastCheckedAt,
 			&i.PendingAuditID,
 		); err != nil {
 			return nil, err
@@ -338,11 +341,11 @@ UPDATE directory.sites
        normalized_host = $3,
        base_path = $4,
        summary = $5,
-       access_scope = $6,
-       blog_status = $7,
-       tag_cascade_id = $8
- WHERE id = $9 AND revision = $10
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+       blog_status = $6,
+       tag_cascade_id = $7,
+       revision = revision + 1
+ WHERE id = $8 AND revision = $9
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
 `
 
 type UpdateSiteAnnotationParams struct {
@@ -351,7 +354,6 @@ type UpdateSiteAnnotationParams struct {
 	NormalizedHost string
 	BasePath       string
 	Summary        string
-	AccessScope    string
 	BlogStatus     string
 	TagCascadeID   pgtype.UUID
 	SiteID         pgtype.UUID
@@ -365,7 +367,6 @@ func (q *Queries) UpdateSiteAnnotation(ctx context.Context, arg UpdateSiteAnnota
 		arg.NormalizedHost,
 		arg.BasePath,
 		arg.Summary,
-		arg.AccessScope,
 		arg.BlogStatus,
 		arg.TagCascadeID,
 		arg.SiteID,
@@ -389,6 +390,9 @@ func (q *Queries) UpdateSiteAnnotation(ctx context.Context, arg UpdateSiteAnnota
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }

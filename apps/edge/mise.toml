@@ -1,0 +1,25 @@
+[tasks.build]
+description = "Build Cloudflare and EdgeOne request executors"
+run = "pnpm build"
+
+[tasks.test]
+description = "Test edge request boundaries"
+run = "pnpm test"
+
+[tasks.check]
+description = "Check edge formatting, types and lint"
+run = ["pnpm run format:check", "pnpm run typecheck", "pnpm run lint"]
+
+[tasks.verify]
+description = "Check, test and build both edge adapters"
+run = [{ task = ":check" }, { task = ":test" }, { task = ":build" }]
+
+[tasks."deploy:cf"]
+description = "Deploy the Cloudflare executor using explicit deployment credentials"
+depends = [":verify"]
+run = "pnpm run deploy:cf"
+
+[tasks."deploy:eo"]
+description = "Update an existing EdgeOne function using explicit deployment credentials"
+depends = [":verify"]
+run = "pnpm run deploy:eo"

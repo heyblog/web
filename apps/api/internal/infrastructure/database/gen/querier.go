@@ -30,6 +30,7 @@ type Querier interface {
 	ChangeUserEmail(ctx context.Context, requestID pgtype.UUID) (int64, error)
 	ClaimSite(ctx context.Context, shortID string) (ClaimSiteRow, error)
 	ClearRestoreTargetEmailChange(ctx context.Context, adminID pgtype.UUID) error
+	ClearSiteFeedDefaults(ctx context.Context, siteID pgtype.UUID) error
 	CloseEmailChangeSiteClaims(ctx context.Context, requestID pgtype.UUID) error
 	CloseInactiveEmailChangeSiteClaims(ctx context.Context) error
 	CompleteEmailChangeSiteProofs(ctx context.Context, arg CompleteEmailChangeSiteProofsParams) (bool, error)
@@ -147,6 +148,7 @@ type Querier interface {
 	InsertImportedTagAlias(ctx context.Context, arg InsertImportedTagAliasParams) error
 	InsertIncrementalOrigin(ctx context.Context, arg InsertIncrementalOriginParams) (int64, error)
 	InsertIncrementalSource(ctx context.Context, arg InsertIncrementalSourceParams) (int64, error)
+	InsertMonitoringRound(ctx context.Context, arg InsertMonitoringRoundParams) (int64, error)
 	InsertOrigin(ctx context.Context, arg InsertOriginParams) error
 	InsertResource(ctx context.Context, arg InsertResourceParams) error
 	InsertSite(ctx context.Context, arg InsertSiteParams) error
@@ -185,6 +187,8 @@ type Querier interface {
 	ListManagedCascades(ctx context.Context) ([]DirectoryTagCascade, error)
 	ListManagedTags(ctx context.Context) ([]DirectoryTag, error)
 	ListManagedUsersPage(ctx context.Context, arg ListManagedUsersPageParams) ([]ListManagedUsersPageRow, error)
+	ListMonitoringHealthWindow(ctx context.Context, arg ListMonitoringHealthWindowParams) ([]DirectorySiteMonitoringRound, error)
+	ListMonitoringScopeWindow(ctx context.Context, arg ListMonitoringScopeWindowParams) ([]DirectorySiteMonitoringRound, error)
 	ListOwnerDecisionRecipients(ctx context.Context, auditID pgtype.UUID) ([]string, error)
 	ListOwnerFriendLinks(ctx context.Context, pSourceSiteID pgtype.UUID) ([]ListOwnerFriendLinksRow, error)
 	ListOwnerFriendRequests(ctx context.Context, arg ListOwnerFriendRequestsParams) ([]ListOwnerFriendRequestsRow, error)
@@ -284,6 +288,7 @@ type Querier interface {
 	UpdateAPIClient(ctx context.Context, arg UpdateAPIClientParams) (IdentityApiClient, error)
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (ContentAnnouncement, error)
 	UpdateManagedTag(ctx context.Context, arg UpdateManagedTagParams) error
+	UpdateMonitoringSummary(ctx context.Context, arg UpdateMonitoringSummaryParams) error
 	UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressParams) (DirectorySite, error)
 	UpdateSiteAnnotation(ctx context.Context, arg UpdateSiteAnnotationParams) (DirectorySite, error)
 	UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSiteDirectoryProfileParams) (DirectorySite, error)

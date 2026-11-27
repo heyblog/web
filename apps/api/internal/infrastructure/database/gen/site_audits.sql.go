@@ -456,7 +456,7 @@ type ListSitesForManagementRow struct {
 	Scheme             string
 	NormalizedHost     string
 	BasePath           string
-	AccessScope        string
+	AccessScope        *string
 	Visibility         string
 	VisibilityReason   *string
 	Revision           int64

@@ -6,6 +6,7 @@ import {
   createBackupTransport,
 } from '../src/api/database-backup/database-backup.browser.ts';
 import {
+  backupDatasetNames,
   parseBackupInspection,
   parseBackupRestoration,
 } from '../src/api/database-backup/database-backup.types.ts';
@@ -38,13 +39,16 @@ test('inspection parsing validates the dataset inventory and restoration readine
     { ...inspectionFixture, schema_version: 1 },
     { ...inspectionFixture, schema_version: 2 },
     { ...inspectionFixture, schema_version: 6 },
-    { ...inspectionFixture, schema_version: 9 },
+    { ...inspectionFixture, schema_version: 10 },
   ];
+  assert.equal(inspectionFixture.datasets.length, 53);
   // When / Then
   assert.deepEqual(parseBackupInspection(inspectionFixture), inspectionFixture);
-  for (const schema_version of [3, 4, 5, 6, 7]) {
+  for (const schema_version of [3, 4, 5, 6, 7, 8]) {
     const datasets = inspectionFixture.datasets.filter(
       ({ name }) =>
+        !name.startsWith('operations.') &&
+        name !== 'directory.site_monitoring_rounds' &&
         (schema_version >= 7 || name !== 'directory.site_annotation_history') &&
         (schema_version >= 6 || name !== 'directory.site_claim_attachments'),
     );
@@ -65,6 +69,28 @@ test('inspection parsing validates the dataset inventory and restoration readine
     null,
   );
   assert.equal(parseBackupRestoration({ ...restorationFixture, admin_mapping: {} }), null);
+});
+
+test('schema nine rejects intermediate versions and quota datasets', () => {
+  // Given the final inventory.
+  const datasets = backupDatasetNames.map((name) => ({ name, count: 0 }));
+  const inspection = { ...inspectionFixture, schema_version: 9, datasets };
+  const restoration = { ...restorationFixture, datasets };
+  // When both response forms are parsed.
+  assert.deepEqual(parseBackupInspection(inspection), inspection);
+  assert.deepEqual(parseBackupRestoration(restoration), restoration);
+  // Then intermediate formats and incomplete inventories are rejected.
+  assert.equal(parseBackupInspection({ ...inspection, schema_version: 8 }), null);
+  assert.equal(parseBackupInspection({ ...inspection, datasets: datasets.slice(0, 46) }), null);
+  assert.equal(parseBackupRestoration({ ...restoration, datasets: datasets.slice(0, 46) }), null);
+  assert.equal(parseBackupInspection({ ...inspection, datasets: datasets.slice(1) }), null);
+  assert.equal(
+    parseBackupInspection({
+      ...inspection,
+      datasets: [...datasets.slice(1), { name: 'operations.platform_budgets', count: 0 }],
+    }),
+    null,
+  );
 });
 
 test('restore upload binds the reviewed checksum and confirmation to the original file', async () => {

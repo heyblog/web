@@ -57,7 +57,7 @@ func verifyEmailChangeSiteProofs(ctx context.Context, t *testing.T, pool *pgxpoo
 
 	const first, second = "EmProof01", "EmProof02"
 	siteID := insertBlogSite(ctx, t, pool, first, "First proof site", "proof-one.example.test")
-	ordinary := create(first, "", sitemanagement.File)
+	ordinary := create(first, "", sitemanagement.DNS)
 	approve(ordinary)
 	requestID := newRequest()
 	complete(requestID, false)
@@ -84,9 +84,9 @@ func verifyEmailChangeSiteProofs(ctx context.Context, t *testing.T, pool *pgxpoo
 		require.NoError(t, err)
 	}
 	complete(requestID, false)
-	approve(create(first, requestID, sitemanagement.Meta))
+	approve(create(first, requestID, sitemanagement.DNS))
 	secondID := insertBlogSite(ctx, t, pool, second, "Second proof site", "proof-two.example.test")
-	approve(create(second, "", sitemanagement.File))
+	approve(create(second, "", sitemanagement.DNS))
 	complete(requestID, false)
 	manual := create(first, requestID, sitemanagement.Manual)
 	approved, err := service.Review(ctx, reviewer, manual.ID, sitemanagement.SiteClaimReviewInput{
@@ -103,7 +103,7 @@ func verifyEmailChangeSiteProofs(ctx context.Context, t *testing.T, pool *pgxpoo
 	require.Equal(t, manual.ID, installed)
 	requestID = newRequest()
 	complete(requestID, false)
-	expired := create(first, requestID, sitemanagement.File)
+	expired := create(first, requestID, sitemanagement.DNS)
 	_, err = pool.Exec(ctx, `UPDATE identity.email_change_requests
 		SET created_at=clock_timestamp()-interval '8 days',expires_at=clock_timestamp()-interval '1 day'
 		WHERE id=$1::uuid`, requestID)

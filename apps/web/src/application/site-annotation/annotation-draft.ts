@@ -16,7 +16,6 @@ export function annotationDraft(detail: AnnotationDetail) {
     name: detail.name,
     url: detail.url,
     summary: detail.summary,
-    access_scope: detail.access_scope,
     blog_status: detail.blog_status,
     tag_cascade_id: detail.tag_cascade_id,
     tags: rows(
@@ -38,7 +37,6 @@ function fields(draft: AnnotationDraft): AnnotationFields {
     name: draft.name,
     url: draft.url,
     summary: draft.summary,
-    access_scope: draft.access_scope,
     blog_status: draft.blog_status,
     tag_cascade_id: draft.tag_cascade_id,
     tags: draft.tags.map(({ id, role }) => ({ id, role })),

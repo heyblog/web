@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 )
 
 // Conversion runs only after the complete original manifest has been verified.
@@ -31,17 +32,11 @@ func (doc *document) prepareConversion(ctx context.Context, file *os.File) error
 }
 
 func (doc document) convertRow(name string, raw json.RawMessage) (json.RawMessage, error) {
-	if doc.header.SchemaVersion < annotationSchemaVersion && name == "directory.sites" {
-		var row map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &row); err != nil || row == nil {
-			return nil, ErrInvalid
+	if name == "directory.sites" || strings.HasPrefix(name, "operations.") {
+		if err := validateMonitoringSource(name, raw, doc.header.SchemaVersion); err != nil {
+			return nil, err
 		}
-		if _, exists := row["blog_status"]; exists {
-			return nil, ErrInvalid
-		}
-		// The database derives the final state after the historical audits are restored.
-		row["blog_status"] = json.RawMessage(`"UNREVIEWED"`)
-		return json.Marshal(row)
+		return convertMonitoringRow(name, raw, doc.header.SchemaVersion, doc.convertedAt)
 	}
 	if name == "directory.site_claims" {
 		return convertSiteClaim(doc.header.SchemaVersion, raw)
@@ -53,6 +48,13 @@ func (doc document) convertRow(name string, raw json.RawMessage) (json.RawMessag
 		}
 		// Database backups carry metadata only. Restoring must never grant access
 		// to, or schedule deletion of, the source instance's private objects.
+		if err := validateSourceFields(row, []sourceField{
+			{"status", "enum", false, []string{"UPLOADING", "READY", "BOUND", "CLEANUP_PENDING", "ARCHIVED", "DELETED"}},
+			{"storage_key", "text", false, nil}, {"storage_identity", "text", false, nil},
+			{"cleanup_requested_at", "time", true, nil}, {"archive_at", "time", true, nil}, {"purge_at", "time", true, nil},
+		}); err != nil {
+			return nil, err
+		}
 		row["status"] = json.RawMessage(`"DELETED"`)
 		row["storage_key"] = json.RawMessage(`""`)
 		row["storage_identity"] = json.RawMessage(`""`)
@@ -97,7 +99,7 @@ func convertSiteClaim(version int, raw json.RawMessage) (json.RawMessage, error)
 		}
 		row["reviewed_at"] = json.RawMessage(`null`)
 	}
-	if version < schemaVersion {
+	if version < emailChangeSchemaVersion {
 		for _, key := range []string{"email_change_id", "email_change_ownership_id"} {
 			if _, exists := row[key]; exists {
 				return nil, ErrInvalid

@@ -1,0 +1,20 @@
+[tasks.install]
+run = "go mod download"
+
+[tasks.check]
+run = [
+  "golangci-lint fmt --config ../../../.golangci.yaml --diff",
+  "golangci-lint run --config ../../../.golangci.yaml ./...",
+]
+
+[tasks.format]
+run = "golangci-lint fmt --config ../../../.golangci.yaml"
+
+[tasks.test]
+run = "go test -race ./..."
+
+[tasks.build]
+run = "go build ./..."
+
+[tasks.verify]
+run = [{ task = ":check" }, { task = ":test" }, { task = ":build" }]

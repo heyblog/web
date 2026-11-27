@@ -17,12 +17,12 @@ and focused tests referenced below, not additional package-level AGENTS files.
 
 ## Actual Package Structure
 
-- `apps/api/main.go` is the minimal composition entry point; keep other Go implementation and
+- `apps/api/main.go` is the API composition entry point; `apps/worker` owns the separate worker module. Keep other Go implementation and
   tests in cohesive packages under `apps/api/internal`.
 - `apps/api/internal/bootstrap` composes validated configuration, logging, shared dependencies,
   migrations, server startup, and shutdown.
 - `apps/api/internal/features` groups complete business capabilities: `auth`, `apikey`, `announcement`, `siteaudit`,
-  `dataimport`, `databasebackup`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, and `exampleapi`. Preserve their feature boundaries and colocated
+  `dataimport`, `databasebackup`, `monitoring`, `taskcenter`, `publicview`, `sitemanagement`, `sitestats`, `taxonomy`, and `exampleapi`. Preserve their feature boundaries and colocated
   operations, repositories, and tests.
 - `apps/api/internal/platform` groups shared application mechanisms: `httpapi`, `apperror`,
   `ratelimit`, `config`, and `logging`. `platform/httpapi` owns Gin/Huma routing, middleware,
@@ -216,10 +216,12 @@ and focused tests referenced below, not additional package-level AGENTS files.
   COS lifecycle: delete current/noncurrent versions and delete markers after one day and abort
   incomplete multipart uploads after one day. Never log backup content, signed URLs, credentials,
   temporary paths or raw upstream errors; lifecycle workers receive the structured bootstrap logger.
-- Backup protocol version 1 exports schema version 8 with 34 datasets and the complete AGE graph.
-  Schema versions 3–8 are accepted. The backup schema guard checks the physical table inventory.
-  Transient email change requests stay out of backup, and their unfinished site claims are cancelled
-  on restore. Binary columns use Base64 and bigint columns use decimal strings.
+- Backup protocol version 1 exports schema version 9 with 53 datasets and the complete AGE graph.
+  It accepts main schema versions 3–8 using frozen source inventories. Transient email change requests
+  stay out of backups, and their unfinished site claims are cancelled on restore.
+  Restore clears monitoring conclusions and runtime state, cancels unfinished tasks, disables
+  schedules and request configurations, forces signing on, and revokes restored signing keys.
+  Binary columns use Base64 and bigint columns use decimal strings.
   Never decode row JSON through floating-point numbers.
 - Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
   and maps structured actor references to the retained target administrator. It accepts only
@@ -250,7 +252,7 @@ and focused tests referenced below, not additional package-level AGENTS files.
 - Global graph snapshots, encoded JSON and gzip bytes are cached by the committed revision in
   `runtime_cache.public_graph_revision`. Site/SQL graph triggers and the Cypher mutation/restore
   wrappers invalidate atomically (AGE bypasses ordinary triggers); failed refreshes never serve stale snapshots. This derived
-  schema is excluded from the 33 business backup tables and starts fresh on rebuild.
+  schema is excluded from business backup tables and starts fresh on rebuild.
 - Taxonomy list catalogs are cached by `runtime_cache.taxonomy_revision`; source-table triggers invalidate all catalog/revision inputs in the writing transaction. Preview and mutations still load the full graph under the existing taxonomy advisory lock. Cached lists retain that lock and return independent DTO slices.
 - Public directory tag counts and classification rows reuse the same committed taxonomy generation.
   Only refreshes serialize; each response builds independent DTOs and reads software counts afresh.
@@ -326,3 +328,34 @@ those failures once through `httpapi.LogError` while preserving JSON/popup or re
 BlogsClub upstream failures, malformed responses and identity mismatches map to stable business
 error codes; raw upstream bodies, URLs, authorization codes and tokens never enter diagnostics or
 user-facing responses.
+
+- `features/monitoring` exclusively updates site health and access scope from dual-region rounds.
+  Content writes omit these fields; address changes reset their sampling generation. Monitoring-only
+  updates preserve content revision and update time. Public health and access scope are nullable.
+  Reviewed snapshots explicitly advance the content revision, including association-only changes.
+  Annotation reads monitoring scope as CN, GL, ALL or null and never writes it into patches or new history.
+  Feed reconciliation retains existing source IDs and RSS history for unchanged URL keys and origins;
+  removed sources are deleted, and default changes remain atomic.
+
+- `features/taskcenter` owns persisted schedules, reusable request configurations, task lifecycle,
+  fenced leases, request authorization, current signing policy and cumulative statistics.
+  `apps/worker` calls its bearer-protected version-two HTTP endpoints; it never opens a database
+  connection. Pure Cron/interval calculations and DTOs belong to `packages/go/taskprotocol`.
+  Worker configuration uses `TASK_WORKER_API_URL` and
+  `API_TASK_WORKER_TOKEN`; the API uses the same token and disables worker routes when it is absent.
+- API-only `API_REQUEST_SIGNING_MASTER_KEY` is base64-encoded 32-byte AES key material and must
+  be managed separately from database backups. `API_EDGE_CF_URL/TOKEN` and `API_EDGE_EO_URL/TOKEN`
+  configure independent service credentials and HTTPS executor endpoints. These optional settings
+  allow initial setup with disabled schedules; missing endpoint/key blocks outbound
+  signed requests. Signing changes and key lifecycle operations require SYS_ADMIN; ordinary task settings
+  require `task.manage`. Runtime configuration parsing remains in `platform/config/edge_config.go`.
+- `domain/proof` owns ES256 proof claims and encrypted key storage; `packages/go/edgerequest`
+  owns DNS/public-target validation and bounded manual redirects. The API reads current signing
+  policy before each dispatch, persists attempt identity and never forwards service tokens.
+  HTTP FILE/META ownership checks enqueue tasks and expose applicant-only progress; DNS TXT
+  continues synchronously through Go Resolver. Deployment
+  prerequisites and provider limitations are documented in `apps/edge/README.md`.
+- Edge request headers use `headerEncoding: latin1`: each HTTP byte is carried as a JSON
+  Unicode code point 0–255. Response headers use the same byte convention. Preserve the
+  conversion in `packages/go/edgerequest/wire_headers.go` so Unicode configuration and opaque RSS validators
+  round-trip without replacement; coordinate protocol changes with `apps/edge/src/protocol.ts`.

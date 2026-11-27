@@ -30,9 +30,9 @@
 
   const accessScopeLabels = {
     ALL: '全球可访问',
-    CN_ONLY: '仅中国大陆可访问',
-    GLOBAL_ONLY: '仅海外可访问',
-  } as const satisfies Record<HomeSiteCard['accessScope'], string>;
+    CN: '仅中国大陆可访问',
+    GL: '仅海外可访问',
+  } as const satisfies Record<NonNullable<HomeSiteCard['accessScope']>, string>;
   const tagClasses = {
     warning:
       'inline-flex min-h-5 shrink-0 items-center rounded-sm bg-warning-bg px-2 text-xs font-medium text-warning-fg',
@@ -158,7 +158,9 @@
       <dl class="mt-3 grid gap-3 border-y border-line py-3 text-xs sm:grid-cols-2">
         <div>
           <dt class="text-fg-muted">访问范围</dt>
-          <dd class="mt-1 font-medium">{accessScopeLabels[site.accessScope]}</dd>
+          <dd class="mt-1 font-medium">
+            {site.accessScope === null ? '访问范围待检测' : accessScopeLabels[site.accessScope]}
+          </dd>
         </div>
         <div>
           <dt class="text-fg-muted">信息更新时间</dt>

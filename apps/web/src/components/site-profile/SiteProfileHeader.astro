@@ -12,11 +12,12 @@ interface Props {
 }
 const { profile } = Astro.props;
 const cardImagePath = siteOgImagePath(profile);
-const accessScopeLabels: Record<SiteProfile['accessScope'], string> = {
+const accessScopeLabels: Record<NonNullable<SiteProfile['accessScope']>, string> = {
   ALL: '全球可访问',
-  CN_ONLY: '仅中国大陆可访问',
-  GLOBAL_ONLY: '仅海外可访问',
+  CN: '仅中国大陆可访问',
+  GL: '仅海外可访问',
 };
+const healthLabels = { OK: '访问正常', WARN: '访问不稳定', DOWN: '持续无法访问' } as const;
 const shortCode = Array.from(profile.name.trim())[0]?.toUpperCase() ?? 'H';
 const dateLabel = (value: string) => {
   const date = new Date(value);
@@ -53,7 +54,10 @@ const badgeClass =
           <span class:list={[badgeClass, 'bg-warning-bg text-warning-fg']}>异常状态</span>
         ) : null}
         <span class:list={[badgeClass, 'bg-tint text-tint-fg']}>
-          {accessScopeLabels[profile.accessScope]}
+          {profile.accessScope === null ? '访问范围待检测' : accessScopeLabels[profile.accessScope]}
+        </span>
+        <span class:list={[badgeClass, 'bg-subtle text-fg-muted']}>
+          {profile.healthStatus === null ? '健康状态待检测' : healthLabels[profile.healthStatus]}
         </span>
         {profile.classification ? (
           <span class:list={[badgeClass, 'bg-tint text-tint-fg']}>
@@ -75,6 +79,12 @@ const badgeClass =
         <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
           <dt class="text-xs font-medium text-fg-muted">更新时间</dt>
           <dd class="font-medium wrap-anywhere">{dateLabel(profile.updatedAt)}</dd>
+        </div>
+        <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
+          <dt class="text-xs font-medium text-fg-muted">最近检测</dt>
+          <dd class="font-medium wrap-anywhere">
+            {profile.lastCheckedAt === null ? '尚未检测' : dateLabel(profile.lastCheckedAt)}
+          </dd>
         </div>
         <div class="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
           <dt class="text-xs font-medium text-fg-muted">标识符</dt>

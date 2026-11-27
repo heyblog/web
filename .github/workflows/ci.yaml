@@ -71,7 +71,7 @@ jobs:
         with:
           node: 'false'
           root-go-dependencies: 'false'
-      - name: Test API with race detector
+      - name: Test API, worker and shared libraries with race detector
         run: mise run test:race
   api-integration:
     name: API integration test

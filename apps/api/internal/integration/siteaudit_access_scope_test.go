@@ -22,12 +22,11 @@ func verifySiteAuditAccessScope(ctx context.Context, t *testing.T, pool *pgxpool
 	repository := siteaudit.NewRepository(pool)
 	queries := dbgen.New(pool)
 	for index, scenario := range []struct {
-		name, override, want string
-		save                 bool
+		name, want string
+		save       bool
 	}{
-		{name: "legacy-create", want: "ALL"},
-		{name: "default-draft", want: "ALL", save: true},
-		{name: "admin-draft", override: "CN_ONLY", want: "CN_ONLY", save: true},
+		{name: "legacy-create", want: ""},
+		{name: "default-draft", want: "", save: true},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			shortID := fmt.Sprintf("Scope%04d", index)
@@ -51,12 +50,12 @@ func verifySiteAuditAccessScope(ctx context.Context, t *testing.T, pool *pgxpool
 			}
 			auditID := integrationUUIDText(t, row.ID)
 			detail, err := service.AuditDetail(ctx, auditID)
-			if err != nil || detail.ProposedSnapshot.AccessScope != "GLOBAL_ONLY" || detail.EffectiveSnapshot.AccessScope != "ALL" {
+			if err != nil || detail.ProposedSnapshot.AccessScope != "GLOBAL_ONLY" || detail.EffectiveSnapshot.AccessScope != "" {
 				t.Fatalf("historical create detail = %#v / %v", detail, err)
 			}
 			revision := int64(0)
 			if scenario.save {
-				draftInput := siteaudit.ReviewDraftInput{AuditID: auditID, Site: siteaudit.ReviewSiteInput{SiteInput: input, AccessScope: scenario.override}}
+				draftInput := siteaudit.ReviewDraftInput{AuditID: auditID, Site: siteaudit.ReviewSiteInput{SiteInput: input}}
 				_, err = service.SaveReviewDraft(ctx, auth.User{ID: reviewer.ID, Role: auth.RoleUser}, draftInput)
 				assertSiteAuditServiceError(t, err, "forbidden", http.StatusForbidden)
 				saved, err := service.SaveReviewDraft(ctx, reviewer, draftInput)
@@ -64,8 +63,7 @@ func verifySiteAuditAccessScope(ctx context.Context, t *testing.T, pool *pgxpool
 					t.Fatalf("draft = %#v / %v", saved, err)
 				}
 				revision = saved.ReviewDraftRevision
-				// An omitted field on a subsequent save preserves the authorized saved scope.
-				draftInput.Site.AccessScope = ""
+				// Saving again still cannot supply a monitoring conclusion.
 				draftInput.ExpectedReviewDraftRevision = revision
 				saved, err = service.SaveReviewDraft(ctx, reviewer, draftInput)
 				if err != nil || saved.ReviewDraftSnapshot.AccessScope != scenario.want {
@@ -84,7 +82,7 @@ func verifySiteAuditAccessScope(ctx context.Context, t *testing.T, pool *pgxpool
 
 func verifySiteAuditScopeDrift(ctx context.Context, t *testing.T, pool *pgxpool.Pool, service *siteaudit.Service, reviewer auth.User, input siteaudit.SiteInput, shortID string) {
 	t.Helper()
-	for index, scope := range []string{"CN_ONLY", "GLOBAL_ONLY"} {
+	for index, scope := range []string{"CN", "GL"} {
 		current, err := service.ResolveSite(ctx, shortID)
 		if err != nil {
 			t.Fatal(err)
@@ -120,8 +118,9 @@ func verifySiteAuditScopeDrift(ctx context.Context, t *testing.T, pool *pgxpool.
 		if err != nil || detail.EffectiveSnapshot.AccessScope != scope || len(detail.Diff.Conflicts) != 0 {
 			t.Fatalf("update detail = %#v / %v", detail, err)
 		}
-		_, err = service.Review(ctx, reviewer, siteaudit.ReviewInput{AuditID: auditID, Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: current.Revision})
-		assertSiteAuditServiceError(t, err, "site_revision_changed", http.StatusConflict)
+		if detail.CurrentSnapshot.Revision != current.Revision {
+			t.Fatal("monitoring changed content revision")
+		}
 		approved, err := service.Review(ctx, reviewer, siteaudit.ReviewInput{AuditID: auditID, Decision: siteaudit.DecisionApprove, ExpectedSiteRevision: detail.CurrentSnapshot.Revision})
 		if err != nil || approved.FinalSnapshot.AccessScope != scope || approved.FinalSnapshot.Name != proposed.Name {
 			t.Fatalf("update final = %#v / %v", approved, err)

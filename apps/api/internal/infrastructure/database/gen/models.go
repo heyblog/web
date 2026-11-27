@@ -130,8 +130,8 @@ type DirectorySite struct {
 	BasePath string
 	// Short public description of the site.
 	Summary string
-	// Expected access region: CN_ONLY, GLOBAL_ONLY, or ALL.
-	AccessScope string
+	// Stable observed access region: CN, GL, ALL; null until enough complete samples.
+	AccessScope *string
 	// Directory lifecycle state: VISIBLE, HIDDEN, or REMOVED.
 	Visibility string
 	// Required explanation when the site is HIDDEN or REMOVED.
@@ -146,6 +146,12 @@ type DirectorySite struct {
 	TagCascadeID pgtype.UUID
 	// Whether the site is an eligible blog, a confirmed non-blog, or awaiting annotation.
 	BlogStatus string
+	// Observed health: OK, WARN, DOWN; null until ten valid rounds.
+	Status *string
+	// Sampling generation incremented when the canonical address changes or data is restored.
+	MonitoringGeneration int64
+	// Latest completed monitoring round, independent of content modification time.
+	LastCheckedAt pgtype.Timestamptz
 }
 
 // Anonymous site lifecycle requests with immutable aggregate evidence and reviewed outcomes.
@@ -254,6 +260,22 @@ type DirectorySiteIcon struct {
 	CreatedAt pgtype.Timestamptz
 	// Last icon content or source update time maintained by trigger.
 	UpdatedAt pgtype.Timestamptz
+}
+
+// Idempotent dual-region rounds; UNKNOWN platform outcomes never count as target failure.
+type DirectorySiteMonitoringRound struct {
+	// Monitored canonical site.
+	SiteID pgtype.UUID
+	// Address generation captured before the request.
+	Generation int64
+	// Stable task identifier shared by retries and recovery.
+	RoundID string
+	// Logical round start time used to order sampling windows.
+	RoundAt pgtype.Timestamptz
+	// Mainland outcome: OK, FAIL, UNKNOWN.
+	CnOutcome string
+	// Overseas outcome: OK, FAIL, UNKNOWN.
+	GlOutcome string
 }
 
 // Many-to-many provenance between sites and discovery sources.

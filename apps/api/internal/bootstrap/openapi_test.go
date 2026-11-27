@@ -119,6 +119,26 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/api/web/management/taxonomy/tags", "/api/web/management/taxonomy/tags/{id}",
 		"/api/web/management/taxonomy/cascades",
 		"/api/web/management/taxonomy/changes/preview", "/api/web/management/taxonomy/changes/apply",
+		"/api/web/management/tasks/schedules", "/api/web/management/tasks/schedules/{id}",
+		"/api/web/management/tasks/schedules/{id}/run", "/api/web/management/tasks/runs",
+		"/api/web/management/tasks/runs/{id}/targets", "/api/web/management/tasks/runs/{id}/cancel",
+		"/api/web/management/tasks/overview", "/api/web/management/tasks/stats",
+		"/api/web/management/tasks/request-configs", "/api/web/management/tasks/request-configs/{id}",
+		"/api/web/management/tasks/request-configs/{id}/verification-default",
+		"/api/web/management/tasks/runs/{id}", "/api/web/management/tasks/runs/{id}/pause",
+		"/api/web/management/tasks/runs/{id}/resume", "/api/web/management/tasks/runs/{id}/retry",
+		"/api/web/management/tasks/runs/{id}/rerun", "/api/web/management/tasks/runs/{id}/archive",
+		"/api/web/management/tasks/runs/{id}/unarchive", "/api/web/management/tasks/runs/{id}/cleanup",
+		"/api/web/management/tasks/runs/{id}/attempts", "/api/web/management/tasks/runs/{id}/events",
+		"/api/web/management/tasks/runs/{id}/export", "/api/web/management/tasks/runs/batch",
+		"/api/web/management/tasks/workers", "/api/web/management/tasks/workers/{id}/drain",
+		"/api/web/management/tasks/workers/{id}/resume",
+		"/api/web/account/site-claims/{claimId}/task",
+		"/api/web/management/request-signing/policy",
+		"/api/web/management/request-signing/keys", "/api/web/management/request-signing/keys/{id}/publish",
+		"/api/web/management/request-signing/keys/{id}/activate", "/api/web/management/request-signing/keys/{id}/revoke",
+		"/api/web/management/request-signing/events", "/api/web/public/request-signing/keys",
+		"/api/web/public/request-signing/verify",
 	}
 	if len(raw.Paths) != len(wantedPaths) {
 		t.Fatalf("documented path count = %d, want %d", len(raw.Paths), len(wantedPaths))
@@ -225,8 +245,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 147 {
-		t.Fatalf("documented operation count = %d, want 147", operationCount)
+	if operationCount != 187 {
+		t.Fatalf("documented operation count = %d, want 187", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

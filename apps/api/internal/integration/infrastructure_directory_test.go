@@ -33,7 +33,7 @@ func verifyDirectoryQueries(ctx context.Context, t *testing.T, connection *pgxpo
 
 	filters := dbgen.CountDirectorySitesByStatusParams{
 		QueryText: "directory fixture", TertiaryTagNames: []string{},
-		WarningNames: []string{}, TechnologyNames: []string{}, AccessScopes: []string{"ALL"},
+		WarningNames: []string{}, TechnologyNames: []string{}, AccessScopes: []string{},
 		FeedMode: "without",
 	}
 	counts, err := queries.CountDirectorySitesByStatus(ctx, filters)

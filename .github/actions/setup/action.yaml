@@ -81,7 +81,7 @@ runs:
         path: |
           ${{ steps.go-cache.outputs.modules }}
           ${{ steps.go-cache.outputs.build }}
-        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock', 'go.work', 'go.work.sum', 'go.mod', 'go.sum', 'apps/api/go.mod', 'apps/api/go.sum') }}
+        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock', 'go.work', 'go.work.sum', 'go.mod', 'go.sum', 'apps/*/go.mod', 'apps/*/go.sum', 'packages/go/*/go.mod', 'packages/go/*/go.sum') }}
         restore-keys: |
           go-${{ runner.os }}-${{ runner.arch }}-
     - name: Install Node.js dependencies

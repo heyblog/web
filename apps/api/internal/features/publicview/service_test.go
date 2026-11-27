@@ -414,7 +414,7 @@ func testSite(shortID string) dbgen.DirectorySite {
 		NormalizedHost: "example.com",
 		BasePath:       "/blog",
 		Summary:        "记录技术与生活。",
-		AccessScope:    "ALL",
+		AccessScope:    new("ALL"),
 		Visibility:     "VISIBLE",
 		JoinedAt:       timestamp(joined),
 		UpdatedAt:      timestamp(joined.Add(time.Hour)),

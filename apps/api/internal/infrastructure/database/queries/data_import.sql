@@ -31,7 +31,6 @@ INSERT INTO directory.sites (
     normalized_host,
     base_path,
     summary,
-    access_scope,
     visibility,
     visibility_reason,
     tag_cascade_id,
@@ -45,7 +44,6 @@ INSERT INTO directory.sites (
     sqlc.arg(normalized_host),
     sqlc.arg(base_path),
     sqlc.arg(summary),
-    sqlc.arg(access_scope),
     sqlc.arg(visibility),
     sqlc.narg(visibility_reason)::text,
     (SELECT id FROM directory.tag_cascades

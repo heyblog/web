@@ -149,6 +149,23 @@ test('annotation HTTP boundary denies cross-origin reads, navigation, unsupporte
   assert.equal((await forwardAnnotation(patch('{}'), 'options')).status, 404);
   assert.equal((await forwardAnnotation(patch('[]'), 'site123')).status, 400);
   assert.equal(
+    (
+      await forwardAnnotation(
+        patch(
+          JSON.stringify({
+            expected_revision: detail.revision,
+            friend_version: detail.friend_version,
+            access_scope: 'CN',
+          }),
+        ),
+        'site123',
+      )
+    ).status,
+    400,
+  );
+  assert.equal(parseAnnotationDetail({ ...detail, access_scope: null }).access_scope, null);
+  assert.equal(parseAnnotationDetail({ ...detail, access_scope: 'GL' }).access_scope, 'GL');
+  assert.equal(
     (await forwardAnnotation(patch(JSON.stringify({ summary: '接'.repeat(100_000) })), 'site123'))
       .status,
     413,

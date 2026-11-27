@@ -59,7 +59,7 @@ type AnnotationIncoming struct {
 type AnnotationDetail struct {
 	AnnotationSite
 	Summary       string                `json:"summary"`
-	AccessScope   string                `json:"access_scope"`
+	AccessScope   *string               `json:"access_scope" enum:"CN,GL,ALL"`
 	TagCascadeID  string                `json:"tag_cascade_id"`
 	Visibility    string                `json:"visibility"`
 	Tags          []AnnotationTag       `json:"tags"`
@@ -78,7 +78,6 @@ type AnnotationPatch struct {
 	Name             *string                 `json:"name,omitempty" maxLength:"160"`
 	URL              *string                 `json:"url,omitempty" maxLength:"2048"`
 	Summary          *string                 `json:"summary,omitempty" maxLength:"2000"`
-	AccessScope      *string                 `json:"access_scope,omitempty" enum:"ALL,CN_ONLY,GLOBAL_ONLY"`
 	BlogStatus       *site.BlogStatus        `json:"blog_status,omitempty" enum:"UNREVIEWED,BLOG,NON_BLOG"`
 	TagCascadeID     *string                 `json:"tag_cascade_id,omitempty" format:"uuid"`
 	Tags             []AnnotationSelection   `json:"tags,omitempty" maxItems:"40"`

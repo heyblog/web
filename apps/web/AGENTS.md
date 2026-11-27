@@ -84,7 +84,8 @@ layer and browser-module boundaries.
   validated COS origin to its CSP via Astro's runtime CSP API in COS mode. A transport or origin
   change requires page reload before uploading. No COS configuration or signing
   secret belongs to Web. Preparation, inspection and restoration reuse the API's staged file.
-  Backup version 1 supports schema versions 3–5 with 33 datasets and 6–7 with 34. Exports use schema 7.
+  Backup protocol version 1 accepts main schemas 3–8 and exports schema 9.
+  Preserve version-specific dataset inventories when decoding inspection and restore results.
   Inspection stays synchronous. Restore remains an API-owned task; never retry automatically.
   Resolve uncertain acceptance through a task associated with the same upload ID. Navigation
   stops polling without cancelling accepted work. Cleanup status remains independent of restore
@@ -142,9 +143,19 @@ layer and browser-module boundaries.
   explicitly regenerate. Dashboard owns applicant flows; management owns manual review and versioned
   ownership revocation. The public profile claim link contains only the site identifier. Verified
   address proofs are read server-side before prefilling only the account editor's homepage address.
-- Site access scope is maintained through administrator review corrections and internal imports.
-  Public and account submission drafts contain only applicant-editable fields; the review editor
-  owns access-scope state and sends it through the dedicated review input contract.
+- Site access scope and health are read-only monitoring conclusions and may be null.
+  Public cards use CN/GL/ALL and OK/WARN/DOWN; profile pages show the last monitoring time.
+  Public, account, and review submission drafts never write monitoring conclusions.
+- `src/api/task-center` owns parsed schedule, request configuration, paginated run/history,
+  worker, statistics, proof and key DTOs and narrow
+  same-origin proxies. `src/application/task-center` owns form state and safe messages;
+  `components/management/task-center` owns presentation. `/management/tasks` requires
+  `task.manage`; `/management/request-signing` requires SYS_ADMIN. `/request-signing` is the
+  public proof checker and public-key listing. Never retry task or key mutations automatically,
+  expose worker lease credentials, or include private signing/encryption keys in Web responses.
+  Mutations carry idempotency keys; editing carries revision. Preserve accepted operations when
+  subsequent reads fail. Active views poll every three seconds, hidden views pause, and
+  terminal run details stop frequent refresh. HTTP claim checks use the applicant-only task route.
 - Preserve accepted HTTP methods, URLs, statuses, Cookie/Set-Cookie handling, cancellation,
   timeouts, redirects, request counts, and failure mappings. Consult the API layer rules and
   route's focused tests before changing forwarding behavior.
@@ -200,7 +211,8 @@ OG image generation reads `/api/web/public/sites/id/{identifier}/metadata` so im
 
 Protected dashboard, management and annotation pages reuse the session resolved by middleware.
 `/annotation` owns the annotation list, editor and history, with independent workspace access
-through `site_annotation.manage` for administrators or the system administrator role.
+through `site_annotation.manage` for administrators or the system administrator role. The editor
+displays the latest monitoring access scope as read-only.
 OAuth accounts with pending confirmation enter `/complete-profile` before business operations.
 Confirmation and subsequent one-time username changes use the dedicated `api/account-profile`
 boundary; display names remain editable. Management user lists use server pagination and

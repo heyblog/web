@@ -101,7 +101,7 @@ func (q *Queries) GetAccountFriendRequestAudit(ctx context.Context, arg GetAccou
 }
 
 const getAccountSite = `-- name: GetAccountSite :one
-SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id, s.blog_status FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
+SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id, s.blog_status, s.status, s.monitoring_generation, s.last_checked_at FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
 WHERE s.blog_status = 'BLOG' AND s.short_id = $1 AND o.user_id = $2
 `
 
@@ -130,6 +130,9 @@ func (q *Queries) GetAccountSite(ctx context.Context, arg GetAccountSiteParams) 
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -264,7 +267,7 @@ func (q *Queries) ListAccountAudits(ctx context.Context, arg ListAccountAuditsPa
 }
 
 const listAccountSites = `-- name: ListAccountSites :many
-SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id, s.blog_status FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
+SELECT s.id, s.short_id, s.custom_id, s.name, s.scheme, s.normalized_host, s.base_path, s.summary, s.access_scope, s.visibility, s.visibility_reason, s.revision, s.joined_at, s.updated_at, s.tag_cascade_id, s.blog_status, s.status, s.monitoring_generation, s.last_checked_at FROM directory.sites s JOIN directory.site_ownerships o ON o.site_id = s.id
 WHERE s.blog_status = 'BLOG' AND o.user_id = $1 ORDER BY s.name, s.id
 `
 
@@ -294,6 +297,9 @@ func (q *Queries) ListAccountSites(ctx context.Context, userID pgtype.UUID) ([]D
 			&i.UpdatedAt,
 			&i.TagCascadeID,
 			&i.BlogStatus,
+			&i.Status,
+			&i.MonitoringGeneration,
+			&i.LastCheckedAt,
 		); err != nil {
 			return nil, err
 		}

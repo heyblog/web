@@ -44,7 +44,6 @@ test('audit mutations preserve methods, payloads, and one request per operation'
   const expectations = { expected_site_revision: 7, expected_review_draft_revision: 3 };
   const site: ReviewSiteInput = {
     ...buildSubmissionPayload(emptySubmission(), 'UPDATE').site,
-    access_scope: 'GLOBAL_ONLY',
   };
   const decision = {
     ...expectations,

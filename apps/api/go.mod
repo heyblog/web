@@ -2,6 +2,12 @@ module heyblog-api
 
 go 1.27.4
 
+require heyblog.local/edgerequest v0.0.0
+require heyblog.local/taskprotocol v0.0.0
+
+replace heyblog.local/edgerequest => ../../packages/go/edgerequest
+replace heyblog.local/taskprotocol => ../../packages/go/taskprotocol
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.21
@@ -125,6 +131,7 @@ require (
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.65.0 // indirect
 	github.com/riza-io/grpc-go v0.2.0 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect

@@ -38,6 +38,7 @@ type Config struct {
 	Health               HealthConfig
 	Auth                 AuthConfig
 	BackupCOS            BackupCOSConfig
+	Edge                 EdgeConfig
 }
 
 type ServerConfig struct {

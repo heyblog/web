@@ -87,13 +87,13 @@ UPDATE directory.sites
        normalized_host = $4,
        base_path = $5,
        summary = $6,
-       access_scope = $7,
-       visibility = $8,
-       visibility_reason = $9,
-       tag_cascade_id = $10,
-       blog_status = CASE WHEN $12::boolean THEN 'BLOG' ELSE blog_status END
- WHERE id = $1 AND revision = $11
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+       visibility = $7,
+       visibility_reason = $8,
+       tag_cascade_id = $9,
+       revision = revision + 1,
+       blog_status = CASE WHEN $11::boolean THEN 'BLOG' ELSE blog_status END
+ WHERE id = $1 AND revision = $10
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
 `
 
 type ApplySiteSnapshotParams struct {
@@ -103,7 +103,6 @@ type ApplySiteSnapshotParams struct {
 	NormalizedHost   string
 	BasePath         string
 	Summary          string
-	AccessScope      string
 	Visibility       string
 	VisibilityReason *string
 	TagCascadeID     pgtype.UUID
@@ -119,7 +118,6 @@ func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotPa
 		arg.NormalizedHost,
 		arg.BasePath,
 		arg.Summary,
-		arg.AccessScope,
 		arg.Visibility,
 		arg.VisibilityReason,
 		arg.TagCascadeID,
@@ -144,6 +142,9 @@ func (q *Queries) ApplySiteSnapshot(ctx context.Context, arg ApplySiteSnapshotPa
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -243,6 +244,15 @@ func (q *Queries) AssignSiteTag(ctx context.Context, arg AssignSiteTagParams) (D
 		&i.Position,
 	)
 	return i, err
+}
+
+const clearSiteFeedDefaults = `-- name: ClearSiteFeedDefaults :exec
+UPDATE directory.site_feeds SET is_default = false WHERE site_id = $1 AND is_default
+`
+
+func (q *Queries) ClearSiteFeedDefaults(ctx context.Context, siteID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearSiteFeedDefaults, siteID)
+	return err
 }
 
 const countDirectorySitesByStatus = `-- name: CountDirectorySitesByStatus :one
@@ -387,11 +397,10 @@ INSERT INTO directory.sites (
     normalized_host,
     base_path,
     summary,
-    access_scope,
     tag_cascade_id,
     blog_status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BLOG')
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'BLOG')
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
 `
 
 type CreateSiteParams struct {
@@ -402,7 +411,6 @@ type CreateSiteParams struct {
 	NormalizedHost string
 	BasePath       string
 	Summary        string
-	AccessScope    string
 	TagCascadeID   pgtype.UUID
 }
 
@@ -415,7 +423,6 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Directo
 		arg.NormalizedHost,
 		arg.BasePath,
 		arg.Summary,
-		arg.AccessScope,
 		arg.TagCascadeID,
 	)
 	var i DirectorySite
@@ -436,6 +443,9 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Directo
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -609,7 +619,7 @@ func (q *Queries) GetReadableSiteTagCascade(ctx context.Context, id pgtype.UUID)
 }
 
 const getSiteByCustomID = `-- name: GetSiteByCustomID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE custom_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at FROM directory.sites WHERE custom_id = $1
 `
 
 func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (DirectorySite, error) {
@@ -632,12 +642,15 @@ func (q *Queries) GetSiteByCustomID(ctx context.Context, customID *string) (Dire
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
 
 const getSiteByHost = `-- name: GetSiteByHost :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE normalized_host = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at FROM directory.sites WHERE normalized_host = $1
 `
 
 func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (DirectorySite, error) {
@@ -660,12 +673,15 @@ func (q *Queries) GetSiteByHost(ctx context.Context, normalizedHost string) (Dir
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
 
 const getSiteByID = `-- name: GetSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at FROM directory.sites WHERE id = $1
 `
 
 func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -688,12 +704,15 @@ func (q *Queries) GetSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySit
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
 
 const getSiteByShortID = `-- name: GetSiteByShortID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE short_id = $1
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at FROM directory.sites WHERE short_id = $1
 `
 
 func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (DirectorySite, error) {
@@ -716,6 +735,9 @@ func (q *Queries) GetSiteByShortID(ctx context.Context, shortID string) (Directo
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -878,7 +900,7 @@ func (q *Queries) ListDefaultPublicSiteFeedsBySiteIDs(ctx context.Context, siteI
 }
 
 const listDirectorySites = `-- name: ListDirectorySites :many
-SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status, site.status, site.monitoring_generation, site.last_checked_at
   FROM directory.sites AS site
  WHERE site.blog_status = 'BLOG' AND site.visibility = $1::text
    AND (
@@ -1041,6 +1063,9 @@ func (q *Queries) ListDirectorySites(ctx context.Context, arg ListDirectorySites
 			&i.UpdatedAt,
 			&i.TagCascadeID,
 			&i.BlogStatus,
+			&i.Status,
+			&i.MonitoringGeneration,
+			&i.LastCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1629,7 +1654,7 @@ func (q *Queries) ListPublicSitemapsBySiteIDs(ctx context.Context, siteIds []pgt
 }
 
 const listRandomVisibleSites = `-- name: ListRandomVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
   FROM directory.sites
  WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
  ORDER BY random()
@@ -1662,6 +1687,9 @@ func (q *Queries) ListRandomVisibleSites(ctx context.Context, limit int32) ([]Di
 			&i.UpdatedAt,
 			&i.TagCascadeID,
 			&i.BlogStatus,
+			&i.Status,
+			&i.MonitoringGeneration,
+			&i.LastCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1959,7 +1987,7 @@ func (q *Queries) ListSoftwareComponentDependencies(ctx context.Context, compone
 }
 
 const listVisibleSites = `-- name: ListVisibleSites :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
   FROM directory.sites
  WHERE blog_status = 'BLOG' AND visibility = 'VISIBLE'
  ORDER BY joined_at DESC, id DESC
@@ -1997,6 +2025,9 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 			&i.UpdatedAt,
 			&i.TagCascadeID,
 			&i.BlogStatus,
+			&i.Status,
+			&i.MonitoringGeneration,
+			&i.LastCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2009,7 +2040,7 @@ func (q *Queries) ListVisibleSites(ctx context.Context, arg ListVisibleSitesPara
 }
 
 const lockSiteByID = `-- name: LockSiteByID :one
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status FROM directory.sites WHERE id = $1 FOR UPDATE
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at FROM directory.sites WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySite, error) {
@@ -2032,12 +2063,15 @@ func (q *Queries) LockSiteByID(ctx context.Context, id pgtype.UUID) (DirectorySi
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
 
 const pickRandomVisibleSite = `-- name: PickRandomVisibleSite :one
-SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status
+SELECT site.id, site.short_id, site.custom_id, site.name, site.scheme, site.normalized_host, site.base_path, site.summary, site.access_scope, site.visibility, site.visibility_reason, site.revision, site.joined_at, site.updated_at, site.tag_cascade_id, site.blog_status, site.status, site.monitoring_generation, site.last_checked_at
   FROM directory.sites AS site
  WHERE site.blog_status = 'BLOG' AND site.visibility = 'VISIBLE'
    AND ($1::text = '' OR EXISTS (
@@ -2081,6 +2115,9 @@ func (q *Queries) PickRandomVisibleSite(ctx context.Context, arg PickRandomVisib
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -2102,7 +2139,7 @@ func (q *Queries) RemoveSoftwareComponentDependency(ctx context.Context, arg Rem
 }
 
 const searchSitesForSubmission = `-- name: SearchSitesForSubmission :many
-SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+SELECT id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
   FROM directory.sites
  WHERE blog_status = 'BLOG'
    AND (name ILIKE '%' || $1::text || '%'
@@ -2138,6 +2175,9 @@ func (q *Queries) SearchSitesForSubmission(ctx context.Context, query string) ([
 			&i.UpdatedAt,
 			&i.TagCascadeID,
 			&i.BlogStatus,
+			&i.Status,
+			&i.MonitoringGeneration,
+			&i.LastCheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2154,7 +2194,7 @@ UPDATE directory.sites
    SET visibility = $2,
        visibility_reason = $3
  WHERE id = $1 AND revision = $4
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
 `
 
 type SetSiteVisibilityParams struct {
@@ -2189,6 +2229,9 @@ func (q *Queries) SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityPa
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -2256,7 +2299,7 @@ UPDATE directory.sites
        normalized_host = $3,
        base_path = $4
  WHERE id = $1 AND revision = $5
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
 `
 
 type UpdateSiteAddressParams struct {
@@ -2293,6 +2336,9 @@ func (q *Queries) UpdateSiteAddress(ctx context.Context, arg UpdateSiteAddressPa
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }
@@ -2301,19 +2347,17 @@ const updateSiteDirectoryProfile = `-- name: UpdateSiteDirectoryProfile :one
 UPDATE directory.sites
    SET custom_id = $2,
        name = $3,
-       summary = $4,
-       access_scope = $5
- WHERE id = $1 AND revision = $6
-RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status
+       summary = $4
+ WHERE id = $1 AND revision = $5
+RETURNING id, short_id, custom_id, name, scheme, normalized_host, base_path, summary, access_scope, visibility, visibility_reason, revision, joined_at, updated_at, tag_cascade_id, blog_status, status, monitoring_generation, last_checked_at
 `
 
 type UpdateSiteDirectoryProfileParams struct {
-	ID          pgtype.UUID
-	CustomID    *string
-	Name        string
-	Summary     string
-	AccessScope string
-	Revision    int64
+	ID       pgtype.UUID
+	CustomID *string
+	Name     string
+	Summary  string
+	Revision int64
 }
 
 func (q *Queries) UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSiteDirectoryProfileParams) (DirectorySite, error) {
@@ -2322,7 +2366,6 @@ func (q *Queries) UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSite
 		arg.CustomID,
 		arg.Name,
 		arg.Summary,
-		arg.AccessScope,
 		arg.Revision,
 	)
 	var i DirectorySite
@@ -2343,6 +2386,9 @@ func (q *Queries) UpdateSiteDirectoryProfile(ctx context.Context, arg UpdateSite
 		&i.UpdatedAt,
 		&i.TagCascadeID,
 		&i.BlogStatus,
+		&i.Status,
+		&i.MonitoringGeneration,
+		&i.LastCheckedAt,
 	)
 	return i, err
 }

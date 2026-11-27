@@ -25,6 +25,7 @@ type Problem struct {
 	Detail        string                  `json:"detail"`
 	Instance      string                  `json:"instance"`
 	Code          string                  `json:"code"`
+	CurrentState  string                  `json:"current_state,omitempty"`
 	RequestID     string                  `json:"request_id"`
 	InvalidParams []apperror.InvalidParam `json:"invalid_params,omitempty"`
 }
@@ -41,13 +42,14 @@ func (problem *Problem) ContentType(contentType string) string {
 }
 
 type problemDescriptor struct {
-	status      int
-	title       string
-	detail      string
-	code        string
-	params      []apperror.InvalidParam
-	op          string
-	diagnostics []apperror.Diagnostic
+	status       int
+	title        string
+	detail       string
+	code         string
+	currentState string
+	params       []apperror.InvalidParam
+	op           string
+	diagnostics  []apperror.Diagnostic
 }
 
 func errorBoundary(logger *slog.Logger) gin.HandlerFunc {
@@ -113,13 +115,14 @@ func describeError(err error) problemDescriptor {
 		code = fallbackCode
 	}
 	return problemDescriptor{
-		status:      status,
-		title:       title,
-		detail:      detail,
-		code:        code,
-		params:      applicationError.InvalidParams(),
-		op:          applicationError.Operation(),
-		diagnostics: applicationError.Diagnostics(),
+		status:       status,
+		title:        title,
+		detail:       detail,
+		code:         code,
+		currentState: applicationError.CurrentState(),
+		params:       applicationError.InvalidParams(),
+		op:           applicationError.Operation(),
+		diagnostics:  applicationError.Diagnostics(),
 	}
 }
 
@@ -160,6 +163,7 @@ func writeProblem(ctx *gin.Context, descriptor problemDescriptor) {
 		Detail:        descriptor.detail,
 		Instance:      ctx.Request.URL.EscapedPath(),
 		Code:          descriptor.code,
+		CurrentState:  descriptor.currentState,
 		RequestID:     RequestID(ctx),
 		InvalidParams: descriptor.params,
 	}

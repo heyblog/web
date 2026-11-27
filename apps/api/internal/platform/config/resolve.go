@@ -55,7 +55,12 @@ func resolve(values fileConfig, getenv getenvFunc) (Config, error) {
 		return Config{}, err
 	}
 
+	edge, err := resolveEdge(getenv)
+	if err != nil {
+		return Config{}, err
+	}
 	configuration := Config{
+		Edge:                 edge,
 		Mode:                 values.Mode,
 		MigrationDatabaseURL: migrationURL,
 		HealthcheckToken:     healthcheckToken,

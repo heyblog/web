@@ -3,7 +3,6 @@
 
   import { requestAnnotation } from '@/api/site-annotation/annotation.browser';
   import {
-    accessScopes,
     type AnnotationDetail,
     type AnnotationOptions,
     blogStatuses,
@@ -169,13 +168,12 @@
                 >{/each}
             </select></label
           >
-          <label class={fieldClass}
-            >访问范围<select class={inputClass} bind:value={draft.access_scope}>
-              {#each accessScopes as scope (scope)}<option value={scope}
-                  >{scopeLabels[scope]}</option
-                >{/each}
-            </select></label
-          >
+          <div class={fieldClass}>
+            <span>检测访问范围</span>
+            <p>
+              {detail.access_scope === null ? '暂无检测结论' : scopeLabels[detail.access_scope]}
+            </p>
+          </div>
         </div>
       </section>
 

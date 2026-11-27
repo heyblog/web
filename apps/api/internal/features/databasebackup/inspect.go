@@ -11,6 +11,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -63,6 +66,20 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 	if err != nil {
 		return Inspection{}, document{}, err
 	}
+	if _, err = file.Seek(0, io.SeekStart); err != nil {
+		return Inspection{}, document{}, err
+	}
+	source := inventory
+	if doc.header.SchemaVersion < schemaVersion {
+		frozen, err := readColumns(ctx, tx, "SELECT dataset,column_name,type_name FROM directory.backup_schema8_columns()")
+		if err != nil {
+			return Inspection{}, document{}, err
+		}
+		source = sourceInventory(frozen, doc.header.SchemaVersion)
+	}
+	if _, err = readDocument(reader, func(name string, row json.RawMessage) error { return validateRow(name, row, source) }); err != nil {
+		return Inspection{}, document{}, err
+	}
 	if err = doc.prepareConversion(ctx, file); err != nil {
 		return Inspection{}, document{}, err
 	}
@@ -70,12 +87,6 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 		return Inspection{}, document{}, err
 	}
 	_, err = readDocument(reader, func(name string, row json.RawMessage) error {
-		if name == "directory.site_claim_attachments" || doc.header.SchemaVersion == schemaVersion {
-			// Validate the original values before normalizing transient state.
-			if err := validateRow(name, row, inventory); err != nil {
-				return err
-			}
-		}
 		converted, conversionErr := doc.convertRow(name, row)
 		if conversionErr != nil {
 			return conversionErr
@@ -127,19 +138,44 @@ func validateRow(name string, raw json.RawMessage, inventory columnInventory) er
 			continue
 		}
 		switch typeName {
-		case "bigint", "bytea":
+		case "bigint", "bytea", "text", "character varying", "uuid", "timestamp with time zone":
 			var value string
 			if err := json.Unmarshal(rawValue, &value); err != nil {
 				return ErrInvalid
 			}
-			if typeName == "bigint" {
-				if _, err := strconv.ParseInt(value, 10, 64); err != nil {
-					return ErrInvalid
-				}
-			} else {
-				if _, err := base64.StdEncoding.DecodeString(value); err != nil {
-					return ErrInvalid
-				}
+			var err error
+			switch typeName {
+			case "bigint":
+				_, err = strconv.ParseInt(value, 10, 64)
+			case "bytea":
+				_, err = base64.StdEncoding.DecodeString(value)
+			case "uuid":
+				_, err = uuid.Parse(value)
+			case "timestamp with time zone":
+				_, err = time.Parse(time.RFC3339Nano, value)
+			}
+			if err != nil {
+				return ErrInvalid
+			}
+		case "boolean":
+			var value bool
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				return ErrInvalid
+			}
+		case "integer", "smallint":
+			bits := 32
+			if typeName == "smallint" {
+				bits = 16
+			}
+			if _, err := strconv.ParseInt(string(rawValue), 10, bits); err != nil {
+				return ErrInvalid
+			}
+		case "numeric":
+			decoder := json.NewDecoder(bytes.NewReader(rawValue))
+			decoder.UseNumber()
+			token, err := decoder.Token()
+			if _, ok := token.(json.Number); err != nil || !ok {
+				return ErrInvalid
 			}
 		}
 	}

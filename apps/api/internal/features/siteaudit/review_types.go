@@ -72,7 +72,6 @@ type ReviewInput struct {
 
 type ReviewSiteInput struct {
 	SiteInput
-	AccessScope string `json:"access_scope,omitempty" enum:"CN_ONLY,GLOBAL_ONLY,ALL"`
 }
 
 type ReviewDraftInput struct {

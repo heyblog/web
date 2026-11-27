@@ -2,7 +2,15 @@ min_version = "2026.11.12"
 monorepo_root = true
 
 [monorepo]
-config_roots = ["apps/api", "apps/web", "packages/node/configs"]
+config_roots = [
+  "apps/api",
+  "apps/worker",
+  "apps/web",
+  "apps/edge",
+  "packages/go/edgerequest",
+  "packages/go/taskprotocol",
+  "packages/node/configs",
+]
 lockfile = true
 
 [task_config]

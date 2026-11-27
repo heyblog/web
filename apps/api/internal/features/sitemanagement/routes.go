@@ -17,6 +17,7 @@ import (
 )
 
 type output[T any] struct {
+	Status       int
 	CacheControl string `header:"Cache-Control"`
 	Body         T
 }
@@ -150,7 +151,8 @@ func RegisterRoutes(api huma.API, service *Service, webToken string, redisClient
 		httpapi.Register(api, operation("list-"+id, http.MethodGet, path), listHandler(service, management))
 		httpapi.Register(api, operation("get-"+id, http.MethodGet, path+"/{claimId}"), detailHandler(service, management))
 	}
-	httpapi.Register(api, operation("check-site-claim", http.MethodPost, "/api/web/account/site-claims/{claimId}/check"), claimActionHandler(service, false))
+	httpapi.Register(api, operation("check-site-claim", http.MethodPost, "/api/web/account/site-claims/{claimId}/check"), startCheckHandler(service))
+	httpapi.Register(api, operation("site-claim-task", http.MethodGet, "/api/web/account/site-claims/{claimId}/task"), claimTaskHandler(service))
 	httpapi.Register(api, operation("cancel-site-claim", http.MethodDelete, "/api/web/account/site-claims/{claimId}"), claimActionHandler(service, true))
 	httpapi.Register(api, operation("review-site-claim", http.MethodPost, "/api/web/management/site-claims/{claimId}/review"), func(ctx context.Context, input *reviewRequest) (*output[Claim], error) {
 		user, err := service.Reviewer(ctx, httpapi.Request(ctx))

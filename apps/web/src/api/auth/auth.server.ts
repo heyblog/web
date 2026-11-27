@@ -21,6 +21,7 @@ export async function requestAuthAPI(
     method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
     body?: Readonly<Record<string, unknown>>;
     timeoutMs?: number;
+    idempotencyKey?: string;
     emailChangeId?: string;
   }> = {},
 ): Promise<Response> {
@@ -44,6 +45,7 @@ export async function requestAuthAPI(
   const cookie = request.headers.get('cookie');
   if (cookie) headers.set('Cookie', cookie);
   if (init.body) headers.set('Content-Type', 'application/json');
+  if (init.idempotencyKey) headers.set('Idempotency-Key', init.idempotencyKey);
   if (init.emailChangeId) headers.set('X-HeyBlog-Email-Change-ID', init.emailChangeId);
   forwardClientAddress(request, headers);
 

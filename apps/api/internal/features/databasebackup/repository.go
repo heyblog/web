@@ -58,7 +58,11 @@ func targetIssues(ctx context.Context, tx pgx.Tx, actor string) ([]Issue, error)
 type columnInventory map[string]map[string]string
 
 func columns(ctx context.Context, tx pgx.Tx) (columnInventory, error) {
-	rows, err := tx.Query(ctx, "SELECT dataset,column_name,type_name FROM directory.backup_columns()")
+	return readColumns(ctx, tx, "SELECT dataset,column_name,type_name FROM directory.backup_columns()")
+}
+
+func readColumns(ctx context.Context, tx pgx.Tx, query string) (columnInventory, error) {
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}

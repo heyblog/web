@@ -1,0 +1,17 @@
+---
+import ProofVerifier from '@/components/management/task-center/ProofVerifier.svelte';
+import PublicLayout from '@/layouts/PublicLayout.astro';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+---
+
+<PublicLayout
+  title="请求签名验证 | HeyBlog"
+  description="验证 HeyBlog 请求签名，查看已发布公钥。"
+  canonicalPath="/request-signing"
+>
+  <div class="mx-auto grid w-full max-w-4xl gap-8 px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold">请求签名验证</h1>
+    <ProofVerifier client:load />
+  </div>
+</PublicLayout>

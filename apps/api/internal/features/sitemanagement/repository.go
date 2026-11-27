@@ -21,6 +21,11 @@ type Repository struct {
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool, queries: dbgen.New(pool)}
 }
+
+// WithTransaction lets task result receipts and ownership changes commit together.
+func WithTransaction(tx pgx.Tx) *Repository {
+	return &Repository{queries: dbgen.New(tx)}
+}
 func uuid(raw string) (pgtype.UUID, error) {
 	var result pgtype.UUID
 	if raw == "" {
@@ -128,6 +133,9 @@ func (r *Repository) List(ctx context.Context, filter ClaimFilter) ([]Claim, err
 	return claims, nil
 }
 func (r *Repository) transaction(ctx context.Context, operation func(*dbgen.Queries) error) error {
+	if r.pool == nil {
+		return operation(r.queries)
+	}
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin ownership transaction: %w", err)

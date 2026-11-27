@@ -115,6 +115,16 @@ func TestSiteAnnotationWorkflow(t *testing.T) {
 		}
 		return fixture.request(http.MethodPatch, detailPath, string(body)).Result()
 	}
+	// Monitoring owns this field, including when a direct API client submits it.
+	scopePatch, err := json.Marshal(map[string]any{
+		"expected_revision": detail.Revision, "friend_version": detail.FriendVersion, "access_scope": "CN",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res := fixture.request(http.MethodPatch, detailPath, string(scopePatch)); res.Code < 400 || res.Code >= 500 {
+		t.Fatalf("read-only access scope was accepted: %d %s", res.Code, res.Body)
+	}
 	response := save(patch)
 	defer func() { _ = response.Body.Close() }()
 	if err := json.NewDecoder(response.Body).Decode(&detail); response.StatusCode != http.StatusOK || err != nil {
@@ -137,6 +147,25 @@ func TestSiteAnnotationWorkflow(t *testing.T) {
 	_ = response.Body.Close()
 	if response.StatusCode != http.StatusConflict {
 		t.Fatalf("stale annotation status = %d", response.StatusCode)
+	}
+
+	beforeAssociations := detail.Revision
+	if _, err := fixture.pool.Exec(ctx, "UPDATE directory.sites SET access_scope='CN' WHERE id=$1", id); err != nil {
+		t.Fatal(err)
+	}
+	response = save(siteaudit.AnnotationPatch{
+		ExpectedRevision: beforeAssociations, FriendVersion: detail.FriendVersion,
+		Outgoing: []siteaudit.AnnotationFriendInput{{TargetURL: "https://external.example.test/", LinkStatus: "INACTIVE"}},
+	})
+	err = json.NewDecoder(response.Body).Decode(&detail)
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusOK || err != nil || detail.Revision != beforeAssociations+1 ||
+		detail.AccessScope == nil || *detail.AccessScope != "CN" || len(detail.Outgoing) != 1 || detail.Outgoing[0].LinkStatus != "INACTIVE" {
+		t.Fatalf("association-only annotation did not advance one revision or preserve scope: %#v, %v", detail, err)
+	}
+	history = fixture.request(http.MethodGet, detailPath+"/history", "")
+	if history.Code != http.StatusOK || strings.Contains(history.Body.String(), "access_scope") {
+		t.Fatalf("monitoring appeared in annotation history: %d %s", history.Code, history.Body)
 	}
 
 	reviewer := auth.User{ID: fixture.actor, Role: auth.RoleSysAdmin}

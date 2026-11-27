@@ -7,7 +7,7 @@ import type {
 
 export const blogStatuses = ['UNREVIEWED', 'BLOG', 'NON_BLOG'] as const;
 export const annotationFilters = [...blogStatuses, 'ALL'] as const;
-export const accessScopes = ['ALL', 'CN_ONLY', 'GLOBAL_ONLY'] as const;
+export const accessScopes = ['ALL', 'CN', 'GL'] as const;
 export const tagRoles = ['TERTIARY', 'WARNING'] as const;
 export const componentRoles = [
   'SITE_PROGRAM',
@@ -59,7 +59,7 @@ export interface IncomingLink {
 }
 export interface AnnotationDetail extends AnnotationItem {
   readonly summary: string;
-  readonly access_scope: (typeof accessScopes)[number];
+  readonly access_scope: (typeof accessScopes)[number] | null;
   readonly tag_cascade_id: string;
   readonly tags: readonly AnnotationTag[];
   readonly components: readonly AnnotationComponent[];
@@ -102,7 +102,6 @@ export interface AnnotationFields {
   readonly name: string;
   readonly url: string;
   readonly summary: string;
-  readonly access_scope: AnnotationDetail['access_scope'];
   readonly blog_status: AnnotationItem['blog_status'];
   readonly tag_cascade_id: string;
   readonly tags: readonly (Pick<AnnotationTag, 'id'> & {

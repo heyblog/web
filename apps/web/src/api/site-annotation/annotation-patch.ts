@@ -1,7 +1,6 @@
 import { feedFormats } from '../site-submission/site-submission.types.ts';
 
 import {
-  accessScopes,
   type AnnotationFields,
   type AnnotationPatch,
   blogStatuses,
@@ -14,6 +13,7 @@ import { bool, int, list, oneOf, record, text } from './annotation-parsing.ts';
 
 export function parseAnnotationPatch(value: unknown): AnnotationPatch {
   const input = record(value);
+  if (Object.hasOwn(input, 'access_scope')) throw new TypeError('Access scope is read-only');
   return {
     expected_revision: int(input.expected_revision, 1),
     friend_version: text(input.friend_version),
@@ -27,9 +27,6 @@ function parseSections(input: Record<string, unknown>): Partial<AnnotationFields
     ...(input.name === undefined ? {} : { name: text(input.name) }),
     ...(input.url === undefined ? {} : { url: text(input.url) }),
     ...(input.summary === undefined ? {} : { summary: text(input.summary) }),
-    ...(input.access_scope === undefined
-      ? {}
-      : { access_scope: oneOf(input.access_scope, accessScopes) }),
     ...(input.blog_status === undefined
       ? {}
       : { blog_status: oneOf(input.blog_status, blogStatuses) }),
