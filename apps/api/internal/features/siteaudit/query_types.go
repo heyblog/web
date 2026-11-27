@@ -35,6 +35,11 @@ type AuditPage struct {
 	TotalPages int32           `json:"total_pages"`
 }
 
+type AccountSubmissionPage struct {
+	Items   []AuditListItem `json:"items"`
+	HasMore bool            `json:"has_more"`
+}
+
 type ManagedSiteAudit struct {
 	ID     string `json:"id"`
 	Action Action `json:"action"`

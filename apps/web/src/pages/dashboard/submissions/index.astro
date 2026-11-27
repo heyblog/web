@@ -1,7 +1,8 @@
 ---
 import { requestAuthAPI } from '@/api/auth/auth.server';
-import type { AuditListItem } from '@/api/site-submission/site-submission.types';
+import type { AccountSubmissionPage } from '@/api/site-submission/site-submission.types';
 import { auditActionLabels, auditStatusLabels } from '@/application/site-management/messages';
+import { listPageNumber } from '@/application/site-management/pagination';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import PageNavigation from '@/components/site-management/PageNavigation.astro';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
@@ -9,17 +10,14 @@ export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
 if (!user) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
-const page = Math.min(
-  1000,
-  Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1),
-);
+const page = listPageNumber(Astro.url.searchParams);
 const response = await requestAuthAPI(
   Astro.request,
-  `/api/web/account/site-submissions?page=${page}&page_size=50`,
+  `/api/web/account/site-submissions?page=${page}`,
 );
-const payload: { items: readonly AuditListItem[] } = response.ok
+const payload: AccountSubmissionPage = response.ok
   ? await response.json()
-  : { items: [] };
+  : { items: [], has_more: false };
 ---
 
 <DashboardLayout title="我的提交" heading="我的提交" {user} currentPath={Astro.url.pathname}>
@@ -43,5 +41,5 @@ const payload: { items: readonly AuditListItem[] } = response.ok
   {response.ok && payload.items.length === 0 ? (
     <p class="py-10 text-sm text-fg-muted">暂无提交记录。</p>
   ) : null}
-  <PageNavigation {page} hasNext={payload.items.length === 50} />
+  <PageNavigation {page} hasNext={payload.has_more} />
 </DashboardLayout>

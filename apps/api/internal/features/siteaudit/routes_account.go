@@ -60,9 +60,8 @@ func RegisterAccountRoutes(api huma.API, service *AccountService, webToken strin
 	accountRegister(api, service, operation("account-site", "GET", "/api/web/account/sites/{shortId}"), func(ctx context.Context, user auth.User, input *shortIDInput) (Snapshot, error) {
 		return service.Site(ctx, user, input.ShortID)
 	})
-	accountRegister(api, service, operation("account-submissions", "GET", "/api/web/account/site-submissions"), func(ctx context.Context, user auth.User, input *accountPageInput) (accountItems[AuditListItem], error) {
-		items, err := service.Submissions(ctx, user, boundedInteger(input.Page, 1, 1, 1_000_000))
-		return accountItems[AuditListItem]{Items: items}, err
+	accountRegister(api, service, operation("account-submissions", "GET", "/api/web/account/site-submissions"), func(ctx context.Context, user auth.User, input *accountPageInput) (AccountSubmissionPage, error) {
+		return service.Submissions(ctx, user, boundedInteger(input.Page, 1, 1, 1_000_000))
 	})
 	accountRegister(api, service, operation("account-submission", "GET", "/api/web/account/site-submissions/{auditId}"), func(ctx context.Context, user auth.User, input *auditIDInput) (Audit, error) {
 		return service.Submission(ctx, user, input.AuditID)

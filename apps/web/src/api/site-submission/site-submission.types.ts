@@ -193,6 +193,10 @@ export interface AuditPage {
   readonly total_items: number;
   readonly total_pages: number;
 }
+export interface AccountSubmissionPage {
+  readonly items: readonly AuditListItem[];
+  readonly has_more: boolean;
+}
 export interface SiteSearchResult {
   readonly short_id: string;
   readonly name: string;

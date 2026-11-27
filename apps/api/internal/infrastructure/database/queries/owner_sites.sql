@@ -29,7 +29,7 @@ RETURNING *;
 -- name: ListAccountAudits :many
 SELECT a.* FROM directory.site_audits a WHERE a.submitter_user_id = $1 OR EXISTS (
 SELECT 1 FROM directory.owner_friend_link_requests r WHERE r.audit_id = a.id AND r.user_id = $1)
-ORDER BY a.created_at DESC, a.id DESC LIMIT 50 OFFSET sqlc.arg(page_offset);
+ORDER BY a.created_at DESC, a.id DESC LIMIT 51 OFFSET sqlc.arg(page_offset);
 
 -- name: CanReadAccountAudit :one
 SELECT EXISTS (SELECT 1 FROM directory.site_audits a WHERE a.id = $1 AND (

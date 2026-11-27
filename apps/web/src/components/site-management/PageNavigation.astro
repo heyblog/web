@@ -1,4 +1,6 @@
 ---
+import { listPageLimit } from '@/application/site-management/pagination';
+
 interface Props {
   page: number;
   hasNext: boolean;
@@ -28,7 +30,7 @@ const href = (value: number) => {
     <span class="text-fg-muted">上一页</span>
   )}
   <span class="text-fg-muted">第 {page} 页</span>
-  {hasNext ? (
+  {hasNext && page < listPageLimit ? (
     <a
       class="inline-flex min-h-11 items-center rounded-sm border border-line-strong px-4"
       href={href(page + 1)}

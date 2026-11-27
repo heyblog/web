@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func (service *AccountService) Submissions(ctx context.Context, user auth.User, page int32) ([]AuditListItem, error) {
+func (service *AccountService) Submissions(ctx context.Context, user auth.User, page int32) (AccountSubmissionPage, error) {
 	return service.repository.accountSubmissions(ctx, user.ID, page)
 }
 func (service *AccountService) Submission(ctx context.Context, user auth.User, auditID string) (Audit, error) {

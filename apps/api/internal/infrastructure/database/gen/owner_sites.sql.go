@@ -207,7 +207,7 @@ func (q *Queries) HasOwnerAddressProof(ctx context.Context, arg HasOwnerAddressP
 const listAccountAudits = `-- name: ListAccountAudits :many
 SELECT a.id, a.lookup_secret_hash, a.action, a.status, a.site_id, a.base_revision, a.base_snapshot, a.proposed_snapshot, a.review_draft_snapshot, a.review_draft_revision, a.review_draft_updated_by, a.review_draft_updated_at, a.final_snapshot, a.request_reason, a.submitter_name, a.submitter_email, a.notify_by_email, a.reviewer_comment, a.reviewed_by, a.reviewed_at, a.created_at, a.updated_at, a.submitter_user_id, a.source_channel, a.source_site_id, a.ownership_id FROM directory.site_audits a WHERE a.submitter_user_id = $1 OR EXISTS (
 SELECT 1 FROM directory.owner_friend_link_requests r WHERE r.audit_id = a.id AND r.user_id = $1)
-ORDER BY a.created_at DESC, a.id DESC LIMIT 50 OFFSET $2
+ORDER BY a.created_at DESC, a.id DESC LIMIT 51 OFFSET $2
 `
 
 type ListAccountAuditsParams struct {
