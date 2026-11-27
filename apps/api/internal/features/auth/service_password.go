@@ -98,12 +98,9 @@ func (service *Service) SetPassword(ctx context.Context, request *http.Request, 
 	if err != nil {
 		return User{}, nil, repositoryError("hash new password", err)
 	}
-	if err := service.repo.updatePassword(ctx, user.ID, hash); err != nil {
-		return User{}, nil, repositoryError("update password", err)
-	}
-	updated, err := service.repo.userByID(ctx, user.ID)
+	updated, err := service.repo.updatePassword(ctx, user.ID, user.AuthVersion, hash)
 	if err != nil {
-		return User{}, nil, repositoryError("read updated user", err)
+		return User{}, nil, repositoryError("update password", err)
 	}
 	access, refresh, err := service.issueSession(ctx, updated)
 	if err != nil {

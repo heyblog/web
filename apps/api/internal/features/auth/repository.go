@@ -64,20 +64,27 @@ func (repo *repository) createUser(ctx context.Context, username, email, display
 	return mapUser(user), err
 }
 
-func (repo *repository) recordLogin(ctx context.Context, id string) (dbUser, error) {
+func (repo *repository) recordPasswordLogin(ctx context.Context, id string, version int32) (dbUser, error) {
 	parsed, err := parseUUID(id)
 	if err != nil {
 		return dbUser{}, err
 	}
-	row, err := repo.queries.RecordUserLogin(ctx, parsed)
+	row, err := repo.queries.RecordPasswordLogin(ctx, dbgen.RecordPasswordLoginParams{ID: parsed, AuthVersion: version})
+	if isNotFound(err) {
+		return dbUser{}, newAuthError("invalid_credentials", 401, "invalid credentials")
+	}
 	return mapUser(row), err
 }
-func (repo *repository) updatePassword(ctx context.Context, id, hash string) error {
+func (repo *repository) updatePassword(ctx context.Context, id string, version int32, hash string) (dbUser, error) {
 	parsed, err := parseUUID(id)
 	if err != nil {
-		return err
+		return dbUser{}, err
 	}
-	return repo.queries.SetUserPassword(ctx, dbgen.SetUserPasswordParams{ID: parsed, PasswordHash: hash})
+	row, err := repo.queries.SetSessionUserPassword(ctx, dbgen.SetSessionUserPasswordParams{ID: parsed, AuthVersion: version, PasswordHash: hash})
+	if isNotFound(err) {
+		return dbUser{}, newAuthError("unauthenticated", 401, "account authentication changed")
+	}
+	return mapUser(row), err
 }
 
 func mapUser(row dbgen.IdentityUser) dbUser {

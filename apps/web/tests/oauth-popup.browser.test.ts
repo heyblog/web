@@ -190,6 +190,34 @@ test('authorization opens a same-origin waiting page instead of an empty documen
   f.controller.dispose();
 });
 
+test('email change popup accepts proof only for the active request', async () => {
+  const f = fixture();
+  const active = '019ded7f-4be3-7168-8953-b64109326083';
+  const different = '019ded7f-4be3-7168-8953-b64109326084';
+  const input: OAuthRequest = {
+    provider: 'github',
+    intent: 'email-change',
+    next: '/dashboard/profile',
+    emailChangeId: active,
+  };
+  const result: OAuthCompletion = {
+    provider: input.provider,
+    intent: input.intent,
+    state: 'random-state',
+    mode: 'popup',
+    next: input.next,
+    outcome: 'success',
+    email_change_id: active,
+  };
+  await f.controller.launch(input);
+  f.send({ ...result, type: oauthMessageType, email_change_id: different });
+  assert.deepEqual(f.received, []);
+  assert.equal(f.busy, true);
+  f.send({ ...result, type: oauthMessageType });
+  assert.deepEqual(f.received, [result]);
+  assert.equal(f.busy, false);
+});
+
 test('ready handshake rejects wrong origin, source and attempt before navigation', async () => {
   const f = fixture(false, false, false);
   const launch = f.controller.launch(input);

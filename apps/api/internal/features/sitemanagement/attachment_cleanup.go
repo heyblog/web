@@ -8,6 +8,7 @@ import (
 )
 
 type attachmentCleanupStore interface {
+	CloseInactiveEmailChangeClaims(context.Context) error
 	ListAttachmentCleanup(context.Context) ([]AttachmentCleanupItem, error)
 	MarkAttachmentArchived(context.Context, string) error
 	MarkAttachmentDeleted(context.Context, string) error
@@ -49,7 +50,13 @@ func (worker *AttachmentCleanupWorker) loop() {
 }
 
 func (worker *AttachmentCleanupWorker) sweep() {
-	if worker.store == nil || worker.storage == nil || !worker.storage.Enabled() {
+	if worker.store == nil {
+		return
+	}
+	if err := worker.store.CloseInactiveEmailChangeClaims(worker.ctx); err != nil && worker.ctx.Err() == nil {
+		worker.report("close_email_change_claims", "")
+	}
+	if worker.storage == nil || !worker.storage.Enabled() {
 		return
 	}
 	items, err := worker.store.ListAttachmentCleanup(worker.ctx)

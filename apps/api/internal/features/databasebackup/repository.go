@@ -142,6 +142,9 @@ func (service *Service) RestoreWithProgress(ctx context.Context, file *os.File, 
 	if err = queries.BeginDatabaseRestore(ctx, targetID); err != nil {
 		return Restoration{}, fmt.Errorf("begin database restore: %w", err)
 	}
+	if err = queries.ClearRestoreTargetEmailChange(ctx, targetID); err != nil {
+		return Restoration{}, fmt.Errorf("clear restore target email change: %w", err)
+	}
 	progress.Stage = "restoring"
 	for _, name := range append(append([]string{}, tablesForSchema(doc.header.SchemaVersion)...), "graph.vertices", "graph.edges") {
 		progress.Dataset = name

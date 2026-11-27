@@ -119,7 +119,10 @@ func open(ctx context.Context, configuration config.Config, operations dependenc
 		operations.closeDatabase(pool)
 		return nil, errors.Join(withStage("claim_attachments_open", err), withStage("redis_close", closeErr))
 	}
-	attachmentWorker := sitemanagement.NewAttachmentCleanupWorker(ctx, claimRepository, attachmentManager.Storage(), operations.logger)
+	var attachmentWorker *sitemanagement.AttachmentCleanupWorker
+	if pool != nil {
+		attachmentWorker = sitemanagement.NewAttachmentCleanupWorker(ctx, claimRepository, attachmentManager.Storage(), operations.logger)
+	}
 	metrics := sitestats.New(pool, nil)
 	return &Dependencies{
 		Database:           pool,

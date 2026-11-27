@@ -13,11 +13,12 @@ import (
 )
 
 type oauthStartInput struct {
-	Next    string `query:"next"`
-	Intent  string `query:"intent" enum:"login,bind,site-claim"`
-	Mode    string `query:"mode" enum:"popup,redirect"`
-	ClaimID string `query:"claim_id"`
-	Accept  string `header:"Accept"`
+	Next          string `query:"next"`
+	Intent        string `query:"intent" enum:"login,bind,site-claim,email-change"`
+	Mode          string `query:"mode" enum:"popup,redirect"`
+	ClaimID       string `query:"claim_id"`
+	EmailChangeID string `query:"email_change_id" maxLength:"36"`
+	Accept        string `header:"Accept"`
 }
 
 type oauthCallbackInput struct {
@@ -45,7 +46,7 @@ func registerOAuthRoutes(api huma.API, service *Service, build authOperationBuil
 			return build(huma.Operation{OperationID: id + "-" + provider.slug(), Method: method, Path: "/api/web/auth/" + provider.slug() + "/" + suffix, Summary: id + " " + provider.slug() + " authentication", Tags: []string{"authentication"}, Errors: []int{400, 401, 403, 404, 409, 422, 429, 503}})
 		}
 		httpapi.Register(api, operation("start-oauth", http.MethodGet, "start"), func(ctx context.Context, input *oauthStartInput) (*oauthOutput[OAuthStartResult], error) {
-			result, err := service.OAuthStart(ctx, httpapi.Request(ctx), provider, OAuthStartOptions{Next: input.Next, Intent: input.Intent, Mode: input.Mode, ClaimID: input.ClaimID})
+			result, err := service.OAuthStart(ctx, httpapi.Request(ctx), provider, OAuthStartOptions{Next: input.Next, Intent: input.Intent, Mode: input.Mode, ClaimID: input.ClaimID, EmailChangeID: input.EmailChangeID})
 			if err != nil {
 				return nil, mapError(err)
 			}

@@ -216,10 +216,11 @@ and focused tests referenced below, not additional package-level AGENTS files.
   COS lifecycle: delete current/noncurrent versions and delete markers after one day and abort
   incomplete multipart uploads after one day. Never log backup content, signed URLs, credentials,
   temporary paths or raw upstream errors; lifecycle workers receive the structured bootstrap logger.
-- Backup protocol version 1, schema version 6 covers all 33 identity/directory/content tables and complete AGE
-  logical vertices and edges. The baseline freezes the schema inventory; schema evolution
-  requires an explicit backup compatibility change. Schema versions 3, 4, and 5 are accepted; schema 3 is converted after original integrity verification. Binary columns use Base64 and bigint columns
-  use decimal strings. Never decode row JSON through floating-point numbers.
+- Backup protocol version 1 exports schema version 8 with 34 datasets and the complete AGE graph.
+  Schema versions 3–8 are accepted. The backup schema guard checks the physical table inventory.
+  Transient email change requests stay out of backup, and their unfinished site claims are cancelled
+  on restore. Binary columns use Base64 and bigint columns use decimal strings.
+  Never decode row JSON through floating-point numbers.
 - Restore preserves business identifiers and data, excludes source SYS_ADMIN authentication,
   and maps structured actor references to the retained target administrator. It accepts only
   untouched initialization seeds plus that administrator's authentication records. Migration 13 owns narrow SECURITY DEFINER entry points and a protected transaction-local guard; runtime
@@ -302,10 +303,15 @@ cleanup during test-file splits. Consult the affected package's source contracts
 report any required gate that could not run instead of treating build-tag compilation as a real
 container integration pass.
 
-Database backup exports use format version 1 and schema version 6. Schema version 3 inputs are
+Schema version 3 backups are
 verified against their original manifest before shared inspect/restore conversion initializes account
 profile confirmation from OAuth bindings and grants one optional username change. New backups
 preserve confirmation and usage state. The consolidated baseline owns these identity fields.
+
+The account email change requires new mailbox verification and proof of the old mailbox or
+reauthentication. Site claims for a change are scoped to the request and the ownership generation.
+Existing ownership remains in force until the final email change transaction rechecks all current
+registered addresses and installs the new proofs. Scoped claims cannot authorize address changes.
 
 OAuth authentication shares provider adapters, one-use Redis state and account mutations for
 GitHub and BlogsClub. BlogsClub credentials use `API_BLOGSCLUB_CLIENT_ID` and

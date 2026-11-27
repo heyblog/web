@@ -31,7 +31,7 @@ func (doc *document) prepareConversion(ctx context.Context, file *os.File) error
 }
 
 func (doc document) convertRow(name string, raw json.RawMessage) (json.RawMessage, error) {
-	if doc.header.SchemaVersion < schemaVersion && name == "directory.sites" {
+	if doc.header.SchemaVersion < annotationSchemaVersion && name == "directory.sites" {
 		var row map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &row); err != nil || row == nil {
 			return nil, ErrInvalid
@@ -43,16 +43,8 @@ func (doc document) convertRow(name string, raw json.RawMessage) (json.RawMessag
 		row["blog_status"] = json.RawMessage(`"UNREVIEWED"`)
 		return json.Marshal(row)
 	}
-	if doc.header.SchemaVersion < 6 && name == "directory.site_claims" {
-		var row map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &row); err != nil {
-			return nil, ErrInvalid
-		}
-		if _, exists := row["reviewed_at"]; exists {
-			return nil, ErrInvalid
-		}
-		row["reviewed_at"] = json.RawMessage(`null`)
-		return json.Marshal(row)
+	if name == "directory.site_claims" {
+		return convertSiteClaim(doc.header.SchemaVersion, raw)
 	}
 	if name == "directory.site_claim_attachments" {
 		var row map[string]json.RawMessage
@@ -91,5 +83,34 @@ func (doc document) convertRow(name string, raw json.RawMessage) (json.RawMessag
 		row["profile_confirmation_status"] = json.RawMessage(`"PENDING"`)
 	}
 	row["username_changes_used"] = json.RawMessage(`0`)
+	return json.Marshal(row)
+}
+
+func convertSiteClaim(version int, raw json.RawMessage) (json.RawMessage, error) {
+	var row map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &row); err != nil || row == nil {
+		return nil, ErrInvalid
+	}
+	if version < 6 {
+		if _, exists := row["reviewed_at"]; exists {
+			return nil, ErrInvalid
+		}
+		row["reviewed_at"] = json.RawMessage(`null`)
+	}
+	if version < schemaVersion {
+		for _, key := range []string{"email_change_id", "email_change_ownership_id"} {
+			if _, exists := row[key]; exists {
+				return nil, ErrInvalid
+			}
+			row[key] = json.RawMessage(`null`)
+		}
+	} else if string(row["email_change_id"]) != "null" && string(row["status"]) == `"PENDING"` {
+		// In-progress identity requests are instance-local and are never restored.
+		row["status"] = json.RawMessage(`"CANCELLED"`)
+		row["reviewed_at"] = row["created_at"]
+		return json.Marshal(row)
+	} else {
+		return raw, nil
+	}
 	return json.Marshal(row)
 }

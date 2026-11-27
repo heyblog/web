@@ -504,6 +504,40 @@ type IdentityApiKey struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+// Transient, account-bound email change and verification state.
+type IdentityEmailChangeRequest struct {
+	// One-use identifier for the pending change.
+	ID pgtype.UUID
+	// Account requesting the change.
+	UserID pgtype.UUID
+	// Authentication generation captured when the request was created.
+	AuthVersion int32
+	// Current verified email captured at request creation.
+	OldEmail string
+	// Normalized replacement email.
+	NewEmail string
+	// Time the request was created.
+	CreatedAt pgtype.Timestamptz
+	// Deadline to complete the request.
+	ExpiresAt pgtype.Timestamptz
+	// Current email control or account reauthentication accepted for this request.
+	OldVerified bool
+	// New email control accepted for this request.
+	NewVerified bool
+	// Keyed digest of the current email verification code.
+	OldCodeHash *string
+	// Keyed digest of the new email verification code.
+	NewCodeHash *string
+	// Deadline for the current email verification code.
+	OldCodeExpiresAt pgtype.Timestamptz
+	// Deadline for the new email verification code.
+	NewCodeExpiresAt pgtype.Timestamptz
+	// Failed attempts against the current email verification code.
+	OldAttempts int32
+	// Failed attempts against the new email verification code.
+	NewAttempts int32
+}
+
 // Short-lived hashed email verification codes for local accounts.
 type IdentityEmailVerificationCode struct {
 	// UUIDv7 email verification code primary key.

@@ -57,6 +57,8 @@ func (r *Repository) Owner(ctx context.Context, siteID string) (Ownership, error
 }
 func mapClaim(row dbgen.GetSiteClaimRow) Claim {
 	claim := Claim{SiteName: row.SiteName, CurrentAddress: row.CurrentAddress, Visibility: row.Visibility, OwnerUserID: row.OwnerUserID, OwnerAddress: row.OwnerAddress, ID: row.CID, SiteID: row.CSiteID, UserID: row.UserID, ShortID: row.ShortID, Address: row.Address, Method: Method(row.Method), Status: row.Status, Evidence: row.Evidence, EvidenceURL: row.EvidenceUrl, ReviewReason: row.ReviewReason, CreatedAt: row.CreatedAt.Time}
+	claim.EmailChangeID = row.EmailChangeID
+	claim.EmailChangeOwnershipID = row.EmailChangeOwnershipID
 	if row.UserID != "" {
 		claim.Applicant = &Profile{ID: row.UserID, Username: row.ApplicantUsername, DisplayName: row.ApplicantDisplayName}
 	}
@@ -115,7 +117,7 @@ func (r *Repository) List(ctx context.Context, filter ClaimFilter) ([]Claim, err
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.queries.ListSiteClaims(ctx, dbgen.ListSiteClaimsParams{UserID: id, SiteID: siteID, Status: filter.Status, Method: filter.Method, PageLimit: filter.Limit, PageOffset: filter.Offset})
+	rows, err := r.queries.ListSiteClaims(ctx, dbgen.ListSiteClaimsParams{UserID: id, SiteID: siteID, Status: filter.Status, Method: filter.Method, PageLimit: filter.Limit, PageOffset: filter.Offset, OrdinaryOnly: filter.OrdinaryOnly})
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +152,15 @@ func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, erro
 		if _, err := q.LockSiteClaimUser(ctx, userID); err != nil {
 			return repositoryError(err)
 		}
+		requestID, err := uuid(input.Claim.EmailChangeID)
+		if err != nil {
+			return err
+		}
+		if requestID.Valid {
+			if err := requireSiteEmailChange(ctx, q, requestID, userID); err != nil {
+				return err
+			}
+		}
 		target, err := q.LockClaimSite(ctx, input.Claim.ShortID)
 		if err != nil {
 			return repositoryError(err)
@@ -161,7 +172,26 @@ func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, erro
 		if err != nil {
 			return err
 		}
-		claimID, err = q.FindPendingSiteClaim(ctx, dbgen.FindPendingSiteClaimParams{Column1: siteID, Column2: userID, Address: input.Claim.Address, Method: string(input.Claim.Method)})
+		owner, ownerErr := q.LockSiteOwnership(ctx, siteID)
+		if ownerErr != nil && !errors.Is(ownerErr, pgx.ErrNoRows) {
+			return ownerErr
+		}
+		var ownershipID pgtype.UUID
+		if requestID.Valid {
+			if ownerErr != nil || owner.OUserID != input.UserID {
+				return failure("email_change_site_unavailable", "The site is no longer owned by the account", 409)
+			}
+			if input.Claim.Address != target.Address {
+				return failure("email_change_site_changed", "Use the currently registered site address", 409)
+			}
+			ownershipID, err = uuid(owner.OID)
+			if err != nil {
+				return err
+			}
+			claimID, err = q.FindPendingEmailChangeSiteClaim(ctx, dbgen.FindPendingEmailChangeSiteClaimParams{RequestID: requestID, OwnershipID: ownershipID, Address: input.Claim.Address, Method: string(input.Claim.Method)})
+		} else {
+			claimID, err = q.FindPendingSiteClaim(ctx, dbgen.FindPendingSiteClaimParams{Column1: siteID, Column2: userID, Address: input.Claim.Address, Method: string(input.Claim.Method)})
+		}
 		if err == nil {
 			return nil
 		}
@@ -187,20 +217,16 @@ func (r *Repository) Create(ctx context.Context, input StoredClaim) (Claim, erro
 				return failure("manual_rejected_cooldown", "Wait 24 hours after a rejected manual verification application", 409)
 			}
 		}
-		owner, err := q.LockSiteOwnership(ctx, siteID)
-		if err == nil && owner.OUserID != input.UserID {
+		if ownerErr == nil && owner.OUserID != input.UserID {
 			return failure("site_already_owned", "This site already has a verified owner", 409)
 		}
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return err
-		}
-		if err == nil && owner.Address == target.Address && input.Claim.Address == target.Address {
+		if !requestID.Valid && ownerErr == nil && owner.Address == target.Address && input.Claim.Address == target.Address {
 			return failure("site_already_owned", "This address is already verified for your account", 409)
 		}
-		if errors.Is(err, pgx.ErrNoRows) && input.Claim.Address != target.Address {
+		if errors.Is(ownerErr, pgx.ErrNoRows) && input.Claim.Address != target.Address {
 			return failure("address_owner_required", "Verify the existing site address before changing it", 403)
 		}
-		params := dbgen.CreateSiteClaimParams{Column1: siteID, Column2: userID, Address: input.Claim.Address, Method: string(input.Claim.Method), Evidence: input.Claim.Evidence, EvidenceUrl: input.Claim.EvidenceURL}
+		params := dbgen.CreateSiteClaimParams{Column1: siteID, Column2: userID, Address: input.Claim.Address, Method: string(input.Claim.Method), Evidence: input.Claim.Evidence, EvidenceUrl: input.Claim.EvidenceURL, EmailChangeID: requestID, EmailChangeOwnershipID: ownershipID}
 		if input.Claim.TokenHash != "" {
 			params.TokenHash = &input.Claim.TokenHash
 		}

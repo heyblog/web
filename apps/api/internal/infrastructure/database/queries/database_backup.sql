@@ -1,6 +1,9 @@
 -- name: BeginDatabaseRestore :exec
 SELECT directory.backup_restore_begin(sqlc.arg(admin_id)::uuid);
 
+-- name: ClearRestoreTargetEmailChange :exec
+DELETE FROM identity.email_change_requests WHERE user_id = sqlc.arg(admin_id)::uuid;
+
 -- name: RestoreDatabaseRow :exec
 SELECT directory.backup_restore_row(sqlc.arg(dataset)::text,sqlc.arg(row_data)::jsonb,sqlc.arg(source_admin_id)::uuid,sqlc.arg(target_admin_id)::uuid);
 

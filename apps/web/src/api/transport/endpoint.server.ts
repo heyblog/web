@@ -212,7 +212,10 @@ function handlePreflight(request: Request, policy: ApiEndpointPolicy): Response 
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-function isWebPageFetch(request: Request): boolean {
+export function isWebPageFetch(request: Request): boolean {
+  const origin = new URL(request.url).origin;
+  const requestOrigin = request.headers.get('Origin');
+  if (requestOrigin !== null && requestOrigin !== origin) return false;
   const site = request.headers.get('Sec-Fetch-Site');
   const mode = request.headers.get('Sec-Fetch-Mode');
   const destination = request.headers.get('Sec-Fetch-Dest');
@@ -226,12 +229,9 @@ function isWebPageFetch(request: Request): boolean {
 
   // Browsers omit Fetch Metadata on plain HTTP LAN origins.
   // JSON Accept distinguishes a page fetch from direct document navigation.
-  const origin = new URL(request.url).origin;
-  const requestOrigin = request.headers.get('Origin');
   return (
     request.headers.get('Accept') === 'application/json' &&
-    URL.parse(request.headers.get('Referer') ?? '')?.origin === origin &&
-    (requestOrigin === null || requestOrigin === origin)
+    URL.parse(request.headers.get('Referer') ?? '')?.origin === origin
   );
 }
 

@@ -38,7 +38,7 @@ func (service *Service) OAuthStart(ctx context.Context, request *http.Request, p
 	if options.Intent == "" {
 		options.Intent = "login"
 	}
-	if (options.Mode != "popup" && options.Mode != "redirect") || (options.Intent != "login" && options.Intent != "bind" && options.Intent != "site-claim") {
+	if (options.Mode != "popup" && options.Mode != "redirect") || (options.Intent != "login" && options.Intent != "bind" && options.Intent != "site-claim" && options.Intent != "email-change") {
 		return OAuthStartResult{}, newAuthError("invalid_oauth_intent", 422, "OAuth mode or intent is invalid")
 	}
 	state := oauthState{OAuthStartOptions: options, Provider: provider, ExpiresAt: time.Now().Add(oauthStateTTL)}
@@ -49,7 +49,13 @@ func (service *Service) OAuthStart(ctx context.Context, request *http.Request, p
 			return OAuthStartResult{}, currentErr
 		}
 		state.ActorID, state.AuthVersion = actor.ID, actor.AuthVersion
-		if options.Intent == "site-claim" {
+		switch options.Intent {
+		case "email-change":
+			if err := service.repo.validateEmailChangeOAuth(ctx, actor, options.EmailChangeID, provider); err != nil {
+				return OAuthStartResult{}, err
+			}
+			state.Next = "/dashboard/profile"
+		case "site-claim":
 			if provider != ProviderBlogsClub || service.claims == nil {
 				return OAuthStartResult{}, newAuthError("invalid_oauth_intent", 422, "This provider cannot verify sites")
 			}
@@ -92,7 +98,7 @@ func (service *Service) OAuthCallback(ctx context.Context, request *http.Request
 	if err := json.Unmarshal([]byte(value), &state); err != nil || state.Provider != provider || !time.Now().Before(state.ExpiresAt) {
 		return OAuthCompletion{}, newAuthError("invalid_oauth_state", 400, "OAuth state is invalid")
 	}
-	result := OAuthResult{Provider: provider.slug(), State: token, Intent: state.Intent, Mode: state.Mode, Next: state.Next, ClaimID: state.ClaimID, Outcome: "error"}
+	result := OAuthResult{Provider: provider.slug(), State: token, Intent: state.Intent, Mode: state.Mode, Next: state.Next, ClaimID: state.ClaimID, EmailChangeID: state.EmailChangeID, Outcome: "error"}
 	if denied != "" {
 		result.ErrorCode = "oauth_denied"
 		return OAuthCompletion{Result: result}, nil
@@ -133,17 +139,19 @@ func (service *Service) completeOAuth(ctx context.Context, request *http.Request
 	if !time.Now().Before(state.ExpiresAt) {
 		return nil, newAuthError("invalid_oauth_state", 400, "OAuth authorization expired")
 	}
-	if state.Intent != "login" {
-		if err := service.repo.bindOAuth(ctx, actor, provider, identity); err != nil {
+	switch state.Intent {
+	case "email-change":
+		return nil, service.repo.verifyEmailChangeOAuth(ctx, actor, state.EmailChangeID, provider, identity.Subject)
+	case "bind":
+		return nil, service.repo.bindOAuth(ctx, actor, provider, identity, false)
+	case "site-claim":
+		if err := service.repo.bindOAuth(ctx, actor, provider, identity, true); err != nil {
 			return nil, err
 		}
-		if state.Intent == "site-claim" {
-			if service.claims == nil {
-				return nil, newAuthError("oauth_unavailable", 503, "Site verification is unavailable")
-			}
-			return nil, service.claims.CompleteOAuthClaim(ctx, actor, state.ClaimID, OAuthSiteProof{Subject: identity.Subject, BlogURL: identity.BlogURL, Verified: identity.Verified})
+		if service.claims == nil {
+			return nil, newAuthError("oauth_unavailable", 503, "Site verification is unavailable")
 		}
-		return nil, nil
+		return nil, service.claims.CompleteOAuthClaim(ctx, actor, state.ClaimID, OAuthSiteProof{Subject: identity.Subject, BlogURL: identity.BlogURL, Verified: identity.Verified})
 	}
 	record, err := service.repo.loginOAuth(ctx, provider, identity)
 	if err != nil {

@@ -1,4 +1,7 @@
 ---
+import { loadEmailChange } from '@/api/account-profile/email-change.server';
+import { emailChangeMessage } from '@/application/auth/email-change.messages';
+import EmailChangeForm from '@/components/auth/EmailChangeForm.svelte';
 import ProfileForm from '@/components/auth/ProfileForm.svelte';
 import DashboardLayout from '@/layouts/DashboardLayout.astro';
 
@@ -6,6 +9,12 @@ export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
 if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fprofile');
+const emailChange =
+  user.email_verified && user.email
+    ? await loadEmailChange(Astro.request, Astro.response.headers)
+    : null;
+const emailChangeError = Astro.url.searchParams.get('error');
+const emailUpdated = Astro.url.searchParams.get('status') === 'email-updated';
 ---
 
 <DashboardLayout title="个人资料" heading="个人资料" {user} currentPath={Astro.url.pathname}>
@@ -27,6 +36,30 @@ if (!user) return Astro.redirect('/login?next=%2Fdashboard%2Fprofile');
         用户名
       </h2>
       <ProfileForm {user} kind="username" client:load />
+    </section>
+    <section
+      class="grid gap-5 rounded-md border border-line bg-surface p-6"
+      aria-labelledby="email-heading"
+    >
+      <h2 class="text-lg font-semibold" id="email-heading">
+        邮箱
+      </h2>
+      {emailUpdated && (
+        <p class="text-sm text-success-fg" role="status">
+          邮箱已更换。
+        </p>
+      )}
+      {user.email_verified && user.email ? (
+        <EmailChangeForm
+          {user}
+          currentEmail={user.email}
+          initial={emailChange}
+          initialError={emailChangeError ? emailChangeMessage(emailChangeError) : null}
+          client:load
+        />
+      ) : (
+        <p class="text-sm text-fg-muted">{emailChangeMessage('email_not_verified')}</p>
+      )}
     </section>
   </div>
 </DashboardLayout>

@@ -47,16 +47,22 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 					return nil, err
 				}
 			}
-			body = fmt.Sprintf(`{"status":200,"access_token":%q,"openid":"42"}`, code)
+			subject := "42"
+			if code == "different-subject" {
+				subject = "43"
+			}
+			body = fmt.Sprintf(`{"status":200,"access_token":%q,"openid":%q}`, code, subject)
 		case request.URL.Query().Get("action") == "userinfo":
-			verified, blogURL := 1, "https://oauth-blog.example.test/"
+			verified, blogURL, subject := 1, "https://oauth-blog.example.test/", "42"
 			switch request.URL.Query().Get("access_token") {
 			case "mismatch":
 				blogURL = "https://other.example.test/"
 			case "unverified":
 				verified = 0
+			case "different-subject":
+				subject = "43"
 			}
-			body = fmt.Sprintf(`{"status":200,"data":{"openid":"42","blog_name":"OAuth Blog","verified":%d,"blog_url":%q,"email":"credential_admin@example.test"}}`, verified, blogURL)
+			body = fmt.Sprintf(`{"status":200,"data":{"openid":%q,"blog_name":"OAuth Blog","verified":%d,"blog_url":%q,"email":"credential_admin@example.test"}}`, subject, verified, blogURL)
 		case request.URL.Path == "/user":
 			body = `{"id":42,"login":"oauth-admin","name":"OAuth Admin"}`
 		case request.URL.Path == "/user/emails":
@@ -224,5 +230,47 @@ func TestOAuthProvidersAndSiteClaims(t *testing.T) {
 		state := start(auth.ProviderBlogsClub, "bind", "")
 		result := callback(auth.ProviderBlogsClub, state, "version-change")
 		require.Equal(t, "oauth_actor_changed", result.ErrorCode)
+	})
+	t.Run("bound provider proves identity and the exact site after a local email change", func(t *testing.T) {
+		_, err := fixture.pool.Exec(ctx, `UPDATE identity.users SET email='changed-oauth@example.test' WHERE id=$1::uuid`, fixture.actor)
+		require.NoError(t, err)
+		_, err = fixture.pool.Exec(ctx, `UPDATE identity.users SET email_verified_at=clock_timestamp() WHERE id=$1::uuid`, fixture.actor)
+		require.NoError(t, err)
+		_, tokens, err := service.Login(ctx, "changed-oauth@example.test", "correct-password")
+		require.NoError(t, err)
+		fixture.access = tokens[0]
+		status, err := service.StartEmailChange(ctx, request(), "next-oauth@example.test")
+		require.NoError(t, err)
+		oauth := func(code string) auth.OAuthResult {
+			state, err := service.OAuthStart(ctx, request(), auth.ProviderBlogsClub, auth.OAuthStartOptions{
+				Mode: "popup", Intent: "email-change", EmailChangeID: status.Request.ID,
+			})
+			require.NoError(t, err)
+			return callback(auth.ProviderBlogsClub, state, code)
+		}
+		require.Equal(t, "oauth_identity_not_bound", oauth("different-subject").ErrorCode)
+		require.Equal(t, "success", oauth("good").Outcome)
+		confirmed, err := service.EmailChange(ctx, request())
+		require.NoError(t, err)
+		require.True(t, confirmed.Request.OldVerified)
+		require.False(t, confirmed.Request.NewVerified)
+
+		actor, err := service.Current(ctx, request())
+		require.NoError(t, err)
+		created, err := claims.Create(ctx, actor, sitemanagement.SiteClaimCreateInput{
+			ShortID: "OAuth0001", Method: sitemanagement.BlogsClub, EmailChangeID: status.Request.ID,
+		})
+		require.NoError(t, err)
+		prove := func(code string) auth.OAuthResult {
+			return callback(auth.ProviderBlogsClub, start(auth.ProviderBlogsClub, "site-claim", created.Claim.ID), code)
+		}
+		require.Equal(t, "blogsclub_bind_email_mismatch", prove("different-subject").ErrorCode)
+		require.Equal(t, "blogsclub_site_mismatch", prove("mismatch").ErrorCode)
+		result := prove("good")
+		require.Equal(t, "success", result.Outcome, result.ErrorCode)
+		confirmed, err = service.EmailChange(ctx, request())
+		require.NoError(t, err)
+		require.Len(t, confirmed.Sites, 1)
+		require.Equal(t, "verified", confirmed.Sites[0].Status)
 	})
 }

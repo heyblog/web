@@ -64,7 +64,9 @@
     <header class="grid gap-3">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">认证申请</p>
+          <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">
+            {claim.email_change_id ? '换绑站点复验' : '认证申请'}
+          </p>
           <h2 id="claim-detail-heading" tabindex="-1" class="mt-1 text-xl font-semibold">
             {claim.site_name}
           </h2>
@@ -136,7 +138,9 @@
         !claim.consumed_at
           ? '继续修改主页地址'
           : '管理站点'}</a
-      >{:else if claim.status === 'VERIFIED'}<p class="text-sm text-fg-muted">
+      >{:else if claim.status === 'VERIFIED' && !claim.email_change_id}<p
+        class="text-sm text-fg-muted"
+      >
         验证记录已完成，当前账号暂无此站点的管理权限。
       </p>{/if}
     <div class="grid gap-3 rounded-lg border border-line p-4">
@@ -183,11 +187,15 @@
     {#if controller.busy}<p class="text-sm text-fg-muted" role="status">
         {loading[controller.busy]}
       </p>{/if}
-    {#if claim.status === 'REJECTED' || claim.status === 'CANCELLED'}<a
+    {#if !claim.email_change_id && (claim.status === 'REJECTED' || claim.status === 'CANCELLED')}<a
         class="{buttonClass} w-fit"
         href={`/dashboard/claims?short_id=${claim.short_id}`}>重新发起申请</a
       >{/if}
-    <a class="min-h-11 text-sm text-tint-fg underline" href="/dashboard/claims">返回认领记录</a>
+    <a
+      class="inline-flex min-h-11 w-fit items-center text-sm text-tint-fg underline"
+      href={claim.email_change_id ? '/dashboard/profile' : '/dashboard/claims'}
+      >{claim.email_change_id ? '返回邮箱换绑' : '返回认领记录'}</a
+    >
   </section>
 {/if}
 <dialog

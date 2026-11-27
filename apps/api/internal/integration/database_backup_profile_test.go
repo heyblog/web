@@ -67,7 +67,7 @@ func TestDatabaseBackupRestoresLegacySiteClassification(t *testing.T) {
 	exported, err := databasebackup.New(source.pool).Export(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = exported.Close(); _ = os.Remove(exported.Name()) })
-	for version := 3; version <= 6; version++ {
+	for version := 3; version <= 7; version++ {
 		t.Run(strconv.Itoa(version), func(t *testing.T) {
 			file := legacyBackupFile(t, exported, version)
 			target := newAuditMigrationFixture(t)
@@ -103,9 +103,15 @@ func legacyBackupFile(t *testing.T, exported *os.File, version int) *os.File {
 	var archive backupArchive
 	require.NoError(t, decoder.Decode(&archive))
 	archive.Metadata.SchemaVersion = version
-	delete(archive.Tables, "directory.site_annotation_history")
-	for _, row := range archive.Tables["directory.sites"] {
-		delete(row, "blog_status")
+	if version < 7 {
+		delete(archive.Tables, "directory.site_annotation_history")
+		for _, row := range archive.Tables["directory.sites"] {
+			delete(row, "blog_status")
+		}
+	}
+	for _, row := range archive.Tables["directory.site_claims"] {
+		delete(row, "email_change_id")
+		delete(row, "email_change_ownership_id")
 	}
 	if version < 6 {
 		delete(archive.Tables, "directory.site_claim_attachments")

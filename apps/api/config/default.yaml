@@ -96,8 +96,8 @@ auth:
   # Browser-visible Astro origin used when no scenario override is present.
   web_base_url: http://127.0.0.1:10101
   cookie_domain: ""
-  access_ttl: 6h
-  refresh_ttl: 168h
+  access_ttl: 24h
+  refresh_ttl: 720h
   verification_ttl: 10m
   password_reset_ttl: 30m
   github:

@@ -28,7 +28,7 @@ func newPasswordResetFixture(t *testing.T) passwordResetFixture {
 	// #nosec G101 -- Fixed credentials are used only by this isolated test fixture.
 	fixture.auth = auth.NewService(auth.Dependencies{Pool: fixture.pool, Redis: fixture.redis, MailSender: fixture.sender, Config: auth.Config{
 		AccessSecret: "credential-access-test-secret", RefreshSecret: "credential-refresh-test-secret", AccessTTL: time.Hour, RefreshTTL: time.Hour,
-		PasswordResetTTL: 30 * time.Minute, WebBaseURL: "https://web.example.test", MailFrom: "verify@example.test",
+		PasswordResetTTL: 30 * time.Minute, VerificationTTL: 10 * time.Minute, WebBaseURL: "https://web.example.test", MailFrom: "verify@example.test",
 	}})
 	router, err := httpapi.NewRouter(httpapi.Options{
 		Mode: config.ModeDevelopment, HTTP: config.HTTPConfig{MaxBodyBytes: 1 << 20, TrustedProxies: []string{}},

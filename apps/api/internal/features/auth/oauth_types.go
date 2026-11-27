@@ -34,7 +34,7 @@ type oauthProviderAdapter interface {
 }
 
 type OAuthStartOptions struct {
-	Mode, Intent, Next, ClaimID string
+	Mode, Intent, Next, ClaimID, EmailChangeID string
 }
 
 type OAuthStartResult struct {
@@ -43,14 +43,15 @@ type OAuthStartResult struct {
 }
 
 type OAuthResult struct {
-	Provider  string `json:"provider"`
-	State     string `json:"state"`
-	Intent    string `json:"intent"`
-	Mode      string `json:"mode"`
-	Next      string `json:"next"`
-	Outcome   string `json:"outcome"`
-	ErrorCode string `json:"error_code,omitempty"`
-	ClaimID   string `json:"claim_id,omitempty"`
+	Provider      string `json:"provider"`
+	State         string `json:"state"`
+	Intent        string `json:"intent"`
+	Mode          string `json:"mode"`
+	Next          string `json:"next"`
+	Outcome       string `json:"outcome"`
+	ErrorCode     string `json:"error_code,omitempty"`
+	ClaimID       string `json:"claim_id,omitempty"`
+	EmailChangeID string `json:"email_change_id,omitempty"`
 }
 
 // OAuthCompletion keeps server-only failure details separate from the wire result.

@@ -985,6 +985,7 @@ func (q *Queries) SetUserEmailVerified(ctx context.Context, id pgtype.UUID) erro
 const setUserPassword = `-- name: SetUserPassword :exec
 UPDATE identity.users
    SET password_hash = $1::text,
+       settings = settings - 'email_change_unproven_password',
        auth_version = auth_version + 1
  WHERE id = $2::uuid
    AND access_status = 'ACTIVE'

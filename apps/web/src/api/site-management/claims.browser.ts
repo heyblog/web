@@ -68,6 +68,7 @@ export function createClaimsTransport(request = accountRequest) {
         readonly evidence?: string;
         readonly evidence_url?: string;
         readonly attachment_ids?: readonly string[];
+        readonly email_change_id?: string;
       },
       signal: AbortSignal,
     ) => send('site-claims', parseChallenge, { method: 'POST', body, signal }),

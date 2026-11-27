@@ -37,19 +37,21 @@ func (q *Queries) ClaimSite(ctx context.Context, shortID string) (ClaimSiteRow, 
 }
 
 const createSiteClaim = `-- name: CreateSiteClaim :one
-INSERT INTO directory.site_claims(site_id,user_id,address,method,token_hash,expires_at,evidence,evidence_url)
-VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8) RETURNING id::text
+INSERT INTO directory.site_claims(site_id,user_id,address,method,token_hash,expires_at,evidence,evidence_url,email_change_id,email_change_ownership_id)
+VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9::uuid,$10::uuid) RETURNING id::text
 `
 
 type CreateSiteClaimParams struct {
-	Column1     pgtype.UUID
-	Column2     pgtype.UUID
-	Address     string
-	Method      string
-	TokenHash   *string
-	ExpiresAt   pgtype.Timestamptz
-	Evidence    *string
-	EvidenceUrl *string
+	Column1                pgtype.UUID
+	Column2                pgtype.UUID
+	Address                string
+	Method                 string
+	TokenHash              *string
+	ExpiresAt              pgtype.Timestamptz
+	Evidence               *string
+	EvidenceUrl            *string
+	EmailChangeID          pgtype.UUID
+	EmailChangeOwnershipID pgtype.UUID
 }
 
 func (q *Queries) CreateSiteClaim(ctx context.Context, arg CreateSiteClaimParams) (string, error) {
@@ -62,6 +64,8 @@ func (q *Queries) CreateSiteClaim(ctx context.Context, arg CreateSiteClaimParams
 		arg.ExpiresAt,
 		arg.Evidence,
 		arg.EvidenceUrl,
+		arg.EmailChangeID,
+		arg.EmailChangeOwnershipID,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -99,7 +103,7 @@ func (q *Queries) DeleteSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID)
 }
 
 const findPendingSiteClaim = `-- name: FindPendingSiteClaim :one
-SELECT id::text FROM directory.site_claims WHERE site_id=$1::uuid AND user_id=$2::uuid AND address=$3 AND method=$4 AND status='PENDING' ORDER BY created_at DESC,id DESC LIMIT 1
+SELECT id::text FROM directory.site_claims WHERE site_id=$1::uuid AND user_id=$2::uuid AND address=$3 AND method=$4 AND email_change_id IS NULL AND status='PENDING' ORDER BY created_at DESC,id DESC LIMIT 1
 `
 
 type FindPendingSiteClaimParams struct {
@@ -150,32 +154,34 @@ func (q *Queries) FinishSiteClaim(ctx context.Context, arg FinishSiteClaimParams
 }
 
 const getSiteClaim = `-- name: GetSiteClaim :one
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(c.email_change_id::text,'')::text AS email_change_id,coalesce(c.email_change_ownership_id::text,'')::text AS email_change_ownership_id,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid
 `
 
 type GetSiteClaimRow struct {
-	CID                  string
-	CSiteID              string
-	UserID               string
-	ShortID              string
-	SiteName             string
-	CurrentAddress       string
-	Visibility           string
-	Address              string
-	Method               string
-	Status               string
-	TokenHash            *string
-	ExpiresAt            pgtype.Timestamptz
-	Evidence             *string
-	EvidenceUrl          *string
-	ReviewReason         *string
-	CreatedAt            pgtype.Timestamptz
-	VerifiedAt           pgtype.Timestamptz
-	ConsumedAt           pgtype.Timestamptz
-	OwnerUserID          string
-	OwnerAddress         string
-	ApplicantUsername    string
-	ApplicantDisplayName string
+	CID                    string
+	CSiteID                string
+	UserID                 string
+	ShortID                string
+	SiteName               string
+	CurrentAddress         string
+	Visibility             string
+	Address                string
+	Method                 string
+	Status                 string
+	TokenHash              *string
+	ExpiresAt              pgtype.Timestamptz
+	Evidence               *string
+	EvidenceUrl            *string
+	ReviewReason           *string
+	CreatedAt              pgtype.Timestamptz
+	VerifiedAt             pgtype.Timestamptz
+	ConsumedAt             pgtype.Timestamptz
+	EmailChangeID          string
+	EmailChangeOwnershipID string
+	OwnerUserID            string
+	OwnerAddress           string
+	ApplicantUsername      string
+	ApplicantDisplayName   string
 }
 
 func (q *Queries) GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteClaimRow, error) {
@@ -200,6 +206,8 @@ func (q *Queries) GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSi
 		&i.CreatedAt,
 		&i.VerifiedAt,
 		&i.ConsumedAt,
+		&i.EmailChangeID,
+		&i.EmailChangeOwnershipID,
 		&i.OwnerUserID,
 		&i.OwnerAddress,
 		&i.ApplicantUsername,
@@ -247,52 +255,57 @@ func (q *Queries) InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID
 }
 
 const listSiteClaims = `-- name: ListSiteClaims :many
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(c.email_change_id::text,'')::text AS email_change_id,coalesce(c.email_change_ownership_id::text,'')::text AS email_change_ownership_id,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id
 WHERE ($1::uuid IS NULL OR c.user_id=$1::uuid)
 AND ($2::uuid IS NULL OR c.site_id=$2::uuid)
-AND ($3::text='' OR c.status=$3::text)
-AND ($4::text='' OR c.method=$4::text)
-ORDER BY c.created_at DESC,c.id DESC LIMIT NULLIF($6::integer,0) OFFSET $5
+AND (NOT $3::boolean OR c.email_change_id IS NULL)
+AND ($4::text='' OR c.status=$4::text)
+AND ($5::text='' OR c.method=$5::text)
+ORDER BY c.created_at DESC,c.id DESC LIMIT NULLIF($7::integer,0) OFFSET $6
 `
 
 type ListSiteClaimsParams struct {
-	UserID     pgtype.UUID
-	SiteID     pgtype.UUID
-	Status     string
-	Method     string
-	PageOffset int32
-	PageLimit  int32
+	UserID       pgtype.UUID
+	SiteID       pgtype.UUID
+	OrdinaryOnly bool
+	Status       string
+	Method       string
+	PageOffset   int32
+	PageLimit    int32
 }
 
 type ListSiteClaimsRow struct {
-	CID                  string
-	CSiteID              string
-	UserID               string
-	ShortID              string
-	SiteName             string
-	CurrentAddress       string
-	Visibility           string
-	Address              string
-	Method               string
-	Status               string
-	TokenHash            *string
-	ExpiresAt            pgtype.Timestamptz
-	Evidence             *string
-	EvidenceUrl          *string
-	ReviewReason         *string
-	CreatedAt            pgtype.Timestamptz
-	VerifiedAt           pgtype.Timestamptz
-	ConsumedAt           pgtype.Timestamptz
-	OwnerUserID          string
-	OwnerAddress         string
-	ApplicantUsername    string
-	ApplicantDisplayName string
+	CID                    string
+	CSiteID                string
+	UserID                 string
+	ShortID                string
+	SiteName               string
+	CurrentAddress         string
+	Visibility             string
+	Address                string
+	Method                 string
+	Status                 string
+	TokenHash              *string
+	ExpiresAt              pgtype.Timestamptz
+	Evidence               *string
+	EvidenceUrl            *string
+	ReviewReason           *string
+	CreatedAt              pgtype.Timestamptz
+	VerifiedAt             pgtype.Timestamptz
+	ConsumedAt             pgtype.Timestamptz
+	EmailChangeID          string
+	EmailChangeOwnershipID string
+	OwnerUserID            string
+	OwnerAddress           string
+	ApplicantUsername      string
+	ApplicantDisplayName   string
 }
 
 func (q *Queries) ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) ([]ListSiteClaimsRow, error) {
 	rows, err := q.db.Query(ctx, listSiteClaims,
 		arg.UserID,
 		arg.SiteID,
+		arg.OrdinaryOnly,
 		arg.Status,
 		arg.Method,
 		arg.PageOffset,
@@ -324,6 +337,8 @@ func (q *Queries) ListSiteClaims(ctx context.Context, arg ListSiteClaimsParams) 
 			&i.CreatedAt,
 			&i.VerifiedAt,
 			&i.ConsumedAt,
+			&i.EmailChangeID,
+			&i.EmailChangeOwnershipID,
 			&i.OwnerUserID,
 			&i.OwnerAddress,
 			&i.ApplicantUsername,
@@ -418,32 +433,34 @@ func (q *Queries) LockClaimSiteByID(ctx context.Context, dollar_1 pgtype.UUID) (
 }
 
 const lockSiteClaim = `-- name: LockSiteClaim :one
-SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid FOR UPDATE OF c
+SELECT c.id::text,c.site_id::text,coalesce(c.user_id::text,'')::text AS user_id,s.short_id,s.name AS site_name,(s.scheme || '://' || s.normalized_host || s.base_path)::text AS current_address,s.visibility,c.address,c.method,c.status,c.token_hash,c.expires_at,c.evidence,c.evidence_url,c.review_reason,c.created_at,c.verified_at,c.consumed_at,coalesce(c.email_change_id::text,'')::text AS email_change_id,coalesce(c.email_change_ownership_id::text,'')::text AS email_change_ownership_id,coalesce(o.user_id::text,'')::text AS owner_user_id,coalesce(o.address,'')::text AS owner_address,coalesce(u.username,'')::text AS applicant_username,coalesce(u.display_name,'')::text AS applicant_display_name FROM directory.site_claims c JOIN directory.sites s ON s.id=c.site_id AND s.blog_status = 'BLOG' LEFT JOIN directory.site_ownerships o ON o.site_id=c.site_id LEFT JOIN identity.users u ON u.id=c.user_id WHERE c.id=$1::uuid FOR UPDATE OF c
 `
 
 type LockSiteClaimRow struct {
-	CID                  string
-	CSiteID              string
-	UserID               string
-	ShortID              string
-	SiteName             string
-	CurrentAddress       string
-	Visibility           string
-	Address              string
-	Method               string
-	Status               string
-	TokenHash            *string
-	ExpiresAt            pgtype.Timestamptz
-	Evidence             *string
-	EvidenceUrl          *string
-	ReviewReason         *string
-	CreatedAt            pgtype.Timestamptz
-	VerifiedAt           pgtype.Timestamptz
-	ConsumedAt           pgtype.Timestamptz
-	OwnerUserID          string
-	OwnerAddress         string
-	ApplicantUsername    string
-	ApplicantDisplayName string
+	CID                    string
+	CSiteID                string
+	UserID                 string
+	ShortID                string
+	SiteName               string
+	CurrentAddress         string
+	Visibility             string
+	Address                string
+	Method                 string
+	Status                 string
+	TokenHash              *string
+	ExpiresAt              pgtype.Timestamptz
+	Evidence               *string
+	EvidenceUrl            *string
+	ReviewReason           *string
+	CreatedAt              pgtype.Timestamptz
+	VerifiedAt             pgtype.Timestamptz
+	ConsumedAt             pgtype.Timestamptz
+	EmailChangeID          string
+	EmailChangeOwnershipID string
+	OwnerUserID            string
+	OwnerAddress           string
+	ApplicantUsername      string
+	ApplicantDisplayName   string
 }
 
 func (q *Queries) LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteClaimRow, error) {
@@ -468,6 +485,8 @@ func (q *Queries) LockSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (Lock
 		&i.CreatedAt,
 		&i.VerifiedAt,
 		&i.ConsumedAt,
+		&i.EmailChangeID,
+		&i.EmailChangeOwnershipID,
 		&i.OwnerUserID,
 		&i.OwnerAddress,
 		&i.ApplicantUsername,

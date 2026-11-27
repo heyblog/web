@@ -24,6 +24,9 @@ func (s *Service) present(claim Claim, viewer string, management bool) Claim {
 	claim.OwnershipState = ownershipState(viewer, claim.OwnerUserID, claim.OwnerAddress, claim.CurrentAddress, claim.Visibility)
 	claim.CanManage = claim.OwnershipState == "mine"
 	applicable := claim.UserID == viewer && claim.Status == "PENDING" && claim.Visibility != "REMOVED" && claim.OwnershipState != "other" && (claim.OwnerUserID == viewer || claim.Address == claim.CurrentAddress)
+	if claim.EmailChangeID != "" {
+		applicable = applicable && claim.OwnerUserID == viewer && claim.Address == claim.CurrentAddress
+	}
 	claim.CanRegenerate = applicable && claim.Method != Manual && claim.Method != BlogsClub
 	claim.CanCheck = applicable && (claim.Method == BlogsClub || (claim.CanRegenerate && claim.ExpiresAt != nil && s.now().Before(*claim.ExpiresAt)))
 	claim.CanCancel = claim.UserID == viewer && claim.Status == "PENDING"
@@ -84,7 +87,7 @@ func (s *Service) Context(ctx context.Context, user auth.User, shortID string) (
 		return ClaimContext{}, err
 	}
 	state := ownershipState(user.ID, owner.UserID, owner.Address, target.Address, target.Visibility)
-	claims, err := s.store.List(ctx, ClaimFilter{UserID: user.ID, SiteID: target.ID, Status: "PENDING"})
+	claims, err := s.store.List(ctx, ClaimFilter{UserID: user.ID, SiteID: target.ID, Status: "PENDING", OrdinaryOnly: true})
 	if err != nil {
 		return ClaimContext{}, err
 	}

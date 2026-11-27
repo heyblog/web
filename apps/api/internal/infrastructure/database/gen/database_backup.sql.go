@@ -20,6 +20,15 @@ func (q *Queries) BeginDatabaseRestore(ctx context.Context, adminID pgtype.UUID)
 	return err
 }
 
+const clearRestoreTargetEmailChange = `-- name: ClearRestoreTargetEmailChange :exec
+DELETE FROM identity.email_change_requests WHERE user_id = $1::uuid
+`
+
+func (q *Queries) ClearRestoreTargetEmailChange(ctx context.Context, adminID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearRestoreTargetEmailChange, adminID)
+	return err
+}
+
 const finishDatabaseRestore = `-- name: FinishDatabaseRestore :exec
 SELECT directory.backup_restore_finish()
 `

@@ -123,7 +123,9 @@ export function createOAuthPopup(
           completed.state !== result.state ||
           completed.mode !== 'popup' ||
           (completed.outcome === 'success' &&
-            (completed.intent !== input.intent || completed.claim_id !== input.claimId))
+            (completed.intent !== input.intent ||
+              completed.claim_id !== input.claimId ||
+              completed.email_change_id !== input.emailChangeId))
         )
           return;
         dispose();

@@ -184,6 +184,7 @@ UPDATE identity.users
 -- name: SetUserPassword :exec
 UPDATE identity.users
    SET password_hash = sqlc.arg(password_hash)::text,
+       settings = settings - 'email_change_unproven_password',
        auth_version = auth_version + 1
  WHERE id = sqlc.arg(id)::uuid
    AND access_status = 'ACTIVE'

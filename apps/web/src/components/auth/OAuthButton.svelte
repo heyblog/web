@@ -2,11 +2,12 @@
   import { IconBrandGithub } from '@tabler/icons-svelte';
   import { onDestroy } from 'svelte';
 
-  import type {
-    OAuthCompletion,
-    OAuthIntent,
-    OAuthProvider,
-    OAuthRequest,
+  import {
+    type OAuthCompletion,
+    type OAuthIntent,
+    type OAuthProvider,
+    type OAuthRequest,
+    oauthStartPath,
   } from '@/api/auth/oauth.types';
   import { authErrorMessage } from '@/application/auth/auth-page';
   import { safeNext } from '@/application/auth/auth-routing';
@@ -18,6 +19,7 @@
     intent = 'login',
     next = '/dashboard',
     claimId,
+    emailChangeId,
     label,
     disabled = false,
     prepare,
@@ -27,6 +29,7 @@
     intent?: OAuthIntent;
     next?: string;
     claimId?: string;
+    emailChangeId?: string;
     label?: string;
     disabled?: boolean;
     prepare?: () => Promise<OAuthRequest | null>;
@@ -36,6 +39,13 @@
   let error = $state('');
   let fallback = $state<string>();
   const name = $derived(provider === 'github' ? 'GitHub' : 'BlogsClub');
+  const request = $derived({
+    provider,
+    intent,
+    next: safeNext(next),
+    ...(claimId ? { claimId } : {}),
+    ...(emailChangeId ? { emailChangeId } : {}),
+  });
   const popup = createOAuthPopup({
     fallback: (location) => {
       fallback = location;
@@ -58,9 +68,7 @@
     if (disabled || busy) return;
     error = '';
     fallback = undefined;
-    void popup.launch(
-      prepare ?? { provider, intent, next: safeNext(next), ...(claimId ? { claimId } : {}) },
-    );
+    void popup.launch(prepare ?? request);
   }
   onDestroy(() => popup.dispose());
 </script>
@@ -97,7 +105,7 @@
   {#if !prepare}<noscript
       ><a
         class="min-h-11 text-sm text-tint-fg underline"
-        href={`/api/web/auth/${provider}/start?${new URLSearchParams({ intent, next: safeNext(next), mode: 'redirect', ...(claimId ? { claim_id: claimId } : {}) })}`}
+        href={oauthStartPath(request, 'redirect')}
         data-astro-prefetch="false">使用 {name} 授权</a
       ></noscript
     >{/if}

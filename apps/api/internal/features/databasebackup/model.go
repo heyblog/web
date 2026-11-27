@@ -6,12 +6,13 @@ import (
 )
 
 const (
-	Path                = "/api/web/management/database-backup"
-	FileLimit     int64 = 512 << 20
-	BodyLimit           = FileLimit + 1<<20
-	Timeout             = 30 * time.Minute
-	Format              = "heyblog.database-backup"
-	schemaVersion       = 7
+	Path                          = "/api/web/management/database-backup"
+	FileLimit               int64 = 512 << 20
+	BodyLimit                     = FileLimit + 1<<20
+	Timeout                       = 30 * time.Minute
+	Format                        = "heyblog.database-backup"
+	annotationSchemaVersion       = 7
+	schemaVersion                 = 8
 )
 
 var (
@@ -94,7 +95,7 @@ type Restoration struct {
 }
 
 func tablesForSchema(version int) []string {
-	if version == schemaVersion {
+	if version >= annotationSchemaVersion {
 		return tableNames
 	}
 	result := make([]string, 0, len(tableNames)-1)

@@ -189,12 +189,17 @@ test('only current management permission and a verified unused address proof ena
     { ...proof, can_manage: false },
     { ...proof, consumed_at: proof.created_at },
     { ...proof, status: 'PENDING' as const },
+    { ...proof, email_change_id: '019ded7f-4be3-7168-8953-b64109326083' },
     { ...proof, address: 'https://user:password@example.test/' },
     { ...proof, address: 'ftp://example.test/' },
   ])
     assert.equal(verifiedClaimAddress(invalid, proof.short_id), undefined);
   assert.equal(verifiedClaimAddress(proof, 'other1234'), undefined);
   assert.equal(claimDestination({ ...proof, can_manage: false }), null);
+  assert.equal(
+    claimDestination({ ...proof, email_change_id: '019ded7f-4be3-7168-8953-b64109326083' }),
+    null,
+  );
 });
 test('claim filters are bounded and manual/expired states have distinct recovery labels', () => {
   assert.equal(claimLabel({ ...claimFixture, method: 'MANUAL', expires_at: undefined }), '待审核');

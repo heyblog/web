@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { compileModule } from 'svelte/compiler';
 
+import { completeEmailChange } from '../src/api/account-profile/email-change.browser.ts';
 import { saveProfile } from '../src/api/account-profile/profile.browser.ts';
 import { forwardProfile } from '../src/api/account-profile/profile.server.ts';
 import { parseSessionResponse } from '../src/api/auth/auth.responses.ts';
@@ -226,6 +227,94 @@ test('profile transport reports ambiguous failures without retrying a mutation',
   } finally {
     globalThis.fetch = original;
   }
+});
+
+test('email change allows only the intended routes and same-origin requests', async (t) => {
+  const upstream = t.mock.method(globalThis, 'fetch', async () => Response.json({ user }));
+  const origin = 'https://web.example.test';
+  async function forward(path: string, init: RequestInit) {
+    return forwardProfile(new Request(`${origin}/api/web/account/${path}`, init), path);
+  }
+
+  assert.equal((await forward('email-change/details', {})).status, 404);
+  assert.equal((await forward('email-change/complete', { method: 'GET' })).status, 405);
+  assert.equal(
+    (await forward('email-change', { headers: { Accept: 'application/json' } })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await forward('email-change', {
+        method: 'POST',
+        headers: { Origin: 'https://other.test', 'Content-Type': 'application/json' },
+        body: '{"email":"new@example.test"}',
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await forward('email-change', {
+        method: 'DELETE',
+        headers: { Origin: origin },
+      })
+    ).status,
+    400,
+  );
+  assert.equal(upstream.mock.callCount(), 0);
+});
+
+test('email change completion forwards its request ID and both rotated cookies', async (t) => {
+  Object.assign(process.env, {
+    WEB_API_BASE_URL: 'http://api.internal:10201',
+    API_WEB_TOKEN: 'test-web-service-token-0123456789abcdef',
+  });
+  const changedUser = { ...user, email: 'new@example.test' };
+  const origin = 'https://web.example.test';
+  const id = '019ded7f-4be3-7168-8953-b64109326083';
+  const cookies = ['heyblog_access_token=new; HttpOnly', 'heyblog_refresh_token=new; HttpOnly'];
+  const requests: Request[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push(new Request(input, init));
+    const headers = new Headers();
+    for (const cookie of cookies) headers.append('Set-Cookie', cookie);
+    return Response.json({ user: changedUser }, { headers });
+  });
+  const path = 'email-change/complete';
+  const response = await forwardProfile(
+    new Request(`${origin}/api/web/account/${path}`, {
+      method: 'POST',
+      headers: {
+        Origin: origin,
+        'Content-Type': 'application/json',
+        Cookie: 'heyblog_access_token=old',
+        'X-HeyBlog-Email-Change-ID': id,
+      },
+      body: '{}',
+    }),
+    path,
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.url, `http://api.internal:10201/api/web/account/${path}`);
+  assert.equal(requests[0]?.headers.get('X-HeyBlog-Email-Change-ID'), id);
+  assert.equal(requests[0]?.headers.get('Cookie'), 'heyblog_access_token=old');
+  assert.deepEqual(await requests[0]?.json(), {});
+  assert.deepEqual(response.headers.getSetCookie(), cookies);
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+  assert.deepEqual(await response.json(), { user: changedUser });
+});
+
+test('email change completion reports an ambiguous network outcome without resubmitting', async (t) => {
+  const id = '019ded7f-4be3-7168-8953-b64109326083';
+  const fetch = t.mock.method(globalThis, 'fetch', async () => {
+    throw new TypeError('network disconnected');
+  });
+  assert.deepEqual(await completeEmailChange(id), {
+    ok: false,
+    code: 'request_failed',
+    uncertain: true,
+  });
+  assert.equal(fetch.mock.callCount(), 1);
 });
 
 test('invalid usernames do not enter the one-time rename confirmation', async () => {

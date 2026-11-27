@@ -22,7 +22,13 @@
     initialShortId = '',
     purpose = 'claim',
     uploadOrigin = '',
-  }: { initialShortId?: string; purpose?: 'claim' | 'address'; uploadOrigin?: string } = $props();
+    emailChangeId,
+  }: {
+    initialShortId?: string;
+    purpose?: 'claim' | 'address';
+    uploadOrigin?: string;
+    emailChangeId?: string;
+  } = $props();
   const controller = createClaimCreator(undefined, undefined, uploadOrigin);
   let method = $state<ClaimMethod>('BLOGSCLUB');
   let address = $state('');
@@ -47,7 +53,7 @@
       quickAuth?.authorize();
       return;
     }
-    await controller.create({ method, newAddress, address, evidence, evidenceURL });
+    await controller.create({ method, newAddress, address, evidence, evidenceURL, emailChangeId });
     if (newAddress && !controller.created && controller.availability.state !== 'idle') {
       await tick();
       document.getElementById('claim-address-availability')?.focus();
@@ -60,7 +66,7 @@
   }
   async function prepareQuickVerification(): Promise<OAuthRequest | null> {
     const result = await controller.create(
-      { method: 'BLOGSCLUB', newAddress, address, evidence: '', evidenceURL: '' },
+      { method: 'BLOGSCLUB', newAddress, address, evidence: '', evidenceURL: '', emailChangeId },
       false,
     );
     const claim = result?.claim;
@@ -79,38 +85,53 @@
   <ClaimDetail initial={controller.created.claim} challenge={controller.created} />
 {:else}
   <form use:formFeedback class="grid gap-6" onsubmit={submit}>
-    <header class="grid gap-2">
-      <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">站点认证流程</p>
-      <h2 class="text-xl font-semibold">{newAddress ? '验证新地址' : '认领站点'}</h2>
-      <p class="max-w-2xl text-sm/6 text-fg-muted">
-        先选择要认证的站点，再选择认证方式。BlogsClub
-        快速认证会在授权窗口中完成，人工审核适合暂时无法使用自动认证的情况。
-      </p>
-    </header>
+    {#if emailChangeId}
+      <a
+        class="inline-flex min-h-11 w-fit items-center text-sm text-tint-fg underline"
+        href="/dashboard/profile"
+      >
+        返回邮箱换绑
+      </a>
+    {:else}
+      <header class="grid gap-2">
+        <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">站点认证流程</p>
+        <h2 class="text-xl font-semibold">{newAddress ? '验证新地址' : '认领站点'}</h2>
+        <p class="max-w-2xl text-sm/6 text-fg-muted">
+          先选择要认证的站点，再选择认证方式。BlogsClub
+          快速认证会在授权窗口中完成，人工审核适合暂时无法使用自动认证的情况。
+        </p>
+      </header>
 
-    <ol class="grid grid-cols-3 gap-2" aria-label="认证进度">
-      {#each ['选择站点', '选择方式', '完成认证'] as label, index (label)}
-        {@const current = index + 1 === step}
-        <li class="grid gap-2 border-t-2 pt-3 {index + 1 <= step ? 'border-tint' : 'border-line'}">
-          <span class="text-xs font-semibold {current ? 'text-tint-fg' : 'text-fg-muted'}"
-            >0{index + 1}</span
+      <ol class="grid grid-cols-3 gap-2" aria-label="认证进度">
+        {#each ['选择站点', '选择方式', '完成认证'] as label, index (label)}
+          {@const current = index + 1 === step}
+          <li
+            class="grid gap-2 border-t-2 pt-3 {index + 1 <= step ? 'border-tint' : 'border-line'}"
           >
-          <span class="text-sm {current ? 'font-medium text-fg' : 'text-fg-muted'}">{label}</span>
-        </li>
-      {/each}
-    </ol>
+            <span class="text-xs font-semibold {current ? 'text-tint-fg' : 'text-fg-muted'}"
+              >0{index + 1}</span
+            >
+            <span class="text-sm {current ? 'font-medium text-fg' : 'text-fg-muted'}">{label}</span>
+          </li>
+        {/each}
+      </ol>
+    {/if}
 
     <section class="grid gap-3" aria-labelledby="claim-site-heading">
-      <div>
-        <h3 id="claim-site-heading" class="text-base font-semibold">1. 选择站点</h3>
-        <p class="mt-1 text-sm text-fg-muted">输入站点名称、短 ID 或主页地址查找公开站点。</p>
-      </div>
-      <SiteResolver
-        initialQuery={initialShortId}
-        resolving={controller.busy}
-        onresolve={(id) => controller.select(id)}
-        onclear={() => controller.clear()}
-      />
+      {#if !emailChangeId}
+        <div>
+          <h3 id="claim-site-heading" class="text-base font-semibold">1. 选择站点</h3>
+          <p class="mt-1 text-sm text-fg-muted">输入站点名称、短 ID 或主页地址查找公开站点。</p>
+        </div>
+        <SiteResolver
+          initialQuery={initialShortId}
+          resolving={controller.busy}
+          onresolve={(id) => controller.select(id)}
+          onclear={() => controller.clear()}
+        />
+      {:else}
+        <h2 id="claim-site-heading" class="text-lg font-semibold">验证站点控制权</h2>
+      {/if}
       {#if controller.busy}<p class="text-sm text-fg-muted" role="status">正在处理…</p>{/if}
       {#if controller.error}<p
           class="rounded-md border border-danger bg-danger-bg p-4 text-sm text-danger-fg"
@@ -131,21 +152,21 @@
             <strong class="mt-1 block text-base">{context.site.name}</strong>
             <p class="mt-1 text-sm break-all text-fg-muted">{context.site.address}</p>
           </div>
-          <div class="shrink-0 text-sm sm:text-right">
-            {#if context.ownership_state === 'other'}<p class="text-warning-fg">
-                此站点已有所有者。
-              </p>
-            {:else if context.can_manage}<a
-                class="text-tint-fg underline"
-                href={`/dashboard/sites/${context.site.short_id}`}>管理我的站点</a
-              >
-            {:else if context.ownership_state === 'stale'}<p class="text-warning-fg">
-                请重新验证当前主页地址以恢复管理权限。
-              </p>{/if}
-          </div>
+          {#if !emailChangeId}<div class="shrink-0 text-sm sm:text-right">
+              {#if context.ownership_state === 'other'}<p class="text-warning-fg">
+                  此站点已有所有者。
+                </p>
+              {:else if context.can_manage}<a
+                  class="text-tint-fg underline"
+                  href={`/dashboard/sites/${context.site.short_id}`}>管理我的站点</a
+                >
+              {:else if context.ownership_state === 'stale'}<p class="text-warning-fg">
+                  请重新验证当前主页地址以恢复管理权限。
+                </p>{/if}
+            </div>{/if}
         </div>
 
-        {#if context.pending_claims.length}
+        {#if !emailChangeId && context.pending_claims.length}
           <div class="grid gap-3" aria-label="进行中的申请">
             <div>
               <h3 class="text-sm font-semibold">继续已有申请</h3>
@@ -167,7 +188,7 @@
           </div>
         {/if}
 
-        {#if claimCanCreate(context, newAddress)}
+        {#if claimCanCreate(context, newAddress, emailChangeId)}
           {#if newAddress}
             <label class="grid gap-2 text-sm">
               <span class="font-medium">新的主页地址</span>
@@ -198,7 +219,7 @@
 
           <fieldset class="grid gap-3" disabled={controller.busy}>
             <legend id="claim-method-heading" class="text-base font-semibold"
-              >2. 选择认证方式</legend
+              >{emailChangeId ? '选择认证方式' : '2. 选择认证方式'}</legend
             >
             <div class="grid gap-3 sm:grid-cols-2">
               {#each claimMethods as value (value)}
@@ -305,6 +326,8 @@
       </section>
     {/if}
 
-    <a class="{buttonClass} w-fit" href="/dashboard/sites/new">站点未收录，提交新增申请</a>
+    {#if !emailChangeId}<a class="{buttonClass} w-fit" href="/dashboard/sites/new"
+        >站点未收录，提交新增申请</a
+      >{/if}
   </form>
 {/if}

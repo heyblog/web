@@ -150,7 +150,7 @@ func (service *Service) Login(ctx context.Context, identifier, password string) 
 	if user.VerifiedAt == nil {
 		return User{}, nil, newAuthError("email_not_verified", 403, "email verification is required")
 	}
-	if user, err = service.repo.recordLogin(ctx, user.ID); err != nil {
+	if user, err = service.repo.recordPasswordLogin(ctx, user.ID, user.AuthVersion); err != nil {
 		return User{}, nil, repositoryError("record login", err)
 	}
 	access, refresh, err := service.issueSession(ctx, user)

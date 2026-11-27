@@ -1,13 +1,16 @@
+import { isEmailChangeId } from '../account-profile/email-change.types.ts';
+
 export const oauthProviders = ['github', 'blogsclub'] as const;
 export type OAuthProvider = (typeof oauthProviders)[number];
 export type OAuthIdentityProvider = 'GITHUB' | 'BLOGSCLUB';
-export type OAuthIntent = 'login' | 'bind' | 'site-claim';
+export type OAuthIntent = 'login' | 'bind' | 'site-claim' | 'email-change';
 
 export interface OAuthRequest {
   readonly provider: OAuthProvider;
   readonly intent: OAuthIntent;
   readonly next: string;
   readonly claimId?: string;
+  readonly emailChangeId?: string;
 }
 
 export interface OAuthCompletion {
@@ -19,6 +22,7 @@ export interface OAuthCompletion {
   readonly outcome: 'success' | 'error';
   readonly error_code?: string;
   readonly claim_id?: string;
+  readonly email_change_id?: string;
 }
 
 export function isOAuthProvider(value: unknown): value is OAuthProvider {
@@ -36,12 +40,18 @@ export function parseOAuthCompletion(value: unknown): OAuthCompletion | null {
     !isOAuthProvider(item.provider) ||
     typeof item.state !== 'string' ||
     !item.state ||
-    (item.intent !== 'login' && item.intent !== 'bind' && item.intent !== 'site-claim') ||
+    (item.intent !== 'login' &&
+      item.intent !== 'bind' &&
+      item.intent !== 'site-claim' &&
+      item.intent !== 'email-change') ||
     (item.mode !== 'popup' && item.mode !== 'redirect') ||
     typeof item.next !== 'string' ||
     (item.outcome !== 'success' && item.outcome !== 'error') ||
     (item.outcome === 'error' && typeof item.error_code !== 'string') ||
-    (item.claim_id !== undefined && typeof item.claim_id !== 'string')
+    (item.claim_id !== undefined && typeof item.claim_id !== 'string') ||
+    (item.intent === 'email-change'
+      ? !isEmailChangeId(item.email_change_id)
+      : item.email_change_id !== undefined)
   )
     return null;
   return {
@@ -53,12 +63,14 @@ export function parseOAuthCompletion(value: unknown): OAuthCompletion | null {
     outcome: item.outcome,
     ...(typeof item.error_code === 'string' ? { error_code: item.error_code } : {}),
     ...(typeof item.claim_id === 'string' ? { claim_id: item.claim_id } : {}),
+    ...(typeof item.email_change_id === 'string' ? { email_change_id: item.email_change_id } : {}),
   };
 }
 
 export function oauthStartPath(input: OAuthRequest, mode: 'popup' | 'redirect'): string {
   const query = new URLSearchParams({ intent: input.intent, next: input.next, mode });
   if (input.claimId) query.set('claim_id', input.claimId);
+  if (input.emailChangeId) query.set('email_change_id', input.emailChangeId);
   return `/api/web/auth/${input.provider}/start?${query}`;
 }
 

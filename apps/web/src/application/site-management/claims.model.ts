@@ -11,7 +11,7 @@ export function claimLabel(claim: Claim, now = Date.now()): string {
   return { VERIFIED: '验证完成', REJECTED: '未通过', CANCELLED: '已取消' }[claim.status];
 }
 export function claimDestination(claim: Claim): string | null {
-  if (!claim.can_manage) return null;
+  if (claim.email_change_id || !claim.can_manage) return null;
   const path = `/dashboard/sites/${encodeURIComponent(claim.short_id)}`;
   return claim.status === 'VERIFIED' &&
     !claim.consumed_at &&
@@ -19,8 +19,12 @@ export function claimDestination(claim: Claim): string | null {
     ? `${path}?verified_claim=${encodeURIComponent(claim.id)}#information`
     : path;
 }
-export function claimCanCreate(context: ClaimContext, newAddress: boolean): boolean {
-  return newAddress ? context.can_verify_address : context.can_claim;
+export function claimCanCreate(
+  context: ClaimContext,
+  newAddress: boolean,
+  emailChangeId?: string,
+): boolean {
+  return newAddress || emailChangeId ? context.can_verify_address : context.can_claim;
 }
 const messages: Readonly<Record<string, string>> = {
   proof_not_found: '尚未找到匹配的验证配置。请确认已发布，再检查一次。',
@@ -33,6 +37,10 @@ const messages: Readonly<Record<string, string>> = {
   site_already_owned: '此站点已有有效归属，请刷新查看当前状态。',
   address_changed: '站点主页地址已变化，请重新选择站点发起验证。',
   address_owner_required: '请先认领当前主页地址，再验证新地址。',
+  email_change_missing: '这次邮箱更换申请已结束，请返回个人资料。',
+  email_change_expired: '邮箱更换申请已过期，请返回个人资料重新发起。',
+  email_change_site_unavailable: '该站点已不在复验范围内，请返回个人资料查看。',
+  email_change_site_changed: '站点归属或地址已变化，请返回个人资料查看。',
   self_review: '自己的申请需要由其他审核者处理。',
   self_revoke: '自己的站点归属需要由其他审核者处理。',
   forbidden: '当前账号无权执行此操作。',
@@ -73,6 +81,7 @@ export function claimMessage(code: string): string {
 export function verifiedClaimAddress(claim: Claim, shortId: string): string | undefined {
   if (
     claim.short_id !== shortId ||
+    claim.email_change_id ||
     claim.status !== 'VERIFIED' ||
     !claim.can_manage ||
     claim.consumed_at ||

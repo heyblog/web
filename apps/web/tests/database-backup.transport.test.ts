@@ -38,15 +38,15 @@ test('inspection parsing validates the dataset inventory and restoration readine
     { ...inspectionFixture, schema_version: 1 },
     { ...inspectionFixture, schema_version: 2 },
     { ...inspectionFixture, schema_version: 6 },
-    { ...inspectionFixture, schema_version: 8 },
+    { ...inspectionFixture, schema_version: 9 },
   ];
   // When / Then
   assert.deepEqual(parseBackupInspection(inspectionFixture), inspectionFixture);
-  for (const schema_version of [3, 4, 5, 6]) {
+  for (const schema_version of [3, 4, 5, 6, 7]) {
     const datasets = inspectionFixture.datasets.filter(
       ({ name }) =>
-        name !== 'directory.site_annotation_history' &&
-        (schema_version === 6 || name !== 'directory.site_claim_attachments'),
+        (schema_version >= 7 || name !== 'directory.site_annotation_history') &&
+        (schema_version >= 6 || name !== 'directory.site_claim_attachments'),
     );
     const legacy = { ...inspectionFixture, schema_version, datasets };
     assert.deepEqual(parseBackupInspection(legacy), legacy);

@@ -27,7 +27,12 @@ type Querier interface {
 	CanReadAccountAudit(ctx context.Context, arg CanReadAccountAuditParams) (bool, error)
 	CancelOwnerFriendRequest(ctx context.Context, arg CancelOwnerFriendRequestParams) (pgtype.UUID, error)
 	CancelUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
+	ChangeUserEmail(ctx context.Context, requestID pgtype.UUID) (int64, error)
 	ClaimSite(ctx context.Context, shortID string) (ClaimSiteRow, error)
+	ClearRestoreTargetEmailChange(ctx context.Context, adminID pgtype.UUID) error
+	CloseEmailChangeSiteClaims(ctx context.Context, requestID pgtype.UUID) error
+	CloseInactiveEmailChangeSiteClaims(ctx context.Context) error
+	CompleteEmailChangeSiteProofs(ctx context.Context, arg CompleteEmailChangeSiteProofsParams) (bool, error)
 	CompleteSiteClaimAttachment(ctx context.Context, arg CompleteSiteClaimAttachmentParams) (int64, error)
 	CompleteUserDeletion(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
 	ConsumeEmailVerificationCode(ctx context.Context, id pgtype.UUID) error
@@ -47,6 +52,7 @@ type Querier interface {
 	CreateAPIClientScope(ctx context.Context, arg CreateAPIClientScopeParams) error
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (IdentityApiKey, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (ContentAnnouncement, error)
+	CreateEmailChangeRequest(ctx context.Context, arg CreateEmailChangeRequestParams) (IdentityEmailChangeRequest, error)
 	CreateEmailVerificationCode(ctx context.Context, arg CreateEmailVerificationCodeParams) error
 	CreateManagedTag(ctx context.Context, arg CreateManagedTagParams) (DirectoryTag, error)
 	CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) (IdentityUser, error)
@@ -62,6 +68,7 @@ type Querier interface {
 	CreateUserManagementPermission(ctx context.Context, arg CreateUserManagementPermissionParams) error
 	DeleteAPIClientScopes(ctx context.Context, clientID pgtype.UUID) error
 	DeleteDraftAnnouncement(ctx context.Context, arg DeleteDraftAnnouncementParams) (int64, error)
+	DeleteEmailChangeRequest(ctx context.Context, id pgtype.UUID) error
 	DeleteEmailVerificationCodes(ctx context.Context, userID pgtype.UUID) error
 	DeleteEnabledSiteFeeds(ctx context.Context, siteID pgtype.UUID) error
 	DeleteManagedTag(ctx context.Context, id pgtype.UUID) error
@@ -77,6 +84,7 @@ type Querier interface {
 	EnableCanonicalTag(ctx context.Context, id pgtype.UUID) error
 	ExpireSiteClaimAttachments(ctx context.Context) error
 	FindAPIKeyCredential(ctx context.Context, publicID string) (FindAPIKeyCredentialRow, error)
+	FindPendingEmailChangeSiteClaim(ctx context.Context, arg FindPendingEmailChangeSiteClaimParams) (string, error)
 	FindPendingSiteClaim(ctx context.Context, arg FindPendingSiteClaimParams) (string, error)
 	FinishDatabaseRestore(ctx context.Context) error
 	FinishSiteClaim(ctx context.Context, arg FinishSiteClaimParams) (int64, error)
@@ -110,6 +118,7 @@ type Querier interface {
 	GetSiteClaim(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteClaimRow, error)
 	GetSiteClaimAttachment(ctx context.Context, dollar_1 pgtype.UUID) (GetSiteClaimAttachmentRow, error)
 	GetSiteClaimReviewedAt(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.Timestamptz, error)
+	GetSiteEmailChangeRequest(ctx context.Context, arg GetSiteEmailChangeRequestParams) (GetSiteEmailChangeRequestRow, error)
 	GetSiteIcon(ctx context.Context, siteID pgtype.UUID) (DirectorySiteIcon, error)
 	GetSiteIconHash(ctx context.Context, siteID pgtype.UUID) ([]byte, error)
 	GetSiteMetrics(ctx context.Context, shortIds []string) ([]GetSiteMetricsRow, error)
@@ -126,7 +135,9 @@ type Querier interface {
 	GetUserProviderIdentity(ctx context.Context, arg GetUserProviderIdentityParams) (IdentityOauthIdentity, error)
 	HasOwnerAddressProof(ctx context.Context, arg HasOwnerAddressProofParams) (bool, error)
 	HasRecentRejectedManualClaim(ctx context.Context, arg HasRecentRejectedManualClaimParams) (bool, error)
+	HasUnprovenEmailChangePassword(ctx context.Context, id pgtype.UUID) (bool, error)
 	ImportLockCapacity(ctx context.Context) (int32, error)
+	IncrementEmailChangeCodeAttempts(ctx context.Context, arg IncrementEmailChangeCodeAttemptsParams) error
 	IncrementEmailVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IncrementGraphMetrics(ctx context.Context, arg IncrementGraphMetricsParams) error
 	IncrementSiteDisplayMetrics(ctx context.Context, arg IncrementSiteDisplayMetricsParams) error
@@ -147,6 +158,7 @@ type Querier interface {
 	InsertSource(ctx context.Context, arg InsertSourceParams) (pgtype.UUID, error)
 	InvalidateSiteClaims(ctx context.Context, dollar_1 pgtype.UUID) error
 	IsBlogClaimAttachment(ctx context.Context, dollar_1 pgtype.UUID) (bool, error)
+	IssueEmailChangeCode(ctx context.Context, arg IssueEmailChangeCodeParams) error
 	LatestNonBlogClassificationRevision(ctx context.Context, siteID pgtype.UUID) (int64, error)
 	ListAPIClientScopes(ctx context.Context) ([]IdentityApiClientScope, error)
 	ListAPIClientScopesByClient(ctx context.Context, clientID pgtype.UUID) ([]string, error)
@@ -162,6 +174,7 @@ type Querier interface {
 	ListDirectorySites(ctx context.Context, arg ListDirectorySitesParams) ([]DirectorySite, error)
 	ListDirectoryTagOptions(ctx context.Context) ([]ListDirectoryTagOptionsRow, error)
 	ListDirectoryTechnologyOptions(ctx context.Context) ([]ListDirectoryTechnologyOptionsRow, error)
+	ListEmailChangeSites(ctx context.Context, arg ListEmailChangeSitesParams) ([]ListEmailChangeSitesRow, error)
 	ListEnabledSiteTagCascades(ctx context.Context) ([]ListEnabledSiteTagCascadesRow, error)
 	ListEnabledSoftwareComponentDependencies(ctx context.Context) ([]ListEnabledSoftwareComponentDependenciesRow, error)
 	ListEnabledSoftwareComponents(ctx context.Context) ([]DirectorySoftwareComponent, error)
@@ -208,6 +221,7 @@ type Querier interface {
 	LockClaimSite(ctx context.Context, shortID string) (LockClaimSiteRow, error)
 	LockClaimSiteByID(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.UUID, error)
 	LockCurrentSiteOwner(ctx context.Context, arg LockCurrentSiteOwnerParams) (DirectorySiteOwnership, error)
+	LockEmailChangeRequest(ctx context.Context, userID pgtype.UUID) (IdentityEmailChangeRequest, error)
 	LockEmailVerificationCode(ctx context.Context, id pgtype.UUID) (IdentityEmailVerificationCode, error)
 	LockFriendEndpointSites(ctx context.Context, arg LockFriendEndpointSitesParams) ([]pgtype.UUID, error)
 	LockIncrementalHosts(ctx context.Context, hosts []string) error
@@ -223,6 +237,7 @@ type Querier interface {
 	LockSiteClaimUser(ctx context.Context, dollar_1 pgtype.UUID) (pgtype.UUID, error)
 	LockSiteOwnership(ctx context.Context, dollar_1 pgtype.UUID) (LockSiteOwnershipRow, error)
 	LockTaxonomy(ctx context.Context) error
+	MarkEmailChangeVerified(ctx context.Context, arg MarkEmailChangeVerifiedParams) (IdentityEmailChangeRequest, error)
 	MarkSiteClaimAttachmentArchived(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
 	MarkSiteClaimAttachmentDeleted(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
 	MarkSiteClaimAttachmentUploadCleaned(ctx context.Context, dollar_1 pgtype.UUID) error
@@ -230,6 +245,7 @@ type Querier interface {
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)
 	ReadableSiteCascades(ctx context.Context) ([]ReadableSiteCascadesRow, error)
+	RecordPasswordLogin(ctx context.Context, arg RecordPasswordLoginParams) (IdentityUser, error)
 	RecordSiteMetricEvents(ctx context.Context, arg RecordSiteMetricEventsParams) error
 	RecordSiteResponseMetrics(ctx context.Context, shortIds []string) ([]RecordSiteResponseMetricsRow, error)
 	RecordUserLogin(ctx context.Context, id pgtype.UUID) (IdentityUser, error)
@@ -249,6 +265,7 @@ type Querier interface {
 	SetAccountProfile(ctx context.Context, arg SetAccountProfileParams) (IdentityUser, error)
 	SetManagedProfile(ctx context.Context, arg SetManagedProfileParams) (IdentityUser, error)
 	SetRegisteredFriendLink(ctx context.Context, arg SetRegisteredFriendLinkParams) error
+	SetSessionUserPassword(ctx context.Context, arg SetSessionUserPasswordParams) (IdentityUser, error)
 	SetSiteClaimAttachmentStorageKey(ctx context.Context, arg SetSiteClaimAttachmentStorageKeyParams) error
 	SetSiteVisibility(ctx context.Context, arg SetSiteVisibilityParams) (DirectorySite, error)
 	SetUserEmailVerified(ctx context.Context, id pgtype.UUID) error

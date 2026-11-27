@@ -27,6 +27,11 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 		"/api/web/auth/verify-email/resend":             {Name: "auth-resend", Capacity: 3, RefillTokens: 3, RefillInterval: 10 * time.Minute},
 		"/api/web/auth/password/forgot":                 {Name: "auth-forgot", Capacity: 3, RefillTokens: 3, RefillInterval: 10 * time.Minute},
 		"/api/web/auth/password/reset":                  {Name: "auth-reset", Capacity: 5, RefillTokens: 5, RefillInterval: 10 * time.Minute},
+		emailChangePath:                                 {Name: "auth-email-change", Capacity: 60, RefillTokens: 60, RefillInterval: time.Minute},
+		emailChangePath + "/send-code":                  {Name: "auth-email-change-send", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
+		emailChangePath + "/verify-code":                {Name: "auth-email-change-verify", Capacity: 30, RefillTokens: 30, RefillInterval: time.Minute},
+		emailChangePath + "/verify-password":            {Name: "auth-email-change-password", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
+		emailChangePath + "/complete":                   {Name: "auth-email-change-complete", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
 		"/api/web/auth/refresh":                         {Name: "auth-refresh", Capacity: 30, RefillTokens: 30, RefillInterval: time.Minute},
 		"/api/web/auth/blogsclub/start":                 {Name: "auth-blogsclub", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
 		"/api/web/auth/github/start":                    {Name: "auth-github", Capacity: 10, RefillTokens: 10, RefillInterval: time.Minute},
@@ -48,5 +53,6 @@ func RegisterRoutes(api huma.API, service *Service, webToken string) error {
 	registerOAuthRoutes(api, service, build)
 	registerManagementRoutes(api, service, build)
 	registerProfileRoutes(api, service, build)
+	registerEmailChangeRoutes(api, service, limiter, build)
 	return nil
 }

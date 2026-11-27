@@ -38,7 +38,9 @@
   <section class="grid max-w-4xl gap-5">
     <header class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
-        <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">审核申请</p>
+        <p class="text-xs font-semibold tracking-[0.16em] text-tint-fg uppercase">
+          {claim.email_change_id ? '审核邮箱换绑复验' : '审核申请'}
+        </p>
         <h2 class="mt-1 text-xl font-semibold">{claim.site_name}</h2>
         <p class="mt-1 text-sm break-all text-fg-muted">{claim.address}</p>
       </div>
@@ -132,7 +134,8 @@
                 type="submit"
                 class={primaryClass}
                 disabled={controller.busy}
-                onclick={() => (approve = true)}>批准认领</button
+                onclick={() => (approve = true)}
+                >{claim.email_change_id ? '批准复验' : '批准认领'}</button
               ><button
                 type="submit"
                 class={dangerClass}

@@ -176,4 +176,7 @@ func verifySiteClaims(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 
 	})
 	verifySiteClaimRecovery(ctx, t, pool, users, reviewer)
+	t.Run("email change site proofs apply only to current ownership and address", func(t *testing.T) {
+		verifyEmailChangeSiteProofs(ctx, t, pool, reviewer)
+	})
 }

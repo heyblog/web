@@ -70,8 +70,8 @@ func (service *Service) inspect(ctx context.Context, file *os.File, actor string
 		return Inspection{}, document{}, err
 	}
 	_, err = readDocument(reader, func(name string, row json.RawMessage) error {
-		if name == "directory.site_claim_attachments" {
-			// Validate the original values before dropping external storage authority.
+		if name == "directory.site_claim_attachments" || doc.header.SchemaVersion == schemaVersion {
+			// Validate the original values before normalizing transient state.
 			if err := validateRow(name, row, inventory); err != nil {
 				return err
 			}

@@ -8,7 +8,7 @@ export const targetAdmin = '019f033c-2111-7000-9000-000000000002';
 export const inspectionFixture = {
   sha256: 'a'.repeat(64),
   version: 1,
-  schema_version: 7,
+  schema_version: 8,
   generated_at: '2026-10-07T01:00:00Z',
   excluded_system_admin_id: sourceAdmin,
   retained_system_admin_id: targetAdmin,

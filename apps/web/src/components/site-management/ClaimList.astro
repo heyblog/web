@@ -108,6 +108,7 @@ const statusClass = (status: (typeof claimStatuses)[number]) =>
             </span>
           </div>
           <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-fg-muted">
+            {claim.email_change_id && <span>邮箱换绑复验</span>}
             {claimMethodLabels[claim.method]}
             {claim.applicant
               ? ` · ${claim.applicant.display_name} (@${claim.applicant.username})`

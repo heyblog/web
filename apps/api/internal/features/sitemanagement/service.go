@@ -74,12 +74,15 @@ func (s *Service) Create(ctx context.Context, user auth.User, input SiteClaimCre
 		}
 		address = parsed.CanonicalURL()
 	}
+	if input.EmailChangeID != "" && address != target.Address {
+		return CreateResult{}, failure("email_change_site_changed", "Use the currently registered site address", 409)
+	}
 	switch input.Method {
 	case DNS, Meta, File, Manual, BlogsClub:
 	default:
 		return CreateResult{}, failure("invalid_method", "The verification method is invalid", 422)
 	}
-	claim := Claim{ShortID: target.ShortID, SiteID: target.ID, Address: address, UserID: user.ID, Method: input.Method, Status: "PENDING", CreatedAt: s.now()}
+	claim := Claim{ShortID: target.ShortID, SiteID: target.ID, Address: address, UserID: user.ID, Method: input.Method, Status: "PENDING", CreatedAt: s.now(), EmailChangeID: input.EmailChangeID}
 	var token string
 	if input.Method == Manual {
 		evidence, evidenceErr := validateManualEvidence(input.Evidence)

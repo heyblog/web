@@ -185,6 +185,7 @@ class ClaimCreator {
       readonly evidence: string;
       readonly evidenceURL: string;
       readonly attachmentIDs?: readonly string[];
+      readonly emailChangeId?: string;
     },
     present = true,
   ) {
@@ -192,7 +193,7 @@ class ClaimCreator {
       !this.context ||
       this.busy ||
       this.availability.checking ||
-      !claimCanCreate(this.context, input.newAddress)
+      !claimCanCreate(this.context, input.newAddress, input.emailChangeId)
     )
       return;
     const attachmentIDs =
@@ -228,6 +229,7 @@ class ClaimCreator {
         {
           short_id: siteShortID,
           method: input.method,
+          ...(input.emailChangeId ? { email_change_id: input.emailChangeId } : {}),
           ...(input.newAddress ? { address: input.address.trim() } : {}),
           ...(input.method === 'MANUAL'
             ? {

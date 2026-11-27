@@ -31,6 +31,9 @@ func (repo *repository) loginOAuth(ctx context.Context, provider OAuthProvider, 
 		record, err = q.GetUserByEmail(ctx, identity.Email)
 		if err == nil {
 			record, err = q.GetUserForUpdate(ctx, record.ID)
+			if err == nil && (record.Email == nil || *record.Email != identity.Email) {
+				return dbUser{}, newAuthError("oauth_actor_changed", 409, "The account changed; restart authorization")
+			}
 		}
 		if isNotFound(err) {
 			username, usernameErr := availableOAuthUsername(ctx, q, identity.Login, identity.Subject)
@@ -62,7 +65,7 @@ func (repo *repository) loginOAuth(ctx context.Context, provider OAuthProvider, 
 	return mapUser(record), tx.Commit(ctx)
 }
 
-func (repo *repository) bindOAuth(ctx context.Context, actor User, provider OAuthProvider, identity oauthIdentity) error {
+func (repo *repository) bindOAuth(ctx context.Context, actor User, provider OAuthProvider, identity oauthIdentity, allowBoundSubject bool) error {
 	tx, err := repo.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -76,8 +79,21 @@ func (repo *repository) bindOAuth(ctx context.Context, actor User, provider OAut
 	if err != nil {
 		return err
 	}
-	if current.Email == nil || normalizeEmail(*current.Email) != identity.Email {
-		return newAuthError(provider.slug()+"_bind_email_mismatch", 409, "Provider email must match the current account email")
+	if current.Email == nil || *current.Email != identity.Email {
+		if !allowBoundSubject {
+			return newAuthError(provider.slug()+"_bind_email_mismatch", 409, "Provider email must match the current account email")
+		}
+		id, err := parseUUID(actor.ID)
+		if err != nil {
+			return err
+		}
+		bound, err := q.GetUserProviderIdentity(ctx, dbgen.GetUserProviderIdentityParams{UserID: id, Provider: string(provider)})
+		if err != nil && !isNotFound(err) {
+			return err
+		}
+		if err != nil || bound.ProviderUserID != identity.Subject {
+			return newAuthError(provider.slug()+"_bind_email_mismatch", 409, "Provider email must match the current account email")
+		}
 	}
 	if err := upsertOAuthIdentity(ctx, q, actor.ID, provider, identity); err != nil {
 		return err

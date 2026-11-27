@@ -102,6 +102,9 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		"/api/web/management/api-clients/{id}/rotate", "/api/web/management/api-keys/{id}/revoke",
 		"/api/web/management/api-clients/{id}/keys",
 		"/api/web/account/sites", "/api/web/account/sites/{shortId}",
+		"/api/web/account/email-change", "/api/web/account/email-change/send-code",
+		"/api/web/account/email-change/verify-code", "/api/web/account/email-change/verify-password",
+		"/api/web/account/email-change/complete",
 		"/api/web/account/site-submissions", "/api/web/account/site-submissions/{auditId}",
 		"/api/web/account/sites/{shortId}/updates", "/api/web/account/sites/{shortId}/friend-link-submissions",
 		"/api/web/account/sites/{shortId}/friend-links", "/api/web/account/sites/{shortId}/friend-links/{targetShortId}",
@@ -157,6 +160,7 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 		{method: "post", path: "/api/web/management/site-audits/{auditId}/review", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/api/web/management/taxonomy/changes/apply", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/api/web/auth/refresh", schemes: []string{"webToken", "refreshCookie"}},
+		{method: "post", path: "/api/web/account/email-change/complete", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/api/web/management/api-clients/{id}/keys", schemes: []string{"webToken", "accessCookie"}},
 		{method: "get", path: "/api/web/account/sites", schemes: []string{"webToken", "accessCookie"}},
 		{method: "post", path: "/api/web/account/sites/{shortId}/updates", schemes: []string{"webToken", "accessCookie"}},
@@ -221,8 +225,8 @@ func TestApplicationOpenAPIIncludesEveryTypedBusinessRoute(t *testing.T) {
 			operationIDs[operation.OperationID] = method + " " + path
 		}
 	}
-	if operationCount != 140 {
-		t.Fatalf("documented operation count = %d, want 140", operationCount)
+	if operationCount != 147 {
+		t.Fatalf("documented operation count = %d, want 147", operationCount)
 	}
 	importOperation := raw.Paths["/api/internal/v1/data-import"]["post"]
 	if !strings.Contains(string(importOperation), `"multipart/form-data"`) ||

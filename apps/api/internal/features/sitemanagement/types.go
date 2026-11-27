@@ -20,35 +20,37 @@ const (
 )
 
 type Claim struct {
-	ID             string            `json:"id"`
-	SiteID         string            `json:"-"`
-	ShortID        string            `json:"short_id"`
-	SiteName       string            `json:"site_name"`
-	CurrentAddress string            `json:"current_address"`
-	Visibility     string            `json:"-"`
-	OwnerUserID    string            `json:"-"`
-	OwnerAddress   string            `json:"-"`
-	Applicant      *Profile          `json:"applicant,omitempty"`
-	OwnershipState string            `json:"ownership_state"`
-	CanCheck       bool              `json:"can_check"`
-	CanRegenerate  bool              `json:"can_regenerate"`
-	CanCancel      bool              `json:"can_cancel"`
-	CanManage      bool              `json:"can_manage"`
-	VerifiedAt     *time.Time        `json:"verified_at,omitempty"`
-	ConsumedAt     *time.Time        `json:"consumed_at,omitempty"`
-	UserID         string            `json:"user_id"`
-	Address        string            `json:"address"`
-	Method         Method            `json:"method"`
-	Status         string            `json:"status"`
-	TokenHash      string            `json:"-"`
-	ExpiresAt      *time.Time        `json:"expires_at,omitempty"`
-	Evidence       *string           `json:"evidence,omitempty"`
-	EvidenceURL    *string           `json:"evidence_url,omitempty"`
-	ReviewReason   *string           `json:"review_reason,omitempty"`
-	ReviewedAt     *time.Time        `json:"reviewed_at,omitempty"`
-	AttachmentIDs  []string          `json:"attachment_ids,omitempty"`
-	Attachments    []ClaimAttachment `json:"attachments,omitempty"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID                     string            `json:"id"`
+	SiteID                 string            `json:"-"`
+	ShortID                string            `json:"short_id"`
+	SiteName               string            `json:"site_name"`
+	CurrentAddress         string            `json:"current_address"`
+	Visibility             string            `json:"-"`
+	OwnerUserID            string            `json:"-"`
+	OwnerAddress           string            `json:"-"`
+	EmailChangeID          string            `json:"email_change_id,omitempty"`
+	EmailChangeOwnershipID string            `json:"-"`
+	Applicant              *Profile          `json:"applicant,omitempty"`
+	OwnershipState         string            `json:"ownership_state"`
+	CanCheck               bool              `json:"can_check"`
+	CanRegenerate          bool              `json:"can_regenerate"`
+	CanCancel              bool              `json:"can_cancel"`
+	CanManage              bool              `json:"can_manage"`
+	VerifiedAt             *time.Time        `json:"verified_at,omitempty"`
+	ConsumedAt             *time.Time        `json:"consumed_at,omitempty"`
+	UserID                 string            `json:"user_id"`
+	Address                string            `json:"address"`
+	Method                 Method            `json:"method"`
+	Status                 string            `json:"status"`
+	TokenHash              string            `json:"-"`
+	ExpiresAt              *time.Time        `json:"expires_at,omitempty"`
+	Evidence               *string           `json:"evidence,omitempty"`
+	EvidenceURL            *string           `json:"evidence_url,omitempty"`
+	ReviewReason           *string           `json:"review_reason,omitempty"`
+	ReviewedAt             *time.Time        `json:"reviewed_at,omitempty"`
+	AttachmentIDs          []string          `json:"attachment_ids,omitempty"`
+	Attachments            []ClaimAttachment `json:"attachments,omitempty"`
+	CreatedAt              time.Time         `json:"created_at"`
 }
 type Ownership struct {
 	ID        string  `json:"id"`
@@ -97,6 +99,7 @@ type OwnershipDetail struct {
 type ClaimFilter struct {
 	UserID, SiteID, Status, Method string
 	Limit, Offset                  int32
+	OrdinaryOnly                   bool
 }
 type ClaimList struct {
 	Items   []Claim `json:"items"`
@@ -133,6 +136,7 @@ type SiteClaimCreateInput struct {
 	Evidence      string   `json:"evidence,omitempty" maxLength:"4000"`
 	EvidenceURL   string   `json:"evidence_url,omitempty" maxLength:"2048"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty" maxItems:"3" uniqueItems:"true"`
+	EmailChangeID string   `json:"email_change_id,omitempty" format:"uuid"`
 }
 
 // StoredClaim is the transaction input used by the repository. AttachmentIDs

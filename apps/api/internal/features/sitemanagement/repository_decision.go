@@ -11,6 +11,11 @@ import (
 
 func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) {
 	err := r.transaction(ctx, func(q *dbgen.Queries) error {
+		if input.Status == "VERIFIED" {
+			if err := lockSiteClaimApplicant(ctx, q, input.Claim); err != nil {
+				return err
+			}
+		}
 		if input.Status == "VERIFIED" && input.Claim.Method == BlogsClub {
 			if input.OAuthActor == nil || input.OAuthActor.ID != input.Claim.UserID {
 				return failure("oauth_authorization_required", "Fresh BlogsClub authorization is required", 409)
@@ -50,7 +55,8 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 		if claim.UserID == "" {
 			return failure("claim_anonymized", "The applicant account is no longer available", 409)
 		}
-		if claim.UserID != input.Claim.UserID || claim.Address != input.Claim.Address || claim.Method != input.Claim.Method {
+		if claim.UserID != input.Claim.UserID || claim.Address != input.Claim.Address || claim.Method != input.Claim.Method ||
+			claim.EmailChangeID != input.Claim.EmailChangeID || claim.EmailChangeOwnershipID != input.Claim.EmailChangeOwnershipID {
 			return failure("proof_changed", "The verification application changed; reload it before checking", 409)
 		}
 		if input.Status == "VERIFIED" && claim.Method != Manual && claim.Method != BlogsClub && claim.TokenHash != input.Claim.TokenHash {
@@ -75,8 +81,13 @@ func (r *Repository) Decide(ctx context.Context, input Decision) (Claim, error) 
 			return err
 		}
 
-		consumed := false
-		if input.Status == "VERIFIED" {
+		consumed := input.Status == "VERIFIED" && claim.EmailChangeID != ""
+		if consumed {
+			// A scoped proof is accepted here and applied only by email-change completion.
+			if err := requireEmailChangeOwnership(ctx, q, claim, target.Address); err != nil {
+				return err
+			}
+		} else if input.Status == "VERIFIED" {
 			if _, err := q.ResolveOwnershipUser(ctx, userID); err != nil {
 				return repositoryError(err)
 			}

@@ -10,6 +10,11 @@ import (
 
 func (r *Repository) Regenerate(ctx context.Context, input Claim, tokenHash string, expires time.Time) (Claim, error) {
 	err := r.transaction(ctx, func(q *dbgen.Queries) error {
+		if input.EmailChangeID != "" {
+			if err := lockSiteClaimApplicant(ctx, q, input); err != nil {
+				return err
+			}
+		}
 		target, err := q.LockClaimSite(ctx, input.ShortID)
 		if err != nil {
 			return repositoryError(err)
@@ -23,7 +28,7 @@ func (r *Repository) Regenerate(ctx context.Context, input Claim, tokenHash stri
 			return repositoryError(err)
 		}
 		claim := mapClaim(dbgen.GetSiteClaimRow(row))
-		if claim.UserID != input.UserID {
+		if claim.UserID != input.UserID || claim.EmailChangeID != input.EmailChangeID {
 			return ErrNotFound
 		}
 		if claim.TokenHash != input.TokenHash {
@@ -34,6 +39,11 @@ func (r *Repository) Regenerate(ctx context.Context, input Claim, tokenHash stri
 		}
 		if target.Visibility == "REMOVED" {
 			return failure("site_removed", "Removed sites cannot be verified", 409)
+		}
+		if claim.EmailChangeID != "" {
+			if err := requireEmailChangeOwnership(ctx, q, claim, target.Address); err != nil {
+				return err
+			}
 		}
 		if claim.OwnerUserID != "" && claim.OwnerUserID != claim.UserID {
 			return failure("site_already_owned", "This site already has a verified owner", 409)

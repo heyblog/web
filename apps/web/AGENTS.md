@@ -84,7 +84,7 @@ layer and browser-module boundaries.
   validated COS origin to its CSP via Astro's runtime CSP API in COS mode. A transport or origin
   change requires page reload before uploading. No COS configuration or signing
   secret belongs to Web. Preparation, inspection and restoration reuse the API's staged file.
-  Backup version 1 supports schema versions 3, 4 and 5 with 33 datasets and schema 6 with 34; exports use schema 6.
+  Backup version 1 supports schema versions 3–5 with 33 datasets and 6–7 with 34. Exports use schema 7.
   Inspection stays synchronous. Restore remains an API-owned task; never retry automatically.
   Resolve uncertain acceptance through a task associated with the same upload ID. Navigation
   stops polling without cancelling accepted work. Cleanup status remains independent of restore
@@ -205,3 +205,8 @@ OAuth accounts with pending confirmation enter `/complete-profile` before busine
 Confirmation and subsequent one-time username changes use the dedicated `api/account-profile`
 boundary; display names remain editable. Management user lists use server pagination and
 per-account details.
+
+Email changes start in `/dashboard/profile` and use the private, same-origin account profile API.
+Proof mutations bind to the displayed request ID and OAuth accepts proof from a previously bound
+provider. The operation reuses claim methods for each site required by the API. Those claims carry
+the email change ID and cannot supply a site's new address or open the site editor.

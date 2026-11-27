@@ -1,4 +1,6 @@
 ---
+import { loadEmailChange } from '@/api/account-profile/email-change.server';
+import { isEmailChangeId } from '@/api/account-profile/email-change.types';
 import { requestAuthAPI } from '@/api/auth/auth.server';
 import { parseEvidenceOrigin } from '@/api/site-management/claim-attachment.types';
 import { parseClaimPage } from '@/api/site-management/claims.types';
@@ -13,6 +15,18 @@ Astro.response.headers.set('Cache-Control', 'private, no-store');
 const user = Astro.locals.sessionUser;
 if (!user)
   return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
+const rawID = Astro.url.searchParams.get('short_id') ?? '';
+const shortId = /^[a-zA-Z0-9]{9}$/u.test(rawID) ? rawID : '';
+const emailChangeId = Astro.url.searchParams.get('email_change_id');
+if (emailChangeId !== null) {
+  if (!isEmailChangeId(emailChangeId) || !shortId) return Astro.redirect('/dashboard/profile');
+  const emailChange = await loadEmailChange(Astro.request, Astro.response.headers);
+  const site = emailChange?.sites.find((entry) => entry.short_id === shortId);
+  if (emailChange?.request?.id !== emailChangeId || !site)
+    return Astro.redirect('/dashboard/profile');
+  if (site.status === 'pending' || site.status === 'verified')
+    return Astro.redirect(`/dashboard/claims/${encodeURIComponent(site.claim_id)}`);
+}
 const settings = await requestAuthAPI(
   Astro.request,
   '/api/web/account/site-claim-attachments/settings',
@@ -29,24 +43,33 @@ if (settings.ok) {
 }
 if (uploadOrigin) Astro.csp?.insertDirective(`connect-src ${uploadOrigin}`);
 const { page, query } = claimListQuery(Astro.url.searchParams);
-const response = await requestAuthAPI(Astro.request, `/api/web/account/site-claims?${query}`);
-const data = response.ok ? parseClaimPage(await response.json()) : null;
-const rawID = Astro.url.searchParams.get('short_id') ?? '';
-const shortId = /^[a-zA-Z0-9]{9}$/u.test(rawID) ? rawID : '';
+const response = emailChangeId
+  ? null
+  : await requestAuthAPI(Astro.request, `/api/web/account/site-claims?${query}`);
+const data = response?.ok ? parseClaimPage(await response.json()) : null;
 ---
 
-<DashboardLayout title="站点认领" heading="站点认领" {user} currentPath={Astro.url.pathname}>
-  <ClaimWorkspace>
-    <ClaimManager
-      slot="create"
-      client:load
-      initialShortId={shortId}
-      {uploadOrigin}
-      purpose={Astro.url.searchParams.get('purpose') === 'address' ? 'address' : 'claim'}
-    />
-    <div slot="records">
-      <AuthNotice message={data ? null : '认领记录暂时无法加载，请刷新重试。'} />
-      {data && <ClaimList {data} {page} {query} />}
-    </div>
-  </ClaimWorkspace>
+<DashboardLayout
+  title={emailChangeId ? '换绑站点复验' : '站点认领'}
+  heading={emailChangeId ? '换绑站点复验' : '站点认领'}
+  {user}
+  currentPath={Astro.url.pathname}
+>
+  {emailChangeId ? (
+    <ClaimManager client:load initialShortId={shortId} {emailChangeId} {uploadOrigin} />
+  ) : (
+    <ClaimWorkspace>
+      <ClaimManager
+        slot="create"
+        client:load
+        initialShortId={shortId}
+        {uploadOrigin}
+        purpose={Astro.url.searchParams.get('purpose') === 'address' ? 'address' : 'claim'}
+      />
+      <div slot="records">
+        <AuthNotice message={data ? null : '认领记录暂时无法加载，请刷新重试。'} />
+        {data && <ClaimList {data} {page} {query} />}
+      </div>
+    </ClaimWorkspace>
+  )}
 </DashboardLayout>

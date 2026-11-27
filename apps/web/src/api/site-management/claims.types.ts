@@ -37,6 +37,7 @@ export interface Claim {
   readonly review_reason?: string;
   readonly evidence?: string;
   readonly evidence_url?: string;
+  readonly email_change_id?: string;
   readonly attachments?: readonly ClaimAttachment[];
   readonly site_name: string;
   readonly current_address: string;
@@ -159,6 +160,7 @@ export function parseClaim(value: unknown): Claim {
     review_reason: optional(item.review_reason),
     evidence: optional(item.evidence),
     evidence_url: optional(item.evidence_url),
+    ...(item.email_change_id == null ? {} : { email_change_id: text(item.email_change_id) }),
     ...(item.attachments == null ? {} : { attachments: parseClaimAttachments(item.attachments) }),
     site_name: text(item.site_name),
     current_address: text(item.current_address),

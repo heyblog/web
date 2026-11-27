@@ -59,12 +59,17 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	if err := target.pool.QueryRow(t.Context(), `INSERT INTO identity.users(email,username,display_name,role) VALUES('target@example.test','target_admin','Target','SYS_ADMIN') RETURNING id::text`).Scan(&retained); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := target.pool.Exec(t.Context(), `INSERT INTO identity.email_change_requests(user_id,auth_version,old_email,new_email,expires_at)
+		SELECT id,auth_version,email,'replacement@example.test',clock_timestamp()+interval '7 days'
+		FROM identity.users WHERE id=$1::uuid`, retained); err != nil {
+		t.Fatal(err)
+	}
 	restore := databasebackup.New(target.pool)
 	preview, err := restore.Inspect(t.Context(), file, retained)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !preview.CanRestore || preview.SchemaVersion != 7 {
+	if !preview.CanRestore || preview.SchemaVersion != 8 {
 		t.Fatalf("unexpected inspection: %+v", preview)
 	}
 	verifyBackupRestoreLocks(t, target, retained)
@@ -76,6 +81,10 @@ func TestDatabaseBackupRestoresOriginalIdentifiers(t *testing.T) {
 	}
 	if result.AdminMapping.SourceID != actor || result.AdminMapping.TargetID != retained {
 		t.Fatal("administrator mapping mismatch")
+	}
+	var pendingEmailChanges int
+	if err := target.pool.QueryRow(t.Context(), `SELECT count(*) FROM identity.email_change_requests`).Scan(&pendingEmailChanges); err != nil || pendingEmailChanges != 0 {
+		t.Fatalf("restore left %d pending email changes: %v", pendingEmailChanges, err)
 	}
 	var actual string
 	if err := target.pool.QueryRow(t.Context(), `SELECT id::text FROM directory.sites WHERE short_id='Backup123'`).Scan(&actual); err != nil {

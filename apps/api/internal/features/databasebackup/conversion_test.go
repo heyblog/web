@@ -75,3 +75,20 @@ func TestLegacySiteConversionRejectsExplicitClassification(t *testing.T) {
 		t.Fatalf("legacy site accepted a classification: %v", err)
 	}
 }
+
+func TestEmailChangeClaimBackupConversion(t *testing.T) {
+	legacy, err := convertSiteClaim(7, json.RawMessage(`{"status":"PENDING","reviewed_at":null}`))
+	if err != nil || string(legacy) != `{"email_change_id":null,"email_change_ownership_id":null,"reviewed_at":null,"status":"PENDING"}` {
+		t.Fatalf("schema 7 claim: %s / %v", legacy, err)
+	}
+	pending := json.RawMessage(`{"email_change_id":"request","email_change_ownership_id":"owner","status":"PENDING","created_at":"2026-11-01T00:00:00Z","reviewed_at":null}`)
+	closed, err := convertSiteClaim(8, pending)
+	if err != nil || string(closed) != `{"created_at":"2026-11-01T00:00:00Z","email_change_id":"request","email_change_ownership_id":"owner","reviewed_at":"2026-11-01T00:00:00Z","status":"CANCELLED"}` {
+		t.Fatalf("restored pending claim: %s / %v", closed, err)
+	}
+	verified := json.RawMessage(`{"email_change_id":"request","email_change_ownership_id":"owner","status":"VERIFIED","consumed_at":"2026-11-01T00:00:00Z"}`)
+	history, err := convertSiteClaim(8, verified)
+	if err != nil || string(history) != string(verified) {
+		t.Fatalf("restored verified claim: %s / %v", history, err)
+	}
+}
