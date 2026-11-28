@@ -3,7 +3,7 @@ import { IconChevronDown, IconLogout2 } from '@tabler/icons-svelte';
 
 import { managementNavigation } from '@/application/management/navigation';
 import { canAnnotateSites } from '@/application/site-annotation/annotation-access';
-import { annotationListPath } from '@/application/site-annotation/annotation-view';
+import { annotationOverviewPath } from '@/application/site-annotation/annotation-view';
 import { siteConfig } from '@/site.config';
 
 import BaseLayout from './BaseLayout.astro';
@@ -47,7 +47,7 @@ if (workspace === 'management' || (user && managementNavigation(user).length > 0
 if (user && canAnnotateSites(user)) {
   workspaces.push({
     key: 'annotation',
-    href: annotationListPath,
+    href: annotationOverviewPath,
     label: '标注工作区',
     shortLabel: '标注',
   });
