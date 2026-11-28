@@ -225,6 +225,8 @@ gh workflow run container.yaml --repo heyblog/web --ref main -f ci_run_id=123456
 
 工作流不配置发布并发队列。发布 `latest` 前的 SHA 检查不是原子操作，仍存在检查后 main 更新或多个发布并行执行的竞争窗口。
 
+生产自动部署的启用方式、主机权限和回滚流程见[生产部署文档](./infra/DEPLOYMENT.md)。
+
 ## Renovate 依赖更新
 
 常规 minor、patch、digest 和 pinDigest 更新集中为 `chore(deps): update non-major dependencies` 批次。每周锁文件维护保持独立 PR。配置当前处于分阶段启用的第一阶段，两类 PR 的自动合并均关闭；完成下述仓库保护设置后才能开启检查通过后的自动 squash 合并。更新窗口仍为上海时间每周一 00:00–05:59；npm 新版本等待七天。

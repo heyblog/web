@@ -23,6 +23,7 @@ ambiguity before implementing behavior.
 ## Repository Map
 
 - `apps/api`: backend API application.
+- `apps/deployer`: production deployment webhook and container rollback.
 - `apps/web`: frontend web application.
 - `apps/edge`: shared Hono request executor with Cloudflare and EdgeOne adapters.
 - `apps/worker`: standalone HTTP task scheduler and executor; no database access.
