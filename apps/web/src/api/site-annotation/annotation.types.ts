@@ -118,3 +118,17 @@ export interface AnnotationPatch extends Partial<AnnotationFields> {
   readonly friend_version: AnnotationDetail['friend_version'];
   readonly reason?: string;
 }
+
+export interface AnnotationStats {
+  readonly total: number;
+  readonly annotated: number;
+  readonly unreviewed: number;
+  readonly blog: number;
+  readonly non_blog: number;
+  readonly actor_annotated: number;
+  readonly actor_today_annotated: number;
+}
+
+export interface AnnotationNext {
+  readonly short_id: string;
+}

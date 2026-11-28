@@ -1,7 +1,10 @@
 ---
 import type { SessionUser } from '@/api/auth/auth.types';
 import { roleLabels } from '@/application/management/users.model';
-import { annotationListPath } from '@/application/site-annotation/annotation-view';
+import {
+  annotationListPath,
+  annotationOverviewPath,
+} from '@/application/site-annotation/annotation-view';
 
 import WorkspaceLayout from './WorkspaceLayout.astro';
 
@@ -23,7 +26,10 @@ const { actor, heading } = Astro.props;
     email: actor.email ?? '',
     roleLabel: roleLabels[actor.role],
   }}
-  navigation={[{ label: '站点标注', href: annotationListPath }]}
+  navigation={[
+    { label: '标注状态区', href: annotationOverviewPath },
+    { label: '站点目录', href: annotationListPath },
+  ]}
 >
   <slot />
 </WorkspaceLayout>

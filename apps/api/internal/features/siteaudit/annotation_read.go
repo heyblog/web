@@ -192,3 +192,44 @@ func mapAnnotation(
 	detail.FriendVersion = hex.EncodeToString(version[:])
 	return detail, nil
 }
+
+func (repo *Repository) annotationStats(ctx context.Context, actorIDText string) (AnnotationStats, error) {
+	actorID, err := parseUUID(actorIDText)
+	if err != nil {
+		return AnnotationStats{}, err
+	}
+	tx, err := repo.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return AnnotationStats{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := repo.queries.WithTx(tx)
+	statusCounts, err := q.GetAnnotationStatusCounts(ctx)
+	if err != nil {
+		return AnnotationStats{}, err
+	}
+	actorCounts, err := q.GetActorAnnotationCounts(ctx, actorID)
+	if err != nil {
+		return AnnotationStats{}, err
+	}
+	return AnnotationStats{
+		Total:               statusCounts.Total,
+		Annotated:           statusCounts.Blog + statusCounts.NonBlog,
+		Unreviewed:          statusCounts.Unreviewed,
+		Blog:                statusCounts.Blog,
+		NonBlog:             statusCounts.NonBlog,
+		ActorAnnotated:      actorCounts.AnnotatedSites,
+		ActorTodayAnnotated: actorCounts.TodayAnnotatedSites,
+	}, tx.Commit(ctx)
+}
+
+func (repo *Repository) nextUnreviewedAnnotation(ctx context.Context, excludeShortID string) (AnnotationNext, error) {
+	shortID, err := repo.queries.PickNextUnreviewedAnnotationSite(ctx, excludeShortID)
+	if isNotFound(err) {
+		return AnnotationNext{}, nil
+	}
+	if err != nil {
+		return AnnotationNext{}, err
+	}
+	return AnnotationNext{ShortID: shortID}, nil
+}

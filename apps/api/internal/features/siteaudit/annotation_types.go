@@ -105,3 +105,17 @@ type annotationPage[T any] struct {
 	PageSize int32 `json:"page_size"`
 	Total    int64 `json:"total"`
 }
+
+type AnnotationStats struct {
+	Total               int64 `json:"total"`
+	Annotated           int64 `json:"annotated"`
+	Unreviewed          int64 `json:"unreviewed"`
+	Blog                int64 `json:"blog"`
+	NonBlog             int64 `json:"non_blog"`
+	ActorAnnotated      int64 `json:"actor_annotated"`
+	ActorTodayAnnotated int64 `json:"actor_today_annotated"`
+}
+
+type AnnotationNext struct {
+	ShortID string `json:"short_id"`
+}

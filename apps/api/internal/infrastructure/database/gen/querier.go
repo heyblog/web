@@ -93,6 +93,8 @@ type Querier interface {
 	GetAccountFriendRequestAudit(ctx context.Context, arg GetAccountFriendRequestAuditParams) (pgtype.UUID, error)
 	GetAccountSite(ctx context.Context, arg GetAccountSiteParams) (DirectorySite, error)
 	GetActiveBannerAnnouncement(ctx context.Context) (ContentAnnouncement, error)
+	GetActorAnnotationCounts(ctx context.Context, actorID pgtype.UUID) (GetActorAnnotationCountsRow, error)
+	GetAnnotationStatusCounts(ctx context.Context) (GetAnnotationStatusCountsRow, error)
 	GetAnnouncementByID(ctx context.Context, id pgtype.UUID) (ContentAnnouncement, error)
 	GetCanonicalCascade(ctx context.Context, id pgtype.UUID) (GetCanonicalCascadeRow, error)
 	GetCanonicalTag(ctx context.Context, id pgtype.UUID) (DirectoryTag, error)
@@ -245,6 +247,7 @@ type Querier interface {
 	MarkSiteClaimAttachmentArchived(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
 	MarkSiteClaimAttachmentDeleted(ctx context.Context, dollar_1 pgtype.UUID) (int64, error)
 	MarkSiteClaimAttachmentUploadCleaned(ctx context.Context, dollar_1 pgtype.UUID) error
+	PickNextUnreviewedAnnotationSite(ctx context.Context, excludeShortID string) (string, error)
 	PickRandomVisibleSite(ctx context.Context, arg PickRandomVisibleSiteParams) (DirectorySite, error)
 	Ping(ctx context.Context) (int64, error)
 	PublishAnnouncement(ctx context.Context, arg PublishAnnouncementParams) (ContentAnnouncement, error)

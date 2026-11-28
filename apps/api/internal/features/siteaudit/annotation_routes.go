@@ -26,6 +26,10 @@ type annotationHistoryInput struct {
 	Page    string `query:"page"`
 }
 
+type annotationNextInput struct {
+	Exclude string `query:"exclude" maxLength:"64"`
+}
+
 func RegisterAnnotationRoutes(api huma.API, repository *Repository, authentication *auth.Service, webToken string) {
 	const path = "/api/web/management/site-annotations"
 	operation := func(id, method, suffix, summary string) huma.Operation {
@@ -49,6 +53,14 @@ func RegisterAnnotationRoutes(api huma.API, repository *Repository, authenticati
 	registerAnnotationOperation(api, operation("get-site-annotation-options", http.MethodGet, "/options", "List annotation options"), authentication,
 		func(ctx context.Context, _ *struct{}, _ auth.User) (SubmissionOptions, error) {
 			return repository.Options(ctx)
+		})
+	registerAnnotationOperation(api, operation("get-site-annotation-stats", http.MethodGet, "/stats", "Get site annotation overview stats"), authentication,
+		func(ctx context.Context, _ *struct{}, actor auth.User) (AnnotationStats, error) {
+			return repository.annotationStats(ctx, actor.ID)
+		})
+	registerAnnotationOperation(api, operation("get-next-site-annotation", http.MethodGet, "/next", "Pick a random unreviewed site for annotation"), authentication,
+		func(ctx context.Context, input *annotationNextInput, _ auth.User) (AnnotationNext, error) {
+			return repository.nextUnreviewedAnnotation(ctx, strings.TrimSpace(input.Exclude))
 		})
 	registerAnnotationOperation(api, operation("get-site-annotation", http.MethodGet, "/{shortId}", "Get site annotation detail"), authentication,
 		func(ctx context.Context, input *shortIDInput, _ auth.User) (AnnotationDetail, error) {

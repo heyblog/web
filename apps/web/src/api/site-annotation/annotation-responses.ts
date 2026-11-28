@@ -5,8 +5,10 @@ import {
   type AnnotationDetail,
   type AnnotationHistoryItem,
   type AnnotationItem,
+  type AnnotationNext,
   type AnnotationOptions,
   type AnnotationPage,
+  type AnnotationStats,
   blogStatuses,
   componentRoles,
   historySources,
@@ -135,4 +137,23 @@ export function parseAnnotationOptions(value: unknown): AnnotationOptions {
       return { id: id(cascade.id), level1: option(cascade.level1), level2: option(cascade.level2) };
     }),
   };
+}
+
+export function parseAnnotationStats(value: unknown): AnnotationStats {
+  const stats = record(value);
+  return {
+    total: int(stats.total),
+    annotated: int(stats.annotated),
+    unreviewed: int(stats.unreviewed),
+    blog: int(stats.blog),
+    non_blog: int(stats.non_blog),
+    actor_annotated: int(stats.actor_annotated),
+    actor_today_annotated: int(stats.actor_today_annotated),
+  };
+}
+
+export function parseAnnotationNext(value: unknown): AnnotationNext {
+  const next = record(value);
+  const shortId = text(next.short_id);
+  return { short_id: shortId ? id(shortId) : '' };
 }

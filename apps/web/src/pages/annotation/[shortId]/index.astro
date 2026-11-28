@@ -1,6 +1,6 @@
 ---
 import { readAnnotation } from '@/api/site-annotation/annotation.server';
-import { isAnnotationID } from '@/api/site-annotation/annotation-contract';
+import { isAnnotationID, isReservedAnnotationID } from '@/api/site-annotation/annotation-contract';
 import {
   parseAnnotationDetail,
   parseAnnotationOptions,
@@ -13,6 +13,7 @@ import {
   annotationDetailPath,
   annotationFailure,
   annotationListPath,
+  annotationOverviewPath,
 } from '@/application/site-annotation/annotation-view';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
 import { linkClass } from '@/components/site-annotation/annotation.styles';
@@ -25,7 +26,7 @@ const actor = Astro.locals.sessionUser;
 if (!actor) return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname));
 if (!canAnnotateSites(actor)) return Astro.redirect('/forbidden');
 const { shortId } = Astro.params;
-if (!isAnnotationID(shortId) || shortId === 'options')
+if (!isAnnotationID(shortId) || isReservedAnnotationID(shortId))
   return new Response(null, { status: 404, headers: Astro.response.headers });
 const [detailResult, optionsResult] = await Promise.all([
   readAnnotation(Astro.request, shortId, parseAnnotationDetail),
@@ -42,8 +43,11 @@ if (!detail) Astro.response.status = detailStatus;
 
 <AnnotationLayout {actor} heading="编辑站点标注">
   <nav class="mb-4 flex flex-wrap gap-x-5" aria-label="站点标注">
+    <a class={linkClass} href={annotationOverviewPath}>
+      返回标注状态区
+    </a>
     <a class={linkClass} href={annotationListPath}>
-      返回标注台
+      站点目录
     </a>
     {detail && (
       <a class={linkClass} href={`${annotationDetailPath(shortId)}/history`}>

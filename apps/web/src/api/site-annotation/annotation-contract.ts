@@ -4,8 +4,14 @@ export const annotationAPIPath = '/api/web/management/site-annotations';
 export const annotationSearchLimit = 160;
 export const annotationBodyLimit = 256 * 1024;
 
+const reservedAnnotationIDs = new Set(['options', 'stats', 'next', 'sites']);
+
 export function isAnnotationID(value: string | undefined): value is string {
   return Boolean(value && /^[a-zA-Z0-9_-]{1,64}$/u.test(value));
+}
+
+export function isReservedAnnotationID(value: string | undefined): boolean {
+  return Boolean(value && reservedAnnotationIDs.has(value));
 }
 
 export function annotationStatus(value: string | null): (typeof annotationFilters)[number] {
@@ -37,7 +43,15 @@ export function annotationTarget(
   if (method === 'GET') {
     if (path === '') return `?${annotationQuery(query, 'list')}`;
     if (path === 'options') return '/options';
-    if (isAnnotationID(id) && id !== 'options') {
+    if (path === 'stats') return '/stats';
+    if (path === 'next') {
+      const exclude = query.get('exclude')?.trim();
+      if (isAnnotationID(exclude) && !isReservedAnnotationID(exclude)) {
+        return `/next?exclude=${encodeURIComponent(exclude)}`;
+      }
+      return '/next';
+    }
+    if (isAnnotationID(id) && !isReservedAnnotationID(id)) {
       if (child === undefined) return `/${id}`;
       if (child === 'history') {
         const parameters = annotationQuery(query, 'history');
@@ -45,7 +59,12 @@ export function annotationTarget(
       }
     }
   }
-  if (method === 'PATCH' && isAnnotationID(id) && id !== 'options' && child === undefined)
+  if (
+    method === 'PATCH' &&
+    isAnnotationID(id) &&
+    !isReservedAnnotationID(id) &&
+    child === undefined
+  )
     return `/${id}`;
   return null;
 }

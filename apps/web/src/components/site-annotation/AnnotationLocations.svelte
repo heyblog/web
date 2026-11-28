@@ -9,10 +9,21 @@
   let {
     draft = $bindable(),
     allocateKey,
+    includeLinkPage = true,
   }: {
     draft: AnnotationDraft;
     allocateKey: () => number;
+    includeLinkPage?: boolean;
   } = $props();
+
+  const availableResourceKinds = $derived(
+    includeLinkPage ? resourceKinds : resourceKinds.filter((kind) => kind !== 'LINK_PAGE'),
+  );
+  const visibleResources = $derived(
+    includeLinkPage
+      ? draft.resources
+      : draft.resources.filter((resource) => resource.kind !== 'LINK_PAGE'),
+  );
 
   function ensureDefaultFeed() {
     if (draft.feeds.some((feed) => feed.is_default)) return;
@@ -48,7 +59,7 @@
   }
 
   function addResource() {
-    const kind = resourceKinds.find(
+    const kind = availableResourceKinds.find(
       (kind) => !draft.resources.some((resource) => resource.kind === kind),
     );
     if (kind) draft.resources.push({ key: allocateKey(), kind, url: '' });
@@ -119,16 +130,16 @@
       class={buttonClass}
       type="button"
       onclick={addResource}
-      disabled={draft.resources.length >= resourceKinds.length}>添加资源</button
+      disabled={visibleResources.length >= availableResourceKinds.length}>添加资源</button
     >
   </div>
-  {#if draft.resources.length === 0}<p class="text-sm text-fg-muted">暂无资源。</p>{/if}
-  {#each draft.resources as resource (resource.key)}
+  {#if visibleResources.length === 0}<p class="text-sm text-fg-muted">暂无资源。</p>{/if}
+  {#each visibleResources as resource (resource.key)}
     <div class={rowClass}>
       <label class={fieldClass}
         >类型
         <select class={inputClass} bind:value={resource.kind}>
-          {#each resourceKinds as kind (kind)}
+          {#each availableResourceKinds as kind (kind)}
             <option
               value={kind}
               disabled={draft.resources.some(

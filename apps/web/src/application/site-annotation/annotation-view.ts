@@ -6,10 +6,11 @@ import type {
   OutgoingLink,
 } from '../../api/site-annotation/annotation.types.ts';
 
-export const annotationListPath = '/annotation';
+export const annotationOverviewPath = '/annotation';
+export const annotationListPath = '/annotation/sites';
 
 export function annotationDetailPath(shortId: string): string {
-  return `${annotationListPath}/${encodeURIComponent(shortId)}`;
+  return `${annotationOverviewPath}/${encodeURIComponent(shortId)}`;
 }
 
 export const statusLabels = {
