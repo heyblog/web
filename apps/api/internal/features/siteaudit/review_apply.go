@@ -28,7 +28,7 @@ func (service *Service) approve(ctx context.Context, transaction AuditTransactio
 		if input.ExpectedSiteRevision != current.Revision {
 			return Audit{}, newServiceError("site_revision_changed", http.StatusConflict, "the site changed; refresh the three-way diff before reviewing")
 		}
-		if current.BlogStatus == site.BlogExcluded || current.BlogStatus == site.BlogUnreviewed {
+		if current.BlogStatus != site.BlogConfirmed {
 			if audit.Action != ActionUpdate {
 				return Audit{}, newServiceError("site_not_blog", http.StatusConflict, "only blogs can be removed or restored")
 			}

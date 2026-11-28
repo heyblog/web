@@ -1,6 +1,10 @@
 ---
 import { readAnnotation } from '@/api/site-annotation/annotation.server';
-import { annotationQuery, isAnnotationID } from '@/api/site-annotation/annotation-contract';
+import {
+  annotationQuery,
+  isAnnotationID,
+  isReservedAnnotationID,
+} from '@/api/site-annotation/annotation-contract';
 import { parseAnnotationHistory } from '@/api/site-annotation/annotation-responses';
 import { canAnnotateSites } from '@/application/site-annotation/annotation-access';
 import {
@@ -22,7 +26,7 @@ if (!actor)
   return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
 if (!canAnnotateSites(actor)) return Astro.redirect('/forbidden');
 const { shortId } = Astro.params;
-if (!isAnnotationID(shortId) || shortId === 'options')
+if (!isAnnotationID(shortId) || isReservedAnnotationID(shortId))
   return new Response(null, { status: 404, headers: Astro.response.headers });
 const { data, status, headers } = await readAnnotation(
   Astro.request,

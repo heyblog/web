@@ -6,15 +6,17 @@ import type {
   OutgoingLink,
 } from '../../api/site-annotation/annotation.types.ts';
 
-export const annotationListPath = '/annotation';
+export const annotationOverviewPath = '/annotation';
+export const annotationListPath = '/annotation/sites';
 
 export function annotationDetailPath(shortId: string): string {
-  return `${annotationListPath}/${encodeURIComponent(shortId)}`;
+  return `${annotationOverviewPath}/${encodeURIComponent(shortId)}`;
 }
 
 export const statusLabels = {
   UNREVIEWED: '待标注',
   BLOG: '博客',
+  HYBRID: '混合',
   NON_BLOG: '非博客',
   ALL: '全部',
 } satisfies Record<AnnotationItem['blog_status'] | 'ALL', string>;

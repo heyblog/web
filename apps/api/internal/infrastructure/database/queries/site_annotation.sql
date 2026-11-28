@@ -87,3 +87,27 @@ SELECT COALESCE(MAX(site_revision), 0)::bigint
  WHERE site_id = $1 AND source = 'ANNOTATION'
    AND after_snapshot->>'blog_status' = 'NON_BLOG'
    AND before_snapshot->>'blog_status' IS DISTINCT FROM 'NON_BLOG';
+
+-- name: GetAnnotationStatusCounts :one
+SELECT count(*)::bigint AS total,
+       count(*) FILTER (WHERE blog_status = 'UNREVIEWED')::bigint AS unreviewed,
+       count(*) FILTER (WHERE blog_status = 'BLOG')::bigint AS blog,
+       count(*) FILTER (WHERE blog_status = 'HYBRID')::bigint AS hybrid,
+       count(*) FILTER (WHERE blog_status = 'NON_BLOG')::bigint AS non_blog
+  FROM directory.sites;
+
+-- name: GetActorAnnotationCounts :one
+SELECT count(DISTINCT site_id)::bigint AS annotated_sites,
+       count(DISTINCT site_id) FILTER (
+           WHERE created_at >= (date_trunc('day', now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai')
+       )::bigint AS today_annotated_sites
+  FROM directory.site_annotation_history
+ WHERE actor_id = sqlc.arg(actor_id)::uuid AND source = 'ANNOTATION';
+
+-- name: PickNextUnreviewedAnnotationSite :one
+SELECT short_id
+  FROM directory.sites
+ WHERE blog_status = 'UNREVIEWED'
+   AND (sqlc.arg(exclude_short_id)::text = '' OR short_id <> sqlc.arg(exclude_short_id))
+ ORDER BY random()
+ LIMIT 1;

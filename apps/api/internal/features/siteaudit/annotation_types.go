@@ -78,7 +78,7 @@ type AnnotationPatch struct {
 	Name             *string                 `json:"name,omitempty" maxLength:"160"`
 	URL              *string                 `json:"url,omitempty" maxLength:"2048"`
 	Summary          *string                 `json:"summary,omitempty" maxLength:"2000"`
-	BlogStatus       *site.BlogStatus        `json:"blog_status,omitempty" enum:"UNREVIEWED,BLOG,NON_BLOG"`
+	BlogStatus       *site.BlogStatus        `json:"blog_status,omitempty" enum:"UNREVIEWED,BLOG,HYBRID,NON_BLOG"`
 	TagCascadeID     *string                 `json:"tag_cascade_id,omitempty" format:"uuid"`
 	Tags             []AnnotationSelection   `json:"tags,omitempty" maxItems:"40"`
 	Components       []AnnotationSelection   `json:"components,omitempty" maxItems:"50"`
@@ -104,4 +104,19 @@ type annotationPage[T any] struct {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"page_size"`
 	Total    int64 `json:"total"`
+}
+
+type AnnotationStats struct {
+	Total               int64 `json:"total"`
+	Annotated           int64 `json:"annotated"`
+	Unreviewed          int64 `json:"unreviewed"`
+	Blog                int64 `json:"blog"`
+	Hybrid              int64 `json:"hybrid"`
+	NonBlog             int64 `json:"non_blog"`
+	ActorAnnotated      int64 `json:"actor_annotated"`
+	ActorTodayAnnotated int64 `json:"actor_today_annotated"`
+}
+
+type AnnotationNext struct {
+	ShortID string `json:"short_id"`
 }

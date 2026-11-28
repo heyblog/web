@@ -1,30 +1,15 @@
 ---
 import { readAnnotation } from '@/api/site-annotation/annotation.server';
-import { annotationFilters } from '@/api/site-annotation/annotation.types';
+import { parseAnnotationStats } from '@/api/site-annotation/annotation-responses';
+import { canAnnotateSites } from '@/application/site-annotation/annotation-access';
 import {
-  annotationQuery,
-  annotationSearchLimit,
-  annotationStatus,
-} from '@/api/site-annotation/annotation-contract';
-import { parseAnnotationPage } from '@/api/site-annotation/annotation-responses';
-import {
-  canAnnotateSites,
-  canReviewSiteAudits,
-} from '@/application/site-annotation/annotation-access';
-import {
-  annotationDetailPath,
   annotationFailure,
   annotationListPath,
-  annotationTime,
   statusLabels,
 } from '@/application/site-annotation/annotation-view';
 import AuthNotice from '@/components/auth/AuthNotice.astro';
-import {
-  inputClass,
-  linkClass,
-  primaryClass,
-} from '@/components/site-annotation/annotation.styles';
-import PageNavigation from '@/components/site-management/PageNavigation.astro';
+import { linkClass, sectionClass } from '@/components/site-annotation/annotation.styles';
+import AnnotationStartButton from '@/components/site-annotation/AnnotationStartButton.svelte';
 import AnnotationLayout from '@/layouts/AnnotationLayout.astro';
 
 export const prerender = false;
@@ -33,103 +18,116 @@ const actor = Astro.locals.sessionUser;
 if (!actor)
   return Astro.redirect('/login?next=' + encodeURIComponent(Astro.url.pathname + Astro.url.search));
 if (!canAnnotateSites(actor)) return Astro.redirect('/forbidden');
-const canReview = canReviewSiteAudits(actor);
-const query = annotationQuery(Astro.url.searchParams, 'list');
-const status = annotationStatus(query.get('status'));
-const q = query.get('q') ?? '';
+
 const {
-  data,
+  data: stats,
   status: responseStatus,
   headers,
-} = await readAnnotation(Astro.request, '', parseAnnotationPage);
+} = await readAnnotation(Astro.request, 'stats', parseAnnotationStats);
 for (const cookie of headers.getSetCookie()) Astro.response.headers.append('Set-Cookie', cookie);
-if (!data) Astro.response.status = responseStatus;
+if (!stats) Astro.response.status = responseStatus;
+
+function formatPercent(part: number, total: number): string {
+  if (total <= 0 || part <= 0) return '0%';
+  const raw = (part / total) * 100;
+  if (raw < 0.1) return '<0.1%';
+  if (raw > 99.9 && part < total) return '>99.9%';
+  return `${Number(raw.toFixed(1))}%`;
+}
+
+const completionWidth =
+  stats && stats.total > 0 ? Math.min(100, (stats.annotated / stats.total) * 100) : 0;
+const completionLabel = stats ? formatPercent(stats.annotated, stats.total) : '0%';
+
+const statusBreakdown = stats
+  ? [
+      {
+        status: 'UNREVIEWED' as const,
+        count: stats.unreviewed,
+        badgeClass: 'bg-warning-bg text-warning-fg',
+      },
+      {
+        status: 'BLOG' as const,
+        count: stats.blog,
+        badgeClass: 'bg-success-bg text-success-fg',
+      },
+      {
+        status: 'HYBRID' as const,
+        count: stats.hybrid,
+        badgeClass: 'bg-subtle text-tint-fg',
+      },
+      {
+        status: 'NON_BLOG' as const,
+        count: stats.non_blog,
+        badgeClass: 'bg-subtle text-fg-muted',
+      },
+    ]
+  : [];
 ---
 
-<AnnotationLayout {actor} heading="标注台">
-  <form method="get" action={annotationListPath} class="mb-6 flex flex-wrap items-end gap-3">
-    <label class="grid w-full min-w-0 gap-1.5 text-sm font-medium sm:flex-1">
-      搜索站点
-      <input
-        class={inputClass}
-        type="search"
-        name="q"
-        value={q}
-        maxlength={annotationSearchLimit}
-        placeholder="站点名称、网址或短 ID"
-      />
-    </label>
-    <label class="grid flex-1 gap-1.5 text-sm font-medium sm:flex-none">
-      标注状态
-      <select class={inputClass} name="status">
-        {annotationFilters.map((value) => (
-          <option value={value} selected={status === value}>
-            {statusLabels[value]}
-          </option>
-        ))}
-      </select>
-    </label>
-    <button class={primaryClass} type="submit">
-      筛选
-    </button>
-  </form>
-  {data ? (
-    <>
-      <p class="mb-3 text-sm text-fg-muted">共 {data.total} 个站点</p>
-      {data.items.length ? (
-        <ul class="divide-y divide-line rounded-md border border-line bg-surface">
-          {data.items.map((site) => (
-            <li class="grid min-w-0 gap-x-6 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <div class="min-w-0">
-                <a class={`${linkClass} wrap-anywhere`} href={annotationDetailPath(site.short_id)}>
-                  {site.name || site.short_id}
-                </a>
-                <p class="text-sm wrap-anywhere text-fg-muted">{site.url}</p>
-              </div>
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span
-                  class:list={[
-                    'rounded-sm px-2 py-0.5 text-xs font-medium',
-                    site.blog_status === 'BLOG'
-                      ? 'bg-success-bg text-success-fg'
-                      : site.blog_status === 'UNREVIEWED'
-                        ? 'bg-warning-bg text-warning-fg'
-                        : 'bg-subtle text-fg-muted',
-                  ]}
-                >
-                  {statusLabels[site.blog_status]}
-                </span>
-                <time class="text-fg-muted" datetime={site.updated_at}>
-                  {annotationTime(site.updated_at)}
-                </time>
-                {site.pending_audit_id &&
-                  (canReview ? (
-                    <a
-                      class={linkClass}
-                      href={`/management/site-submissions/${site.pending_audit_id}`}
-                    >
-                      有待审核申请
-                    </a>
-                  ) : (
-                    <span class="text-warning-fg">有待审核申请</span>
-                  ))}
-              </div>
+<AnnotationLayout {actor} heading="标注状态区">
+  {stats ? (
+    <div class="grid min-w-0 gap-6">
+      <section class={sectionClass} aria-labelledby="annotation-start">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="grid gap-1">
+            <h2 id="annotation-start" class="text-lg font-semibold">
+              {stats.unreviewed > 0 ? '随机抽取待标注博客' : '所有站点均已完成标注'}
+            </h2>
+            <p class="text-sm text-fg-muted">
+              点击开始标注将随机进入一个未标注的站点，标完可直接切到下一个。
+            </p>
+          </div>
+          <AnnotationStartButton unreviewed={stats.unreviewed} client:load />
+        </div>
+        <div class="grid gap-2 border-t border-line pt-4">
+          <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+            <span class="text-fg-muted">
+              总体标注进度：<strong class="font-medium text-fg">{stats.annotated}</strong> /{' '}
+              {stats.total}（{completionLabel}）
+            </span>
+            <span class="text-fg-muted">
+              当前账号已标注：<strong class="font-medium text-fg">{stats.actor_annotated}</strong>
+              （今日 {stats.actor_today_annotated}）
+            </span>
+          </div>
+          <div class="h-2.5 w-full overflow-hidden rounded-full bg-subtle">
+            <div class="h-full rounded-full bg-primary" style={`width: ${completionWidth}%`} />
+          </div>
+        </div>
+      </section>
+
+      <section class={sectionClass} aria-labelledby="annotation-status-distribution">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="annotation-status-distribution" class="text-lg font-semibold">
+            各标注状态分布
+          </h2>
+          <a class={linkClass} href={annotationListPath}>
+            进入站点目录
+          </a>
+        </div>
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {statusBreakdown.map((item) => (
+            <li class="rounded-md border border-line p-4">
+              <a
+                class="grid gap-2 hover:opacity-85"
+                href={`${annotationListPath}?status=${item.status}`}
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <span class={`rounded-sm px-2 py-0.5 text-xs font-medium ${item.badgeClass}`}>
+                    {statusLabels[item.status]}
+                  </span>
+                  <span class="text-xs text-fg-muted">
+                    {formatPercent(item.count, stats.total)}
+                  </span>
+                </div>
+                <strong class="text-2xl font-semibold">{item.count}</strong>
+              </a>
             </li>
           ))}
         </ul>
-      ) : (
-        <p class="rounded-md border border-dashed border-line px-4 py-10 text-center text-sm text-fg-muted">
-          没有符合条件的站点。
-        </p>
-      )}
-      {(data.page > 1 || data.total > data.page_size) && (
-        <PageNavigation
-          page={data.page}
-          hasNext={data.page * data.page_size < data.total}
-          {query}
-        />
-      )}
-    </>
+      </section>
+    </div>
   ) : (
     <AuthNotice message={annotationFailure(responseStatus, 'load')} />
   )}

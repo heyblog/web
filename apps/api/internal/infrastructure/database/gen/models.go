@@ -144,7 +144,7 @@ type DirectorySite struct {
 	UpdatedAt pgtype.Timestamptz
 	// Required SITE taxonomy path.
 	TagCascadeID pgtype.UUID
-	// Whether the site is an eligible blog, a confirmed non-blog, or awaiting annotation.
+	// Whether the site is an eligible blog, a hybrid/borderline blog, a confirmed non-blog, or awaiting annotation.
 	BlogStatus string
 	// Observed health: OK, WARN, DOWN; null until ten valid rounds.
 	Status *string

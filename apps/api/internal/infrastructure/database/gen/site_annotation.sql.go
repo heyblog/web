@@ -68,6 +68,57 @@ func (q *Queries) CountSiteAnnotationHistory(ctx context.Context, siteID pgtype.
 	return column_1, err
 }
 
+const getActorAnnotationCounts = `-- name: GetActorAnnotationCounts :one
+SELECT count(DISTINCT site_id)::bigint AS annotated_sites,
+       count(DISTINCT site_id) FILTER (
+           WHERE created_at >= (date_trunc('day', now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai')
+       )::bigint AS today_annotated_sites
+  FROM directory.site_annotation_history
+ WHERE actor_id = $1::uuid AND source = 'ANNOTATION'
+`
+
+type GetActorAnnotationCountsRow struct {
+	AnnotatedSites      int64
+	TodayAnnotatedSites int64
+}
+
+func (q *Queries) GetActorAnnotationCounts(ctx context.Context, actorID pgtype.UUID) (GetActorAnnotationCountsRow, error) {
+	row := q.db.QueryRow(ctx, getActorAnnotationCounts, actorID)
+	var i GetActorAnnotationCountsRow
+	err := row.Scan(&i.AnnotatedSites, &i.TodayAnnotatedSites)
+	return i, err
+}
+
+const getAnnotationStatusCounts = `-- name: GetAnnotationStatusCounts :one
+SELECT count(*)::bigint AS total,
+       count(*) FILTER (WHERE blog_status = 'UNREVIEWED')::bigint AS unreviewed,
+       count(*) FILTER (WHERE blog_status = 'BLOG')::bigint AS blog,
+       count(*) FILTER (WHERE blog_status = 'HYBRID')::bigint AS hybrid,
+       count(*) FILTER (WHERE blog_status = 'NON_BLOG')::bigint AS non_blog
+  FROM directory.sites
+`
+
+type GetAnnotationStatusCountsRow struct {
+	Total      int64
+	Unreviewed int64
+	Blog       int64
+	Hybrid     int64
+	NonBlog    int64
+}
+
+func (q *Queries) GetAnnotationStatusCounts(ctx context.Context) (GetAnnotationStatusCountsRow, error) {
+	row := q.db.QueryRow(ctx, getAnnotationStatusCounts)
+	var i GetAnnotationStatusCountsRow
+	err := row.Scan(
+		&i.Total,
+		&i.Unreviewed,
+		&i.Blog,
+		&i.Hybrid,
+		&i.NonBlog,
+	)
+	return i, err
+}
+
 const insertSiteAnnotationHistory = `-- name: InsertSiteAnnotationHistory :exec
 INSERT INTO directory.site_annotation_history (
     site_id, actor_id, site_revision, source, site_audit_id, reason, before_snapshot, after_snapshot
@@ -332,6 +383,22 @@ func (q *Queries) ListSiteAnnotationHistory(ctx context.Context, arg ListSiteAnn
 		return nil, err
 	}
 	return items, nil
+}
+
+const pickNextUnreviewedAnnotationSite = `-- name: PickNextUnreviewedAnnotationSite :one
+SELECT short_id
+  FROM directory.sites
+ WHERE blog_status = 'UNREVIEWED'
+   AND ($1::text = '' OR short_id <> $1)
+ ORDER BY random()
+ LIMIT 1
+`
+
+func (q *Queries) PickNextUnreviewedAnnotationSite(ctx context.Context, excludeShortID string) (string, error) {
+	row := q.db.QueryRow(ctx, pickNextUnreviewedAnnotationSite, excludeShortID)
+	var short_id string
+	err := row.Scan(&short_id)
+	return short_id, err
 }
 
 const updateSiteAnnotation = `-- name: UpdateSiteAnnotation :one
