@@ -152,7 +152,18 @@ for tag in "$@"; do
   for image in api worker web; do
     target=${registry}/${namespace}/${image}:${tag}
     ${docker_command} tag "${image}:local" "${target}"
-    ${docker_command} push "${target}"
+    if [ -z "${PUBLISH_DIGESTS_FILE:-}" ]; then
+      ${docker_command} push "${target}"
+      continue
+    fi
+    pushed=$(${docker_command} push "${target}")
+    printf '%s\n' "${pushed}"
+    digest=$(printf '%s\n' "${pushed}" | awk -v label="${tag}:" '$1 == label && $2 == "digest:" { print $3 }')
+    if ! [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+      printf 'could not read the published digest for %s\n' "${target}" >&2
+      exit 1
+    fi
+    printf '%s %s\n' "${image}" "${digest}" >>"${PUBLISH_DIGESTS_FILE}"
   done
 done
 ''',

@@ -170,6 +170,7 @@ description = "Run all configured tests"
 run = [
   { task = "version:test" },
   { task = "hooks:test" },
+  { task = "deployer:test" },
   { task = "//apps/api:test" },
   { task = "//apps/worker:test" },
   { task = "//packages/go/edgerequest:test" },
@@ -177,6 +178,10 @@ run = [
   { task = "//apps/web:test" },
   { task = "//apps/edge:test" },
 ]
+
+["deployer:test"]
+description = "Test the deployment webhook, live checks, and container rollback"
+run = "GOWORK=off go -C apps/deployer test -race ./..."
 
 ["test:race"]
 description = "Run race-enabled tests"

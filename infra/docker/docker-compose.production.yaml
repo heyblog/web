@@ -24,7 +24,7 @@ services:
       - private
 
   api:
-    image: ${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/api:${IMAGE_TAG:-latest}
+    image: ${API_IMAGE:-${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/api:${IMAGE_TAG:-latest}}
     pull_policy: always
     restart: unless-stopped
     environment:
@@ -72,7 +72,7 @@ services:
       - private
 
   worker:
-    image: ${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/worker:${IMAGE_TAG:-latest}
+    image: ${WORKER_IMAGE:-${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/worker:${IMAGE_TAG:-latest}}
     pull_policy: always
     restart: unless-stopped
     environment:
@@ -90,7 +90,7 @@ services:
       - private
 
   web:
-    image: ${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/web:${IMAGE_TAG:-latest}
+    image: ${WEB_IMAGE:-${REGISTRY:-sgccr.ccs.tencentyun.com}/${NAMESPACE:-heyblog}/web:${IMAGE_TAG:-latest}}
     pull_policy: always
     restart: unless-stopped
     environment:

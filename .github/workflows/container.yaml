@@ -76,6 +76,8 @@ jobs:
     needs: source
     if: needs.source.outputs.build == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.release.outputs.images }}
     steps:
       - name: Checkout verified main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,10 +111,22 @@ jobs:
           username: ${{ secrets.TENCENT_CCR_USERNAME }}
           password: ${{ secrets.TENCENT_CCR_PASSWORD }}
       - name: Publish immutable images
+        id: release
         if: needs.source.outputs.publish == 'true'
+        shell: bash
         env:
           IMAGE_TAGS: ${{ needs.source.outputs.sha }}
-        run: mise run container:publish
+          DEPLOY_ENABLED: ${{ vars.PRODUCTION_DEPLOY_ENABLED }}
+        run: |
+          if [ "${DEPLOY_ENABLED}" = 'true' ]; then
+            PUBLISH_DIGESTS_FILE=$(mktemp)
+            export PUBLISH_DIGESTS_FILE
+          fi
+          mise run container:publish
+          if [ -n "${PUBLISH_DIGESTS_FILE:-}" ]; then
+            images=$(jq -Rnec '[inputs | split(" ") | {(.[0]): .[1]}] | add' "${PUBLISH_DIGESTS_FILE}")
+            printf 'images=%s\n' "${images}" >>"${GITHUB_OUTPUT}"
+          fi
       - name: Publish latest images when main is current
         if: needs.source.outputs.publish == 'true'
         env:
@@ -127,3 +141,79 @@ jobs:
           else
             printf '跳过 latest 更新：源码 SHA %s 与当前 main SHA %s 不一致；SHA 标签已发布。\n' "${SOURCE_SHA}" "${remote_sha}" | tee -a "${GITHUB_STEP_SUMMARY}"
           fi
+  deploy:
+    name: Deploy and check production
+    needs: [source, container]
+    if: vars.PRODUCTION_DEPLOY_ENABLED == 'true' && needs.container.outputs.images != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: production
+    concurrency:
+      group: heyblog-production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Deploy current main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          RELEASE_IMAGES: ${{ needs.container.outputs.images }}
+          DEPLOYER_NOTIFY_URL: ${{ vars.DEPLOYER_NOTIFY_URL }}
+          DEPLOYER_NOTIFY_SECRET: ${{ secrets.DEPLOYER_NOTIFY_SECRET }}
+        shell: bash
+        run: |
+          remote_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          if [ "${remote_sha}" != "${SOURCE_SHA}" ]; then
+            printf 'Skipping deployment for superseded commit %s.\n' "${SOURCE_SHA}" >>"${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          node --input-type=module <<'NODE'
+          import { createHmac } from 'node:crypto';
+          import { setTimeout } from 'node:timers/promises';
+          import { appendFileSync } from 'node:fs';
+
+          const { DEPLOYER_NOTIFY_URL, DEPLOYER_NOTIFY_SECRET, SOURCE_SHA, RELEASE_IMAGES } = process.env;
+          if (!DEPLOYER_NOTIFY_URL || !DEPLOYER_NOTIFY_SECRET) {
+            throw new Error('Configure the production deployment URL and signing secret.');
+          }
+          const url = new URL(DEPLOYER_NOTIFY_URL);
+          if (url.protocol !== 'https:' || url.pathname !== '/webhooks/deploy' ||
+              url.username || url.password || url.search || url.hash) {
+            throw new Error('The production deployment URL must be HTTPS and use /webhooks/deploy.');
+          }
+          const id = process.env.GITHUB_RUN_ID + '-' + process.env.GITHUB_RUN_ATTEMPT;
+          const body = JSON.stringify({ id, commit_sha: SOURCE_SHA, images: JSON.parse(RELEASE_IMAGES) });
+          const statusURL = new URL(url);
+          statusURL.pathname += '/' + id;
+
+          async function request(target, method, message, payload) {
+            const signature = createHmac('sha256', DEPLOYER_NOTIFY_SECRET).update(message).digest('hex');
+            for (let attempt = 1; ; attempt++) {
+              try {
+                const response = await fetch(target, {
+                  method, body: payload, redirect: 'error', signal: AbortSignal.timeout(10000),
+                  headers: { 'content-type': 'application/json', 'x-zhblogs-signature-256': 'sha256=' + signature },
+                });
+                if (attempt === 3 || ![502, 503, 504].includes(response.status)) return response;
+                await response.body?.cancel();
+              } catch (error) {
+                if (attempt === 3) throw error;
+              }
+              await setTimeout(2000);
+            }
+          }
+
+          const accepted = await request(url, 'POST', body, body);
+          if (!accepted.ok) throw new Error('Deployer rejected the release (HTTP ' + accepted.status + ').');
+          let status = await accepted.json();
+          for (let attempt = 0; status.status === 'running' && attempt < 110; attempt++) {
+            await setTimeout(5000);
+            const response = await request(statusURL, 'GET', 'GET ' + statusURL.pathname);
+            if (!response.ok) throw new Error('Deployment status unavailable (HTTP ' + response.status + ').');
+            status = await response.json();
+          }
+          if (status.id !== id || status.commit_sha !== SOURCE_SHA) {
+            throw new Error('Deployer returned a different release.');
+          }
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Production ' + SOURCE_SHA + ': ' + status.status + '\n');
+          if (status.status !== 'success') throw new Error('Production deployment result: ' + status.status);
+          NODE
