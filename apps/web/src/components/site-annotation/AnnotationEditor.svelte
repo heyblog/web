@@ -17,6 +17,12 @@
     annotationPatch,
   } from '@/application/site-annotation/annotation-draft';
   import {
+    isPreviewWindowOpen,
+    openPreviewWindow,
+    readPreviewLinkedPreference,
+    writePreviewLinkedPreference,
+  } from '@/application/site-annotation/annotation-preview.browser';
+  import {
     annotationDetailPath,
     annotationFailure,
     annotationTime,
@@ -59,6 +65,11 @@
   let loading = $state(false);
   let navigatingNext = $state(false);
   let ready = $state(false);
+  let previewLinked = $state(false);
+  let previewNotice = $state('');
+  let prefetched = $state.raw<AnnotationDetail | null>(null);
+  let prefetchStatus = $state<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle');
+  let prefetchToken = 0;
   let nextKey = -1;
 
   const patch = $derived(annotationPatch(draft, detail, reason));
@@ -89,12 +100,99 @@
     }
   }
 
+  function syncHistoryLink(shortId: string) {
+    const historyLink = document.querySelector<HTMLAnchorElement>('[data-annotation-history-link]');
+    if (historyLink) historyLink.href = `${annotationDetailPath(shortId)}/history`;
+  }
+
+  function openInPreview(url: string | null, options?: { focus?: boolean; enableLink?: boolean }) {
+    if (!url) return;
+    const opened = openPreviewWindow(url, { focus: options?.focus });
+    if (!opened) {
+      previewNotice = '浏览器拦截了右侧预览窗，请允许本站弹窗后重试。';
+      return;
+    }
+    previewNotice = '';
+    if (options?.enableLink !== false) {
+      previewLinked = true;
+      writePreviewLinkedPreference(true);
+    }
+  }
+
+  async function prefetchNext(excludeShortId: string) {
+    const token = ++prefetchToken;
+    prefetched = null;
+    prefetchStatus = 'loading';
+    const nextResult = await requestNextAnnotation(excludeShortId);
+    if (token !== prefetchToken) return;
+    if (nextResult.kind === 'empty') {
+      prefetchStatus = 'empty';
+      return;
+    }
+    if (nextResult.kind !== 'ready') {
+      prefetchStatus = 'error';
+      return;
+    }
+    const detailResult = await requestAnnotation(nextResult.shortId);
+    if (token !== prefetchToken) return;
+    if (detailResult.kind === 'ready') {
+      prefetched = detailResult.detail;
+      prefetchStatus = 'ready';
+    } else {
+      prefetchStatus = 'error';
+    }
+  }
+
+  function switchToDetail(nextDetail: AnnotationDetail, options?: { pushHistory?: boolean }) {
+    replaceDraft(nextDetail);
+    message = '';
+    previewNotice = '';
+    syncHistoryLink(nextDetail.short_id);
+    if (options?.pushHistory !== false) {
+      window.history.pushState(
+        { shortId: nextDetail.short_id },
+        '',
+        annotationDetailPath(nextDetail.short_id),
+      );
+    }
+    if (previewLinked || isPreviewWindowOpen()) {
+      const targetUrl = externalHref(nextDetail.url);
+      if (targetUrl) openInPreview(targetUrl, { focus: false, enableLink: true });
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    void prefetchNext(nextDetail.short_id);
+  }
+
   onMount(() => {
     ready = true;
-    return protectFormDraft(() => ({
+    previewLinked = readPreviewLinkedPreference() || isPreviewWindowOpen();
+    syncHistoryLink(detail.short_id);
+    window.history.replaceState({ shortId: detail.short_id }, '', window.location.href);
+    void prefetchNext(detail.short_id);
+
+    const onPopState = () => {
+      const match = /^\/annotation\/([^/]+)\/?$/u.exec(window.location.pathname);
+      const targetId = match?.[1] ? decodeURIComponent(match[1]) : '';
+      if (!targetId || targetId === detail.short_id) return;
+      loading = true;
+      void requestAnnotation(targetId).then((result) => {
+        loading = false;
+        if (result.kind === 'ready') {
+          switchToDetail(result.detail, { pushHistory: false });
+        } else {
+          window.location.reload();
+        }
+      });
+    };
+    window.addEventListener('popstate', onPopState);
+    const cleanupGuard = protectFormDraft(() => ({
       dirty: patch !== null || Boolean(reason.trim()),
       busy: saving,
     }));
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      cleanupGuard();
+    };
   });
 
   function allocateKey() {
@@ -110,16 +208,35 @@
     error = '';
   }
 
-  async function goNext() {
+  async function goNext(options?: { skipDirtyCheck?: boolean }) {
     if (navigatingNext || saving || loading) return;
+    if (!options?.skipDirtyCheck && (patch !== null || Boolean(reason.trim()))) {
+      if (!window.confirm('当前页面有未保存的改动，确定跳过并切换到下一个博客吗？')) return;
+    }
+
+    // 预加载已就绪时同步瞬切，并在同一点击手势内联动右侧预览窗
+    if (prefetched && prefetched.short_id !== detail.short_id) {
+      const nextDetail = prefetched;
+      prefetched = null;
+      prefetchStatus = 'idle';
+      switchToDetail(nextDetail);
+      return;
+    }
+
     navigatingNext = true;
     message = '';
     error = '';
     try {
       const result = await requestNextAnnotation(detail.short_id);
       if (result.kind === 'ready') {
-        window.location.assign(annotationDetailPath(result.shortId));
+        const detailResult = await requestAnnotation(result.shortId);
+        if (detailResult.kind === 'ready') {
+          switchToDetail(detailResult.detail);
+        } else {
+          window.location.assign(annotationDetailPath(result.shortId));
+        }
       } else if (result.kind === 'empty') {
+        prefetchStatus = 'empty';
         message = '没有更多待标注的博客了。';
       } else {
         error = annotationFailure(result.status, 'load');
@@ -156,7 +273,7 @@
       saving = false;
     }
     if (saved && andNext) {
-      await goNext();
+      await goNext({ skipDirtyCheck: true });
     }
   }
 
@@ -201,20 +318,31 @@
           </div>
           <div class="flex flex-wrap items-center gap-3">
             {#if siteHref}
+              <button
+                class={buttonClass}
+                type="button"
+                disabled={!ready}
+                onclick={() => openInPreview(siteHref, { focus: true, enableLink: true })}
+              >
+                {previewLinked ? '右窗联动中 · 打开站点' : '右侧预览窗 ↗'}
+              </button>
               <a class={linkClass} href={siteHref} target="_blank" rel="noopener noreferrer"
-                >打开站点 ↗</a
+                >新标签页 ↗</a
               >
             {/if}
             <button
               class={buttonClass}
               type="button"
               disabled={!ready || saving || loading || navigatingNext}
-              onclick={goNext}
+              onclick={() => goNext()}
             >
               {navigatingNext ? '正在抽取…' : '下一个博客 →'}
             </button>
           </div>
         </div>
+        {#if previewNotice}
+          <p class="text-sm text-warning-fg" role="status">{previewNotice}</p>
+        {/if}
 
         <fieldset class="grid min-w-0 gap-2">
           <legend class="text-sm font-medium">是否为博客</legend>
@@ -246,12 +374,21 @@
           <div class="flex items-center justify-between gap-2">
             <label for="annotation-link-page">友链页面</label>
             {#if linkPageHref}
-              <a
-                class="text-xs font-medium text-tint-fg hover:underline"
-                href={linkPageHref}
-                target="_blank"
-                rel="noopener noreferrer">新标签页打开 ↗</a
-              >
+              <div class="flex items-center gap-3">
+                <button
+                  class="cursor-pointer text-xs font-medium text-tint-fg hover:underline"
+                  type="button"
+                  disabled={!ready}
+                  onclick={() => openInPreview(linkPageHref, { focus: true, enableLink: true })}
+                  >右窗打开</button
+                >
+                <a
+                  class="text-xs font-medium text-tint-fg hover:underline"
+                  href={linkPageHref}
+                  target="_blank"
+                  rel="noopener noreferrer">新标签页打开 ↗</a
+                >
+              </div>
             {/if}
           </div>
           <input
@@ -275,7 +412,9 @@
         >
         <div class="flex flex-wrap items-center justify-between gap-3">
           <p class="text-sm text-fg-muted">
-            修订号 {detail.revision}{patch ? ' · 有未保存的改动' : ''}
+            修订号 {detail.revision}{patch ? ' · 有未保存的改动' : ''}{prefetchStatus === 'ready'
+              ? ' · 已预加载下一个'
+              : ''}
           </p>
           <div class="flex flex-wrap items-center gap-3">
             <button

@@ -50,7 +50,11 @@ if (!detail) Astro.response.status = detailStatus;
       站点目录
     </a>
     {detail && (
-      <a class={linkClass} href={`${annotationDetailPath(shortId)}/history`}>
+      <a
+        class={linkClass}
+        data-annotation-history-link
+        href={`${annotationDetailPath(shortId)}/history`}
+      >
         变更记录
       </a>
     )}
