@@ -403,7 +403,14 @@
         </div>
       </section>
 
-      <AnnotationLinks bind:draft incoming={detail.incoming} {allocateKey} section="outgoing" />
+      <AnnotationLinks
+        bind:draft
+        incoming={detail.incoming}
+        {allocateKey}
+        section="outgoing"
+        siteUrl={draft.url}
+        onPreview={(url) => openInPreview(url, { focus: true, enableLink: true })}
+      />
 
       <section class={sectionClass} aria-labelledby="annotation-save">
         <h2 id="annotation-save" class="text-lg font-semibold">保存标注</h2>
