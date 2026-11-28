@@ -21,10 +21,10 @@ func TestMonitoringUpgradeFromDeployedBaseline(t *testing.T) {
 		(short_id,name,scheme,normalized_host,base_path,access_scope,visibility)
 		VALUES('Upgrade01','Deployed content','https','upgrade.example.test','/','CN_ONLY','VISIBLE')
 		RETURNING id::text,revision,updated_at`).Scan(&id, &revision, &updated))
-	// When the three final migrations are applied.
+	// When the remaining migrations are applied.
 	results, err := upgraded.provider.Up(t.Context())
 	require.NoError(t, err)
-	require.Len(t, results, 3)
+	require.Len(t, results, 4)
 	var name string
 	var scope, status *string
 	var actualRevision int64
@@ -52,7 +52,7 @@ func TestMonitoringUpgradeFromDeployedBaseline(t *testing.T) {
 	require.Empty(t, results)
 	version, err := upgraded.provider.GetDBVersion(t.Context())
 	require.NoError(t, err)
-	require.EqualValues(t, 23, version)
+	require.EqualValues(t, 24, version)
 }
 
 func monitoringSchemaSnapshot(t *testing.T, fixture auditMigrationFixture) string {
