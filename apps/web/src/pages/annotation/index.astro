@@ -52,6 +52,11 @@ const statusBreakdown = stats
         badgeClass: 'bg-success-bg text-success-fg',
       },
       {
+        status: 'HYBRID' as const,
+        count: stats.hybrid,
+        badgeClass: 'bg-subtle text-tint-fg',
+      },
+      {
         status: 'NON_BLOG' as const,
         count: stats.non_blog,
         badgeClass: 'bg-subtle text-fg-muted',
@@ -101,7 +106,7 @@ const statusBreakdown = stats
             进入站点目录
           </a>
         </div>
-        <ul class="grid gap-3 sm:grid-cols-3">
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {statusBreakdown.map((item) => (
             <li class="rounded-md border border-line p-4">
               <a

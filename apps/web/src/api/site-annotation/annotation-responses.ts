@@ -146,6 +146,7 @@ export function parseAnnotationStats(value: unknown): AnnotationStats {
     annotated: int(stats.annotated),
     unreviewed: int(stats.unreviewed),
     blog: int(stats.blog),
+    hybrid: int(stats.hybrid),
     non_blog: int(stats.non_blog),
     actor_annotated: int(stats.actor_annotated),
     actor_today_annotated: int(stats.actor_today_annotated),

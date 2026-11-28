@@ -94,7 +94,9 @@ if (!data) Astro.response.status = responseStatus;
                       ? 'bg-success-bg text-success-fg'
                       : site.blog_status === 'UNREVIEWED'
                         ? 'bg-warning-bg text-warning-fg'
-                        : 'bg-subtle text-fg-muted',
+                        : site.blog_status === 'HYBRID'
+                          ? 'bg-subtle text-tint-fg'
+                          : 'bg-subtle text-fg-muted',
                   ]}
                 >
                   {statusLabels[site.blog_status]}

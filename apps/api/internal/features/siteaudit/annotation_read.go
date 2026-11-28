@@ -214,9 +214,10 @@ func (repo *Repository) annotationStats(ctx context.Context, actorIDText string)
 	}
 	return AnnotationStats{
 		Total:               statusCounts.Total,
-		Annotated:           statusCounts.Blog + statusCounts.NonBlog,
+		Annotated:           statusCounts.Blog + statusCounts.Hybrid + statusCounts.NonBlog,
 		Unreviewed:          statusCounts.Unreviewed,
 		Blog:                statusCounts.Blog,
+		Hybrid:              statusCounts.Hybrid,
 		NonBlog:             statusCounts.NonBlog,
 		ActorAnnotated:      actorCounts.AnnotatedSites,
 		ActorTodayAnnotated: actorCounts.TodayAnnotatedSites,

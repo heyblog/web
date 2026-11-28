@@ -5,7 +5,7 @@ import type {
   ResourceInput,
 } from '../site-submission/site-submission.types.ts';
 
-export const blogStatuses = ['UNREVIEWED', 'BLOG', 'NON_BLOG'] as const;
+export const blogStatuses = ['UNREVIEWED', 'BLOG', 'HYBRID', 'NON_BLOG'] as const;
 export const annotationFilters = [...blogStatuses, 'ALL'] as const;
 export const accessScopes = ['ALL', 'CN', 'GL'] as const;
 export const tagRoles = ['TERTIARY', 'WARNING'] as const;
@@ -124,6 +124,7 @@ export interface AnnotationStats {
   readonly annotated: number;
   readonly unreviewed: number;
   readonly blog: number;
+  readonly hybrid: number;
   readonly non_blog: number;
   readonly actor_annotated: number;
   readonly actor_today_annotated: number;

@@ -93,6 +93,7 @@ const getAnnotationStatusCounts = `-- name: GetAnnotationStatusCounts :one
 SELECT count(*)::bigint AS total,
        count(*) FILTER (WHERE blog_status = 'UNREVIEWED')::bigint AS unreviewed,
        count(*) FILTER (WHERE blog_status = 'BLOG')::bigint AS blog,
+       count(*) FILTER (WHERE blog_status = 'HYBRID')::bigint AS hybrid,
        count(*) FILTER (WHERE blog_status = 'NON_BLOG')::bigint AS non_blog
   FROM directory.sites
 `
@@ -101,6 +102,7 @@ type GetAnnotationStatusCountsRow struct {
 	Total      int64
 	Unreviewed int64
 	Blog       int64
+	Hybrid     int64
 	NonBlog    int64
 }
 
@@ -111,6 +113,7 @@ func (q *Queries) GetAnnotationStatusCounts(ctx context.Context) (GetAnnotationS
 		&i.Total,
 		&i.Unreviewed,
 		&i.Blog,
+		&i.Hybrid,
 		&i.NonBlog,
 	)
 	return i, err

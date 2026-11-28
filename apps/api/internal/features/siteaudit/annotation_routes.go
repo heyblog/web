@@ -17,7 +17,7 @@ const annotationPageSize = 20
 
 type annotationListInput struct {
 	Query  string `query:"q" maxLength:"160"`
-	Status string `query:"status" enum:"UNREVIEWED,BLOG,NON_BLOG,ALL"`
+	Status string `query:"status" enum:"UNREVIEWED,BLOG,HYBRID,NON_BLOG,ALL"`
 	Page   string `query:"page"`
 }
 

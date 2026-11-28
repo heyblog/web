@@ -346,7 +346,7 @@
 
         <fieldset class="grid min-w-0 gap-2">
           <legend class="text-sm font-medium">是否为博客</legend>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {#each blogStatuses as status (status)}
               {@const selected = draft.blog_status === status}
               <label

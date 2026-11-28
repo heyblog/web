@@ -92,6 +92,7 @@ SELECT COALESCE(MAX(site_revision), 0)::bigint
 SELECT count(*)::bigint AS total,
        count(*) FILTER (WHERE blog_status = 'UNREVIEWED')::bigint AS unreviewed,
        count(*) FILTER (WHERE blog_status = 'BLOG')::bigint AS blog,
+       count(*) FILTER (WHERE blog_status = 'HYBRID')::bigint AS hybrid,
        count(*) FILTER (WHERE blog_status = 'NON_BLOG')::bigint AS non_blog
   FROM directory.sites;
 

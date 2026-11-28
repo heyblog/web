@@ -16,6 +16,7 @@ export function annotationDetailPath(shortId: string): string {
 export const statusLabels = {
   UNREVIEWED: '待标注',
   BLOG: '博客',
+  HYBRID: '混合',
   NON_BLOG: '非博客',
   ALL: '全部',
 } satisfies Record<AnnotationItem['blog_status'] | 'ALL', string>;
