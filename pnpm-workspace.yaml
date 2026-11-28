@@ -24,6 +24,8 @@ minimumReleaseAgeExclude:
   - '@astrojs/svelte@9.1.2'
   # Renovate security update: astro@7.4.7
   - astro@7.4.7
+  # Renovate security update: hono@4.13.16
+  - hono@4.13.16
 trustPolicy: no-downgrade
 trustPolicyExclude:
   # Exact locked version reviewed after pnpm reported a registry trust downgrade.
